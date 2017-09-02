@@ -68,7 +68,6 @@ class Test4 {
   size_t size();
 };
 
-
 }  // namespace test_has_data_and_size
 
 namespace type_traits_impl {

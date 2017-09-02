@@ -9,9 +9,20 @@ namespace ConsoleApp1
 {
     class Program
     {
+        static void HandleMessage(string message)
+        {
+       
+            Console.WriteLine(message);
+        }
         static void Main(string[] args)
         {
-            new Class1().HelloWorld();
+            using (var rtc = new WebRtc())
+            {
+                Action<string> displayMessage = HandleMessage;
+                rtc.SetCallback(displayMessage);
+                rtc.InitializeSSL();
+            }
+            
             Console.Read();
         }
     }
