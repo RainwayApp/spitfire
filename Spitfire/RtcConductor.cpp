@@ -82,7 +82,9 @@ namespace Spitfire
 	//	worker_thread_->Start();
 	//	signaling_thread_->Start();
 
-		pc_factory_ = webrtc::CreatePeerConnectionFactory();
+		pc_factory_ = webrtc::CreatePeerConnectionFactory(rtc::Thread::Current(), rtc::Thread::Current(), rtc::Thread::Current(), FakeAudioCaptureModule::Create(),
+			new FakeWebRtcVideoEncoderFactory(),
+			new FakeWebRtcVideoDecoderFactory());
 
 		if (!pc_factory_)
 		{
