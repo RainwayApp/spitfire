@@ -14,41 +14,41 @@ namespace Spitfire {
 		public:
 
 			// Triggered when the SignalingState changed.
-			virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state);
+			void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
 
 			virtual void OnStateChange(StateType state_changed) { /* Obsolete. Ignore. */ }
 
 			// Triggered when media is received on a new stream from remote peer.
-			virtual void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
+			void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override
 			{
 				LOG(INFO) << __FUNCTION__ << " ";
 			}
 
-			virtual void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
+			void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override
 			{
 				LOG(INFO) << __FUNCTION__ << " ";
 			}
 
 
 			// Triggered when a remote peer open a data channel.
-			virtual void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel);
+			void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
 
 			// Triggered when renegotiation is needed, for example the ICE has restarted.
-			virtual void OnRenegotiationNeeded();
+			void OnRenegotiationNeeded() override;
 
 			// Called any time the IceConnectionState changes
-			virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state);
+			void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
 
 			// Called any time the IceGatheringState changes
-			virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state);
+			void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
 
 			// New Ice candidate have been found.
-			virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
+			void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
 
 			virtual void OnIceComplete() { /* Obsolete. Ignore. */ }
 
 			// Called when the ICE connection receiving status changes.
-			virtual void OnIceConnectionReceivingChange(bool receiving) { /* Not Implemented */ };
+			void OnIceConnectionReceivingChange(bool receiving) override { /* Not Implemented */ };
 
 			explicit PeerConnectionObserver(RtcConductor* manager);
 			~PeerConnectionObserver();

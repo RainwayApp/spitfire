@@ -144,6 +144,10 @@ namespace Spitfire
 			_OnDataChannelStateCallback ^ onDataChannelStateChange;
 			GCHandle ^ onDataChannelStateHandle;
 
+			delegate void _OnBufferChangeCallback(uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived);
+			_OnBufferChangeCallback ^ onBufferAmountChange;
+			GCHandle ^ onBufferAmountChangeHandle;
+
 
 			delegate void _OnIceStateCallback(webrtc::PeerConnectionInterface::IceConnectionState state);
 			_OnIceStateCallback ^ onIceStateChange;
@@ -217,6 +221,11 @@ namespace Spitfire
 				OnIceStateChange(managedState);
 			}
 
+			void _OnBufferAmountChange(uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived)
+			{
+				OnBufferAmountChange(previousAmount, currentAmount, bytesSent, bytesReceived);
+			}
+
 			void _OnDataChannelState(webrtc::DataChannelInterface::DataState state)
 			{
 				if (state == webrtc::DataChannelInterface::DataState::kOpen)
@@ -266,6 +275,9 @@ namespace Spitfire
 			delegate void IceStateChange(IceConnectionState msg);
 			event IceStateChange ^ OnIceStateChange;
 
+			delegate void BufferChange(long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
+			event BufferChange ^ OnBufferAmountChange;
+
 			SpitfireRtc()
 			{
 				m_isDisposed = false;
@@ -304,6 +316,11 @@ namespace Spitfire
 				onIceStateChange = gcnew _OnIceStateCallback(this, &SpitfireRtc::_OnIceState);
 				onIceStateCallbackHandle = GCHandle::Alloc(onIceStateChange);
 				_conductor->onIceStateChange = static_cast<Spitfire::OnIceStateChangeCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceStateChange).ToPointer());
+
+
+				onBufferAmountChange = gcnew _OnBufferChangeCallback(this, &SpitfireRtc::_OnBufferAmountChange);
+				onBufferAmountChangeHandle = GCHandle::Alloc(onBufferAmountChange);
+				_conductor->onBufferAmountChange = static_cast<Spitfire::OnBufferAmountCallbackNative>(Marshal::GetFunctionPointerForDelegate(onBufferAmountChange).ToPointer());
 			}
 
 			~SpitfireRtc()
@@ -321,6 +338,10 @@ namespace Spitfire
 				FreeGCHandle(onDataMessageHandle);
 				FreeGCHandle(onDataBinaryMessageHandle);
 				FreeGCHandle(onDataChannelStateHandle);
+				if (_conductor != nullptr)
+				{
+					_conductor->DeletePeerConnection();
+				}
 
 				this->!SpitfireRtc(); // call finalizer
 
@@ -386,7 +407,7 @@ namespace Spitfire
 			{
 				_conductor->DataChannelSendText(marshal_as<std::string>(text));
 			}
-
+			
 			void DataChannelSendData(array<Byte>^ array_data)
 			{
 				pin_ptr<uint8_t> thePtr = &array_data[0];

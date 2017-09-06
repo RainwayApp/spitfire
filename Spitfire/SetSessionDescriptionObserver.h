@@ -12,16 +12,16 @@ namespace Spitfire {
 		public:
 
 			~SetSessionDescriptionObserver();
-			SetSessionDescriptionObserver(RtcConductor* manager);
+			 explicit SetSessionDescriptionObserver(RtcConductor* manager);
 
-			virtual void OnSuccess();
-			virtual void OnFailure(const std::string& error);
+			 void OnSuccess() override;
+			 void OnFailure(const std::string& error) override;
 
-			int AddRef() const
+			int AddRef() const override
 			{
 				return 0;
 			};
-			int Release() const
+			int Release() const override
 			{
 				return 0;
 			};

@@ -17,16 +17,16 @@ namespace Spitfire {
 		public:
 
 
-			virtual void OnSuccess(webrtc::SessionDescriptionInterface * desc);
-			virtual void OnFailure(const std::string & error);
-			CreateSessionDescriptionObserver(RtcConductor* manager);
+			void OnSuccess(webrtc::SessionDescriptionInterface * desc) override;
+			void OnFailure(const std::string & error) override;
+			explicit CreateSessionDescriptionObserver(RtcConductor* manager);
 			~CreateSessionDescriptionObserver();
 
-			int AddRef() const
+			int AddRef() const override
 			{
 				return 0;
 			};
-			int Release() const
+			int Release() const override
 			{
 				return 0;
 			};

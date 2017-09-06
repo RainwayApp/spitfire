@@ -19,13 +19,13 @@ namespace Spitfire
 	typedef void(__stdcall *OnErrorCallbackNative)();
 	typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
-	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
-	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frame_buffer, uint32_t w, uint32_t h);
+	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdpMid, int sdpIndex, const char * sdp);
+	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frameBuffer, uint32_t w, uint32_t h);
 	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * msg);
 	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const uint8_t * msg, uint32_t size);
 	typedef void(__stdcall *OnIceStateChangeCallbackNative)(webrtc::PeerConnectionInterface::IceConnectionState state);
 	typedef void(__stdcall *OnDataChannelStateCallbackNative)(webrtc::DataChannelInterface::DataState state);
-
+	typedef void(__stdcall *OnBufferAmountCallbackNative)(uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived);
 
 	class RtcConductor 
 	{
@@ -58,6 +58,7 @@ namespace Spitfire
 		OnIceStateChangeCallbackNative onIceStateChange;
 		OnIceCandidateCallbackNative onIceCandidate;
 		OnDataChannelStateCallbackNative onDataChannelState;
+		OnBufferAmountCallbackNative onBufferAmountChange;
 		OnDataMessageCallbackNative onDataMessage;
 		OnDataBinaryMessageCallbackNative onDataBinaryMessage;
 
@@ -80,9 +81,9 @@ namespace Spitfire
 		
 	private:
 
-		std::unique_ptr<rtc::Thread> worker_thread_;
-		std::unique_ptr<rtc::Thread> signaling_thread_;
-		std::unique_ptr<rtc::Thread> network_thread_;
+		rtc::Thread* worker_thread_;
+		rtc::Thread* signaling_thread_;
+		rtc::Thread* network_thread_;
 
 		bool CreatePeerConnection(bool dtls);
 	

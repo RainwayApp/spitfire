@@ -56,9 +56,9 @@ namespace Spitfire
 		}
 		serverConfigs.clear();
 
-	//	network_thread_->Stop();
-	//	worker_thread_->Stop();
-	//	signaling_thread_->Stop();
+	    network_thread_->Stop();
+	    worker_thread_->Stop();
+	    signaling_thread_->Stop();
 		rtc::Thread::Current()->Stop();
 
 
@@ -67,22 +67,20 @@ namespace Spitfire
 	bool RtcConductor::InitializePeerConnection()
 	{
 		
-		rtc::LogMessage::LogTimestamps();
-		rtc::LogMessage::LogThreads();
-		rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
-		rtc::LogMessage::SetLogToStderr(true);
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
 		RTC_DCHECK(pc_factory_ == nullptr);
 		RTC_DCHECK(peerObserver->peerConnection == nullptr);
 
-		//network_thread_.reset(rtc::Thread::CreateWithSocketServer().release());
-		//worker_thread_.reset(rtc::Thread::Create().release());
-		//signaling_thread_.reset(rtc::Thread::Create().release());
-		//network_thread_->Start();
-	//	worker_thread_->Start();
-	//	signaling_thread_->Start();
+		network_thread_ = rtc::Thread::CreateWithSocketServer().release();
+		worker_thread_ = rtc::Thread::Create().release();
+		signaling_thread_ = rtc::Thread::Create().release();
 
-		pc_factory_ = webrtc::CreatePeerConnectionFactory(rtc::Thread::Current(), rtc::Thread::Current(), rtc::Thread::Current(), FakeAudioCaptureModule::Create(),
+
+		network_thread_->Start();
+		worker_thread_->Start();
+		signaling_thread_->Start();
+
+		pc_factory_ = webrtc::CreatePeerConnectionFactory(network_thread_, worker_thread_, signaling_thread_, FakeAudioCaptureModule::Create(),
 			new FakeWebRtcVideoEncoderFactory(),
 			new FakeWebRtcVideoDecoderFactory());
 

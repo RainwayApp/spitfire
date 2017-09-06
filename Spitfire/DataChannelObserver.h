@@ -18,16 +18,13 @@ namespace Spitfire {
 		{
 		public:
 			// The data channel state have changed.
-			virtual void OnStateChange();
+			void OnStateChange() override;
 
 			//  A data buffer was successfully received.
-			virtual void OnMessage(const webrtc::DataBuffer & buffer);
+			void OnMessage(const webrtc::DataBuffer & buffer) override;
 
 			// The data channel's buffered_amount has changed.
-			virtual void OnBufferedAmountChange(uint64_t previous_amount)
-			{
-
-			}
+			void OnBufferedAmountChange(uint64_t previous_amount) override;
 
 			explicit DataChannelObserver(RtcConductor* manager);
 			~DataChannelObserver();

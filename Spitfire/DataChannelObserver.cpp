@@ -10,6 +10,14 @@ void Spitfire::Observers::DataChannelObserver::OnStateChange()
 	}
 }
 
+void Spitfire::Observers::DataChannelObserver::OnBufferedAmountChange(uint64_t previous_amount)
+{
+	if (_manager->onBufferAmountChange != nullptr)
+	{
+		_manager->onBufferAmountChange(previous_amount, dataChannel->buffered_amount(), dataChannel->bytes_sent(), dataChannel->bytes_received());
+	}
+}
+
 void Spitfire::Observers::DataChannelObserver::OnMessage(const webrtc::DataBuffer & buffer)
 {
 	if (buffer.binary)

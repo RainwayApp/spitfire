@@ -83,8 +83,6 @@
 #pragma comment(lib,"common_video.lib")
 #pragma comment(lib,"congestion_controller.lib")
 #pragma comment(lib,"create_pc_factory.lib")
-#pragma comment(lib,"desktop_capture.lib")
-#pragma comment(lib,"desktop_capture_differ_sse2.lib")
 #pragma comment(lib,"dl.lib")
 #pragma comment(lib,"event_log_visualizer_utils.lib")
 #pragma comment(lib,"field_trial_default.lib")
@@ -183,12 +181,15 @@ namespace Spitfire
 	void InitializeSSL()
 	{
 		rtc::EnsureWinsockInit();
-		rtc::InitializeSSL(NULL);
+		rtc::InitializeSSL(nullptr);
 	}
 
 	void EnableLogging()
 	{
-		
+		rtc::LogMessage::LogTimestamps();
+		rtc::LogMessage::LogThreads();
+		rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
+		rtc::LogMessage::SetLogToStderr(true);
 	}
 
 	void CleanupSSL()
@@ -199,7 +200,7 @@ namespace Spitfire
 
 FILE _iob[] = { *stdin, *stdout, *stderr };
 
-extern "C" FILE * __cdecl __iob_func(void)
+extern "C" FILE * __cdecl __iob_func()
 {
 	return _iob;
 }
