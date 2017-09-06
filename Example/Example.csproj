@@ -44,9 +44,21 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WebRtcManager.cs" />
+    <Compile Include="WebRtcSession.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SpitfireUtils\SpitfireUtils.csproj">
+      <Project>{129233ea-cfee-432b-9cea-9cc7773c9a02}</Project>
+      <Name>SpitfireUtils</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Spitfire\Spitfire.vcxproj">
+      <Project>{5950b9b8-d486-4b8b-a3a1-53f1738f45ed}</Project>
+      <Name>Spitfire</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

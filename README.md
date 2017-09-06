@@ -2,6 +2,25 @@
 
 ![](https://i.imgur.com/XFsqa6I.png)
 
+# Installing
+
+For projects targeting x64 
+
+```
+Install-Package Spitfirex64
+```
+
+For projects targeting x86
+```
+Install-Package Spitfirex86
+```
+
+To install the utilities 
+
+```
+Install-Package SpitfireUtils
+```
+
 
 # What is this?
 

@@ -2,6 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Description>A library for utilities to be used alongside Spitfire</Description>
+    <Authors>Rainway</Authors>
+    <Company>Rainway, Inc.</Company>
+    <Product>Rainway</Product>
+    <PackageProjectUrl>https://github.com/RainwayApp/spitfire</PackageProjectUrl>
+    <PackageIconUrl>https://avatars3.githubusercontent.com/u/25223986</PackageIconUrl>
+    <PackageLicenseUrl>https://github.com/RainwayApp/spitfire/blob/master/LICENSE</PackageLicenseUrl>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
