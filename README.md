@@ -1,4 +1,4 @@
-﻿# Spitfire
+# Spitfire
 
 ![](https://i.imgur.com/XFsqa6I.png)
 
@@ -24,7 +24,7 @@ Install-Package SpitfireUtils
 
 # What is this?
 
-Spitfire is a wrapper around the WebRTC native code that allows .NET applications to take advantage of data channels. The goal of this is to allow people to build awesome P2P applications and to make it easier to use WebRTC is a server-like fashion. 
+Spitfire is a wrapper around the WebRTC native code that allows .NET applications to take advantage of data channels. The goal of this is to allow people to build awesome P2P applications and to make it easier to use WebRTC in a server-like fashion. 
 
 # What is a data channel?
 
@@ -61,7 +61,3 @@ If you're looking to maximize speed for your application, we recommend pairing S
 If you wish to contribute documentation, code examples or fixes we are more than happy to accept pull request.
 
 To build the C++, you can find the precompiled WebRTC libraries on the release page [here](https://github.com/RainwayApp/spitfire/releases). Building WebRTC itself can be quite the headache so we provide scripts for that as well.
-
-
-
-
