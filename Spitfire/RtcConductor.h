@@ -48,7 +48,7 @@ namespace Spitfire
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
 
-		void CreateDataChannel(const std::string & label);
+		void CreateDataChannel(const std::string & label, const webrtc::DataChannelInit dc_options);
 		void DataChannelSendText(const std::string & text);
 		void DataChannelSendData(const webrtc::DataBuffer & data);
 

@@ -99,6 +99,58 @@ namespace Spitfire
 		String^ Error;
 	};
 
+	public ref class DataChannelOptions
+	{
+	public:
+		 /// <summary>
+		 /// The name of your data channel
+		 /// </summary>
+		String^ Label;
+
+		 /// <summary>
+		 /// Deprecated. Reliability is assumed, and channel will be unreliable if
+		 /// MaxRetransmitTime or MaxRetransmits is set.
+		 /// </summary>
+		bool Reliable = false;
+
+		 /// <summary>
+		 /// True if ordered delivery is required.
+		 /// </summary>
+		bool Ordered = true;
+
+		 /// <summary>
+		 /// The max period of time in milliseconds in which retransmissions will be
+		 /// sent. After this time, no more retransmissions will be sent. -1 if unset.
+		 /// Cannot be set along with |MaxRetransmits|.
+		 /// </summary>
+		int MaxRetransmitTime = -1;
+
+		/* 
+		 * The max number of retransmissions. -1 if unset.
+		 * Cannot be set along with |MaxRetransmitTime|.
+		 */
+		 /// <summary>
+		 /// The max number of retransmissions. -1 if unset.
+		 /// Cannot be set along with |MaxRetransmitTime|.
+		 /// </summary>
+		int MaxRetransmits = -1;
+		 /// <summary>
+		 /// This is set by the application and opaque to the WebRTC implementation.
+		 /// </summary>
+		String^ Protocol;
+		 /// <summary>
+		 /// True if the channel has been externally negotiated and we do not send an
+		 /// in-band signalling in the form of an "open" message. If this is true, Id
+		 /// must be set; otherwise it should be unset and will be negotiated
+		 /// </summary>
+		bool Negotiated = false;
+
+		 /// <summary>
+		 ///  The stream id, or SID, for SCTP data channels. -1 if unset (see Negotiated).
+		 /// </summary>
+		int Id = -1;
+	};
+
 	public ref class SpitfireIceCandidate
 	{
 	public:
@@ -262,8 +314,16 @@ namespace Spitfire
 
 			event Action ^ OnError;
 
+			/// <summary>
+			/// Signals that the data channel is opened and ready for interaction
+			/// </summary>
 			event Action ^ OnDataChannelOpen;
 
+			/// <summary>
+			/// Signals that the data channel has been closed, this is not
+			/// Guaranteed to fire at all, so trust it as far as you can throw it.
+			/// Best paired with OnIceStateChange for best results.
+			/// </summary>
 			event Action ^ OnDataChannelClose;
 
 			delegate void OnCallbackError(String ^ error);
@@ -273,9 +333,17 @@ namespace Spitfire
 			event OnCallbackDataMessage ^ OnDataMessage;
 
 			delegate void IceStateChange(IceConnectionState msg);
+			/// <summary>
+			/// Informs you have the latest changes to the active ICE candidates state. 
+			/// This will always provide you the best information of if a peer has been lost (albeit delayed).
+			/// </summary>
 			event IceStateChange ^ OnIceStateChange;
 
 			delegate void BufferChange(long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
+			/// <summary>
+			/// Lets you know the buffer has changed and gives a snapshot of the current buffer
+			/// Along with the current amount of data that has been sent/received. 
+			/// </summary>
 			event BufferChange ^ OnBufferAmountChange;
 
 			SpitfireRtc()
@@ -348,21 +416,32 @@ namespace Spitfire
 				m_isDisposed = true;
 			}
 
+			/// <summary>
+			/// Enables logging of WebRTC verbosely 
+			/// You'll likely want to do this for debugging WebRTC itself.
+			/// </summary>
 			static void EnableLogging()
 			{
 				Spitfire::EnableLogging();
 			}
 
+			/// <summary>
+			/// Setups and ensures SSL is working.
+			/// </summary>
 			static void InitializeSSL()
 			{
 				Spitfire::InitializeSSL();
 			}
-
+			/// <summary>
+			/// Attempts to clean up SSL threads.
+			/// </summary>
 			static void CleanupSSL()
 			{
 				Spitfire::CleanupSSL();
 			}
-
+			/// <summary>
+			/// Creates a peer connection, call InitializeSSL before calling this.
+			/// </summary>
 			bool InitializePeerConnection()
 			{
 				return _conductor->InitializePeerConnection();
@@ -373,17 +452,24 @@ namespace Spitfire
 				_conductor->CreateOffer();
 			}
 
+			/// <summary>
+			/// Run this within a loop to process signaling messages for your peer.
+			/// </summary>
 			bool ProcessMessages(Int32 delay)
 			{
 				return _conductor->ProcessMessages(delay);
 			}
 
-			void OnOfferReply(String ^ type, String ^ sdp)
+			void SetOfferReply(String ^ type, String ^ sdp)
 			{
 				_conductor->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
 			}
 
-			void OnOfferRequest(String ^ sdp)
+			/// <summary>
+			/// Provides an offer to your peer connection from a remote peer
+			/// This is used to setup the data channel between two peers. 
+			/// </summary>
+			void SetOfferRequest(String ^ sdp)
 			{
 				_conductor->OnOfferRequest(marshal_as<std::string>(sdp));
 			}
@@ -397,17 +483,37 @@ namespace Spitfire
 			{
 				_conductor->AddServerConfig(marshal_as<std::string>(uri), marshal_as<std::string>(username), marshal_as<std::string>(password));
 			}
-
-			void CreateDataChannel(String ^ label)
+			/// <summary>
+			/// Creates a data channel from within the application.
+			/// Only call if your application is setting up the connection and preparing to offer.
+			/// </summary>
+			void CreateDataChannel(DataChannelOptions ^ dataChannelOptions)
 			{
-				_conductor->CreateDataChannel(marshal_as<std::string>(label));
+				auto label = dataChannelOptions->Label;
+				auto protocol = dataChannelOptions->Protocol;
+				webrtc::DataChannelInit dc_options;
+				dc_options.id = dataChannelOptions->Id;
+				dc_options.maxRetransmits = dataChannelOptions->MaxRetransmits;
+				dc_options.maxRetransmitTime = dataChannelOptions->MaxRetransmitTime;
+				dc_options.negotiated = dataChannelOptions->Negotiated;
+				dc_options.ordered = dataChannelOptions->Negotiated;
+				dc_options.protocol = marshal_as<std::string>(protocol);
+				dc_options.reliable = dataChannelOptions->Reliable;
+			    _conductor->CreateDataChannel(marshal_as<std::string>(label), dc_options);
 			}
-
+			/// <summary>
+			/// Send your text through the data channel
+			/// </summary>
 			void DataChannelSendText(String ^ text)
 			{
 				_conductor->DataChannelSendText(marshal_as<std::string>(text));
 			}
 			
+			/// <summary>
+			/// Send your binary data through the data channel
+			/// Be aware that channels have a 16KB limit and you should take advantage 
+			/// Of the provided utilties to chunk messages quickly.
+			/// </summary>
 			void DataChannelSendData(array<Byte>^ array_data)
 			{
 				pin_ptr<uint8_t> thePtr = &array_data[0];

@@ -214,16 +214,10 @@ namespace Spitfire
 
 
 
-	void RtcConductor::CreateDataChannel(const std::string & label)
+	void RtcConductor::CreateDataChannel(const std::string & label, const webrtc::DataChannelInit dc_options)
 	{
 		if (!peerObserver->peerConnection)
 			return;
-
-		webrtc::DataChannelInit dc_options;
-		//dc_options.id = 1;
-		dc_options.maxRetransmits = 1;
-		dc_options.negotiated = false;
-		dc_options.ordered = false;
 
 		dataObserver->dataChannel = peerObserver->peerConnection->CreateDataChannel(label, &dc_options);
 		dataObserver->dataChannel->RegisterObserver(dataObserver);
