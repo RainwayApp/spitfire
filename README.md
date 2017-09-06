@@ -23,7 +23,7 @@ This library does not currently support audio and video, however if there is eno
 
 # Size limitations 
 
-Data channels only support sending tiny fragments of data, while it is possible to send complete files through it, they must first be chunked. We provide some functions that will allow you to do this quickly without unnecessary copying. It is recommended you chunk all messages larger than 10KB to avoid hitting the 16 KB limit. 
+Data channels only support sending tiny fragments of data, while it is possible to send complete files through it, they must first be chunked. We provide some functions that will allow you to do this quickly without unnecessary copying in ```DataChannelUtils```. It is recommended you chunk all messages larger than 10KB to avoid hitting the 16 KB limit. 
 
 # Signaling 
 
