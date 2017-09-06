@@ -33,6 +33,10 @@ Data channels only support sending tiny fragments of data, while it is possible 
 Signaling is the process of coordinating communication. In order for a WebRTC application to set up a data channel, its clients need to exchange information. Spitfire does not currently provide a signaling server, however this isn't a complex process and you can find more information on it here [here](https://www.html5rocks.com/en/tutorials/webrtc/infrastructure/). 
 
 
+# Messaging 
+
+If you're looking to maximize speed for your application, we recommend pairing Spitfire with [Sachiel](https://github.com/RainwayApp/sachiel-net), our fast network messaging framework.
+
 # Contributing & Building
 
 If you wish to contribute documentation, code examples or fixes we are more than happy to accept pull request.
