@@ -102,6 +102,22 @@ namespace Spitfire
 		Offer
 	};
 
+	public enum class ServerType
+	{
+		Stun,
+		Turn
+	};
+
+	public ref class ServerConfig
+	{
+	public:
+		ServerType Type;
+		String^ Host;
+		unsigned short Port;
+		String^ Username;
+		String^ Password;
+	};
+
 	public ref class DataMessage
 	{
 	public:
@@ -529,9 +545,15 @@ namespace Spitfire
 				return _conductor->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
 			}
 
-			void AddServerConfig(String ^ uri, String ^ username, String ^ password)
+			void AddServerConfig(ServerConfig^ config)
 			{
-				_conductor->AddServerConfig(marshal_as<std::string>(uri), marshal_as<std::string>(username), marshal_as<std::string>(password));
+				String^ type = config->Type == ServerType::Stun ? "stun" : "turn";
+				auto hostUri = marshal_as<std::string>(type + ":" + config->Host + ":" + config->Port);
+				auto u = config->Username;
+				auto username = String::IsNullOrWhiteSpace(u) ? "" : marshal_as<std::string>(u);
+				auto p = config->Password;
+				auto password = String::IsNullOrWhiteSpace(p) ? "" : marshal_as<std::string>(p);
+				_conductor->AddServerConfig(hostUri, username, password);
 			}
 			/// <summary>
 			/// Creates a data channel from within the application.

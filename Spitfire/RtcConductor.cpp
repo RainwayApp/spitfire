@@ -119,7 +119,8 @@ namespace Spitfire
 		webrtc::PeerConnectionInterface::RTCConfiguration config;
 		
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
-		config.disable_ipv6 = true;
+		//no clue why this was set to true
+		config.disable_ipv6 = false;
 		config.enable_dtls_srtp = rtc::Optional<bool>(dtls);
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
 

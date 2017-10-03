@@ -28,7 +28,12 @@ namespace Example
             //Call this before starting a peer connection
             SpitfireRtc.InitializeSSL();
             //Add a stun server
-            Spitfire.AddServerConfig("stun:stun.l.google.com:19302", string.Empty, string.Empty);
+            Spitfire.AddServerConfig(new ServerConfig
+            {
+                Host = "stun.l.google.com",
+                Port = 19302,
+                Type = ServerType.Stun,
+            });
 
             var started = Spitfire.InitializePeerConnection();
             if (started)
@@ -65,7 +70,7 @@ namespace Example
 
         private void OnSuccessAnswer(SpitfireSdp sdp)
         {
-           //reply to the remote client with your SDP
+            //reply to the remote client with your SDP
         }
 
         private void IceStateChange(IceConnectionState state)
@@ -88,15 +93,15 @@ namespace Example
             }
         }
 
-        private void SpitfireOnOnBufferAmountChange(string label, int previousBufferAmount, int currentBufferAmount, int bytesSent,
+        private void SpitfireOnOnBufferAmountChange(string label, int previousBufferAmount, int currentBufferAmount,
+            int bytesSent,
             int bytesReceived)
         {
-
         }
 
         private void SpitfireOnOnDataChannelClose(string label)
         {
-           Console.WriteLine("Data Channel Closed!");
+            Console.WriteLine("Data Channel Closed!");
         }
 
         private void DataChannelOpen(string label)
