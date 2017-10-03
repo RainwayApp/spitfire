@@ -9,9 +9,13 @@ void Spitfire::Observers::PeerConnectionObserver::OnSignalingChange(webrtc::Peer
 
 void Spitfire::Observers::PeerConnectionObserver::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 {
-	LOG(INFO) << __FUNCTION__ << " " << channel->label();
-	_manager->dataObserver->dataChannel = channel.get();
-	_manager->dataObserver->dataChannel->RegisterObserver(_manager->dataObserver.get());
+	if (_manager->dataObservers.find(channel->label()) == _manager->dataObservers.end())
+	{
+		LOG(INFO) << __FUNCTION__ << " " << channel->label();
+		_manager->dataObservers[channel->label()] = new DataChannelObserver(_manager);
+		_manager->dataObservers[channel->label()]->dataChannel = channel.get();
+		_manager->dataObservers[channel->label()]->dataChannel->RegisterObserver(_manager->dataObservers[channel->label()]);
+	}
 }
 
 void Spitfire::Observers::PeerConnectionObserver::OnRenegotiationNeeded()
@@ -23,7 +27,7 @@ void Spitfire::Observers::PeerConnectionObserver::OnRenegotiationNeeded()
 void Spitfire::Observers::PeerConnectionObserver::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state)
 {
 	if (_manager->onIceStateChange != nullptr) {
-		
+
 		_manager->onIceStateChange(new_state);
 	}
 }

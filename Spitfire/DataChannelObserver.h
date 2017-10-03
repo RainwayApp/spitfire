@@ -17,6 +17,8 @@ namespace Spitfire {
 		class DataChannelObserver : public webrtc::DataChannelObserver
 		{
 		public:
+
+
 			// The data channel state have changed.
 			void OnStateChange() override;
 

@@ -176,7 +176,6 @@
 
 namespace Spitfire
 {
-	bool CFG_quality_scaler_enabled_ = false;
 
 	void InitializeSSL()
 	{

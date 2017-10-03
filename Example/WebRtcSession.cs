@@ -76,7 +76,7 @@ namespace Example
             }
         }
 
-        private void HandleMessage(DataMessage msg)
+        private void HandleMessage(string label, DataMessage msg)
         {
             if (msg.IsBinary)
             {
@@ -88,19 +88,21 @@ namespace Example
             }
         }
 
-        private void SpitfireOnOnBufferAmountChange(int previousBufferAmount, int currentBufferAmount, int bytesSent, int bytesReceived)
+        private void SpitfireOnOnBufferAmountChange(string label, int previousBufferAmount, int currentBufferAmount, int bytesSent,
+            int bytesReceived)
         {
-          
+
         }
 
-        private void SpitfireOnOnDataChannelClose()
+        private void SpitfireOnOnDataChannelClose(string label)
         {
            Console.WriteLine("Data Channel Closed!");
         }
 
-        private void DataChannelOpen()
+        private void DataChannelOpen(string label)
         {
             Console.WriteLine("$Data Channel Opened!");
+            Console.WriteLine(Spitfire.GetDataChannelInfo(label).Reliable);
         }
     }
 }

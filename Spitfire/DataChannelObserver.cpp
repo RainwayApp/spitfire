@@ -6,7 +6,7 @@ void Spitfire::Observers::DataChannelObserver::OnStateChange()
 	auto state = dataChannel->state();
 	if (_manager->onDataChannelState != nullptr)
 	{
-		_manager->onDataChannelState(state);
+		_manager->onDataChannelState(dataChannel->label().c_str(), state);
 	}
 }
 
@@ -14,7 +14,7 @@ void Spitfire::Observers::DataChannelObserver::OnBufferedAmountChange(uint64_t p
 {
 	if (_manager->onBufferAmountChange != nullptr)
 	{
-		_manager->onBufferAmountChange(previous_amount, dataChannel->buffered_amount(), dataChannel->bytes_sent(), dataChannel->bytes_received());
+		_manager->onBufferAmountChange(dataChannel->label().c_str(), previous_amount, dataChannel->buffered_amount(), dataChannel->bytes_sent(), dataChannel->bytes_received());
 	}
 }
 
@@ -26,7 +26,7 @@ void Spitfire::Observers::DataChannelObserver::OnMessage(const webrtc::DataBuffe
 		if (_manager->onDataBinaryMessage != nullptr)
 		{
 			auto * data = buffer.data.data();
-			_manager->onDataBinaryMessage(data, buffer.size());
+			_manager->onDataBinaryMessage(dataChannel->label().c_str(), data, buffer.size());
 		}
 	}
 	else
@@ -34,7 +34,7 @@ void Spitfire::Observers::DataChannelObserver::OnMessage(const webrtc::DataBuffe
 		if (_manager->onDataMessage != nullptr)
 		{
 			std::string msg(buffer.data.data<char>(), buffer.size());
-			_manager->onDataMessage(msg.c_str());
+			_manager->onDataMessage(dataChannel->label().c_str(), msg.c_str());
 		}
 	}
 }
@@ -48,4 +48,3 @@ Spitfire::Observers::DataChannelObserver::DataChannelObserver(RtcConductor * man
 {
 	this->_manager = manager;
 }
-

@@ -6,6 +6,7 @@
 #include "webrtc/media/engine/webrtcmediaengine.h"
 #include "webrtc/pc/test/fakeaudiocapturemodule.h"
 #include "webrtc/api/test/fakeconstraints.h"
+#include <iostream>
 
 using cricket::MediaEngineInterface;
 using cricket::FakeWebRtcVideoDecoderFactory;
@@ -24,8 +25,7 @@ namespace Spitfire
 		onIceCandidate = nullptr;
 		onDataChannelState = nullptr;
 		onDataMessage = nullptr;
-
-		dataObserver = new Observers::DataChannelObserver(this);
+		//dataObserver = new Observers::DataChannelObserver(this);
 		peerObserver = new Observers::PeerConnectionObserver(this);
 		sessionObserver = new Observers::CreateSessionDescriptionObserver(this);
 		setSessionObserver = new Observers::SetSessionDescriptionObserver(this);
@@ -48,17 +48,23 @@ namespace Spitfire
 
 		pc_factory_ = nullptr;
 
-		if (dataObserver->dataChannel.get())
+		if (!dataObservers.empty())
 		{
-			dataObserver->dataChannel->UnregisterObserver();
-			dataObserver->dataChannel = nullptr;
-			dataObserver = nullptr;
+			for (auto const& x : dataObservers)
+			{
+				if (x.second->dataChannel.get())
+				{
+					x.second->dataChannel->UnregisterObserver();
+					x.second->dataChannel = nullptr;
+				}
+			}
+			dataObservers.empty();
 		}
 		serverConfigs.clear();
 
-	    network_thread_->Stop();
-	    worker_thread_->Stop();
-	    signaling_thread_->Stop();
+		network_thread_->Stop();
+		worker_thread_->Stop();
+		signaling_thread_->Stop();
 		rtc::Thread::Current()->Stop();
 
 
@@ -66,7 +72,7 @@ namespace Spitfire
 
 	bool RtcConductor::InitializePeerConnection()
 	{
-		
+
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
 		RTC_DCHECK(pc_factory_ == nullptr);
 		RTC_DCHECK(peerObserver->peerConnection == nullptr);
@@ -111,6 +117,7 @@ namespace Spitfire
 		RTC_DCHECK(peerObserver->peerConnection == nullptr);
 
 		webrtc::PeerConnectionInterface::RTCConfiguration config;
+		
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 		config.disable_ipv6 = true;
 		config.enable_dtls_srtp = rtc::Optional<bool>(dtls);
@@ -139,7 +146,6 @@ namespace Spitfire
 		server.uri = uri;
 		server.username = username;
 		server.password = password;
-
 		serverConfigs.push_back(server);
 	}
 
@@ -219,20 +225,71 @@ namespace Spitfire
 		if (!peerObserver->peerConnection)
 			return;
 
-		dataObserver->dataChannel = peerObserver->peerConnection->CreateDataChannel(label, &dc_options);
-		dataObserver->dataChannel->RegisterObserver(dataObserver);
+		if (dataObservers.find(label) == dataObservers.end()) {
+			dataObservers[label] = new Observers::DataChannelObserver(this);
+			dataObservers[label]->dataChannel = peerObserver->peerConnection->CreateDataChannel(label, &dc_options);
+			dataObservers[label]->dataChannel->RegisterObserver(dataObservers[label]);
+		}
 	}
 
-	
 
-	void RtcConductor::DataChannelSendText(const std::string & text)
+
+	void RtcConductor::DataChannelSendText(const std::string & label, const std::string & text)
 	{
-		dataObserver->dataChannel->Send(webrtc::DataBuffer(text));
+		auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+			observer->second->dataChannel->Send(webrtc::DataBuffer(text));
+		}
 	}
 
-	void RtcConductor::DataChannelSendData(const webrtc::DataBuffer & data)
+	RtcDataChannelInfo RtcConductor::GetDataChannelInfo(const std::string& label)
 	{
-		dataObserver->dataChannel->Send(data);
+		auto info = RtcDataChannelInfo();
+		const auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+
+			const auto dataChannel = observer->second->dataChannel;
+			
+			info.currentBuffer = dataChannel->buffered_amount();
+			info.bytesSent = dataChannel->bytes_sent();
+			info.bytesReceived = dataChannel->bytes_received();
+
+			info.reliable = dataChannel->reliable();
+			info.ordered = dataChannel->ordered();
+			info.negotiated = dataChannel->negotiated();
+
+			info.messagesSent = dataChannel->messages_sent();
+			info.messagesReceived = dataChannel->messages_received();
+
+			info.maxRetransmits = dataChannel->maxRetransmits();
+			info.maxRetransmitTime = dataChannel->maxRetransmitTime();
+
+			info.protocol = dataChannel->protocol();
+			info.state = dataChannel->state();
+
+		
+
+			return info;
+		}
+		info.protocol = "unknown";
+		return info;
+	}
+
+	webrtc::DataChannelInterface::DataState RtcConductor::GetDataChannelState(const std::string& label)
+	{
+		const auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+			return dataObservers[label]->dataChannel->state();
+		}
+		return {};
+	}
+
+	void RtcConductor::DataChannelSendData(const std::string & label, const webrtc::DataBuffer & data)
+	{
+		auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+			dataObservers[label]->dataChannel->Send(data);
+		}
 	}
 
 }
