@@ -1,0 +1,10 @@
+@ECHO OFF
+build_x64_debug
+build_x86_debug
+build_x64_release
+build_x86_release
+link_x64_debug
+link_x86_release
+link_x64_debug
+link_x86_release
+include

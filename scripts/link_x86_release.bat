@@ -1,3 +1,4 @@
+@ECHO OFF
 set "folder=link"
 rmdir /s/q %folder%\Libx86\Release
 

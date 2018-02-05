@@ -1,3 +1,4 @@
+@ECHO OFF
 set "folder=includes"
 rmdir /s/q %folder%
 mkdir %folder%
