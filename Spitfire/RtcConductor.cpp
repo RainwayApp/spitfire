@@ -2,10 +2,10 @@
 
 #include "RtcConductor.h"
 
-#include "webrtc/media/engine/fakewebrtcvideoengine.h";
-#include "webrtc/media/engine/webrtcmediaengine.h"
-#include "webrtc/pc/test/fakeaudiocapturemodule.h"
-#include "webrtc/api/test/fakeconstraints.h"
+#include "media/engine/fakewebrtcvideoengine.h";
+#include "media/engine/webrtcmediaengine.h"
+#include "pc/test/fakeaudiocapturemodule.h"
+#include "api/test/fakeconstraints.h"
 #include <iostream>
 
 using cricket::MediaEngineInterface;

@@ -3,7 +3,7 @@
 #include "RtcUtils.h"
 #include "RtcConductor.h"
 #pragma managed
-#include "msclr\marshal_cppstd.h"
+#include "msclr/marshal_cppstd.h"
 
 using namespace System::Runtime::InteropServices;
 using namespace System::Reflection;

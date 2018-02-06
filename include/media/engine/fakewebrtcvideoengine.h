@@ -24,7 +24,6 @@
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/basictypes.h"
 #include "rtc_base/criticalsection.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/stringutils.h"
 #include "rtc_base/thread_annotations.h"
 
