@@ -8,15 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_FAKEPACKETTRANSPORT_H_
-#define WEBRTC_P2P_BASE_FAKEPACKETTRANSPORT_H_
+#ifndef P2P_BASE_FAKEPACKETTRANSPORT_H_
+#define P2P_BASE_FAKEPACKETTRANSPORT_H_
 
 #include <string>
 
-#include "webrtc/api/ortc/packettransportinterface.h"
-#include "webrtc/p2p/base/packettransportinternal.h"
-#include "webrtc/rtc_base/asyncinvoker.h"
-#include "webrtc/rtc_base/copyonwritebuffer.h"
+#include "api/ortc/packettransportinterface.h"
+#include "p2p/base/packettransportinternal.h"
+#include "rtc_base/asyncinvoker.h"
+#include "rtc_base/copyonwritebuffer.h"
 
 namespace rtc {
 
@@ -86,6 +86,8 @@ class FakePacketTransport : public PacketTransportInternal {
   bool GetOption(Socket::Option opt, int* value) override { return true; }
   int GetError() override { return 0; }
 
+  const CopyOnWriteBuffer* last_sent_packet() { return &last_sent_packet_; }
+
  private:
   void set_writable(bool writable) {
     if (writable_ == writable) {
@@ -107,12 +109,14 @@ class FakePacketTransport : public PacketTransportInternal {
   }
 
   void SendPacketInternal(const CopyOnWriteBuffer& packet) {
+    last_sent_packet_ = packet;
     if (dest_) {
       dest_->SignalReadPacket(dest_, packet.data<char>(), packet.size(),
                               CreatePacketTime(0), 0);
     }
   }
 
+  CopyOnWriteBuffer last_sent_packet_;
   AsyncInvoker invoker_;
   std::string debug_name_;
   FakePacketTransport* dest_ = nullptr;
@@ -124,4 +128,4 @@ class FakePacketTransport : public PacketTransportInternal {
 
 }  // namespace rtc
 
-#endif  // WEBRTC_P2P_BASE_FAKEPACKETTRANSPORT_H_
+#endif  // P2P_BASE_FAKEPACKETTRANSPORT_H_

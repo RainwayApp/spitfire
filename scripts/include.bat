@@ -1,9 +1,11 @@
 @ECHO OFF
-set "folder=includes"
+set "folder=include"
 rmdir /s/q %folder%
 mkdir %folder%
 
-xcopy /s webrtc-checkout\src\webrtc\*.h %folder%\webrtc\
+xcopy /s webrtc-checkout\src\*.h %folder%\webrtc\
+
+rmdir %folder%\webrtc\third_party
 
 
 xcopy /s webrtc-checkout\src\third_party\libvpx\*.h %folder%\third_party\libvpx\

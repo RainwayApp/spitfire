@@ -8,19 +8,22 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_CALL_AUDIO_SEND_STREAM_H_
-#define WEBRTC_CALL_AUDIO_SEND_STREAM_H_
+#ifndef CALL_AUDIO_SEND_STREAM_H_
+#define CALL_AUDIO_SEND_STREAM_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/api/audio_codecs/audio_encoder_factory.h"
-#include "webrtc/api/audio_codecs/audio_format.h"
-#include "webrtc/api/call/transport.h"
-#include "webrtc/config.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/typedefs.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/audio_codecs/audio_encoder_factory.h"
+#include "api/audio_codecs/audio_format.h"
+#include "api/call/transport.h"
+#include "api/optional.h"
+#include "api/rtpparameters.h"
+#include "call/rtp_config.h"
+#include "rtc_base/scoped_ref_ptr.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -59,6 +62,7 @@ class AudioSendStream {
     float residual_echo_likelihood = -1.0f;
     float residual_echo_likelihood_recent_max = -1.0f;
     bool typing_noise_detected = false;
+    ANAStats ana_statistics;
   };
 
   struct Config {
@@ -129,6 +133,10 @@ class AudioSendStream {
     rtc::scoped_refptr<AudioEncoderFactory> encoder_factory;
   };
 
+  virtual ~AudioSendStream() = default;
+
+  virtual const webrtc::AudioSendStream::Config& GetConfig() const = 0;
+
   // Reconfigure the stream according to the Configuration.
   virtual void Reconfigure(const Config& config) = 0;
 
@@ -146,10 +154,7 @@ class AudioSendStream {
   virtual void SetMuted(bool muted) = 0;
 
   virtual Stats GetStats() const = 0;
-
- protected:
-  virtual ~AudioSendStream() {}
 };
 }  // namespace webrtc
 
-#endif  // WEBRTC_CALL_AUDIO_SEND_STREAM_H_
+#endif  // CALL_AUDIO_SEND_STREAM_H_

@@ -7,18 +7,17 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_VIDEO_VIDEO_QUALITY_TEST_H_
-#define WEBRTC_VIDEO_VIDEO_QUALITY_TEST_H_
+#ifndef VIDEO_VIDEO_QUALITY_TEST_H_
+#define VIDEO_VIDEO_QUALITY_TEST_H_
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/media/engine/simulcast_encoder_adapter.h"
-#include "webrtc/test/call_test.h"
-#include "webrtc/test/frame_generator.h"
-#include "webrtc/test/testsupport/trace_to_stderr.h"
+#include "media/engine/simulcast_encoder_adapter.h"
+#include "test/call_test.h"
+#include "test/frame_generator.h"
 
 namespace webrtc {
 
@@ -61,6 +60,7 @@ class VideoQualityTest : public test::CallTest {
     } audio;
     struct Screenshare {
       bool enabled;
+      bool generate_slides;
       int32_t slide_change_interval;
       int32_t scroll_duration;
       std::vector<std::string> slides;
@@ -139,7 +139,6 @@ class VideoQualityTest : public test::CallTest {
   // We need a more general capturer than the FrameGeneratorCapturer.
   std::unique_ptr<test::VideoCapturer> video_capturer_;
   std::vector<std::unique_ptr<test::VideoCapturer>> thumbnail_capturers_;
-  std::unique_ptr<test::TraceToStderr> trace_to_stderr_;
   std::unique_ptr<test::FrameGenerator> frame_generator_;
   std::unique_ptr<VideoEncoder> video_encoder_;
   std::unique_ptr<cricket::WebRtcVideoEncoderFactory> vp8_encoder_factory_;
@@ -163,4 +162,4 @@ class VideoQualityTest : public test::CallTest {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_VIDEO_VIDEO_QUALITY_TEST_H_
+#endif  // VIDEO_VIDEO_QUALITY_TEST_H_

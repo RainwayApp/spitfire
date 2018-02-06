@@ -8,22 +8,22 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_CODING_ACM2_RENT_A_CODEC_H_
-#define WEBRTC_MODULES_AUDIO_CODING_ACM2_RENT_A_CODEC_H_
+#ifndef MODULES_AUDIO_CODING_ACM2_RENT_A_CODEC_H_
+#define MODULES_AUDIO_CODING_ACM2_RENT_A_CODEC_H_
 
 #include <stddef.h>
 #include <map>
 #include <memory>
 
-#include "webrtc/api/audio_codecs/audio_decoder.h"
-#include "webrtc/api/audio_codecs/audio_encoder.h"
-#include "webrtc/modules/audio_coding/include/audio_coding_module_typedefs.h"
-#include "webrtc/modules/audio_coding/neteq/neteq_decoder_enum.h"
-#include "webrtc/rtc_base/array_view.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
-#include "webrtc/typedefs.h"
+#include "api/array_view.h"
+#include "api/audio_codecs/audio_decoder.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/optional.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
+#include "modules/audio_coding/neteq/neteq_decoder_enum.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/scoped_ref_ptr.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -204,4 +204,4 @@ class RentACodec {
 }  // namespace acm2
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_CODING_ACM2_RENT_A_CODEC_H_
+#endif  // MODULES_AUDIO_CODING_ACM2_RENT_A_CODEC_H_

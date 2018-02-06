@@ -8,14 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_CALL_FLEXFEC_RECEIVE_STREAM_IMPL_H_
-#define WEBRTC_CALL_FLEXFEC_RECEIVE_STREAM_IMPL_H_
+#ifndef CALL_FLEXFEC_RECEIVE_STREAM_IMPL_H_
+#define CALL_FLEXFEC_RECEIVE_STREAM_IMPL_H_
 
 #include <memory>
 
-#include "webrtc/call/flexfec_receive_stream.h"
-#include "webrtc/call/rtp_packet_sink_interface.h"
-#include "webrtc/rtc_base/criticalsection.h"
+#include "call/flexfec_receive_stream.h"
+#include "call/rtp_packet_sink_interface.h"
 
 namespace webrtc {
 
@@ -29,8 +28,7 @@ class RtpRtcp;
 class RtpStreamReceiverControllerInterface;
 class RtpStreamReceiverInterface;
 
-class FlexfecReceiveStreamImpl : public FlexfecReceiveStream,
-                                 public RtpPacketSinkInterface {
+class FlexfecReceiveStreamImpl : public FlexfecReceiveStream {
  public:
   FlexfecReceiveStreamImpl(
       RtpStreamReceiverControllerInterface* receiver_controller,
@@ -40,21 +38,15 @@ class FlexfecReceiveStreamImpl : public FlexfecReceiveStream,
       ProcessThread* process_thread);
   ~FlexfecReceiveStreamImpl() override;
 
-  const Config& GetConfig() const { return config_; }
-
   // RtpPacketSinkInterface.
   void OnRtpPacket(const RtpPacketReceived& packet) override;
 
-  // Implements FlexfecReceiveStream.
-  void Start() override;
-  void Stop() override;
   Stats GetStats() const override;
+  const Config& GetConfig() const override;
 
  private:
   // Config.
   const Config config_;
-  bool started_ GUARDED_BY(crit_);
-  rtc::CriticalSection crit_;
 
   // Erasure code interfacing.
   const std::unique_ptr<FlexfecReceiver> receiver_;
@@ -69,4 +61,4 @@ class FlexfecReceiveStreamImpl : public FlexfecReceiveStream,
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_CALL_FLEXFEC_RECEIVE_STREAM_IMPL_H_
+#endif  // CALL_FLEXFEC_RECEIVE_STREAM_IMPL_H_

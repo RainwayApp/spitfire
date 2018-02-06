@@ -8,27 +8,38 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_API_VIDEO_VIDEO_TIMING_H_
-#define WEBRTC_API_VIDEO_VIDEO_TIMING_H_
+#ifndef API_VIDEO_VIDEO_TIMING_H_
+#define API_VIDEO_VIDEO_TIMING_H_
 
 #include <stdint.h>
 
+#include <limits>
 #include <string>
 
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/safe_conversions.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/safe_conversions.h"
 
 namespace webrtc {
+
+enum TimingFrameFlags : uint8_t {
+  kDefault = 0,                // No flags set (used by old protocol)
+  kTriggeredByTimer = 1 << 0,  // Frame marked for tracing by periodic timer.
+  kTriggeredBySize = 1 << 1,   // Frame marked for tracing due to size.
+  kInvalid = std::numeric_limits<uint8_t>::max()  // Invalid, ignore!
+};
 
 // Video timing timestamps in ms counted from capture_time_ms of a frame.
 // This structure represents data sent in video-timing RTP header extension.
 struct VideoSendTiming {
-  static const uint8_t kEncodeStartDeltaIdx = 0;
-  static const uint8_t kEncodeFinishDeltaIdx = 1;
-  static const uint8_t kPacketizationFinishDeltaIdx = 2;
-  static const uint8_t kPacerExitDeltaIdx = 3;
-  static const uint8_t kNetworkTimestampDeltaIdx = 4;
-  static const uint8_t kNetwork2TimestampDeltaIdx = 5;
+  // Offsets of the fields in the RTP header extension, counting from the first
+  // byte after the one-byte header.
+  static constexpr uint8_t kFlagsOffset = 0;
+  static constexpr uint8_t kEncodeStartDeltaOffset = 1;
+  static constexpr uint8_t kEncodeFinishDeltaOffset = 3;
+  static constexpr uint8_t kPacketizationFinishDeltaOffset = 5;
+  static constexpr uint8_t kPacerExitDeltaOffset = 7;
+  static constexpr uint8_t kNetworkTimestampDeltaOffset = 9;
+  static constexpr uint8_t kNetwork2TimestampDeltaOffset = 11;
 
   // Returns |time_ms - base_ms| capped at max 16-bit value.
   // Used to fill this data structure as per
@@ -45,7 +56,7 @@ struct VideoSendTiming {
   uint16_t pacer_exit_delta_ms;
   uint16_t network_timstamp_delta_ms;
   uint16_t network2_timstamp_delta_ms;
-  bool is_timing_frame;
+  uint8_t flags;
 };
 
 // Used to report precise timings of a 'timing frames'. Contains all important
@@ -64,7 +75,23 @@ struct TimingFrameInfo {
   // preferred.
   bool IsLongerThan(const TimingFrameInfo& other) const;
 
+  // Returns true if flags are set to indicate this frame was marked for tracing
+  // due to the size being outside some limit.
+  bool IsOutlier() const;
+
+  // Returns true if flags are set to indicate this frame was marked fro tracing
+  // due to cyclic timer.
+  bool IsTimerTriggered() const;
+
+  // Returns true if the timing data is marked as invalid, in which case it
+  // should be ignored.
+  bool IsInvalid() const;
+
   std::string ToString() const;
+
+  bool operator<(const TimingFrameInfo& other) const;
+
+  bool operator<=(const TimingFrameInfo& other) const;
 
   uint32_t rtp_timestamp;  // Identifier of a frame.
   // All timestamps below are in local monotonous clock of a receiver.
@@ -84,8 +111,10 @@ struct TimingFrameInfo {
   int64_t decode_start_ms;    // Decode start time.
   int64_t decode_finish_ms;   // Decode completion time.
   int64_t render_time_ms;     // Proposed render time to insure smooth playback.
+
+  uint8_t flags;  // Flags indicating validity and/or why tracing was triggered.
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_API_VIDEO_VIDEO_TIMING_H_
+#endif  // API_VIDEO_VIDEO_TIMING_H_

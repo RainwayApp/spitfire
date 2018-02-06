@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
-#define WEBRTC_MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
+#ifndef MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
+#define MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
 
 #include <map>
 #include <vector>
 
-#include "webrtc/media/engine/webrtcvoe.h"
-#include "webrtc/rtc_base/checks.h"
+#include "media/engine/webrtcvoe.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace voe {
@@ -57,9 +57,6 @@ class FakeWebRtcVoiceEngine : public webrtc::VoEBase {
   WEBRTC_STUB(Release, ());
 
   // webrtc::VoEBase
-  WEBRTC_STUB(RegisterVoiceEngineObserver, (
-      webrtc::VoiceEngineObserver& observer));
-  WEBRTC_STUB(DeRegisterVoiceEngineObserver, ());
   WEBRTC_FUNC(Init,
               (webrtc::AudioDeviceModule* adm,
                webrtc::AudioProcessing* audioproc,
@@ -98,16 +95,10 @@ class FakeWebRtcVoiceEngine : public webrtc::VoEBase {
     channels_.erase(channel);
     return 0;
   }
-  WEBRTC_STUB(StartReceive, (int channel));
   WEBRTC_STUB(StartPlayout, (int channel));
   WEBRTC_STUB(StartSend, (int channel));
-  WEBRTC_STUB(StopReceive, (int channel));
   WEBRTC_STUB(StopPlayout, (int channel));
   WEBRTC_STUB(StopSend, (int channel));
-  WEBRTC_STUB(GetVersion, (char version[1024]));
-  WEBRTC_STUB(LastError, ());
-  WEBRTC_STUB(AssociateSendChannel, (int channel,
-                                     int accociate_send_channel));
 
   size_t GetNetEqCapacity() const {
     auto ch = channels_.find(last_channel_);
@@ -132,4 +123,4 @@ class FakeWebRtcVoiceEngine : public webrtc::VoEBase {
 
 }  // namespace cricket
 
-#endif  // WEBRTC_MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
+#endif  // MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_

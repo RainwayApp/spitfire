@@ -1,20 +1,25 @@
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-//*********************************************************************
-//* C_Base64 - a simple base64 encoder and decoder.
-//*
-//*     Copyright (c) 1999, Bob Withers - bwit@pobox.com
-//*
-//* This code may be freely used for any purpose, either personal
-//* or commercial, provided the authors copyright notice remains
-//* intact.
-//*********************************************************************
+#ifndef BASE_BASE64_H_
+#define BASE_BASE64_H_
 
-#ifndef WEBRTC_BASE_BASE64_H_
-#define WEBRTC_BASE_BASE64_H_
+#include <string>
 
+#include "base/base_export.h"
+#include "base/strings/string_piece.h"
 
-// This header is deprecated and is just left here temporarily during
-// refactoring. See https://bugs.webrtc.org/7634 for more details.
-#include "webrtc/rtc_base/base64.h"
+namespace base {
 
-#endif  // WEBRTC_BASE_BASE64_H_
+// Encodes the input string in base64. The encoding can be done in-place.
+BASE_EXPORT void Base64Encode(const StringPiece& input, std::string* output);
+
+// Decodes the base64 input string.  Returns true if successful and false
+// otherwise. The output string is only modified if successful. The decoding can
+// be done in-place.
+BASE_EXPORT bool Base64Decode(const StringPiece& input, std::string* output);
+
+}  // namespace base
+
+#endif  // BASE_BASE64_H_

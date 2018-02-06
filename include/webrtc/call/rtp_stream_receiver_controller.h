@@ -7,14 +7,14 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_CALL_RTP_STREAM_RECEIVER_CONTROLLER_H_
-#define WEBRTC_CALL_RTP_STREAM_RECEIVER_CONTROLLER_H_
+#ifndef CALL_RTP_STREAM_RECEIVER_CONTROLLER_H_
+#define CALL_RTP_STREAM_RECEIVER_CONTROLLER_H_
 
 #include <memory>
 
-#include "webrtc/call/rtp_demuxer.h"
-#include "webrtc/call/rtp_stream_receiver_controller_interface.h"
-#include "webrtc/rtc_base/criticalsection.h"
+#include "call/rtp_demuxer.h"
+#include "call/rtp_stream_receiver_controller_interface.h"
+#include "rtc_base/criticalsection.h"
 
 namespace webrtc {
 
@@ -38,7 +38,7 @@ class RtpStreamReceiverController
       RtpPacketSinkInterface* sink) override;
 
   // Thread-safe wrappers for the corresponding RtpDemuxer methods.
-  void AddSink(uint32_t ssrc, RtpPacketSinkInterface* sink) override;
+  bool AddSink(uint32_t ssrc, RtpPacketSinkInterface* sink) override;
   size_t RemoveSink(const RtpPacketSinkInterface* sink) override;
 
   // TODO(nisse): Not yet responsible for parsing.
@@ -64,9 +64,9 @@ class RtpStreamReceiverController
   // by a single, but possibly distinct, thread. But applications not
   // using Call may have use threads differently.
   rtc::CriticalSection lock_;
-  RtpDemuxer demuxer_ GUARDED_BY(&lock_);
+  RtpDemuxer demuxer_ RTC_GUARDED_BY(&lock_);
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_CALL_RTP_STREAM_RECEIVER_CONTROLLER_H_
+#endif  // CALL_RTP_STREAM_RECEIVER_CONTROLLER_H_

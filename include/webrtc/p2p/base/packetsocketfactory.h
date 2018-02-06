@@ -8,13 +8,20 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_PACKETSOCKETFACTORY_H_
-#define WEBRTC_P2P_BASE_PACKETSOCKETFACTORY_H_
+#ifndef P2P_BASE_PACKETSOCKETFACTORY_H_
+#define P2P_BASE_PACKETSOCKETFACTORY_H_
 
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/proxyinfo.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/proxyinfo.h"
 
 namespace rtc {
+
+// This structure contains options required to create TCP packet sockets.
+struct PacketSocketTcpOptions {
+  int opts;
+  std::vector<std::string> tls_alpn_protocols;
+  std::vector<std::string> tls_elliptic_curves;
+};
 
 class AsyncPacketSocket;
 class AsyncResolverInterface;
@@ -45,7 +52,7 @@ class PacketSocketFactory {
       uint16_t max_port,
       int opts) = 0;
 
-  // TODO: |proxy_info| and |user_agent| should be set
+  // TODO(deadbeef): |proxy_info| and |user_agent| should be set
   // per-factory and not when socket is created.
   virtual AsyncPacketSocket* CreateClientTcpSocket(
       const SocketAddress& local_address,
@@ -53,6 +60,20 @@ class PacketSocketFactory {
       const ProxyInfo& proxy_info,
       const std::string& user_agent,
       int opts) = 0;
+
+  // TODO(deadbeef): |proxy_info|, |user_agent| and |tcp_options| should
+  // be set per-factory and not when socket is created.
+  // TODO(deadbeef): Implement this method in all subclasses (namely those in
+  // Chromium), make pure virtual, and remove the old CreateClientTcpSocket.
+  virtual AsyncPacketSocket* CreateClientTcpSocket(
+      const SocketAddress& local_address,
+      const SocketAddress& remote_address,
+      const ProxyInfo& proxy_info,
+      const std::string& user_agent,
+      const PacketSocketTcpOptions& tcp_options) {
+    return CreateClientTcpSocket(local_address, remote_address, proxy_info,
+                                 user_agent, tcp_options.opts);
+  }
 
   virtual AsyncResolverInterface* CreateAsyncResolver() = 0;
 
@@ -62,4 +83,4 @@ class PacketSocketFactory {
 
 }  // namespace rtc
 
-#endif  // WEBRTC_P2P_BASE_PACKETSOCKETFACTORY_H_
+#endif  // P2P_BASE_PACKETSOCKETFACTORY_H_

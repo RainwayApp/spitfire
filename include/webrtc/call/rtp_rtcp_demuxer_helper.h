@@ -8,19 +8,20 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_CALL_RTP_RTCP_DEMUXER_HELPER_H_
-#define WEBRTC_CALL_RTP_RTCP_DEMUXER_HELPER_H_
+#ifndef CALL_RTP_RTCP_DEMUXER_HELPER_H_
+#define CALL_RTP_RTCP_DEMUXER_HELPER_H_
 
 #include <algorithm>
 #include <map>
 #include <utility>
 
-#include "webrtc/rtc_base/array_view.h"
-#include "webrtc/rtc_base/basictypes.h"
-#include "webrtc/rtc_base/optional.h"
+#include "api/array_view.h"
+#include "api/optional.h"
+#include "rtc_base/basictypes.h"
 
 namespace webrtc {
 
+// TODO(eladalon): Remove this in the next CL.
 template <typename Container>
 bool MultimapAssociationExists(const Container& multimap,
                                const typename Container::key_type& key,
@@ -45,11 +46,26 @@ size_t RemoveFromMultimapByValue(Container* multimap, const Value& value) {
   return count;
 }
 
+template <typename Map, typename Value>
+size_t RemoveFromMapByValue(Map* map, const Value& value) {
+  size_t count = 0;
+  for (auto it = map->begin(); it != map->end();) {
+    if (it->second == value) {
+      it = map->erase(it);
+      ++count;
+    } else {
+      ++it;
+    }
+  }
+  return count;
+}
+
 template <typename Container, typename Key>
 bool ContainerHasKey(const Container& c, const Key& k) {
   return std::find(c.cbegin(), c.cend(), k) != c.cend();
 }
 
+// TODO(eladalon): Remove this in the next CL.
 template <typename Container>
 bool MultimapHasValue(const Container& c,
                       const typename Container::mapped_type& v) {
@@ -59,9 +75,24 @@ bool MultimapHasValue(const Container& c,
   return std::any_of(c.cbegin(), c.cend(), predicate);
 }
 
+template <typename Map>
+bool MapHasValue(const Map& map, const typename Map::mapped_type& value) {
+  auto predicate = [value](const typename Map::value_type& it) {
+    return it.second == value;
+  };
+  return std::any_of(map.cbegin(), map.cend(), predicate);
+}
+
+template <typename Container>
+bool MultimapHasKey(const Container& c,
+                    const typename Container::key_type& key) {
+  auto it_range = c.equal_range(key);
+  return it_range.first != it_range.second;
+}
+
 rtc::Optional<uint32_t> ParseRtcpPacketSenderSsrc(
     rtc::ArrayView<const uint8_t> packet);
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_CALL_RTP_RTCP_DEMUXER_HELPER_H_
+#endif  // CALL_RTP_RTCP_DEMUXER_HELPER_H_

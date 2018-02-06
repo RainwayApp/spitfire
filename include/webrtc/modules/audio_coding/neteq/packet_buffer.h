@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_CODING_NETEQ_PACKET_BUFFER_H_
-#define WEBRTC_MODULES_AUDIO_CODING_NETEQ_PACKET_BUFFER_H_
+#ifndef MODULES_AUDIO_CODING_NETEQ_PACKET_BUFFER_H_
+#define MODULES_AUDIO_CODING_NETEQ_PACKET_BUFFER_H_
 
-#include "webrtc/modules/audio_coding/neteq/packet.h"
-#include "webrtc/modules/include/module_common_types.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/typedefs.h"
+#include "api/optional.h"
+#include "modules/audio_coding/neteq/packet.h"
+#include "modules/include/module_common_types.h"
+#include "rtc_base/constructormagic.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -52,7 +52,7 @@ class PacketBuffer {
   // the packet object.
   // Returns PacketBuffer::kOK on success, PacketBuffer::kFlushed if the buffer
   // was flushed due to overfilling.
-  virtual int InsertPacket(Packet&& packet);
+  virtual int InsertPacket(Packet&& packet, StatisticsCalculator* stats);
 
   // Inserts a list of packets into the buffer. The buffer will take over
   // ownership of the packet objects.
@@ -66,7 +66,8 @@ class PacketBuffer {
       PacketList* packet_list,
       const DecoderDatabase& decoder_database,
       rtc::Optional<uint8_t>* current_rtp_payload_type,
-      rtc::Optional<uint8_t>* current_cng_rtp_payload_type);
+      rtc::Optional<uint8_t>* current_cng_rtp_payload_type,
+      StatisticsCalculator* stats);
 
   // Gets the timestamp for the first packet in the buffer and writes it to the
   // output variable |next_timestamp|.
@@ -144,4 +145,4 @@ class PacketBuffer {
 };
 
 }  // namespace webrtc
-#endif  // WEBRTC_MODULES_AUDIO_CODING_NETEQ_PACKET_BUFFER_H_
+#endif  // MODULES_AUDIO_CODING_NETEQ_PACKET_BUFFER_H_

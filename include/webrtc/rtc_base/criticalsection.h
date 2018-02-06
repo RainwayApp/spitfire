@@ -8,15 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_CRITICALSECTION_H_
-#define WEBRTC_RTC_BASE_CRITICALSECTION_H_
+#ifndef RTC_BASE_CRITICALSECTION_H_
+#define RTC_BASE_CRITICALSECTION_H_
 
-#include "webrtc/rtc_base/atomicops.h"
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/platform_thread_types.h"
-#include "webrtc/rtc_base/thread_annotations.h"
-#include "webrtc/typedefs.h"
+#include "rtc_base/atomicops.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/platform_thread_types.h"
+#include "rtc_base/thread_annotations.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 #if defined(WEBRTC_WIN)
 // Include winsock2.h before including <windows.h> to maintain consistency with
@@ -52,14 +52,14 @@ namespace rtc {
 // Locking methods (Enter, TryEnter, Leave)are const to permit protecting
 // members inside a const context without requiring mutable CriticalSections
 // everywhere.
-class LOCKABLE CriticalSection {
+class RTC_LOCKABLE CriticalSection {
  public:
   CriticalSection();
   ~CriticalSection();
 
-  void Enter() const EXCLUSIVE_LOCK_FUNCTION();
-  bool TryEnter() const EXCLUSIVE_TRYLOCK_FUNCTION(true);
-  void Leave() const UNLOCK_FUNCTION();
+  void Enter() const RTC_EXCLUSIVE_LOCK_FUNCTION();
+  bool TryEnter() const RTC_EXCLUSIVE_TRYLOCK_FUNCTION(true);
+  void Leave() const RTC_UNLOCK_FUNCTION();
 
  private:
   // Use only for RTC_DCHECKing.
@@ -91,10 +91,11 @@ class LOCKABLE CriticalSection {
 };
 
 // CritScope, for serializing execution through a scope.
-class SCOPED_LOCKABLE CritScope {
+class RTC_SCOPED_LOCKABLE CritScope {
  public:
-  explicit CritScope(const CriticalSection* cs) EXCLUSIVE_LOCK_FUNCTION(cs);
-  ~CritScope() UNLOCK_FUNCTION();
+  explicit CritScope(const CriticalSection* cs) RTC_EXCLUSIVE_LOCK_FUNCTION(cs);
+  ~CritScope() RTC_UNLOCK_FUNCTION();
+
  private:
   const CriticalSection* const cs_;
   RTC_DISALLOW_COPY_AND_ASSIGN(CritScope);
@@ -127,11 +128,11 @@ class TryCritScope {
 
 // A POD lock used to protect global variables. Do NOT use for other purposes.
 // No custom constructor or private data member should be added.
-class LOCKABLE GlobalLockPod {
+class RTC_LOCKABLE GlobalLockPod {
  public:
-  void Lock() EXCLUSIVE_LOCK_FUNCTION();
+  void Lock() RTC_EXCLUSIVE_LOCK_FUNCTION();
 
-  void Unlock() UNLOCK_FUNCTION();
+  void Unlock() RTC_UNLOCK_FUNCTION();
 
   volatile int lock_acquired;
 };
@@ -142,10 +143,12 @@ class GlobalLock : public GlobalLockPod {
 };
 
 // GlobalLockScope, for serializing execution through a scope.
-class SCOPED_LOCKABLE GlobalLockScope {
+class RTC_SCOPED_LOCKABLE GlobalLockScope {
  public:
-  explicit GlobalLockScope(GlobalLockPod* lock) EXCLUSIVE_LOCK_FUNCTION(lock);
-  ~GlobalLockScope() UNLOCK_FUNCTION();
+  explicit GlobalLockScope(GlobalLockPod* lock)
+      RTC_EXCLUSIVE_LOCK_FUNCTION(lock);
+  ~GlobalLockScope() RTC_UNLOCK_FUNCTION();
+
  private:
   GlobalLockPod* const lock_;
   RTC_DISALLOW_COPY_AND_ASSIGN(GlobalLockScope);
@@ -153,4 +156,4 @@ class SCOPED_LOCKABLE GlobalLockScope {
 
 } // namespace rtc
 
-#endif // WEBRTC_RTC_BASE_CRITICALSECTION_H_
+#endif // RTC_BASE_CRITICALSECTION_H_

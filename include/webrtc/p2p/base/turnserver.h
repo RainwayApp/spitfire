@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_TURNSERVER_H_
-#define WEBRTC_P2P_BASE_TURNSERVER_H_
+#ifndef P2P_BASE_TURNSERVER_H_
+#define P2P_BASE_TURNSERVER_H_
 
 #include <list>
 #include <map>
@@ -18,12 +18,12 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/p2p/base/portinterface.h"
-#include "webrtc/rtc_base/asyncinvoker.h"
-#include "webrtc/rtc_base/asyncpacketsocket.h"
-#include "webrtc/rtc_base/messagequeue.h"
-#include "webrtc/rtc_base/sigslot.h"
-#include "webrtc/rtc_base/socketaddress.h"
+#include "p2p/base/portinterface.h"
+#include "rtc_base/asyncinvoker.h"
+#include "rtc_base/asyncpacketsocket.h"
+#include "rtc_base/messagequeue.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/socketaddress.h"
 
 namespace rtc {
 class ByteBufferWriter;
@@ -157,6 +157,13 @@ class TurnRedirectInterface {
   virtual ~TurnRedirectInterface() {}
 };
 
+class StunMessageObserver {
+ public:
+  virtual void ReceivedMessage(const TurnMessage* msg) = 0;
+  virtual void ReceivedChannelData(const char* data, size_t size) = 0;
+  virtual ~StunMessageObserver() {}
+};
+
 // The core TURN server class. Give it a socket to listen on via
 // AddInternalServerSocket, and a factory to create external sockets via
 // SetExternalSocketFactory, and it's ready to go.
@@ -212,6 +219,11 @@ class TurnServer : public sigslot::has_slots<> {
   std::string SetTimestampForNextNonce(int64_t timestamp) {
     ts_for_next_nonce_ = timestamp;
     return GenerateNonce(timestamp);
+  }
+
+  void SetStunMessageObserver(
+      std::unique_ptr<StunMessageObserver> observer) {
+    stun_message_observer_ = std::move(observer);
   }
 
  private:
@@ -296,9 +308,12 @@ class TurnServer : public sigslot::has_slots<> {
   // from this value, and it will be reset to 0 after generating the NONCE.
   int64_t ts_for_next_nonce_ = 0;
 
+  // For testing only. Used to observe STUN messages received.
+  std::unique_ptr<StunMessageObserver> stun_message_observer_;
+
   friend class TurnServerAllocation;
 };
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_BASE_TURNSERVER_H_
+#endif  // P2P_BASE_TURNSERVER_H_

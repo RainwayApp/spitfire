@@ -8,20 +8,20 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_VIDEO_CODING_CODECS_TEST_VIDEO_CODEC_TEST_H_
-#define WEBRTC_MODULES_VIDEO_CODING_CODECS_TEST_VIDEO_CODEC_TEST_H_
+#ifndef MODULES_VIDEO_CODING_CODECS_TEST_VIDEO_CODEC_TEST_H_
+#define MODULES_VIDEO_CODING_CODECS_TEST_VIDEO_CODEC_TEST_H_
 
 #include <memory>
 
-#include "webrtc/api/video_codecs/video_decoder.h"
-#include "webrtc/api/video_codecs/video_encoder.h"
-#include "webrtc/modules/video_coding/include/video_codec_interface.h"
-#include "webrtc/modules/video_coding/utility/vp8_header_parser.h"
-#include "webrtc/modules/video_coding/utility/vp9_uncompressed_header_parser.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/event.h"
-#include "webrtc/rtc_base/thread_annotations.h"
-#include "webrtc/test/gtest.h"
+#include "api/video_codecs/video_decoder.h"
+#include "api/video_codecs/video_encoder.h"
+#include "modules/video_coding/include/video_codec_interface.h"
+#include "modules/video_coding/utility/vp8_header_parser.h"
+#include "modules/video_coding/utility/vp9_uncompressed_header_parser.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/event.h"
+#include "rtc_base/thread_annotations.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 
@@ -95,15 +95,17 @@ class VideoCodecTest : public ::testing::Test {
 
   rtc::Event encoded_frame_event_;
   rtc::CriticalSection encoded_frame_section_;
-  rtc::Optional<EncodedImage> encoded_frame_ GUARDED_BY(encoded_frame_section_);
-  CodecSpecificInfo codec_specific_info_ GUARDED_BY(encoded_frame_section_);
+  rtc::Optional<EncodedImage> encoded_frame_
+      RTC_GUARDED_BY(encoded_frame_section_);
+  CodecSpecificInfo codec_specific_info_ RTC_GUARDED_BY(encoded_frame_section_);
 
   rtc::Event decoded_frame_event_;
   rtc::CriticalSection decoded_frame_section_;
-  rtc::Optional<VideoFrame> decoded_frame_ GUARDED_BY(decoded_frame_section_);
-  rtc::Optional<uint8_t> decoded_qp_ GUARDED_BY(decoded_frame_section_);
+  rtc::Optional<VideoFrame> decoded_frame_
+      RTC_GUARDED_BY(decoded_frame_section_);
+  rtc::Optional<uint8_t> decoded_qp_ RTC_GUARDED_BY(decoded_frame_section_);
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_VIDEO_CODING_CODECS_TEST_VIDEO_CODEC_TEST_H_
+#endif  // MODULES_VIDEO_CODING_CODECS_TEST_VIDEO_CODEC_TEST_H_

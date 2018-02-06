@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_DXGI_DUPLICATOR_CONTROLLER_H_
-#define WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_DXGI_DUPLICATOR_CONTROLLER_H_
+#ifndef MODULES_DESKTOP_CAPTURE_WIN_DXGI_DUPLICATOR_CONTROLLER_H_
+#define MODULES_DESKTOP_CAPTURE_WIN_DXGI_DUPLICATOR_CONTROLLER_H_
 
 #include <D3DCommon.h>
 
@@ -17,15 +17,15 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/modules/desktop_capture/desktop_geometry.h"
-#include "webrtc/modules/desktop_capture/resolution_change_detector.h"
-#include "webrtc/modules/desktop_capture/shared_desktop_frame.h"
-#include "webrtc/modules/desktop_capture/win/d3d_device.h"
-#include "webrtc/modules/desktop_capture/win/dxgi_adapter_duplicator.h"
-#include "webrtc/modules/desktop_capture/win/dxgi_context.h"
-#include "webrtc/modules/desktop_capture/win/dxgi_frame.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
+#include "modules/desktop_capture/win/d3d_device.h"
+#include "modules/desktop_capture/win/display_configuration_monitor.h"
+#include "modules/desktop_capture/win/dxgi_adapter_duplicator.h"
+#include "modules/desktop_capture/win/dxgi_context.h"
+#include "modules/desktop_capture/win/dxgi_frame.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
@@ -67,6 +67,10 @@ class DxgiDuplicatorController {
     DUPLICATION_FAILED,
     INVALID_MONITOR_ID,
   };
+
+  // Converts |result| into user-friendly string representation. The return
+  // value should not be used to identify error types.
+  static std::string ResultName(Result result);
 
   // Returns the singleton instance of DxgiDuplicatorController.
   static rtc::scoped_refptr<DxgiDuplicatorController> Instance();
@@ -224,11 +228,11 @@ class DxgiDuplicatorController {
   DesktopVector dpi_;
   std::vector<DxgiAdapterDuplicator> duplicators_;
   D3dInfo d3d_info_;
-  ResolutionChangeDetector resolution_change_detector_;
+  DisplayConfigurationMonitor display_configuration_monitor_;
   // A number to indicate how many succeeded duplications have been performed.
   uint32_t succeeded_duplications_ = 0;
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_DXGI_DUPLICATOR_CONTROLLER_H_
+#endif  // MODULES_DESKTOP_CAPTURE_WIN_DXGI_DUPLICATOR_CONTROLLER_H_

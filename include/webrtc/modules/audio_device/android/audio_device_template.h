@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
-#define WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
+#ifndef MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
+#define MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
 
-#include "webrtc/modules/audio_device/android/audio_manager.h"
-#include "webrtc/modules/audio_device/audio_device_generic.h"
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/logging.h"
-#include "webrtc/rtc_base/thread_checker.h"
+#include "modules/audio_device/android/audio_manager.h"
+#include "modules/audio_device/audio_device_generic.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/thread_checker.h"
 
 namespace webrtc {
 
@@ -231,18 +231,6 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
     return false;
   }
 
-  int32_t SetWaveOutVolume(
-      uint16_t volumeLeft, uint16_t volumeRight) override {
-     FATAL() << "Should never be called";
-    return -1;
-  }
-
-  int32_t WaveOutVolume(
-      uint16_t& volumeLeft, uint16_t& volumeRight) const override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
   int32_t InitSpeaker() override {
     LOG(INFO) << __FUNCTION__;
     return 0;
@@ -288,11 +276,6 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
     return output_.MinSpeakerVolume(minVolume);
   }
 
-  int32_t SpeakerVolumeStepSize(uint16_t& stepSize) const override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
   int32_t MicrophoneVolumeIsAvailable(bool& available) override{
     available = false;
     return -1;
@@ -314,11 +297,6 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
   }
 
   int32_t MinMicrophoneVolume(uint32_t& minVolume) const override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
-  int32_t MicrophoneVolumeStepSize(uint16_t& stepSize) const override {
     FATAL() << "Should never be called";
     return -1;
   }
@@ -353,67 +331,49 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
     return -1;
   }
 
-  int32_t MicrophoneBoostIsAvailable(bool& available) override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
-  int32_t SetMicrophoneBoost(bool enable) override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
-  int32_t MicrophoneBoost(bool& enabled) const override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
+  // Returns true if the audio manager has been configured to support stereo
+  // and false otherwised. Default is mono.
   int32_t StereoPlayoutIsAvailable(bool& available) override {
     LOG(INFO) << __FUNCTION__;
-    available = false;
+    available = audio_manager_->IsStereoPlayoutSupported();
     return 0;
   }
 
-  // TODO(henrika): add support.
   int32_t SetStereoPlayout(bool enable) override {
     LOG(INFO) << __FUNCTION__;
-    return -1;
+    bool available = audio_manager_->IsStereoPlayoutSupported();
+    // Android does not support changes between mono and stero on the fly.
+    // Instead, the native audio layer is configured via the audio manager
+    // to either support mono or stereo. It is allowed to call this method
+    // if that same state is not modified.
+    return (enable == available) ? 0 : -1;
   }
 
-  // TODO(henrika): add support.
   int32_t StereoPlayout(bool& enabled) const override {
-    enabled = false;
-    FATAL() << "Should never be called";
-    return -1;
+    enabled = audio_manager_->IsStereoPlayoutSupported();
+    return 0;
   }
 
   int32_t StereoRecordingIsAvailable(bool& available) override {
     LOG(INFO) << __FUNCTION__;
-    available = false;
+    available = audio_manager_->IsStereoRecordSupported();
     return 0;
   }
 
   int32_t SetStereoRecording(bool enable) override {
     LOG(INFO) << __FUNCTION__;
-    return -1;
+    bool available = audio_manager_->IsStereoRecordSupported();
+    // Android does not support changes between mono and stero on the fly.
+    // Instead, the native audio layer is configured via the audio manager
+    // to either support mono or stereo. It is allowed to call this method
+    // if that same state is not modified.
+    return (enable == available) ? 0 : -1;
   }
 
   int32_t StereoRecording(bool& enabled) const override {
     LOG(INFO) << __FUNCTION__;
-    enabled = false;
+    enabled = audio_manager_->IsStereoRecordSupported();
     return 0;
-  }
-
-  int32_t SetPlayoutBuffer(
-      const AudioDeviceModule::BufferType type, uint16_t sizeMS) override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
-  int32_t PlayoutBuffer(
-      AudioDeviceModule::BufferType& type, uint16_t& sizeMS) const override {
-    FATAL() << "Should never be called";
-    return -1;
   }
 
   int32_t PlayoutDelay(uint16_t& delay_ms) const override {
@@ -430,35 +390,6 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
     RTC_DCHECK_GT(delay_ms, 0);
     return 0;
   }
-
-  int32_t CPULoad(uint16_t& load) const override {
-    FATAL() << "Should never be called";
-    return -1;
-  }
-
-  bool PlayoutWarning() const override {
-    return false;
-  }
-
-  bool PlayoutError() const override {
-    return false;
-  }
-
-  bool RecordingWarning() const override {
-    return false;
-  }
-
-  bool RecordingError() const override {
-    return false;
-  }
-
-  void ClearPlayoutWarning() override { LOG(INFO) << __FUNCTION__; }
-
-  void ClearPlayoutError() override { LOG(INFO) << __FUNCTION__; }
-
-  void ClearRecordingWarning() override { LOG(INFO) << __FUNCTION__; }
-
-  void ClearRecordingError() override { LOG(INFO) << __FUNCTION__; }
 
   void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) override {
     LOG(INFO) << __FUNCTION__;
@@ -560,4 +491,4 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
+#endif  // MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_

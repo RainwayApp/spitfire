@@ -7,26 +7,26 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_CALL_CALL_H_
-#define WEBRTC_CALL_CALL_H_
+#ifndef CALL_CALL_H_
+#define CALL_CALL_H_
 
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/api/rtcerror.h"
-#include "webrtc/call/audio_receive_stream.h"
-#include "webrtc/call/audio_send_stream.h"
-#include "webrtc/call/audio_state.h"
-#include "webrtc/call/flexfec_receive_stream.h"
-#include "webrtc/call/rtp_transport_controller_send_interface.h"
-#include "webrtc/common_types.h"
-#include "webrtc/rtc_base/networkroute.h"
-#include "webrtc/rtc_base/platform_file.h"
-#include "webrtc/rtc_base/socket.h"
-#include "webrtc/video_receive_stream.h"
-#include "webrtc/video_send_stream.h"
+#include "api/rtcerror.h"
+#include "call/audio_receive_stream.h"
+#include "call/audio_send_stream.h"
+#include "call/audio_state.h"
+#include "call/flexfec_receive_stream.h"
+#include "call/rtp_transport_controller_send_interface.h"
+#include "call/video_receive_stream.h"
+#include "call/video_send_stream.h"
+#include "common_types.h"  // NOLINT(build/include)
+#include "rtc_base/networkroute.h"
+#include "rtc_base/platform_file.h"
+#include "rtc_base/socket.h"
 
 namespace webrtc {
 
@@ -112,12 +112,6 @@ class Call {
     // RtcEventLog to use for this call. Required.
     // Use webrtc::RtcEventLog::CreateNull() for a null implementation.
     RtcEventLog* event_log = nullptr;
-
-    // Enables periodic sending if empty keep-alive messages that helps prevent
-    // network time-out events. The packets adhere to RFC6263 section 4.6, and
-    // by default use payload type 20, as described in 3GPP TS 24.229,
-    // Appendix K.5.2.1.
-    RtpKeepAliveConfig keepalive_config;
   };
 
   struct Stats {
@@ -210,4 +204,4 @@ class Call {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_CALL_CALL_H_
+#endif  // CALL_CALL_H_

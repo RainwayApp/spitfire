@@ -8,29 +8,29 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_API_ORTC_ORTCFACTORYINTERFACE_H_
-#define WEBRTC_API_ORTC_ORTCFACTORYINTERFACE_H_
+#ifndef API_ORTC_ORTCFACTORYINTERFACE_H_
+#define API_ORTC_ORTCFACTORYINTERFACE_H_
 
 #include <memory>
 #include <string>
 #include <utility>  // For std::move.
 
-#include "webrtc/api/mediaconstraintsinterface.h"
-#include "webrtc/api/mediastreaminterface.h"
-#include "webrtc/api/mediatypes.h"
-#include "webrtc/api/ortc/ortcrtpreceiverinterface.h"
-#include "webrtc/api/ortc/ortcrtpsenderinterface.h"
-#include "webrtc/api/ortc/packettransportinterface.h"
-#include "webrtc/api/ortc/rtptransportcontrollerinterface.h"
-#include "webrtc/api/ortc/rtptransportinterface.h"
-#include "webrtc/api/ortc/srtptransportinterface.h"
-#include "webrtc/api/ortc/udptransportinterface.h"
-#include "webrtc/api/rtcerror.h"
-#include "webrtc/api/rtpparameters.h"
-#include "webrtc/p2p/base/packetsocketfactory.h"
-#include "webrtc/rtc_base/network.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
-#include "webrtc/rtc_base/thread.h"
+#include "api/mediaconstraintsinterface.h"
+#include "api/mediastreaminterface.h"
+#include "api/mediatypes.h"
+#include "api/ortc/ortcrtpreceiverinterface.h"
+#include "api/ortc/ortcrtpsenderinterface.h"
+#include "api/ortc/packettransportinterface.h"
+#include "api/ortc/rtptransportcontrollerinterface.h"
+#include "api/ortc/rtptransportinterface.h"
+#include "api/ortc/srtptransportinterface.h"
+#include "api/ortc/udptransportinterface.h"
+#include "api/rtcerror.h"
+#include "api/rtpparameters.h"
+#include "p2p/base/packetsocketfactory.h"
+#include "rtc_base/network.h"
+#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -113,16 +113,16 @@ class OrtcFactoryInterface {
   // |rtp| will be used for sending RTP packets, and |rtcp| for RTCP packets.
   //
   // |rtp| can't be null. |rtcp| must be non-null if and only if
-  // |rtcp_parameters.mux| is false, indicating that RTCP muxing isn't used.
+  // |rtp_parameters.rtcp.mux| is false, indicating that RTCP muxing isn't used.
   // Note that if RTCP muxing isn't enabled initially, it can still enabled
-  // later through SetRtcpParameters.
+  // later through SetParameters.
   //
   // If |transport_controller| is null, one will automatically be created, and
   // its lifetime managed by the returned RtpTransport. This should only be
   // done if a single RtpTransport is being used to communicate with the remote
   // endpoint.
   virtual RTCErrorOr<std::unique_ptr<RtpTransportInterface>> CreateRtpTransport(
-      const RtcpParameters& rtcp_parameters,
+      const RtpTransportParameters& rtp_parameters,
       PacketTransportInterface* rtp,
       PacketTransportInterface* rtcp,
       RtpTransportControllerInterface* transport_controller) = 0;
@@ -130,7 +130,7 @@ class OrtcFactoryInterface {
   // Creates an SrtpTransport which is an RTP transport that uses SRTP.
   virtual RTCErrorOr<std::unique_ptr<SrtpTransportInterface>>
   CreateSrtpTransport(
-      const RtcpParameters& rtcp_parameters,
+      const RtpTransportParameters& rtp_parameters,
       PacketTransportInterface* rtp,
       PacketTransportInterface* rtcp,
       RtpTransportControllerInterface* transport_controller) = 0;
@@ -236,4 +236,4 @@ class OrtcFactoryInterface {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_API_ORTC_ORTCFACTORYINTERFACE_H_
+#endif  // API_ORTC_ORTCFACTORYINTERFACE_H_

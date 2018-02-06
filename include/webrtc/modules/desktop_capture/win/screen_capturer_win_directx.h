@@ -8,21 +8,21 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
-#define WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
+#ifndef MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
+#define MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
 
 #include <D3DCommon.h>
 
 #include <memory>
 #include <vector>
 
-#include "webrtc/modules/desktop_capture/desktop_capture_options.h"
-#include "webrtc/modules/desktop_capture/desktop_capturer.h"
-#include "webrtc/modules/desktop_capture/desktop_region.h"
-#include "webrtc/modules/desktop_capture/screen_capture_frame_queue.h"
-#include "webrtc/modules/desktop_capture/win/dxgi_duplicator_controller.h"
-#include "webrtc/modules/desktop_capture/win/dxgi_frame.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
+#include "modules/desktop_capture/desktop_capture_options.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_region.h"
+#include "modules/desktop_capture/screen_capture_frame_queue.h"
+#include "modules/desktop_capture/win/dxgi_duplicator_controller.h"
+#include "modules/desktop_capture/win/dxgi_frame.h"
+#include "rtc_base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
@@ -51,6 +51,23 @@ class ScreenCapturerWinDirectx : public DesktopCapturer {
   // always try IsSupported() function.
   static bool IsCurrentSessionSupported();
 
+  // Maps |device_names| with the result from GetScreenList() and creates a new
+  // SourceList to include only the ones in |device_names|. If this function
+  // returns true, consumers can always assume |device_names|.size() equals to
+  // |screens|->size(), meanwhile |device_names|[i] and |screens|[i] indicate
+  // the same monitor on the system.
+  // Public for test only.
+  static bool GetScreenListFromDeviceNames(
+      const std::vector<std::string>& device_names,
+      DesktopCapturer::SourceList* screens);
+
+  // Maps |id| with the result from GetScreenListFromDeviceNames() and returns
+  // the index of the entity in |device_names|. This function returns -1 if |id|
+  // cannot be found.
+  // Public for test only.
+  static int GetIndexFromScreenId(ScreenId id,
+                                  const std::vector<std::string>& device_names);
+
   explicit ScreenCapturerWinDirectx();
 
   ~ScreenCapturerWinDirectx() override;
@@ -75,4 +92,4 @@ class ScreenCapturerWinDirectx : public DesktopCapturer {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
+#endif  // MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_

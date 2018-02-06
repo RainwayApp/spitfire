@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_TYPE_TRAITS_H_
-#define WEBRTC_RTC_BASE_TYPE_TRAITS_H_
+#ifndef RTC_BASE_TYPE_TRAITS_H_
+#define RTC_BASE_TYPE_TRAITS_H_
 
 #include <cstddef>
 #include <type_traits>
@@ -67,7 +67,8 @@ class Test4 {
   int* data();
   size_t size();
 };
-
+static_assert(!HasDataAndSize<Test4, int>::value,
+              ".data() and .size() are private");
 
 }  // namespace test_has_data_and_size
 
@@ -136,4 +137,4 @@ static_assert(!IsIntlike<S>::value, "");
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_TYPE_TRAITS_H_
+#endif  // RTC_BASE_TYPE_TRAITS_H_

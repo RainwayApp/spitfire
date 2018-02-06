@@ -8,17 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_PC_CHANNELMANAGER_H_
-#define WEBRTC_PC_CHANNELMANAGER_H_
+#ifndef PC_CHANNELMANAGER_H_
+#define PC_CHANNELMANAGER_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/media/base/mediaengine.h"
-#include "webrtc/pc/voicechannel.h"
-#include "webrtc/rtc_base/fileutils.h"
-#include "webrtc/rtc_base/thread.h"
+#include "media/base/mediaengine.h"
+#include "pc/voicechannel.h"
+#include "rtc_base/thread.h"
 
 namespace cricket {
 
@@ -83,6 +82,9 @@ class ChannelManager {
   void Terminate();
 
   // The operations below all occur on the worker thread.
+  // ChannelManager retains ownership of the created channels, so clients should
+  // call the appropriate Destroy*Channel method when done.
+
   // Creates a voice channel, to be associated with the specified session.
   VoiceChannel* CreateVoiceChannel(
       webrtc::Call* call,
@@ -103,8 +105,9 @@ class ChannelManager {
       const std::string& content_name,
       bool srtp_required,
       const AudioOptions& options);
-  // Destroys a voice channel created with the Create API.
+  // Destroys a voice channel created by CreateVoiceChannel.
   void DestroyVoiceChannel(VoiceChannel* voice_channel);
+
   // Creates a video channel, synced with the specified voice channel, and
   // associated with the specified session.
   VideoChannel* CreateVideoChannel(
@@ -126,8 +129,9 @@ class ChannelManager {
       const std::string& content_name,
       bool srtp_required,
       const VideoOptions& options);
-  // Destroys a video channel created with the Create API.
+  // Destroys a video channel created by CreateVideoChannel.
   void DestroyVideoChannel(VideoChannel* video_channel);
+
   RtpDataChannel* CreateRtpDataChannel(
       const cricket::MediaConfig& media_config,
       DtlsTransportInternal* rtp_transport,
@@ -135,7 +139,7 @@ class ChannelManager {
       rtc::Thread* signaling_thread,
       const std::string& content_name,
       bool srtp_required);
-  // Destroys a data channel created with the Create API.
+  // Destroys a data channel created by CreateRtpDataChannel.
   void DestroyRtpDataChannel(RtpDataChannel* data_channel);
 
   // Indicates whether any channels exist.
@@ -161,10 +165,6 @@ class ChannelManager {
   void StopAecDump();
 
  private:
-  typedef std::vector<VoiceChannel*> VoiceChannels;
-  typedef std::vector<VideoChannel*> VideoChannels;
-  typedef std::vector<RtpDataChannel*> RtpDataChannels;
-
   void Construct(std::unique_ptr<MediaEngineInterface> me,
                  std::unique_ptr<DataEngineInterface> dme,
                  rtc::Thread* worker_thread,
@@ -212,9 +212,9 @@ class ChannelManager {
   rtc::Thread* worker_thread_;
   rtc::Thread* network_thread_;
 
-  VoiceChannels voice_channels_;
-  VideoChannels video_channels_;
-  RtpDataChannels data_channels_;
+  std::vector<std::unique_ptr<VoiceChannel>> voice_channels_;
+  std::vector<std::unique_ptr<VideoChannel>> video_channels_;
+  std::vector<std::unique_ptr<RtpDataChannel>> data_channels_;
 
   bool enable_rtx_;
   bool capturing_;
@@ -222,4 +222,4 @@ class ChannelManager {
 
 }  // namespace cricket
 
-#endif  // WEBRTC_PC_CHANNELMANAGER_H_
+#endif  // PC_CHANNELMANAGER_H_

@@ -8,15 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_PACING_ALR_DETECTOR_H_
-#define WEBRTC_MODULES_PACING_ALR_DETECTOR_H_
+#ifndef MODULES_PACING_ALR_DETECTOR_H_
+#define MODULES_PACING_ALR_DETECTOR_H_
 
-#include "webrtc/common_types.h"
-#include "webrtc/modules/pacing/interval_budget.h"
-#include "webrtc/modules/pacing/paced_sender.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/rtc_base/rate_statistics.h"
-#include "webrtc/typedefs.h"
+#include "api/optional.h"
+#include "common_types.h"  // NOLINT(build/include)
+#include "modules/pacing/interval_budget.h"
+#include "modules/pacing/paced_sender.h"
+#include "rtc_base/rate_statistics.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -47,8 +47,13 @@ class AlrDetector {
     int alr_bandwidth_usage_percent = kDefaultAlrBandwidthUsagePercent;
     int alr_start_budget_level_percent = kDefaultAlrStartBudgetLevelPercent;
     int alr_stop_budget_level_percent = kDefaultAlrStopBudgetLevelPercent;
+    // Will be sent to the receive side for stats slicing.
+    // Can be 0..6, because it's sent as a 3 bits value and there's also
+    // reserved value to indicate absence of experiment.
+    int group_id = 0;
   };
-  static rtc::Optional<AlrExperimentSettings> ParseAlrSettingsFromFieldTrial();
+  static rtc::Optional<AlrExperimentSettings> ParseAlrSettingsFromFieldTrial(
+      const char* experiment_name);
 
   // Sent traffic percentage as a function of network capacity used to determine
   // application-limited region. ALR region start when bandwidth usage drops
@@ -58,7 +63,8 @@ class AlrDetector {
   static constexpr int kDefaultAlrBandwidthUsagePercent = 65;
   static constexpr int kDefaultAlrStartBudgetLevelPercent = 80;
   static constexpr int kDefaultAlrStopBudgetLevelPercent = 50;
-  static const char* kScreenshareProbingBweExperimentName;
+  static const char kScreenshareProbingBweExperimentName[];
+  static const char kStrictPacingAndProbingExperimentName[];
 
   void UpdateBudgetWithElapsedTime(int64_t delta_time_ms);
   void UpdateBudgetWithBytesSent(size_t bytes_sent);
@@ -74,4 +80,4 @@ class AlrDetector {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_PACING_ALR_DETECTOR_H_
+#endif  // MODULES_PACING_ALR_DETECTOR_H_

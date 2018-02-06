@@ -17,21 +17,22 @@
 //   webrtc::VideoSendStream
 //   webrtc::VideoReceiveStream
 
-#ifndef WEBRTC_MEDIA_ENGINE_FAKEWEBRTCCALL_H_
-#define WEBRTC_MEDIA_ENGINE_FAKEWEBRTCCALL_H_
+#ifndef MEDIA_ENGINE_FAKEWEBRTCCALL_H_
+#define MEDIA_ENGINE_FAKEWEBRTCCALL_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/api/video/video_frame.h"
-#include "webrtc/call/audio_receive_stream.h"
-#include "webrtc/call/audio_send_stream.h"
-#include "webrtc/call/call.h"
-#include "webrtc/call/flexfec_receive_stream.h"
-#include "webrtc/rtc_base/buffer.h"
-#include "webrtc/video_receive_stream.h"
-#include "webrtc/video_send_stream.h"
+#include "api/video/video_frame.h"
+#include "call/audio_receive_stream.h"
+#include "call/audio_send_stream.h"
+#include "call/call.h"
+#include "call/flexfec_receive_stream.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "rtc_base/buffer.h"
+#include "call/video_receive_stream.h"
+#include "call/video_send_stream.h"
 
 namespace cricket {
 class FakeAudioSendStream final : public webrtc::AudioSendStream {
@@ -47,7 +48,7 @@ class FakeAudioSendStream final : public webrtc::AudioSendStream {
       int id, const webrtc::AudioSendStream::Config& config);
 
   int id() const { return id_; }
-  const webrtc::AudioSendStream::Config& GetConfig() const;
+  const webrtc::AudioSendStream::Config& GetConfig() const override;
   void SetStats(const webrtc::AudioSendStream::Stats& stats);
   TelephoneEvent GetLatestTelephoneEvent() const;
   bool IsSending() const { return sending_; }
@@ -198,14 +199,15 @@ class FakeVideoReceiveStream final : public webrtc::VideoReceiveStream {
   void EnableEncodedFrameRecording(rtc::PlatformFile file,
                                    size_t byte_limit) override;
 
+  void AddSecondarySink(webrtc::RtpPacketSinkInterface* sink) override;
+  void RemoveSecondarySink(const webrtc::RtpPacketSinkInterface* sink) override;
+
  private:
   // webrtc::VideoReceiveStream implementation.
   void Start() override;
   void Stop() override;
 
   webrtc::VideoReceiveStream::Stats GetStats() const override;
-
-  rtc::Optional<webrtc::TimingFrameInfo> GetAndResetTimingFrameInfo() override;
 
   webrtc::VideoReceiveStream::Config config_;
   bool receiving_;
@@ -217,17 +219,14 @@ class FakeFlexfecReceiveStream final : public webrtc::FlexfecReceiveStream {
   explicit FakeFlexfecReceiveStream(
       const webrtc::FlexfecReceiveStream::Config& config);
 
-  const webrtc::FlexfecReceiveStream::Config& GetConfig() const;
+  const webrtc::FlexfecReceiveStream::Config& GetConfig() const override;
 
  private:
-  // webrtc::FlexfecReceiveStream implementation.
-  void Start() override;
-  void Stop() override;
-
   webrtc::FlexfecReceiveStream::Stats GetStats() const override;
 
+  void OnRtpPacket(const webrtc::RtpPacketReceived& packet) override;
+
   webrtc::FlexfecReceiveStream::Config config_;
-  bool receiving_;
 };
 
 class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
@@ -326,4 +325,4 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
 };
 
 }  // namespace cricket
-#endif  // WEBRTC_MEDIA_ENGINE_FAKEWEBRTCCALL_H_
+#endif  // MEDIA_ENGINE_FAKEWEBRTCCALL_H_

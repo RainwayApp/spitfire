@@ -12,13 +12,13 @@
 // doing, use locks instead! :-)
 //
 // Note: assumes 32-bit (or higher) system
-#ifndef WEBRTC_SYSTEM_WRAPPERS_INCLUDE_ATOMIC32_H_
-#define WEBRTC_SYSTEM_WRAPPERS_INCLUDE_ATOMIC32_H_
+#ifndef SYSTEM_WRAPPERS_INCLUDE_ATOMIC32_H_
+#define SYSTEM_WRAPPERS_INCLUDE_ATOMIC32_H_
 
 #include <stddef.h>
 
-#include "webrtc/common_types.h"
-#include "webrtc/rtc_base/constructormagic.h"
+#include "common_types.h"  // NOLINT(build/include)
+#include "rtc_base/constructormagic.h"
 
 namespace webrtc {
 
@@ -46,11 +46,6 @@ class Atomic32 {
   }
 
  private:
-  // Disable the + and - operator since it's unclear what these operations
-  // should do.
-  Atomic32 operator+(const Atomic32& other);
-  Atomic32 operator-(const Atomic32& other);
-
   // Checks if |_value| is 32bit aligned.
   inline bool Is32bitAligned() const {
     return (reinterpret_cast<ptrdiff_t>(&value_) & 3) == 0;
@@ -63,4 +58,4 @@ class Atomic32 {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_SYSTEM_WRAPPERS_INCLUDE_ATOMIC32_H_
+#endif  // SYSTEM_WRAPPERS_INCLUDE_ATOMIC32_H_

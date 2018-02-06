@@ -8,8 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_SANITIZER_H_
-#define WEBRTC_RTC_BASE_SANITIZER_H_
+#ifndef RTC_BASE_SANITIZER_H_
+#define RTC_BASE_SANITIZER_H_
+
+#include <stddef.h>  // for size_t
 
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
@@ -113,4 +115,4 @@ inline void MsanCheckInitialized(const T& mem) {
 
 #endif  // __cplusplus
 
-#endif  // WEBRTC_RTC_BASE_SANITIZER_H_
+#endif  // RTC_BASE_SANITIZER_H_

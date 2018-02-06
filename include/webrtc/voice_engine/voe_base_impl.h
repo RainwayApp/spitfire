@@ -8,26 +8,22 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_VOICE_ENGINE_VOE_BASE_IMPL_H
-#define WEBRTC_VOICE_ENGINE_VOE_BASE_IMPL_H
+#ifndef VOICE_ENGINE_VOE_BASE_IMPL_H_
+#define VOICE_ENGINE_VOE_BASE_IMPL_H_
 
-#include "webrtc/voice_engine/include/voe_base.h"
+#include "voice_engine/include/voe_base.h"
 
-#include "webrtc/modules/include/module_common_types.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/voice_engine/shared_data.h"
+#include "modules/include/module_common_types.h"
+#include "rtc_base/criticalsection.h"
+#include "voice_engine/shared_data.h"
 
 namespace webrtc {
 
 class ProcessThread;
 
 class VoEBaseImpl : public VoEBase,
-                    public AudioTransport,
-                    public AudioDeviceObserver {
+                    public AudioTransport {
  public:
-  int RegisterVoiceEngineObserver(VoiceEngineObserver& observer) override;
-  int DeRegisterVoiceEngineObserver() override;
-
   int Init(
       AudioDeviceModule* external_adm,
       AudioProcessing* audio_processing,
@@ -44,19 +40,12 @@ class VoEBaseImpl : public VoEBase,
   int CreateChannel(const ChannelConfig& config) override;
   int DeleteChannel(int channel) override;
 
-  int StartReceive(int channel) override;
   int StartPlayout(int channel) override;
   int StartSend(int channel) override;
   int StopPlayout(int channel) override;
   int StopSend(int channel) override;
 
-  int GetVersion(char version[1024]) override;
-
-  int LastError() override;
-
   AudioTransport* audio_transport() override { return this; }
-
-  int AssociateSendChannel(int channel, int accociate_send_channel) override;
 
   // AudioTransport
   int32_t RecordedDataIsAvailable(const void* audio_data,
@@ -69,31 +58,27 @@ class VoEBaseImpl : public VoEBase,
                                   const uint32_t volume,
                                   const bool key_pressed,
                                   uint32_t& new_mic_volume) override;
-  int32_t NeedMorePlayData(const size_t nSamples,
-                           const size_t nBytesPerSample,
-                           const size_t nChannels,
-                           const uint32_t samplesPerSec,
-                           void* audioSamples,
-                           size_t& nSamplesOut,
-                           int64_t* elapsed_time_ms,
-                           int64_t* ntp_time_ms) override;
+  RTC_DEPRECATED int32_t NeedMorePlayData(const size_t nSamples,
+                                          const size_t nBytesPerSample,
+                                          const size_t nChannels,
+                                          const uint32_t samplesPerSec,
+                                          void* audioSamples,
+                                          size_t& nSamplesOut,
+                                          int64_t* elapsed_time_ms,
+                                          int64_t* ntp_time_ms) override;
   void PushCaptureData(int voe_channel,
                        const void* audio_data,
                        int bits_per_sample,
                        int sample_rate,
                        size_t number_of_channels,
                        size_t number_of_frames) override;
-  void PullRenderData(int bits_per_sample,
-                      int sample_rate,
-                      size_t number_of_channels,
-                      size_t number_of_frames,
-                      void* audio_data,
-                      int64_t* elapsed_time_ms,
-                      int64_t* ntp_time_ms) override;
-
-  // AudioDeviceObserver
-  void OnErrorIsReported(const ErrorCode error) override;
-  void OnWarningIsReported(const WarningCode warning) override;
+  RTC_DEPRECATED void PullRenderData(int bits_per_sample,
+                                     int sample_rate,
+                                     size_t number_of_channels,
+                                     size_t number_of_frames,
+                                     void* audio_data,
+                                     int64_t* elapsed_time_ms,
+                                     int64_t* ntp_time_ms) override;
 
  protected:
   VoEBaseImpl(voe::SharedData* shared);
@@ -114,8 +99,6 @@ class VoEBaseImpl : public VoEBase,
   // Initialize channel by setting Engine Information then initializing
   // channel.
   int InitializeChannel(voe::ChannelOwner* channel_owner);
-  VoiceEngineObserver* voiceEngineObserverPtr_;
-  rtc::CriticalSection callbackCritSect_;
   rtc::scoped_refptr<AudioDecoderFactory> decoder_factory_;
 
   AudioFrame audioFrame_;
@@ -124,4 +107,4 @@ class VoEBaseImpl : public VoEBase,
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_VOICE_ENGINE_VOE_BASE_IMPL_H
+#endif  // VOICE_ENGINE_VOE_BASE_IMPL_H_

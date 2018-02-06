@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_PORT_H_
-#define WEBRTC_P2P_BASE_PORT_H_
+#ifndef P2P_BASE_PORT_H_
+#define P2P_BASE_PORT_H_
 
 #include <map>
 #include <memory>
@@ -17,23 +17,23 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/p2p/base/candidate.h"
-#include "webrtc/p2p/base/candidatepairinterface.h"
-#include "webrtc/p2p/base/jseptransport.h"
-#include "webrtc/p2p/base/packetlossestimator.h"
-#include "webrtc/p2p/base/packetsocketfactory.h"
-#include "webrtc/p2p/base/portinterface.h"
-#include "webrtc/p2p/base/stun.h"
-#include "webrtc/p2p/base/stunrequest.h"
-#include "webrtc/rtc_base/asyncpacketsocket.h"
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/network.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/rtc_base/proxyinfo.h"
-#include "webrtc/rtc_base/ratetracker.h"
-#include "webrtc/rtc_base/sigslot.h"
-#include "webrtc/rtc_base/socketaddress.h"
-#include "webrtc/rtc_base/thread.h"
+#include "api/candidate.h"
+#include "api/optional.h"
+#include "p2p/base/candidatepairinterface.h"
+#include "p2p/base/jseptransport.h"
+#include "p2p/base/packetlossestimator.h"
+#include "p2p/base/packetsocketfactory.h"
+#include "p2p/base/portinterface.h"
+#include "p2p/base/stun.h"
+#include "p2p/base/stunrequest.h"
+#include "rtc_base/asyncpacketsocket.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/network.h"
+#include "rtc_base/proxyinfo.h"
+#include "rtc_base/ratetracker.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/socketaddress.h"
+#include "rtc_base/thread.h"
 
 namespace cricket {
 
@@ -142,14 +142,21 @@ class Port : public PortInterface, public rtc::MessageHandler,
        const std::string& type,
        rtc::PacketSocketFactory* factory,
        rtc::Network* network,
-       const rtc::IPAddress& ip,
        const std::string& username_fragment,
        const std::string& password);
+  // TODO(deadbeef): Delete this constructor once clients are moved off of it.
   Port(rtc::Thread* thread,
        const std::string& type,
        rtc::PacketSocketFactory* factory,
        rtc::Network* network,
        const rtc::IPAddress& ip,
+       const std::string& username_fragment,
+       const std::string& password)
+      : Port(thread, type, factory, network, username_fragment, password) {}
+  Port(rtc::Thread* thread,
+       const std::string& type,
+       rtc::PacketSocketFactory* factory,
+       rtc::Network* network,
        uint16_t min_port,
        uint16_t max_port,
        const std::string& username_fragment,
@@ -283,7 +290,6 @@ class Port : public PortInterface, public rtc::MessageHandler,
 
   // Debugging description of this port
   virtual std::string ToString() const;
-  const rtc::IPAddress& ip() const { return ip_; }
   uint16_t min_port() { return min_port_; }
   uint16_t max_port() { return max_port_; }
 
@@ -397,7 +403,6 @@ class Port : public PortInterface, public rtc::MessageHandler,
   std::string type_;
   bool send_retransmit_count_attribute_;
   rtc::Network* network_;
-  rtc::IPAddress ip_;
   uint16_t min_port_;
   uint16_t max_port_;
   std::string content_name_;
@@ -749,4 +754,4 @@ class ProxyConnection : public Connection {
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_BASE_PORT_H_
+#endif  // P2P_BASE_PORT_H_

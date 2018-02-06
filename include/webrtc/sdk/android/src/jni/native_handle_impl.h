@@ -8,18 +8,19 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_SDK_ANDROID_SRC_JNI_NATIVE_HANDLE_IMPL_H_
-#define WEBRTC_SDK_ANDROID_SRC_JNI_NATIVE_HANDLE_IMPL_H_
+#ifndef SDK_ANDROID_SRC_JNI_NATIVE_HANDLE_IMPL_H_
+#define SDK_ANDROID_SRC_JNI_NATIVE_HANDLE_IMPL_H_
 
 #include <jni.h>
 
-#include "webrtc/api/video/video_frame.h"
-#include "webrtc/api/video/video_frame_buffer.h"
-#include "webrtc/api/video/video_rotation.h"
-#include "webrtc/rtc_base/callback.h"
-#include "webrtc/sdk/android/src/jni/jni_helpers.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
+#include "api/video/video_rotation.h"
+#include "rtc_base/callback.h"
+#include "sdk/android/src/jni/jni_helpers.h"
 
-namespace webrtc_jni {
+namespace webrtc {
+namespace jni {
 
 // Open gl texture matrix, in column-major order. Operations are
 // in-place.
@@ -37,7 +38,7 @@ class Matrix {
             float crop_x,
             float crop_y);
 
-  void Rotate(webrtc::VideoRotation rotation);
+  void Rotate(VideoRotation rotation);
 
  private:
   Matrix() {}
@@ -62,7 +63,7 @@ struct NativeHandleImpl {
 // Java-based frames.
 // TODO(sakal): Remove this and AndroidTextureBuffer once they are no longer
 // needed.
-class AndroidVideoFrameBuffer : public webrtc::VideoFrameBuffer {
+class AndroidVideoFrameBuffer : public VideoFrameBuffer {
  public:
   enum class AndroidType { kTextureBuffer, kJavaBuffer };
 
@@ -85,7 +86,7 @@ class AndroidTextureBuffer : public AndroidVideoFrameBuffer {
   int width() const override;
   int height() const override;
 
-  rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
+  rtc::scoped_refptr<I420BufferInterface> ToI420() override;
 
   AndroidType android_type() override { return AndroidType::kTextureBuffer; }
 
@@ -103,65 +104,94 @@ class AndroidTextureBuffer : public AndroidVideoFrameBuffer {
 
 class AndroidVideoBuffer : public AndroidVideoFrameBuffer {
  public:
+  // Wraps an existing reference to a Java VideoBuffer. Retain will not be
+  // called but release will be called when the C++ object is destroyed.
+  static rtc::scoped_refptr<AndroidVideoBuffer> WrapReference(
+      JNIEnv* jni,
+      jmethodID j_release_id,
+      int width,
+      int height,
+      jobject j_video_frame_buffer);
+
   AndroidVideoBuffer(JNIEnv* jni,
                      jmethodID j_retain_id,
                      jmethodID j_release_id,
                      int width,
                      int height,
-                     const Matrix& matrix,
+                     jobject j_video_frame_buffer);
+  // Should not be called directly. Wraps a reference. Use
+  // AndroidVideoBuffer::WrapReference instead for clarity.
+  AndroidVideoBuffer(JNIEnv* jni,
+                     jmethodID j_release_id,
+                     int width,
+                     int height,
                      jobject j_video_frame_buffer);
   ~AndroidVideoBuffer() override;
 
   jobject video_frame_buffer() const;
 
   // Returns an instance of VideoRenderer.I420Frame (deprecated)
-  jobject ToJavaI420Frame(JNIEnv* jni, int width, int height, int rotation);
+  jobject ToJavaI420Frame(JNIEnv* jni, int rotation);
 
  private:
   Type type() const override;
   int width() const override;
   int height() const override;
 
-  rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
+  rtc::scoped_refptr<I420BufferInterface> ToI420() override;
 
   AndroidType android_type() override { return AndroidType::kJavaBuffer; }
 
   const jmethodID j_release_id_;
   const int width_;
   const int height_;
-  const Matrix matrix_;
   // Holds a VideoFrame.Buffer.
-  ScopedGlobalRef<jobject> j_video_frame_buffer_;
+  const ScopedGlobalRef<jobject> j_video_frame_buffer_;
 };
 
 class AndroidVideoBufferFactory {
  public:
   explicit AndroidVideoBufferFactory(JNIEnv* jni);
 
-  webrtc::VideoFrame CreateFrame(JNIEnv* jni,
-                                 jobject j_video_frame,
-                                 uint32_t timestamp_rtp) const;
+  VideoFrame CreateFrame(JNIEnv* jni,
+                         jobject j_video_frame,
+                         uint32_t timestamp_rtp) const;
+
+  // Wraps a buffer to AndroidVideoBuffer without incrementing the reference
+  // count.
+  rtc::scoped_refptr<AndroidVideoBuffer> WrapBuffer(
+      JNIEnv* jni,
+      jobject j_video_frame_buffer) const;
 
   rtc::scoped_refptr<AndroidVideoBuffer> CreateBuffer(
-      int width,
-      int height,
-      const Matrix& matrix,
+      JNIEnv* jni,
       jobject j_video_frame_buffer) const;
 
  private:
   ScopedGlobalRef<jclass> j_video_frame_class_;
   jmethodID j_get_buffer_id_;
-  jmethodID j_get_width_id_;
-  jmethodID j_get_height_id_;
   jmethodID j_get_rotation_id_;
-  jmethodID j_get_transform_matrix_id_;
   jmethodID j_get_timestamp_ns_id_;
 
   ScopedGlobalRef<jclass> j_video_frame_buffer_class_;
   jmethodID j_retain_id_;
   jmethodID j_release_id_;
+  jmethodID j_get_width_id_;
+  jmethodID j_get_height_id_;
 };
 
-}  // namespace webrtc_jni
+class JavaVideoFrameFactory {
+ public:
+  JavaVideoFrameFactory(JNIEnv* jni);
 
-#endif  // WEBRTC_SDK_ANDROID_SRC_JNI_NATIVE_HANDLE_IMPL_H_
+  jobject ToJavaFrame(JNIEnv* jni, const VideoFrame& frame) const;
+
+ private:
+  ScopedGlobalRef<jclass> j_video_frame_class_;
+  jmethodID j_video_frame_constructor_id_;
+};
+
+}  // namespace jni
+}  // namespace webrtc
+
+#endif  // SDK_ANDROID_SRC_JNI_NATIVE_HANDLE_IMPL_H_

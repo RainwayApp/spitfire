@@ -8,15 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_BUFFERQUEUE_H_
-#define WEBRTC_RTC_BASE_BUFFERQUEUE_H_
+#ifndef RTC_BASE_BUFFERQUEUE_H_
+#define RTC_BASE_BUFFERQUEUE_H_
 
 #include <deque>
 #include <vector>
 
-#include "webrtc/rtc_base/buffer.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/criticalsection.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/criticalsection.h"
 
 namespace rtc {
 
@@ -50,12 +50,12 @@ class BufferQueue {
   size_t capacity_;
   size_t default_size_;
   CriticalSection crit_;
-  std::deque<Buffer*> queue_ GUARDED_BY(crit_);
-  std::vector<Buffer*> free_list_ GUARDED_BY(crit_);
+  std::deque<Buffer*> queue_ RTC_GUARDED_BY(crit_);
+  std::vector<Buffer*> free_list_ RTC_GUARDED_BY(crit_);
 
   RTC_DISALLOW_COPY_AND_ASSIGN(BufferQueue);
 };
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_BUFFERQUEUE_H_
+#endif  // RTC_BASE_BUFFERQUEUE_H_

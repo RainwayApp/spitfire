@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_MESSAGEQUEUE_H_
-#define WEBRTC_RTC_BASE_MESSAGEQUEUE_H_
+#ifndef RTC_BASE_MESSAGEQUEUE_H_
+#define RTC_BASE_MESSAGEQUEUE_H_
 
 #include <string.h>
 
@@ -20,16 +20,16 @@
 #include <utility>
 #include <vector>
 
-#include "webrtc/rtc_base/basictypes.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/location.h"
-#include "webrtc/rtc_base/messagehandler.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
-#include "webrtc/rtc_base/sigslot.h"
-#include "webrtc/rtc_base/socketserver.h"
-#include "webrtc/rtc_base/thread_annotations.h"
-#include "webrtc/rtc_base/timeutils.h"
+#include "rtc_base/basictypes.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/location.h"
+#include "rtc_base/messagehandler.h"
+#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/socketserver.h"
+#include "rtc_base/thread_annotations.h"
+#include "rtc_base/timeutils.h"
 
 namespace rtc {
 
@@ -68,13 +68,13 @@ class MessageQueueManager {
 
   static MessageQueueManager* instance_;
   // This list contains all live MessageQueues.
-  std::vector<MessageQueue*> message_queues_ GUARDED_BY(crit_);
+  std::vector<MessageQueue*> message_queues_ RTC_GUARDED_BY(crit_);
 
   // Methods that don't modify the list of message queues may be called in a
   // re-entrant fashion. "processing_" keeps track of the depth of re-entrant
   // calls.
   CriticalSection crit_;
-  size_t processing_ GUARDED_BY(crit_);
+  size_t processing_ RTC_GUARDED_BY(crit_);
 };
 
 // Derive from this for specialized data
@@ -306,9 +306,9 @@ class MessageQueue {
 
   bool fPeekKeep_;
   Message msgPeek_;
-  MessageList msgq_ GUARDED_BY(crit_);
-  PriorityQueue dmsgq_ GUARDED_BY(crit_);
-  uint32_t dmsgq_next_num_ GUARDED_BY(crit_);
+  MessageList msgq_ RTC_GUARDED_BY(crit_);
+  PriorityQueue dmsgq_ RTC_GUARDED_BY(crit_);
+  uint32_t dmsgq_next_num_ RTC_GUARDED_BY(crit_);
   CriticalSection crit_;
   bool fInitialized_;
   bool fDestroyed_;
@@ -326,4 +326,4 @@ class MessageQueue {
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_MESSAGEQUEUE_H_
+#endif  // RTC_BASE_MESSAGEQUEUE_H_

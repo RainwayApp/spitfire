@@ -8,17 +8,17 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
-#define WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
+#ifndef MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
+#define MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
 
 #include <array>
 #include <memory>
 #include <vector>
 
-#include "webrtc/modules/audio_processing/aec3/aec3_common.h"
-#include "webrtc/modules/audio_processing/aec3/downsampled_render_buffer.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/optional.h"
+#include "api/optional.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/downsampled_render_buffer.h"
+#include "rtc_base/constructormagic.h"
 
 namespace webrtc {
 namespace aec3 {
@@ -83,7 +83,8 @@ class MatchedFilter {
                 Aec3Optimization optimization,
                 size_t window_size_sub_blocks,
                 int num_matched_filters,
-                size_t alignment_shift_sub_blocks);
+                size_t alignment_shift_sub_blocks,
+                float excitation_limit);
 
   ~MatchedFilter();
 
@@ -108,10 +109,11 @@ class MatchedFilter {
   const size_t filter_intra_lag_shift_;
   std::vector<std::vector<float>> filters_;
   std::vector<LagEstimate> lag_estimates_;
+  const float excitation_limit_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(MatchedFilter);
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
+#endif  // MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_

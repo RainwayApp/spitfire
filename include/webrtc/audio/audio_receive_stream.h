@@ -8,19 +8,19 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_AUDIO_AUDIO_RECEIVE_STREAM_H_
-#define WEBRTC_AUDIO_AUDIO_RECEIVE_STREAM_H_
+#ifndef AUDIO_AUDIO_RECEIVE_STREAM_H_
+#define AUDIO_AUDIO_RECEIVE_STREAM_H_
 
 #include <memory>
 #include <vector>
 
-#include "webrtc/api/audio/audio_mixer.h"
-#include "webrtc/audio/audio_state.h"
-#include "webrtc/call/audio_receive_stream.h"
-#include "webrtc/call/rtp_packet_sink_interface.h"
-#include "webrtc/call/syncable.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/thread_checker.h"
+#include "api/audio/audio_mixer.h"
+#include "audio/audio_state.h"
+#include "call/audio_receive_stream.h"
+#include "call/rtp_packet_sink_interface.h"
+#include "call/syncable.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/thread_checker.h"
 
 namespace webrtc {
 class PacketRouter;
@@ -90,7 +90,7 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
   std::unique_ptr<voe::ChannelProxy> channel_proxy_;
 
-  bool playing_ ACCESS_ON(worker_thread_checker_) = false;
+  bool playing_ RTC_ACCESS_ON(worker_thread_checker_) = false;
 
   std::unique_ptr<RtpStreamReceiverInterface> rtp_stream_receiver_;
 
@@ -99,4 +99,4 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
 }  // namespace internal
 }  // namespace webrtc
 
-#endif  // WEBRTC_AUDIO_AUDIO_RECEIVE_STREAM_H_
+#endif  // AUDIO_AUDIO_RECEIVE_STREAM_H_

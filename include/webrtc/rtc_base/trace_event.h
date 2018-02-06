@@ -3,12 +3,12 @@
 // found in the LICENSE file under third_party_mods/chromium or at:
 // http://src.chromium.org/svn/trunk/src/LICENSE
 
-#ifndef WEBRTC_RTC_BASE_TRACE_EVENT_H_
-#define WEBRTC_RTC_BASE_TRACE_EVENT_H_
+#ifndef RTC_BASE_TRACE_EVENT_H_
+#define RTC_BASE_TRACE_EVENT_H_
 
 #include <string>
 
-#include "webrtc/rtc_base/event_tracer.h"
+#include "rtc_base/event_tracer.h"
 
 #if defined(TRACE_EVENT0)
 #error "Another copy of trace_event.h has already been included."
@@ -575,9 +575,15 @@
 #define INTERNAL_TRACE_EVENT_UID(name_prefix) \
     INTERNAL_TRACE_EVENT_UID2(name_prefix, __LINE__)
 
+#if WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS
+#define INTERNAL_TRACE_EVENT_INFO_TYPE const unsigned char*
+#else
+#define INTERNAL_TRACE_EVENT_INFO_TYPE static const unsigned char*
+#endif  // WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS
+
 // Implementation detail: internal macro to create static category.
 #define INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category) \
-    static const unsigned char* INTERNAL_TRACE_EVENT_UID(catstatic) = \
+    INTERNAL_TRACE_EVENT_INFO_TYPE INTERNAL_TRACE_EVENT_UID(catstatic) = \
         TRACE_EVENT_API_GET_CATEGORY_ENABLED(category);
 
 // Implementation detail: internal macro to create static category and add
@@ -907,4 +913,4 @@ class TraceEndOnScopeClose {
 }  // namespace trace_event_internal
 }  // namespace webrtc
 
-#endif  // WEBRTC_RTC_BASE_TRACE_EVENT_H_
+#endif  // RTC_BASE_TRACE_EVENT_H_

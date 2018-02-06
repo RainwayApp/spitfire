@@ -11,13 +11,13 @@
 #ifndef MODULES_AUDIO_DEVICE_INCLUDE_AUDIO_DEVICE_H_
 #define MODULES_AUDIO_DEVICE_INCLUDE_AUDIO_DEVICE_H_
 
-#include "webrtc/modules/audio_device/include/audio_device_defines.h"
-#include "webrtc/modules/include/module.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
+#include "modules/audio_device/include/audio_device_defines.h"
+#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/refcount.h"
 
 namespace webrtc {
 
-class AudioDeviceModule : public RefCountedModule {
+class AudioDeviceModule : public rtc::RefCountInterface {
  public:
   enum ErrorCode {
     kAdmErrNone = 0,
@@ -40,11 +40,6 @@ class AudioDeviceModule : public RefCountedModule {
     kDefaultDevice = -2
   };
 
-  enum BufferType {
-    kFixedBufferSize  = 0,
-    kAdaptiveBufferSize = 1
-  };
-
   enum ChannelType {
     kChannelLeft = 0,
     kChannelRight = 1,
@@ -62,7 +57,6 @@ class AudioDeviceModule : public RefCountedModule {
 
   // Error handling
   virtual ErrorCode LastError() const = 0;
-  virtual int32_t RegisterEventObserver(AudioDeviceObserver* eventCallback) = 0;
 
   // Full-duplex transportation of PCM audio
   virtual int32_t RegisterAudioCallback(AudioTransport* audioCallback) = 0;
@@ -108,12 +102,6 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t SetAGC(bool enable) = 0;
   virtual bool AGC() const = 0;
 
-  // Volume control based on the Windows Wave API (Windows only)
-  virtual int32_t SetWaveOutVolume(uint16_t volumeLeft,
-                                   uint16_t volumeRight) = 0;
-  virtual int32_t WaveOutVolume(uint16_t* volumeLeft,
-                                uint16_t* volumeRight) const = 0;
-
   // Audio mixer initialization
   virtual int32_t InitSpeaker() = 0;
   virtual bool SpeakerIsInitialized() const = 0;
@@ -126,7 +114,6 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t SpeakerVolume(uint32_t* volume) const = 0;
   virtual int32_t MaxSpeakerVolume(uint32_t* maxVolume) const = 0;
   virtual int32_t MinSpeakerVolume(uint32_t* minVolume) const = 0;
-  virtual int32_t SpeakerVolumeStepSize(uint16_t* stepSize) const = 0;
 
   // Microphone volume controls
   virtual int32_t MicrophoneVolumeIsAvailable(bool* available) = 0;
@@ -134,7 +121,6 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t MicrophoneVolume(uint32_t* volume) const = 0;
   virtual int32_t MaxMicrophoneVolume(uint32_t* maxVolume) const = 0;
   virtual int32_t MinMicrophoneVolume(uint32_t* minVolume) const = 0;
-  virtual int32_t MicrophoneVolumeStepSize(uint16_t* stepSize) const = 0;
 
   // Speaker mute control
   virtual int32_t SpeakerMuteIsAvailable(bool* available) = 0;
@@ -145,11 +131,6 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t MicrophoneMuteIsAvailable(bool* available) = 0;
   virtual int32_t SetMicrophoneMute(bool enable) = 0;
   virtual int32_t MicrophoneMute(bool* enabled) const = 0;
-
-  // Microphone boost control
-  virtual int32_t MicrophoneBoostIsAvailable(bool* available) = 0;
-  virtual int32_t SetMicrophoneBoost(bool enable) = 0;
-  virtual int32_t MicrophoneBoost(bool* enabled) const = 0;
 
   // Stereo support
   virtual int32_t StereoPlayoutIsAvailable(bool* available) const = 0;
@@ -162,22 +143,8 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t RecordingChannel(ChannelType* channel) const = 0;
 
   // Delay information and control
-  virtual int32_t SetPlayoutBuffer(const BufferType type,
-                                   uint16_t sizeMS = 0) = 0;
-  virtual int32_t PlayoutBuffer(BufferType* type, uint16_t* sizeMS) const = 0;
   virtual int32_t PlayoutDelay(uint16_t* delayMS) const = 0;
   virtual int32_t RecordingDelay(uint16_t* delayMS) const = 0;
-
-  // CPU load
-  virtual int32_t CPULoad(uint16_t* load) const = 0;
-
-  // Recording of raw PCM data
-  virtual int32_t StartRawOutputFileRecording(
-      const char pcmFileNameUTF8[kAdmMaxFileNameSize]) = 0;
-  virtual int32_t StopRawOutputFileRecording() = 0;
-  virtual int32_t StartRawInputFileRecording(
-      const char pcmFileNameUTF8[kAdmMaxFileNameSize]) = 0;
-  virtual int32_t StopRawInputFileRecording() = 0;
 
   // Native sample rate controls (samples/sec)
   virtual int32_t SetRecordingSampleRate(const uint32_t samplesPerSec) = 0;
@@ -186,7 +153,6 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t PlayoutSampleRate(uint32_t* samplesPerSec) const = 0;
 
   // Mobile device specific functions
-  virtual int32_t ResetAudioDevice() = 0;
   virtual int32_t SetLoudspeakerStatus(bool enable) = 0;
   virtual int32_t GetLoudspeakerStatus(bool* enabled) const = 0;
 

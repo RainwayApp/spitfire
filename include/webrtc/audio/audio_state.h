@@ -8,22 +8,21 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_AUDIO_AUDIO_STATE_H_
-#define WEBRTC_AUDIO_AUDIO_STATE_H_
+#ifndef AUDIO_AUDIO_STATE_H_
+#define AUDIO_AUDIO_STATE_H_
 
-#include "webrtc/audio/audio_transport_proxy.h"
-#include "webrtc/audio/scoped_voe_interface.h"
-#include "webrtc/call/audio_state.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/thread_checker.h"
-#include "webrtc/voice_engine/include/voe_base.h"
+#include "audio/audio_transport_proxy.h"
+#include "audio/scoped_voe_interface.h"
+#include "call/audio_state.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/thread_checker.h"
+#include "voice_engine/include/voe_base.h"
 
 namespace webrtc {
 namespace internal {
 
-class AudioState final : public webrtc::AudioState,
-                         public webrtc::VoiceEngineObserver {
+class AudioState final : public webrtc::AudioState {
  public:
   explicit AudioState(const AudioState::Config& config);
   ~AudioState() override;
@@ -42,20 +41,12 @@ class AudioState final : public webrtc::AudioState,
   int AddRef() const override;
   int Release() const override;
 
-  // webrtc::VoiceEngineObserver implementation.
-  void CallbackOnError(int channel_id, int err_code) override;
-
   rtc::ThreadChecker thread_checker_;
   rtc::ThreadChecker process_thread_checker_;
   const webrtc::AudioState::Config config_;
 
   // We hold one interface pointer to the VoE to make sure it is kept alive.
   ScopedVoEInterface<VoEBase> voe_base_;
-
-  // The critical section isn't strictly needed in this case, but xSAN bots may
-  // trigger on unprotected cross-thread access.
-  rtc::CriticalSection crit_sect_;
-  bool typing_noise_detected_ GUARDED_BY(crit_sect_) = false;
 
   // Reference count; implementation copied from rtc::RefCountedObject.
   mutable volatile int ref_count_ = 0;
@@ -69,4 +60,4 @@ class AudioState final : public webrtc::AudioState,
 }  // namespace internal
 }  // namespace webrtc
 
-#endif  // WEBRTC_AUDIO_AUDIO_STATE_H_
+#endif  // AUDIO_AUDIO_STATE_H_

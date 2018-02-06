@@ -8,12 +8,12 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_UNIXFILESYSTEM_H_
-#define WEBRTC_RTC_BASE_UNIXFILESYSTEM_H_
+#ifndef RTC_BASE_UNIXFILESYSTEM_H_
+#define RTC_BASE_UNIXFILESYSTEM_H_
 
 #include <sys/types.h>
 
-#include "webrtc/rtc_base/fileutils.h"
+#include "rtc_base/fileutils.h"
 
 namespace rtc {
 
@@ -22,30 +22,9 @@ class UnixFilesystem : public FilesystemInterface {
   UnixFilesystem();
   ~UnixFilesystem() override;
 
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_MAC)
-  // Android does not have a native code API to fetch the app data or temp
-  // folders. That needs to be passed into this class from Java. Similarly, iOS
-  // only supports an Objective-C API for fetching the folder locations, so that
-  // needs to be passed in here from Objective-C.  Or at least that used to be
-  // the case; now the ctor will do the work if necessary and possible.
-  // TODO(fischman): add an Android version that uses JNI and drop the
-  // SetApp*Folder() APIs once external users stop using them.
-  static void SetAppDataFolder(const std::string& folder);
-  static void SetAppTempFolder(const std::string& folder);
-#endif
-
   // This will attempt to delete the file located at filename.
   // It will fail with VERIY if you pass it a non-existant file, or a directory.
   bool DeleteFile(const Pathname& filename) override;
-
-  // Creates a directory. This will call itself recursively to create /foo/bar
-  // even if /foo does not exist. All created directories are created with the
-  // given mode.
-  // Returns TRUE if function succeeds
-  virtual bool CreateFolder(const Pathname &pathname, mode_t mode);
-
-  // As above, with mode = 0755.
-  bool CreateFolder(const Pathname& pathname) override;
 
   // This moves a file from old_path to new_path, where "file" can be a plain
   // file or directory, which will be moved recursively.
@@ -58,18 +37,8 @@ class UnixFilesystem : public FilesystemInterface {
   // Returns true of pathname represents an existing file
   bool IsFile(const Pathname& pathname) override;
 
-  // Returns true if pathname refers to no filesystem object, every parent
-  // directory either exists, or is also absent.
-  bool IsAbsent(const Pathname& pathname) override;
-
   std::string TempFilename(const Pathname& dir,
                            const std::string& prefix) override;
-
-  // A folder appropriate for storing temporary files (Contents are
-  // automatically deleted when the program exists)
-  bool GetTemporaryFolder(Pathname& path,
-                          bool create,
-                          const std::string* append) override;
 
   bool GetFileSize(const Pathname& path, size_t* size) override;
 
@@ -86,4 +55,4 @@ class UnixFilesystem : public FilesystemInterface {
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_UNIXFILESYSTEM_H_
+#endif  // RTC_BASE_UNIXFILESYSTEM_H_

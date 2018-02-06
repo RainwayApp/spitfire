@@ -8,18 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_VIDEO_CODING_GENERIC_DECODER_H_
-#define WEBRTC_MODULES_VIDEO_CODING_GENERIC_DECODER_H_
+#ifndef MODULES_VIDEO_CODING_GENERIC_DECODER_H_
+#define MODULES_VIDEO_CODING_GENERIC_DECODER_H_
 
 #include <memory>
 
-#include "webrtc/modules/include/module_common_types.h"
-#include "webrtc/modules/video_coding/encoded_frame.h"
-#include "webrtc/modules/video_coding/include/video_codec_interface.h"
-#include "webrtc/modules/video_coding/timestamp_map.h"
-#include "webrtc/modules/video_coding/timing.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/thread_checker.h"
+#include "modules/include/module_common_types.h"
+#include "modules/video_coding/encoded_frame.h"
+#include "modules/video_coding/include/video_codec_interface.h"
+#include "modules/video_coding/timestamp_map.h"
+#include "modules/video_coding/timing.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/thread_checker.h"
 
 namespace webrtc {
 
@@ -69,7 +69,7 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   VCMReceiveCallback* _receiveCallback = nullptr;
   VCMTiming* _timing;
   rtc::CriticalSection lock_;
-  VCMTimestampMap _timestampMap GUARDED_BY(lock_);
+  VCMTimestampMap _timestampMap RTC_GUARDED_BY(lock_);
   uint64_t _lastReceivedPictureID;
   int64_t ntp_offset_;
 };
@@ -114,4 +114,4 @@ class VCMGenericDecoder {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_VIDEO_CODING_GENERIC_DECODER_H_
+#endif  // MODULES_VIDEO_CODING_GENERIC_DECODER_H_

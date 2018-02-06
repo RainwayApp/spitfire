@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_WIN32FILESYSTEM_H_
-#define WEBRTC_RTC_BASE_WIN32FILESYSTEM_H_
+#ifndef RTC_BASE_WIN32FILESYSTEM_H_
+#define RTC_BASE_WIN32FILESYSTEM_H_
 
 #include "fileutils.h"
 
@@ -20,11 +20,6 @@ class Win32Filesystem : public FilesystemInterface {
   // This will attempt to delete the path located at filename.
   // If the path points to a folder, it will fail with VERIFY
   bool DeleteFile(const Pathname& filename) override;
-
-  // Creates a directory. This will call itself recursively to create /foo/bar even if
-  // /foo does not exist.
-  // Returns TRUE if function succeeds
-  bool CreateFolder(const Pathname& pathname) override;
 
   // This moves a file from old_path to new_path. If the new path is on a
   // different volume than the old, it will attempt to copy and then delete
@@ -38,10 +33,6 @@ class Win32Filesystem : public FilesystemInterface {
   // Returns true if a file exists at path
   bool IsFile(const Pathname& path) override;
 
-  // Returns true if pathname refers to no filesystem object, every parent
-  // directory either exists, or is also absent.
-  bool IsAbsent(const Pathname& pathname) override;
-
   // All of the following functions set pathname and return true if successful.
   // Returned paths always include a trailing backslash.
   // If create is true, the path will be recursively created.
@@ -51,14 +42,8 @@ class Win32Filesystem : public FilesystemInterface {
                            const std::string& prefix) override;
 
   bool GetFileSize(const Pathname& path, size_t* size) override;
-
-  // A folder appropriate for storing temporary files (Contents are
-  // automatically deleted when the program exists)
-  bool GetTemporaryFolder(Pathname& path,
-                          bool create,
-                          const std::string* append) override;
 };
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_WIN32FILESYSTEM_H_
+#endif  // RTC_BASE_WIN32FILESYSTEM_H_

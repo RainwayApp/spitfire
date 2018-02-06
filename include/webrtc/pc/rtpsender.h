@@ -12,22 +12,22 @@
 // An RtpSender associates a MediaStreamTrackInterface with an underlying
 // transport (provided by AudioProviderInterface/VideoProviderInterface)
 
-#ifndef WEBRTC_PC_RTPSENDER_H_
-#define WEBRTC_PC_RTPSENDER_H_
+#ifndef PC_RTPSENDER_H_
+#define PC_RTPSENDER_H_
 
 #include <memory>
 #include <string>
 
-#include "webrtc/api/mediastreaminterface.h"
-#include "webrtc/api/rtpsenderinterface.h"
-#include "webrtc/rtc_base/basictypes.h"
-#include "webrtc/rtc_base/criticalsection.h"
+#include "api/mediastreaminterface.h"
+#include "api/rtpsenderinterface.h"
+#include "rtc_base/basictypes.h"
+#include "rtc_base/criticalsection.h"
 // Adding 'nogncheck' to disable the gn include headers check to support modular
 // WebRTC build targets.
-#include "webrtc/media/base/audiosource.h"  // nogncheck
-#include "webrtc/pc/channel.h"
-#include "webrtc/pc/dtmfsender.h"
-#include "webrtc/pc/statscollector.h"
+#include "media/base/audiosource.h"  // nogncheck
+#include "pc/channel.h"
+#include "pc/dtmfsender.h"
+#include "pc/statscollector.h"
 
 namespace webrtc {
 
@@ -40,9 +40,13 @@ class RtpSenderInternal : public RtpSenderInterface {
   // description).
   virtual void SetSsrc(uint32_t ssrc) = 0;
 
-  // TODO(deadbeef): Support one sender having multiple stream ids.
+  // TODO(steveanton): With Unified Plan, a track/RTCRTPSender can be part of
+  // multiple streams (or no stream at all). Replace these singular methods with
+  // their corresponding plural methods.
+  // Until these are removed, RtpSenders must have exactly one stream.
   virtual void set_stream_id(const std::string& stream_id) = 0;
   virtual std::string stream_id() const = 0;
+  virtual void set_stream_ids(const std::vector<std::string>& stream_ids) = 0;
 
   virtual void Stop() = 0;
 };
@@ -79,7 +83,7 @@ class AudioRtpSender : public DtmfProviderInterface,
   // at the appropriate times.
   // |channel| can be null if one does not exist yet.
   AudioRtpSender(AudioTrackInterface* track,
-                 const std::string& stream_id,
+                 const std::vector<std::string>& stream_id,
                  cricket::VoiceChannel* channel,
                  StatsCollector* stats);
 
@@ -117,10 +121,7 @@ class AudioRtpSender : public DtmfProviderInterface,
 
   std::string id() const override { return id_; }
 
-  std::vector<std::string> stream_ids() const override {
-    std::vector<std::string> ret = {stream_id_};
-    return ret;
-  }
+  std::vector<std::string> stream_ids() const override { return stream_ids_; }
 
   RtpParameters GetParameters() const override;
   bool SetParameters(const RtpParameters& parameters) override;
@@ -131,9 +132,12 @@ class AudioRtpSender : public DtmfProviderInterface,
   void SetSsrc(uint32_t ssrc) override;
 
   void set_stream_id(const std::string& stream_id) override {
-    stream_id_ = stream_id;
+    stream_ids_ = {stream_id};
   }
-  std::string stream_id() const override { return stream_id_; }
+  std::string stream_id() const override { return stream_ids_[0]; }
+  void set_stream_ids(const std::vector<std::string>& stream_ids) override {
+    stream_ids_ = stream_ids;
+  }
 
   void Stop() override;
 
@@ -156,7 +160,9 @@ class AudioRtpSender : public DtmfProviderInterface,
   sigslot::signal0<> SignalDestroyed;
 
   std::string id_;
-  std::string stream_id_;
+  // TODO(steveanton): Until more Unified Plan work is done, this can only have
+  // exactly one element.
+  std::vector<std::string> stream_ids_;
   cricket::VoiceChannel* channel_ = nullptr;
   StatsCollector* stats_;
   rtc::scoped_refptr<AudioTrackInterface> track_;
@@ -175,7 +181,7 @@ class VideoRtpSender : public ObserverInterface,
  public:
   // |channel| can be null if one does not exist yet.
   VideoRtpSender(VideoTrackInterface* track,
-                 const std::string& stream_id,
+                 const std::vector<std::string>& stream_id,
                  cricket::VideoChannel* channel);
 
   // Randomly generates stream_id.
@@ -205,10 +211,7 @@ class VideoRtpSender : public ObserverInterface,
 
   std::string id() const override { return id_; }
 
-  std::vector<std::string> stream_ids() const override {
-    std::vector<std::string> ret = {stream_id_};
-    return ret;
-  }
+  std::vector<std::string> stream_ids() const override { return stream_ids_; }
 
   RtpParameters GetParameters() const override;
   bool SetParameters(const RtpParameters& parameters) override;
@@ -219,9 +222,12 @@ class VideoRtpSender : public ObserverInterface,
   void SetSsrc(uint32_t ssrc) override;
 
   void set_stream_id(const std::string& stream_id) override {
-    stream_id_ = stream_id;
+    stream_ids_ = {stream_id};
   }
-  std::string stream_id() const override { return stream_id_; }
+  std::string stream_id() const override { return stream_ids_[0]; }
+  void set_stream_ids(const std::vector<std::string>& stream_ids) override {
+    stream_ids_ = stream_ids;
+  }
 
   void Stop() override;
 
@@ -238,7 +244,9 @@ class VideoRtpSender : public ObserverInterface,
   void ClearVideoSend();
 
   std::string id_;
-  std::string stream_id_;
+  // TODO(steveanton): Until more Unified Plan work is done, this can only have
+  // exactly one element.
+  std::vector<std::string> stream_ids_;
   cricket::VideoChannel* channel_ = nullptr;
   rtc::scoped_refptr<VideoTrackInterface> track_;
   uint32_t ssrc_ = 0;
@@ -250,4 +258,4 @@ class VideoRtpSender : public ObserverInterface,
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_PC_RTPSENDER_H_
+#endif  // PC_RTPSENDER_H_

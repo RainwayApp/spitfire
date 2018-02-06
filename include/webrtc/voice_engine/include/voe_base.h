@@ -31,13 +31,13 @@
 //  base->Release();
 //  VoiceEngine::Delete(voe);
 //
-#ifndef WEBRTC_VOICE_ENGINE_VOE_BASE_H
-#define WEBRTC_VOICE_ENGINE_VOE_BASE_H
+#ifndef VOICE_ENGINE_VOE_BASE_H_
+#define VOICE_ENGINE_VOE_BASE_H_
 
-#include "webrtc/api/audio_codecs/audio_decoder_factory.h"
-#include "webrtc/common_types.h"
-#include "webrtc/modules/audio_coding/include/audio_coding_module.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
+#include "api/audio_codecs/audio_decoder_factory.h"
+#include "common_types.h"  // NOLINT(build/include)
+#include "modules/audio_coding/include/audio_coding_module.h"
+#include "rtc_base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
@@ -47,18 +47,6 @@ class AudioTransport;
 namespace voe {
 class TransmitMixer;
 }  // namespace voe
-
-// VoiceEngineObserver
-class WEBRTC_DLLEXPORT VoiceEngineObserver {
- public:
-  // This method will be called after the occurrence of any runtime error
-  // code, or warning notification, when the observer interface has been
-  // installed using VoEBase::RegisterVoiceEngineObserver().
-  virtual void CallbackOnError(int channel, int errCode) = 0;
-
- protected:
-  virtual ~VoiceEngineObserver() {}
-};
 
 // VoiceEngine
 class WEBRTC_DLLEXPORT VoiceEngine {
@@ -72,20 +60,6 @@ class WEBRTC_DLLEXPORT VoiceEngine {
   // the voice engine instance will not actually be deleted until those
   // references have been released.
   static bool Delete(VoiceEngine*& voiceEngine);
-
-  // Specifies the amount and type of trace information which will be
-  // created by the VoiceEngine.
-  static int SetTraceFilter(unsigned int filter);
-
-  // Sets the name of the trace file and enables non-encrypted trace messages.
-  static int SetTraceFile(const char* fileNameUTF8,
-                          bool addFileCounter = false);
-
-  // Installs the TraceCallback implementation to ensure that the user
-  // receives callbacks for generated trace messages.
-  static int SetTraceCallback(TraceCallback* callback);
-
-  static std::string GetVersionString();
 
  protected:
   VoiceEngine() {}
@@ -109,14 +83,6 @@ class WEBRTC_DLLEXPORT VoEBase {
   // counter. Returns the new reference count. This value should be zero
   // for all sub-APIs before the VoiceEngine object can be safely deleted.
   virtual int Release() = 0;
-
-  // Installs the observer class to enable runtime error control and
-  // warning notifications. Returns -1 in case of an error, 0 otherwise.
-  virtual int RegisterVoiceEngineObserver(VoiceEngineObserver& observer) = 0;
-
-  // Removes and disables the observer class for runtime error control
-  // and warning notifications. Returns 0.
-  virtual int DeRegisterVoiceEngineObserver() = 0;
 
   // Initializes all common parts of the VoiceEngine; e.g. all
   // encoders/decoders, the sound card and core receiving components.
@@ -158,13 +124,6 @@ class WEBRTC_DLLEXPORT VoEBase {
   // Returns -1 in case of an error, 0 otherwise.
   virtual int DeleteChannel(int channel) = 0;
 
-  // Prepares and initiates the VoiceEngine for reception of
-  // incoming RTP/RTCP packets on the specified |channel|.
-  virtual int StartReceive(int channel) = 0;
-
-  // Stops receiving incoming RTP/RTCP packets on the specified |channel|.
-  virtual int StopReceive(int channel)  { return 0; }
-
   // Starts forwarding the packets to the mixer/soundcard for a
   // specified |channel|.
   virtual int StartPlayout(int channel) = 0;
@@ -180,21 +139,9 @@ class WEBRTC_DLLEXPORT VoEBase {
   // Stops sending packets from a specified |channel|.
   virtual int StopSend(int channel) = 0;
 
-  // Gets the version information for VoiceEngine and its components.
-  virtual int GetVersion(char version[1024]) = 0;
-
-  // Gets the last VoiceEngine error code.
-  virtual int LastError() = 0;
-
   // TODO(xians): Make the interface pure virtual after libjingle
   // implements the interface in its FakeWebRtcVoiceEngine.
   virtual AudioTransport* audio_transport() { return NULL; }
-
-  // Associate a send channel to a receive channel.
-  // Used for obtaining RTT for a receive-only channel.
-  // One should be careful not to crate a circular association, e.g.,
-  // 1 <- 2 <- 1.
-  virtual int AssociateSendChannel(int channel, int accociate_send_channel) = 0;
 
  protected:
   VoEBase() {}
@@ -203,4 +150,4 @@ class WEBRTC_DLLEXPORT VoEBase {
 
 }  // namespace webrtc
 
-#endif  //  WEBRTC_VOICE_ENGINE_VOE_BASE_H
+#endif  //  VOICE_ENGINE_VOE_BASE_H_

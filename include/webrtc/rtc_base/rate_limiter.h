@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_RATE_LIMITER_H_
-#define WEBRTC_RTC_BASE_RATE_LIMITER_H_
+#ifndef RTC_BASE_RATE_LIMITER_H_
+#define RTC_BASE_RATE_LIMITER_H_
 
 #include <limits>
 
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/rate_statistics.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/rate_statistics.h"
 
 namespace webrtc {
 
@@ -44,13 +44,13 @@ class RateLimiter {
  private:
   const Clock* const clock_;
   rtc::CriticalSection lock_;
-  RateStatistics current_rate_ GUARDED_BY(lock_);
-  int64_t window_size_ms_ GUARDED_BY(lock_);
-  uint32_t max_rate_bps_ GUARDED_BY(lock_);
+  RateStatistics current_rate_ RTC_GUARDED_BY(lock_);
+  int64_t window_size_ms_ RTC_GUARDED_BY(lock_);
+  uint32_t max_rate_bps_ RTC_GUARDED_BY(lock_);
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RateLimiter);
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_RTC_BASE_RATE_LIMITER_H_
+#endif  // RTC_BASE_RATE_LIMITER_H_

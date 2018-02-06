@@ -8,20 +8,20 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_DEVICE_IOS_AUDIO_DEVICE_IOS_H_
-#define WEBRTC_MODULES_AUDIO_DEVICE_IOS_AUDIO_DEVICE_IOS_H_
+#ifndef MODULES_AUDIO_DEVICE_IOS_AUDIO_DEVICE_IOS_H_
+#define MODULES_AUDIO_DEVICE_IOS_AUDIO_DEVICE_IOS_H_
 
 #include <memory>
 
-#include "WebRTC/RTCMacros.h"
-#include "webrtc/modules/audio_device/audio_device_generic.h"
-#include "webrtc/modules/audio_device/ios/audio_session_observer.h"
-#include "webrtc/modules/audio_device/ios/voice_processing_audio_unit.h"
-#include "webrtc/rtc_base/buffer.h"
-#include "webrtc/rtc_base/gtest_prod_util.h"
-#include "webrtc/rtc_base/thread.h"
-#include "webrtc/rtc_base/thread_annotations.h"
-#include "webrtc/rtc_base/thread_checker.h"
+#include "sdk/objc/Framework/Headers/WebRTC/RTCMacros.h"
+#include "modules/audio_device/audio_device_generic.h"
+#include "modules/audio_device/ios/audio_session_observer.h"
+#include "modules/audio_device/ios/voice_processing_audio_unit.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/gtest_prod_util.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
+#include "rtc_base/thread_checker.h"
 
 RTC_FWD_DECL_OBJC_CLASS(RTCAudioSessionDelegateAdapter);
 
@@ -93,11 +93,8 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
   // These methods are currently not fully implemented on iOS:
 
   // See audio_device_not_implemented.cc for trivial implementations.
-  int32_t PlayoutBuffer(AudioDeviceModule::BufferType& type,
-                        uint16_t& sizeMS) const override;
   int32_t ActiveAudioLayer(
       AudioDeviceModule::AudioLayer& audioLayer) const override;
-  int32_t ResetAudioDevice() override;
   int32_t PlayoutIsAvailable(bool& available) override;
   int32_t RecordingIsAvailable(bool& available) override;
   int32_t SetAGC(bool enable) override;
@@ -116,9 +113,6 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
   int32_t SetRecordingDevice(uint16_t index) override;
   int32_t SetRecordingDevice(
       AudioDeviceModule::WindowsDeviceType device) override;
-  int32_t SetWaveOutVolume(uint16_t volumeLeft, uint16_t volumeRight) override;
-  int32_t WaveOutVolume(uint16_t& volumeLeft,
-                        uint16_t& volumeRight) const override;
   int32_t InitSpeaker() override;
   bool SpeakerIsInitialized() const override;
   int32_t InitMicrophone() override;
@@ -128,39 +122,23 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
   int32_t SpeakerVolume(uint32_t& volume) const override;
   int32_t MaxSpeakerVolume(uint32_t& maxVolume) const override;
   int32_t MinSpeakerVolume(uint32_t& minVolume) const override;
-  int32_t SpeakerVolumeStepSize(uint16_t& stepSize) const override;
   int32_t MicrophoneVolumeIsAvailable(bool& available) override;
   int32_t SetMicrophoneVolume(uint32_t volume) override;
   int32_t MicrophoneVolume(uint32_t& volume) const override;
   int32_t MaxMicrophoneVolume(uint32_t& maxVolume) const override;
   int32_t MinMicrophoneVolume(uint32_t& minVolume) const override;
-  int32_t MicrophoneVolumeStepSize(uint16_t& stepSize) const override;
   int32_t MicrophoneMuteIsAvailable(bool& available) override;
   int32_t SetMicrophoneMute(bool enable) override;
   int32_t MicrophoneMute(bool& enabled) const override;
   int32_t SpeakerMuteIsAvailable(bool& available) override;
   int32_t SetSpeakerMute(bool enable) override;
   int32_t SpeakerMute(bool& enabled) const override;
-  int32_t MicrophoneBoostIsAvailable(bool& available) override;
-  int32_t SetMicrophoneBoost(bool enable) override;
-  int32_t MicrophoneBoost(bool& enabled) const override;
   int32_t StereoPlayoutIsAvailable(bool& available) override;
   int32_t SetStereoPlayout(bool enable) override;
   int32_t StereoPlayout(bool& enabled) const override;
   int32_t StereoRecordingIsAvailable(bool& available) override;
   int32_t SetStereoRecording(bool enable) override;
   int32_t StereoRecording(bool& enabled) const override;
-  int32_t SetPlayoutBuffer(const AudioDeviceModule::BufferType type,
-                           uint16_t sizeMS) override;
-  int32_t CPULoad(uint16_t& load) const override;
-  bool PlayoutWarning() const override;
-  bool PlayoutError() const override;
-  bool RecordingWarning() const override;
-  bool RecordingError() const override;
-  void ClearPlayoutWarning() override {}
-  void ClearPlayoutError() override {}
-  void ClearRecordingWarning() override {}
-  void ClearRecordingError() override {}
 
   // AudioSessionObserver methods. May be called from any thread.
   void OnInterruptionBegin() override;
@@ -283,7 +261,7 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
   volatile int playing_;
 
   // Set to true after successful call to Init(), false otherwise.
-  bool initialized_ ACCESS_ON(thread_checker_);
+  bool initialized_ RTC_ACCESS_ON(thread_checker_);
 
   // Set to true after successful call to InitRecording() or InitPlayout(),
   // false otherwise.
@@ -294,14 +272,14 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
 
   // Audio interruption observer instance.
   RTCAudioSessionDelegateAdapter* audio_session_observer_
-      ACCESS_ON(thread_checker_);
+      RTC_ACCESS_ON(thread_checker_);
 
   // Set to true if we've activated the audio session.
-  bool has_configured_session_ ACCESS_ON(thread_checker_);
+  bool has_configured_session_ RTC_ACCESS_ON(thread_checker_);
 
   // Counts number of detected audio glitches on the playout side.
-  int64_t num_detected_playout_glitches_ ACCESS_ON(thread_checker_);
-  int64_t last_playout_time_ ACCESS_ON(io_thread_checker_);
+  int64_t num_detected_playout_glitches_ RTC_ACCESS_ON(thread_checker_);
+  int64_t last_playout_time_ RTC_ACCESS_ON(io_thread_checker_);
 
   // Counts number of playout callbacks per call.
   // The value isupdated on the native I/O thread and later read on the
@@ -310,7 +288,7 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
   int64_t num_playout_callbacks_;
 
   // Contains the time for when the last output volume change was detected.
-  int64_t last_output_volume_change_time_ ACCESS_ON(thread_checker_);
+  int64_t last_output_volume_change_time_ RTC_ACCESS_ON(thread_checker_);
 
   // Exposes private members for testing purposes only.
   FRIEND_TEST_ALL_PREFIXES(AudioDeviceTest, testInterruptedAudioSession);
@@ -318,4 +296,4 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_DEVICE_IOS_AUDIO_DEVICE_IOS_H_
+#endif  // MODULES_AUDIO_DEVICE_IOS_AUDIO_DEVICE_IOS_H_

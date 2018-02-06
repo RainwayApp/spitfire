@@ -8,16 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_RELAYPORT_H_
-#define WEBRTC_P2P_BASE_RELAYPORT_H_
+#ifndef P2P_BASE_RELAYPORT_H_
+#define P2P_BASE_RELAYPORT_H_
 
 #include <deque>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "webrtc/p2p/base/port.h"
-#include "webrtc/p2p/base/stunrequest.h"
+#include "p2p/base/port.h"
+#include "p2p/base/stunrequest.h"
 
 namespace cricket {
 
@@ -38,13 +38,12 @@ class RelayPort : public Port {
   static RelayPort* Create(rtc::Thread* thread,
                            rtc::PacketSocketFactory* factory,
                            rtc::Network* network,
-                           const rtc::IPAddress& ip,
                            uint16_t min_port,
                            uint16_t max_port,
                            const std::string& username,
                            const std::string& password) {
-    return new RelayPort(thread, factory, network, ip, min_port, max_port,
-                         username, password);
+    return new RelayPort(thread, factory, network, min_port, max_port, username,
+                         password);
   }
   ~RelayPort() override;
 
@@ -82,7 +81,6 @@ class RelayPort : public Port {
   RelayPort(rtc::Thread* thread,
             rtc::PacketSocketFactory* factory,
             rtc::Network*,
-            const rtc::IPAddress& ip,
             uint16_t min_port,
             uint16_t max_port,
             const std::string& username,
@@ -121,4 +119,4 @@ class RelayPort : public Port {
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_BASE_RELAYPORT_H_
+#endif  // P2P_BASE_RELAYPORT_H_

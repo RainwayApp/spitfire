@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef WEBRTC_MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
-#define WEBRTC_MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
+#ifndef MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
+#define MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
 
 #include <memory>
 #include <stack>
@@ -18,10 +18,10 @@
 #include <utility>
 #include <vector>
 
-#include "webrtc/media/engine/webrtcvideoencoderfactory.h"
-#include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
-#include "webrtc/rtc_base/atomicops.h"
-#include "webrtc/rtc_base/sequenced_task_checker.h"
+#include "media/engine/webrtcvideoencoderfactory.h"
+#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "rtc_base/atomicops.h"
+#include "rtc_base/sequenced_task_checker.h"
 
 namespace webrtc {
 
@@ -65,19 +65,18 @@ class SimulcastEncoderAdapter : public VP8Encoder {
 
  private:
   struct StreamInfo {
-    StreamInfo(VideoEncoder* encoder,
+    StreamInfo(std::unique_ptr<VideoEncoder> encoder,
                std::unique_ptr<EncodedImageCallback> callback,
                uint16_t width,
                uint16_t height,
                bool send_stream)
-        : encoder(encoder),
+        : encoder(std::move(encoder)),
           callback(std::move(callback)),
           width(width),
           height(height),
           key_frame_request(false),
           send_stream(send_stream) {}
-    // Deleted by SimulcastEncoderAdapter::DestroyStoredEncoders().
-    VideoEncoder* encoder;
+    std::unique_ptr<VideoEncoder> encoder;
     std::unique_ptr<EncodedImageCallback> callback;
     uint16_t width;
     uint16_t height;
@@ -108,9 +107,9 @@ class SimulcastEncoderAdapter : public VP8Encoder {
 
   // Store encoders in between calls to Release and InitEncode, so they don't
   // have to be recreated. Remaining encoders are destroyed by the destructor.
-  std::stack<VideoEncoder*> stored_encoders_;
+  std::stack<std::unique_ptr<VideoEncoder>> stored_encoders_;
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
+#endif  // MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_

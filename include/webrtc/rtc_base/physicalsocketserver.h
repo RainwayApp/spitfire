@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_PHYSICALSOCKETSERVER_H_
-#define WEBRTC_RTC_BASE_PHYSICALSOCKETSERVER_H_
+#ifndef RTC_BASE_PHYSICALSOCKETSERVER_H_
+#define RTC_BASE_PHYSICALSOCKETSERVER_H_
 
 #if defined(WEBRTC_POSIX) && defined(WEBRTC_LINUX)
 #include <sys/epoll.h>
@@ -20,9 +20,9 @@
 #include <set>
 #include <vector>
 
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/nethelpers.h"
-#include "webrtc/rtc_base/socketserver.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/nethelpers.h"
+#include "rtc_base/socketserver.h"
 
 #if defined(WEBRTC_POSIX)
 typedef int SOCKET;
@@ -203,7 +203,7 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
   SOCKET s_;
   bool udp_;
   CriticalSection crit_;
-  int error_ GUARDED_BY(crit_);
+  int error_ RTC_GUARDED_BY(crit_);
   ConnState state_;
   AsyncResolver* resolver_;
 
@@ -267,4 +267,4 @@ class SocketDispatcher : public Dispatcher, public PhysicalSocket {
 
 } // namespace rtc
 
-#endif // WEBRTC_RTC_BASE_PHYSICALSOCKETSERVER_H_
+#endif // RTC_BASE_PHYSICALSOCKETSERVER_H_

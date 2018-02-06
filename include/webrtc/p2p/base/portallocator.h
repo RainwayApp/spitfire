@@ -8,23 +8,24 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_PORTALLOCATOR_H_
-#define WEBRTC_P2P_BASE_PORTALLOCATOR_H_
+#ifndef P2P_BASE_PORTALLOCATOR_H_
+#define P2P_BASE_PORTALLOCATOR_H_
 
 #include <deque>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/p2p/base/port.h"
-#include "webrtc/p2p/base/portinterface.h"
-#include "webrtc/rtc_base/helpers.h"
-#include "webrtc/rtc_base/proxyinfo.h"
-#include "webrtc/rtc_base/sigslot.h"
-#include "webrtc/rtc_base/thread.h"
+#include "p2p/base/port.h"
+#include "p2p/base/portinterface.h"
+#include "rtc_base/helpers.h"
+#include "rtc_base/proxyinfo.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 class MetricsObserverInterface;
+class TurnCustomizer;
 }
 
 namespace cricket {
@@ -102,6 +103,12 @@ const uint32_t kDefaultStepDelay = 1000;  // 1 sec step delay.
 // As per RFC 5245 Appendix B.1, STUN transactions need to be paced at certain
 // internal. Less than 20ms is not acceptable. We choose 50ms as our default.
 const uint32_t kMinimumStepDelay = 50;
+
+// Turning on IPv6 could make many IPv6 interfaces available for connectivity
+// check and delay the call setup time. kDefaultMaxIPv6Networks is the default
+// upper limit of IPv6 networks but could be changed by
+// set_max_ipv6_networks().
+constexpr int kDefaultMaxIPv6Networks = 5;
 
 // CF = CANDIDATE FILTER
 enum {
@@ -185,6 +192,8 @@ struct RelayServerConfig {
   RelayCredentials credentials;
   int priority = 0;
   TlsCertPolicy tls_cert_policy = TlsCertPolicy::TLS_CERT_POLICY_SECURE;
+  std::vector<std::string> tls_alpn_protocols;
+  std::vector<std::string> tls_elliptic_curves;
 };
 
 class PortAllocatorSession : public sigslot::has_slots<> {
@@ -324,14 +333,14 @@ class PortAllocatorSession : public sigslot::has_slots<> {
 // passing it into an object that uses it on a different thread.
 class PortAllocator : public sigslot::has_slots<> {
  public:
-  PortAllocator() :
-      flags_(kDefaultPortAllocatorFlags),
-      min_port_(0),
-      max_port_(0),
-      step_delay_(kDefaultStepDelay),
-      allow_tcp_listen_(true),
-      candidate_filter_(CF_ALL) {
-  }
+  PortAllocator()
+      : flags_(kDefaultPortAllocatorFlags),
+        min_port_(0),
+        max_port_(0),
+        max_ipv6_networks_(kDefaultMaxIPv6Networks),
+        step_delay_(kDefaultStepDelay),
+        allow_tcp_listen_(true),
+        candidate_filter_(CF_ALL) {}
 
   virtual ~PortAllocator() {}
 
@@ -354,7 +363,8 @@ class PortAllocator : public sigslot::has_slots<> {
   bool SetConfiguration(const ServerAddresses& stun_servers,
                         const std::vector<RelayServerConfig>& turn_servers,
                         int candidate_pool_size,
-                        bool prune_turn_ports);
+                        bool prune_turn_ports,
+                        webrtc::TurnCustomizer* turn_customizer = nullptr);
 
   const ServerAddresses& stun_servers() const { return stun_servers_; }
 
@@ -429,6 +439,23 @@ class PortAllocator : public sigslot::has_slots<> {
     return true;
   }
 
+  // Can be used to change the default numer of IPv6 network interfaces used
+  // (5). Can set to INT_MAX to effectively disable the limit.
+  //
+  // TODO(deadbeef): Applications shouldn't have to arbitrarily limit the
+  // number of available IPv6 network interfaces just because they could slow
+  // ICE down. We should work on making our ICE logic smarter (for example,
+  // prioritizing pinging connections that are most likely to work) so that
+  // every network interface can be used without impacting ICE's speed.
+  void set_max_ipv6_networks(int networks) { max_ipv6_networks_ = networks; }
+  int max_ipv6_networks() { return max_ipv6_networks_; }
+
+  // Delay between different candidate gathering phases (UDP, TURN, TCP).
+  // Defaults to 1 second, but PeerConnection sets it to 50ms.
+  // TODO(deadbeef): Get rid of this. Its purpose is to avoid sending too many
+  // STUN transactions at once, but that's already happening if you configure
+  // multiple STUN servers or have multiple network interfaces. We should
+  // implement some global pacing logic instead if that's our goal.
   uint32_t step_delay() const { return step_delay_; }
   void set_step_delay(uint32_t delay) { step_delay_ = delay; }
 
@@ -452,6 +479,10 @@ class PortAllocator : public sigslot::has_slots<> {
     metrics_observer_ = observer;
   }
 
+  webrtc::TurnCustomizer* turn_customizer() {
+    return turn_customizer_;
+  }
+
  protected:
   virtual PortAllocatorSession* CreateSessionInternal(
       const std::string& content_name,
@@ -472,6 +503,7 @@ class PortAllocator : public sigslot::has_slots<> {
   rtc::ProxyInfo proxy_;
   int min_port_;
   int max_port_;
+  int max_ipv6_networks_;
   uint32_t step_delay_;
   bool allow_tcp_listen_;
   uint32_t candidate_filter_;
@@ -486,8 +518,13 @@ class PortAllocator : public sigslot::has_slots<> {
   bool prune_turn_ports_ = false;
 
   webrtc::MetricsObserverInterface* metrics_observer_ = nullptr;
+
+  // Customizer for TURN messages.
+  // The instance is owned by application and will be shared among
+  // all TurnPort(s) created.
+  webrtc::TurnCustomizer* turn_customizer_ = nullptr;
 };
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_BASE_PORTALLOCATOR_H_
+#endif  // P2P_BASE_PORTALLOCATOR_H_

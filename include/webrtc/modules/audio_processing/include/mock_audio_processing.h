@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_PROCESSING_INCLUDE_MOCK_AUDIO_PROCESSING_H_
-#define WEBRTC_MODULES_AUDIO_PROCESSING_INCLUDE_MOCK_AUDIO_PROCESSING_H_
+#ifndef MODULES_AUDIO_PROCESSING_INCLUDE_MOCK_AUDIO_PROCESSING_H_
+#define MODULES_AUDIO_PROCESSING_INCLUDE_MOCK_AUDIO_PROCESSING_H_
 
 #include <memory>
 
-#include "webrtc/modules/audio_processing/include/aec_dump.h"
-#include "webrtc/modules/audio_processing/include/audio_processing.h"
-#include "webrtc/test/gmock.h"
+#include "modules/audio_processing/include/aec_dump.h"
+#include "modules/audio_processing/include/audio_processing.h"
+#include "test/gmock.h"
 
 namespace webrtc {
 
@@ -104,6 +104,14 @@ class MockNoiseSuppression : public NoiseSuppression {
   MOCK_METHOD0(NoiseEstimate, std::vector<float>());
 };
 
+class MockPostProcessing : public PostProcessing {
+ public:
+  virtual ~MockPostProcessing() {}
+  MOCK_METHOD2(Initialize, void(int sample_rate_hz, int num_channels));
+  MOCK_METHOD1(Process, void(AudioBuffer* audio));
+  MOCK_CONST_METHOD0(ToString, std::string());
+};
+
 class MockVoiceDetection : public VoiceDetection {
  public:
   virtual ~MockVoiceDetection() {}
@@ -179,14 +187,6 @@ class MockAudioProcessing : public AudioProcessing {
   virtual void AttachAecDump(std::unique_ptr<AecDump> aec_dump) {}
   MOCK_METHOD0(DetachAecDump, void());
 
-  MOCK_METHOD2(StartDebugRecording, int(const char filename[kMaxFilenameSize],
-                                        int64_t max_log_size_bytes));
-  MOCK_METHOD2(StartDebugRecording, int(FILE* handle,
-                                        int64_t max_log_size_bytes));
-  MOCK_METHOD1(StartDebugRecording, int (FILE* handle));
-  MOCK_METHOD1(StartDebugRecordingForPlatformFile,
-               int(rtc::PlatformFile handle));
-  MOCK_METHOD0(StopDebugRecording, int());
   MOCK_METHOD0(UpdateHistogramsOnCallEnd, void());
   MOCK_CONST_METHOD0(GetStatistics, AudioProcessingStatistics());
   virtual MockEchoCancellation* echo_cancellation() const {
@@ -226,4 +226,4 @@ class MockAudioProcessing : public AudioProcessing {
 }  // namespace test
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_PROCESSING_INCLUDE_MOCK_AUDIO_PROCESSING_H_
+#endif  // MODULES_AUDIO_PROCESSING_INCLUDE_MOCK_AUDIO_PROCESSING_H_

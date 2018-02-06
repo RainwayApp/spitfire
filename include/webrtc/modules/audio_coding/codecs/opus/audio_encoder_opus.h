@@ -8,23 +8,23 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_OPUS_AUDIO_ENCODER_OPUS_H_
-#define WEBRTC_MODULES_AUDIO_CODING_CODECS_OPUS_AUDIO_ENCODER_OPUS_H_
+#ifndef MODULES_AUDIO_CODING_CODECS_OPUS_AUDIO_ENCODER_OPUS_H_
+#define MODULES_AUDIO_CODING_CODECS_OPUS_AUDIO_ENCODER_OPUS_H_
 
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/api/audio_codecs/audio_encoder.h"
-#include "webrtc/api/audio_codecs/audio_format.h"
-#include "webrtc/api/audio_codecs/opus/audio_encoder_opus_config.h"
-#include "webrtc/common_audio/smoothing_filter.h"
-#include "webrtc/modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor.h"
-#include "webrtc/modules/audio_coding/codecs/opus/opus_interface.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/rtc_base/protobuf_utils.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/audio_codecs/audio_format.h"
+#include "api/audio_codecs/opus/audio_encoder_opus_config.h"
+#include "api/optional.h"
+#include "common_audio/smoothing_filter.h"
+#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor.h"
+#include "modules/audio_coding/codecs/opus/opus_interface.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/protobuf_utils.h"
 
 namespace webrtc {
 
@@ -67,11 +67,14 @@ class AudioEncoderOpus final : public AudioEncoder {
   // https://bugs.chromium.org/p/webrtc/issues/detail?id=7847
   AudioEncoderOpus(const AudioEncoderOpusConfig& config);
 
+  AudioEncoderOpus(const AudioEncoderOpusConfig& config, int payload_type);
+
+  // Dependency injection for testing.
   AudioEncoderOpus(
       const AudioEncoderOpusConfig& config,
       int payload_type,
-      AudioNetworkAdaptorCreator&& audio_network_adaptor_creator = nullptr,
-      std::unique_ptr<SmoothingFilter> bitrate_smoother = nullptr);
+      const AudioNetworkAdaptorCreator& audio_network_adaptor_creator,
+      std::unique_ptr<SmoothingFilter> bitrate_smoother);
 
   explicit AudioEncoderOpus(const CodecInst& codec_inst);
   AudioEncoderOpus(int payload_type, const SdpAudioFormat& format);
@@ -108,11 +111,12 @@ class AudioEncoderOpus final : public AudioEncoder {
       float uplink_recoverable_packet_loss_fraction) override;
   void OnReceivedUplinkBandwidth(
       int target_audio_bitrate_bps,
-      rtc::Optional<int64_t> probing_interval_ms) override;
+      rtc::Optional<int64_t> bwe_period_ms) override;
   void OnReceivedRtt(int rtt_ms) override;
   void OnReceivedOverhead(size_t overhead_bytes_per_packet) override;
   void SetReceiverFrameLengthRange(int min_frame_length_ms,
                                    int max_frame_length_ms) override;
+  ANAStats GetANAStats() const override;
   rtc::ArrayView<const int> supported_frame_lengths_ms() const {
     return config_.supported_frame_lengths_ms;
   }
@@ -164,7 +168,7 @@ class AudioEncoderOpus final : public AudioEncoder {
   int next_frame_length_ms_;
   int complexity_;
   std::unique_ptr<PacketLossFractionSmoother> packet_loss_fraction_smoother_;
-  AudioNetworkAdaptorCreator audio_network_adaptor_creator_;
+  const AudioNetworkAdaptorCreator audio_network_adaptor_creator_;
   std::unique_ptr<AudioNetworkAdaptor> audio_network_adaptor_;
   rtc::Optional<size_t> overhead_bytes_per_packet_;
   const std::unique_ptr<SmoothingFilter> bitrate_smoother_;
@@ -175,4 +179,4 @@ class AudioEncoderOpus final : public AudioEncoder {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_CODING_CODECS_OPUS_AUDIO_ENCODER_OPUS_H_
+#endif  // MODULES_AUDIO_CODING_CODECS_OPUS_AUDIO_ENCODER_OPUS_H_

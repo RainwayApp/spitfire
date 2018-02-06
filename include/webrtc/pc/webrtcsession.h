@@ -8,29 +8,29 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_PC_WEBRTCSESSION_H_
-#define WEBRTC_PC_WEBRTCSESSION_H_
+#ifndef PC_WEBRTCSESSION_H_
+#define PC_WEBRTCSESSION_H_
 
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "webrtc/api/peerconnectioninterface.h"
-#include "webrtc/api/statstypes.h"
-#include "webrtc/call/call.h"
-#include "webrtc/p2p/base/candidate.h"
-#include "webrtc/p2p/base/transportcontroller.h"
-#include "webrtc/pc/datachannel.h"
-#include "webrtc/pc/mediasession.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/optional.h"
-#include "webrtc/rtc_base/sigslot.h"
-#include "webrtc/rtc_base/sslidentity.h"
-#include "webrtc/rtc_base/thread.h"
+#include "api/candidate.h"
+#include "api/optional.h"
+#include "api/peerconnectioninterface.h"
+#include "api/statstypes.h"
+#include "call/call.h"
+#include "pc/datachannel.h"
+#include "pc/mediasession.h"
+#include "pc/transportcontroller.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/sslidentity.h"
+#include "rtc_base/thread.h"
 
 #ifdef HAVE_QUIC
-#include "webrtc/pc/quicdatatransport.h"
+#include "pc/quicdatatransport.h"
 #endif  // HAVE_QUIC
 
 namespace cricket {
@@ -61,7 +61,8 @@ extern const char kBundleWithoutRtcpMux[];
 extern const char kCreateChannelFailed[];
 extern const char kInvalidCandidates[];
 extern const char kInvalidSdp[];
-extern const char kMlineMismatch[];
+extern const char kMlineMismatchInAnswer[];
+extern const char kMlineMismatchInSubsequentOffer[];
 extern const char kPushDownTDFailed[];
 extern const char kSdpWithoutDtlsFingerprint[];
 extern const char kSdpWithoutSdesCrypto[];
@@ -204,12 +205,29 @@ class WebRtcSession :
   }
 
   // Exposed for stats collecting.
+  // TODO(steveanton): Switch callers to use the plural form and remove these.
   virtual cricket::VoiceChannel* voice_channel() {
-    return voice_channel_.get();
+    if (voice_channels_.empty()) {
+      return nullptr;
+    } else {
+      return voice_channels_[0];
+    }
   }
   virtual cricket::VideoChannel* video_channel() {
-    return video_channel_.get();
+    if (video_channels_.empty()) {
+      return nullptr;
+    } else {
+      return video_channels_[0];
+    }
   }
+
+  virtual std::vector<cricket::VoiceChannel*> voice_channels() const {
+    return voice_channels_;
+  }
+  virtual std::vector<cricket::VideoChannel*> video_channels() const {
+    return video_channels_;
+  }
+
   // Only valid when using deprecated RTP data channels.
   virtual cricket::RtpDataChannel* rtp_data_channel() {
     return rtp_data_channel_.get();
@@ -222,8 +240,6 @@ class WebRtcSession :
   }
 
   cricket::BaseChannel* GetChannel(const std::string& content_name);
-
-  cricket::SecurePolicy SdesPolicy() const;
 
   // Get current SSL role used by SCTP's underlying transport.
   bool GetSctpSslRole(rtc::SSLRole* role);
@@ -375,6 +391,9 @@ class WebRtcSession :
     kPrAnswer,
     kAnswer,
   };
+
+  // Return all managed, non-null channels.
+  std::vector<cricket::BaseChannel*> Channels() const;
 
   // Non-const versions of local_description()/remote_description(), for use
   // internally.
@@ -547,8 +566,10 @@ class WebRtcSession :
   const std::string GetTransportName(const std::string& content_name);
 
   void DestroyRtcpTransport_n(const std::string& transport_name);
-  void DestroyVideoChannel();
-  void DestroyVoiceChannel();
+  void RemoveAndDestroyVideoChannel(cricket::VideoChannel* video_channel);
+  void DestroyVideoChannel(cricket::VideoChannel* video_channel);
+  void RemoveAndDestroyVoiceChannel(cricket::VoiceChannel* voice_channel);
+  void DestroyVoiceChannel(cricket::VoiceChannel* voice_channel);
   void DestroyDataChannel();
 
   rtc::Thread* const network_thread_;
@@ -567,10 +588,18 @@ class WebRtcSession :
   const cricket::MediaConfig media_config_;
   RtcEventLog* event_log_;
   Call* call_;
-  std::unique_ptr<cricket::VoiceChannel> voice_channel_;
-  std::unique_ptr<cricket::VideoChannel> video_channel_;
+  // TODO(steveanton): voice_channels_ and video_channels_ used to be a single
+  // VoiceChannel/VideoChannel respectively but are being changed to support
+  // multiple m= lines in unified plan. But until more work is done, these can
+  // only have 0 or 1 channel each.
+  // These channels are owned by ChannelManager.
+  std::vector<cricket::VoiceChannel*> voice_channels_;
+  std::vector<cricket::VideoChannel*> video_channels_;
   // |rtp_data_channel_| is used if in RTP data channel mode, |sctp_transport_|
   // when using SCTP.
+  // TODO(steveanton): This should be changed to a bare pointer because
+  // WebRtcSession doesn't actually own the RtpDataChannel
+  // (ChannelManager does).
   std::unique_ptr<cricket::RtpDataChannel> rtp_data_channel_;
 
   std::unique_ptr<cricket::SctpTransportInternal> sctp_transport_;
@@ -646,4 +675,4 @@ class WebRtcSession :
 };
 }  // namespace webrtc
 
-#endif  // WEBRTC_PC_WEBRTCSESSION_H_
+#endif  // PC_WEBRTCSESSION_H_

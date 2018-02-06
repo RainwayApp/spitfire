@@ -8,16 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_ASYNCINVOKER_INL_H_
-#define WEBRTC_RTC_BASE_ASYNCINVOKER_INL_H_
+#ifndef RTC_BASE_ASYNCINVOKER_INL_H_
+#define RTC_BASE_ASYNCINVOKER_INL_H_
 
-#include "webrtc/rtc_base/atomicops.h"
-#include "webrtc/rtc_base/bind.h"
-#include "webrtc/rtc_base/criticalsection.h"
-#include "webrtc/rtc_base/messagehandler.h"
-#include "webrtc/rtc_base/sigslot.h"
-#include "webrtc/rtc_base/thread.h"
-#include "webrtc/rtc_base/thread_annotations.h"
+#include "rtc_base/bind.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/event.h"
+#include "rtc_base/messagehandler.h"
+#include "rtc_base/refcountedobject.h"
+#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace rtc {
 
@@ -27,7 +29,7 @@ class AsyncInvoker;
 // on the calling thread if necessary.
 class AsyncClosure {
  public:
-  explicit AsyncClosure(AsyncInvoker* invoker) : invoker_(invoker) {}
+  explicit AsyncClosure(AsyncInvoker* invoker);
   virtual ~AsyncClosure();
   // Runs the asynchronous task, and triggers a callback to the calling
   // thread if needed. Should be called from the target thread.
@@ -35,6 +37,11 @@ class AsyncClosure {
 
  protected:
   AsyncInvoker* invoker_;
+  // Reference counted so that if the AsyncInvoker destructor finishes before
+  // an AsyncClosure's destructor that's about to call
+  // "invocation_complete_->Set()", it's not dereferenced after being
+  // destroyed.
+  scoped_refptr<RefCountedObject<Event>> invocation_complete_;
 };
 
 // Simple closure that doesn't trigger a callback for the calling thread.
@@ -53,4 +60,4 @@ class FireAndForgetAsyncClosure : public AsyncClosure {
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_ASYNCINVOKER_INL_H_
+#endif  // RTC_BASE_ASYNCINVOKER_INL_H_

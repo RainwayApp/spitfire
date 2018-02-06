@@ -8,14 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_ILBC_AUDIO_ENCODER_ILBC_H_
-#define WEBRTC_MODULES_AUDIO_CODING_CODECS_ILBC_AUDIO_ENCODER_ILBC_H_
+#ifndef MODULES_AUDIO_CODING_CODECS_ILBC_AUDIO_ENCODER_ILBC_H_
+#define MODULES_AUDIO_CODING_CODECS_ILBC_AUDIO_ENCODER_ILBC_H_
 
-#include "webrtc/api/audio_codecs/audio_encoder.h"
-#include "webrtc/api/audio_codecs/audio_format.h"
-#include "webrtc/api/audio_codecs/ilbc/audio_encoder_ilbc_config.h"
-#include "webrtc/modules/audio_coding/codecs/ilbc/ilbc.h"
-#include "webrtc/rtc_base/constructormagic.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/audio_codecs/ilbc/audio_encoder_ilbc_config.h"
+#include "modules/audio_coding/codecs/ilbc/ilbc.h"
+#include "rtc_base/constructormagic.h"
 
 namespace webrtc {
 
@@ -23,17 +22,9 @@ struct CodecInst;
 
 class AudioEncoderIlbcImpl final : public AudioEncoder {
  public:
-  static rtc::Optional<AudioEncoderIlbcConfig> SdpToConfig(
-      const SdpAudioFormat& format);
-
   AudioEncoderIlbcImpl(const AudioEncoderIlbcConfig& config, int payload_type);
   explicit AudioEncoderIlbcImpl(const CodecInst& codec_inst);
-  AudioEncoderIlbcImpl(int payload_type, const SdpAudioFormat& format);
   ~AudioEncoderIlbcImpl() override;
-
-  static constexpr const char* GetPayloadName() { return "ILBC"; }
-  static rtc::Optional<AudioCodecInfo> QueryAudioEncoder(
-      const SdpAudioFormat& format);
 
   int SampleRateHz() const override;
   size_t NumChannels() const override;
@@ -60,4 +51,4 @@ class AudioEncoderIlbcImpl final : public AudioEncoder {
 };
 
 }  // namespace webrtc
-#endif  // WEBRTC_MODULES_AUDIO_CODING_CODECS_ILBC_AUDIO_ENCODER_ILBC_H_
+#endif  // MODULES_AUDIO_CODING_CODECS_ILBC_AUDIO_ENCODER_ILBC_H_

@@ -128,10 +128,8 @@ struct TestConfig {
   int expect_cipher_no_aes = 0;
   std::string expect_peer_cert_file;
   int resumption_delay = 0;
-  bool retain_only_sha256_client_cert_initial = false;
-  bool retain_only_sha256_client_cert_resume = false;
-  bool expect_sha256_client_cert_initial = false;
-  bool expect_sha256_client_cert_resume = false;
+  bool retain_only_sha256_client_cert = false;
+  bool expect_sha256_client_cert = false;
   bool read_with_unfinished_write = false;
   bool expect_secure_renegotiation = false;
   bool expect_no_secure_renegotiation = false;
@@ -144,6 +142,8 @@ struct TestConfig {
   bool handshake_twice = false;
   bool allow_unknown_alpn_protos = false;
   bool enable_ed25519 = false;
+  bool use_custom_verify_callback = false;
+  std::string expect_msg_callback;
 };
 
 bool ParseConfig(int argc, char **argv, TestConfig *out_initial,

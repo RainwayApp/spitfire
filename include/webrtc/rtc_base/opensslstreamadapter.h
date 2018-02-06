@@ -8,16 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_OPENSSLSTREAMADAPTER_H_
-#define WEBRTC_RTC_BASE_OPENSSLSTREAMADAPTER_H_
+#ifndef RTC_BASE_OPENSSLSTREAMADAPTER_H_
+#define RTC_BASE_OPENSSLSTREAMADAPTER_H_
 
 #include <string>
 #include <memory>
 #include <vector>
 
-#include "webrtc/rtc_base/buffer.h"
-#include "webrtc/rtc_base/opensslidentity.h"
-#include "webrtc/rtc_base/sslstreamadapter.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/opensslidentity.h"
+#include "rtc_base/sslstreamadapter.h"
 
 typedef struct ssl_st SSL;
 typedef struct ssl_ctx_st SSL_CTX;
@@ -169,11 +169,9 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
   SSL_CTX* SetupSSLContext();
   // Verify the peer certificate matches the signaled digest.
   bool VerifyPeerCertificate();
-  // SSL certification verification error handler, called back from
-  // the openssl library. Returns an int interpreted as a boolean in
-  // the C style: zero means verification failure, non-zero means
-  // passed.
-  static int SSLVerifyCallback(int ok, X509_STORE_CTX* store);
+  // SSL certificate verification callback. See
+  // SSL_CTX_set_cert_verify_callback.
+  static int SSLVerifyCallback(X509_STORE_CTX* store, void* arg);
 
   bool waiting_to_verify_peer_certificate() const {
     return client_auth_enabled() && !peer_certificate_verified_;
@@ -223,4 +221,4 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_OPENSSLSTREAMADAPTER_H_
+#endif  // RTC_BASE_OPENSSLSTREAMADAPTER_H_

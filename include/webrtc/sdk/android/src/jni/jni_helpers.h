@@ -11,15 +11,17 @@
 // This file contain convenience functions and classes for JNI.
 // Before using any of the methods, InitGlobalJniVariables must be called.
 
-#ifndef WEBRTC_SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_
-#define WEBRTC_SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_
+#ifndef SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_
+#define SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_
 
 #include <jni.h>
+#include <map>
 #include <string>
+#include <vector>
 
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/thread_checker.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/thread_checker.h"
 
 // Abort the process if |jni| has a Java exception pending.
 // This macros uses the comma operator to execute ExceptionDescribe
@@ -34,7 +36,13 @@
 #define CHECK_RELEASE(ptr) \
   RTC_CHECK_EQ(0, (ptr)->Release()) << "Unexpected refcount."
 
-namespace webrtc_jni {
+// Convenience macro defining JNI-accessible methods in the org.webrtc package.
+// Eliminates unnecessary boilerplate and line-wraps, reducing visual clutter.
+#define JNI_FUNCTION_DECLARATION(rettype, name, ...) \
+  extern "C" JNIEXPORT rettype JNICALL Java_org_webrtc_##name(__VA_ARGS__)
+
+namespace webrtc {
+namespace jni {
 
 jint InitGlobalJniVariables(JavaVM *jvm);
 
@@ -93,9 +101,23 @@ jstring JavaStringFromStdString(JNIEnv* jni, const std::string& native);
 // Given a (UTF-16) jstring return a new UTF-8 native string.
 std::string JavaToStdString(JNIEnv* jni, const jstring& j_string);
 
+// Given a List of (UTF-16) jstrings
+// return a new vector of UTF-8 native strings.
+std::vector<std::string> JavaToStdVectorStrings(JNIEnv* jni, jobject list);
+
 // Return the (singleton) Java Enum object corresponding to |index|;
 jobject JavaEnumFromIndex(JNIEnv* jni, jclass state_class,
                           const std::string& state_class_name, int index);
+
+// Return the (singleton) Java Enum object corresponding to |index|;
+// |state_class_fragment| is something like "MediaSource$State".
+jobject JavaEnumFromIndexAndClassName(JNIEnv* jni,
+                                      const std::string& state_class_fragment,
+                                      int index);
+
+// Parses Map<String, String> to std::map<std::string, std::string>.
+std::map<std::string, std::string> JavaToStdMapStrings(JNIEnv* jni,
+                                                       jobject j_map);
 
 // Returns the name of a Java enum.
 std::string GetJavaEnumName(JNIEnv* jni,
@@ -162,6 +184,10 @@ class Iterable {
     // Advances the iterator one step.
     Iterator& operator++();
 
+    // Removes the element the iterator is pointing to. Must still advance the
+    // iterator afterwards.
+    void Remove();
+
     // Provides a way to compare the iterator with itself and with the end
     // iterator.
     // Note: all other comparison results are undefined, just like for C++ input
@@ -178,6 +204,7 @@ class Iterable {
     jobject value_ = nullptr;
     jmethodID has_next_id_ = nullptr;
     jmethodID next_id_ = nullptr;
+    jmethodID remove_id_ = nullptr;
     rtc::ThreadChecker thread_checker_;
 
     RTC_DISALLOW_COPY_AND_ASSIGN(Iterator);
@@ -193,6 +220,15 @@ class Iterable {
   RTC_DISALLOW_COPY_AND_ASSIGN(Iterable);
 };
 
+}  // namespace jni
+}  // namespace webrtc
+
+// TODO(magjed): Remove once external clients are updated.
+namespace webrtc_jni {
+
+using webrtc::jni::AttachCurrentThreadIfNeeded;
+using webrtc::jni::InitGlobalJniVariables;
+
 }  // namespace webrtc_jni
 
-#endif  // WEBRTC_SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_
+#endif  // SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_

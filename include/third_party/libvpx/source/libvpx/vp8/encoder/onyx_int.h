@@ -249,6 +249,10 @@ typedef struct {
 
   int filter_level;
 
+  int frames_since_last_drop_overshoot;
+
+  int force_maxqp;
+
   int last_frame_percent_intra;
 
   int count_mb_ref_frame_usage[MAX_REF_FRAMES];
@@ -505,6 +509,7 @@ typedef struct VP8_COMP {
   int mse_source_denoised;
 
   int force_maxqp;
+  int frames_since_last_drop_overshoot;
 
   // GF update for 1 pass cbr.
   int gf_update_onepass_cbr;
@@ -513,11 +518,9 @@ typedef struct VP8_COMP {
 
 #if CONFIG_MULTITHREAD
   /* multithread data */
-  pthread_mutex_t *pmutex;
-  pthread_mutex_t mt_mutex; /* mutex for b_multi_threaded */
-  int *mt_current_mb_col;
+  vpx_atomic_int *mt_current_mb_col;
   int mt_sync_range;
-  int b_multi_threaded;
+  vpx_atomic_int b_multi_threaded;
   int encoding_thread_count;
   int b_lpf_running;
 

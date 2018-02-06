@@ -8,11 +8,11 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_AEC3_COMMON_H_
-#define WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_AEC3_COMMON_H_
+#ifndef MODULES_AUDIO_PROCESSING_AEC3_AEC3_COMMON_H_
+#define MODULES_AUDIO_PROCESSING_AEC3_AEC3_COMMON_H_
 
 #include <stddef.h>
-#include "webrtc/typedefs.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -39,7 +39,7 @@ constexpr size_t kFftLengthBy2Minus1 = kFftLengthBy2 - 1;
 constexpr size_t kFftLength = 2 * kFftLengthBy2;
 
 constexpr int kAdaptiveFilterLength = 12;
-constexpr int kResidualEchoPowerRenderWindowSize = 30;
+constexpr int kUnknownDelayRenderWindowSize = 30;
 constexpr int kAdaptiveFilterTimeDomainLength =
     kAdaptiveFilterLength * kFftLengthBy2;
 
@@ -64,10 +64,12 @@ constexpr size_t kRenderDelayBufferSize =
     (3 * kDownsampledRenderBufferSize) / (4 * kSubBlockSize);
 
 constexpr size_t kMinEchoPathDelayBlocks = 5;
-constexpr size_t kMaxApiCallsJitterBlocks = 30;
+constexpr size_t kMaxApiCallsJitterBlocks = 26;
 constexpr size_t kRenderTransferQueueSize = kMaxApiCallsJitterBlocks / 2;
 static_assert(2 * kRenderTransferQueueSize >= kMaxApiCallsJitterBlocks,
               "Requirement to ensure buffer overflow detection");
+
+constexpr size_t kEchoPathChangeConvergenceBlocks = 2 * kNumBlocksPerSecond;
 
 // TODO(peah): Integrate this with how it is done inside audio_processing_impl.
 constexpr size_t NumBandsForRate(int sample_rate_hz) {
@@ -112,4 +114,4 @@ static_assert(!ValidFullBandRate(8001),
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_AEC3_COMMON_H_
+#endif  // MODULES_AUDIO_PROCESSING_AEC3_AEC3_COMMON_H_

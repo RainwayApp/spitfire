@@ -8,16 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_PC_TEST_MOCK_PEERCONNECTION_H_
-#define WEBRTC_PC_TEST_MOCK_PEERCONNECTION_H_
+#ifndef PC_TEST_MOCK_PEERCONNECTION_H_
+#define PC_TEST_MOCK_PEERCONNECTION_H_
 
 #include <vector>
 
-#include "webrtc/call/call.h"
-#include "webrtc/logging/rtc_event_log/rtc_event_log.h"
-#include "webrtc/pc/peerconnection.h"
-#include "webrtc/rtc_base/thread.h"
-#include "webrtc/test/gmock.h"
+#include "call/call.h"
+#include "logging/rtc_event_log/rtc_event_log.h"
+#include "pc/peerconnection.h"
+#include "rtc_base/thread.h"
+#include "test/gmock.h"
 
 namespace webrtc {
 
@@ -30,12 +30,6 @@ class FakePeerConnectionFactory
             rtc::Thread::Current(),
             rtc::Thread::Current(),
             rtc::Thread::Current(),
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
             std::unique_ptr<cricket::MediaEngineInterface>(),
             std::unique_ptr<webrtc::CallFactoryInterface>(),
             std::unique_ptr<RtcEventLogFactoryInterface>()) {}
@@ -53,7 +47,6 @@ class MockPeerConnection
                rtc::scoped_refptr<StreamCollectionInterface>());
   MOCK_METHOD0(remote_streams,
                rtc::scoped_refptr<StreamCollectionInterface>());
-  MOCK_METHOD0(session, WebRtcSession*());
   MOCK_CONST_METHOD0(GetSenders,
                      std::vector<rtc::scoped_refptr<RtpSenderInterface>>());
   MOCK_CONST_METHOD0(GetReceivers,
@@ -64,4 +57,4 @@ class MockPeerConnection
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_PC_TEST_MOCK_PEERCONNECTION_H_
+#endif  // PC_TEST_MOCK_PEERCONNECTION_H_

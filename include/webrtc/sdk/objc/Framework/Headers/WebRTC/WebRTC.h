@@ -9,9 +9,14 @@
  */
 
 #import <WebRTC/RTCAVFoundationVideoSource.h>
+#if TARGET_OS_IPHONE
+#import <WebRTC/RTCAudioSession.h>
+#import <WebRTC/RTCAudioSessionConfiguration.h>
+#endif
 #import <WebRTC/RTCAudioSource.h>
 #import <WebRTC/RTCAudioTrack.h>
 #import <WebRTC/RTCCameraVideoCapturer.h>
+#import <WebRTC/RTCVideoCapturer.h>
 #if TARGET_OS_IPHONE
 #import <WebRTC/RTCCameraPreviewView.h>
 #endif
@@ -22,6 +27,7 @@
 #if TARGET_OS_IPHONE
 #import <WebRTC/RTCEAGLVideoView.h>
 #import <WebRTC/RTCMTLVideoView.h>
+#import <WebRTC/RTCVideoViewShading.h>
 #endif
 #import <WebRTC/RTCFieldTrials.h>
 #import <WebRTC/RTCFileLogger.h>
@@ -47,7 +53,11 @@
 #import <WebRTC/RTCSSLAdapter.h>
 #import <WebRTC/RTCSessionDescription.h>
 #import <WebRTC/RTCTracing.h>
+#import <WebRTC/RTCVideoCodec.h>
+#import <WebRTC/RTCVideoCodecFactory.h>
+#import <WebRTC/RTCVideoCodecH264.h>
 #import <WebRTC/RTCVideoFrame.h>
+#import <WebRTC/RTCVideoFrameBuffer.h>
 #import <WebRTC/RTCVideoRenderer.h>
 #import <WebRTC/RTCVideoSource.h>
 #import <WebRTC/RTCVideoTrack.h>

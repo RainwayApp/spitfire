@@ -8,25 +8,27 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_CLIENT_BASICPORTALLOCATOR_H_
-#define WEBRTC_P2P_CLIENT_BASICPORTALLOCATOR_H_
+#ifndef P2P_CLIENT_BASICPORTALLOCATOR_H_
+#define P2P_CLIENT_BASICPORTALLOCATOR_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/p2p/base/portallocator.h"
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/messagequeue.h"
-#include "webrtc/rtc_base/network.h"
-#include "webrtc/rtc_base/thread.h"
+#include "api/turncustomizer.h"
+#include "p2p/base/portallocator.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/messagequeue.h"
+#include "rtc_base/network.h"
+#include "rtc_base/thread.h"
 
 namespace cricket {
 
 class BasicPortAllocator : public PortAllocator {
  public:
   BasicPortAllocator(rtc::NetworkManager* network_manager,
-                     rtc::PacketSocketFactory* socket_factory);
+                     rtc::PacketSocketFactory* socket_factory,
+                     webrtc::TurnCustomizer* customizer = nullptr);
   explicit BasicPortAllocator(rtc::NetworkManager* network_manager);
   BasicPortAllocator(rtc::NetworkManager* network_manager,
                      rtc::PacketSocketFactory* socket_factory,
@@ -329,9 +331,6 @@ class AllocationSequence : public rtc::MessageHandler,
   // MessageHandler
   void OnMessage(rtc::Message* msg);
 
-  void EnableProtocol(ProtocolType proto);
-  bool ProtocolEnabled(ProtocolType proto) const;
-
   // Signal from AllocationSequence, when it's done with allocating ports.
   // This signal is useful, when port allocation fails which doesn't result
   // in any candidates. Using this signal BasicPortAllocatorSession can send
@@ -365,7 +364,8 @@ class AllocationSequence : public rtc::MessageHandler,
   BasicPortAllocatorSession* session_;
   bool network_failed_ = false;
   rtc::Network* network_;
-  rtc::IPAddress ip_;
+  // Compared with the new best IP in DisableEquivalentPhases.
+  rtc::IPAddress previous_best_ip_;
   PortConfiguration* config_;
   State state_;
   uint32_t flags_;
@@ -379,4 +379,4 @@ class AllocationSequence : public rtc::MessageHandler,
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_CLIENT_BASICPORTALLOCATOR_H_
+#endif  // P2P_CLIENT_BASICPORTALLOCATOR_H_

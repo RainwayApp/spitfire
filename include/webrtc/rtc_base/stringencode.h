@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_STRINGENCODE_H_
-#define WEBRTC_RTC_BASE_STRINGENCODE_H_
+#ifndef RTC_BASE_STRINGENCODE_H_
+#define RTC_BASE_STRINGENCODE_H_
 
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "webrtc/rtc_base/checks.h"
+#include "rtc_base/checks.h"
 
 namespace rtc {
 
@@ -136,6 +136,10 @@ inline std::string s_url_decode(const std::string& source) {
   return s_transform(source, url_decode);
 }
 
+// Joins the source vector of strings into a single string, with each
+// field in source being separated by delimiter. No trailing delimiter is added.
+std::string join(const std::vector<std::string>& source, char delimiter);
+
 // Splits the source string into multiple fields separated by delimiter,
 // with duplicates of delimiter creating empty fields.
 size_t split(const std::string& source, char delimiter,
@@ -221,4 +225,4 @@ char make_char_safe_for_filename(char c);
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_STRINGENCODE_H__
+#endif  // RTC_BASE_STRINGENCODE_H__

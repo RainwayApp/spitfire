@@ -8,31 +8,17 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_TASK_QUEUE_H_
-#define WEBRTC_RTC_BASE_TASK_QUEUE_H_
+#ifndef RTC_BASE_TASK_QUEUE_H_
+#define RTC_BASE_TASK_QUEUE_H_
 
 #include <list>
 #include <memory>
 #include <queue>
+#include <type_traits>
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_BUILD_LIBEVENT)
-#include <dispatch/dispatch.h>
-#endif
-
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/criticalsection.h"
-
-#if defined(WEBRTC_WIN) || defined(WEBRTC_BUILD_LIBEVENT)
-#include "webrtc/rtc_base/platform_thread.h"
-#endif
-
-#if defined(WEBRTC_BUILD_LIBEVENT)
-#include "webrtc/rtc_base/refcountedobject.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
-
-struct event_base;
-struct event;
-#endif
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/criticalsection.h"
+#include "rtc_base/scoped_ref_ptr.h"
 
 namespace rtc {
 
@@ -159,7 +145,7 @@ static std::unique_ptr<QueuedTask> NewClosure(const Closure& closure,
 // TaskQueue itself has been deleted or it may happen synchronously while the
 // TaskQueue instance is being deleted.  This may vary from one OS to the next
 // so assumptions about lifetimes of pending tasks should not be made.
-class LOCKABLE TaskQueue {
+class RTC_LOCKABLE TaskQueue {
  public:
   // TaskQueue priority levels. On some platforms these will map to thread
   // priorities, on others such as Mac and iOS, GCD queue priorities.
@@ -176,7 +162,6 @@ class LOCKABLE TaskQueue {
   static TaskQueue* Current();
 
   // Used for DCHECKing the current queue.
-  static bool IsCurrent(const char* queue_name);
   bool IsCurrent() const;
 
   // TODO(tommi): For better debuggability, implement RTC_FROM_HERE.
@@ -196,7 +181,12 @@ class LOCKABLE TaskQueue {
   // more likely). This can be mitigated by limiting the use of delayed tasks.
   void PostDelayedTask(std::unique_ptr<QueuedTask> task, uint32_t milliseconds);
 
-  template <class Closure>
+  // std::enable_if is used here to make sure that calls to PostTask() with
+  // std::unique_ptr<SomeClassDerivedFromQueuedTask> would not end up being
+  // caught by this template.
+  template <class Closure,
+            typename std::enable_if<
+                std::is_copy_constructible<Closure>::value>::type* = nullptr>
   void PostTask(const Closure& closure) {
     PostTask(std::unique_ptr<QueuedTask>(new ClosureTask<Closure>(closure)));
   }
@@ -242,65 +232,12 @@ class LOCKABLE TaskQueue {
   }
 
  private:
-#if defined(WEBRTC_BUILD_LIBEVENT)
-  static void ThreadMain(void* context);
-  static void OnWakeup(int socket, short flags, void* context);  // NOLINT
-  static void RunTask(int fd, short flags, void* context);       // NOLINT
-  static void RunTimer(int fd, short flags, void* context);      // NOLINT
-
-  class ReplyTaskOwner;
-  class PostAndReplyTask;
-  class SetTimerTask;
-
-  typedef RefCountedObject<ReplyTaskOwner> ReplyTaskOwnerRef;
-
-  void PrepareReplyTask(scoped_refptr<ReplyTaskOwnerRef> reply_task);
-
-  struct QueueContext;
-
-  int wakeup_pipe_in_ = -1;
-  int wakeup_pipe_out_ = -1;
-  event_base* event_base_;
-  std::unique_ptr<event> wakeup_event_;
-  PlatformThread thread_;
-  rtc::CriticalSection pending_lock_;
-  std::list<std::unique_ptr<QueuedTask>> pending_ GUARDED_BY(pending_lock_);
-  std::list<scoped_refptr<ReplyTaskOwnerRef>> pending_replies_
-      GUARDED_BY(pending_lock_);
-#elif defined(WEBRTC_MAC)
-  struct QueueContext;
-  struct TaskContext;
-  struct PostTaskAndReplyContext;
-  dispatch_queue_t queue_;
-  QueueContext* const context_;
-#elif defined(WEBRTC_WIN)
-  class ThreadState;
-  void RunPendingTasks();
-  static void ThreadMain(void* context);
-
-  class WorkerThread : public PlatformThread {
-   public:
-    WorkerThread(ThreadRunFunction func,
-                 void* obj,
-                 const char* thread_name,
-                 ThreadPriority priority)
-        : PlatformThread(func, obj, thread_name, priority) {}
-
-    bool QueueAPC(PAPCFUNC apc_function, ULONG_PTR data) {
-      return PlatformThread::QueueAPC(apc_function, data);
-    }
-  };
-  WorkerThread thread_;
-  rtc::CriticalSection pending_lock_;
-  std::queue<std::unique_ptr<QueuedTask>> pending_ GUARDED_BY(pending_lock_);
-  HANDLE in_queue_;
-#else
-#error not supported.
-#endif
+  class Impl;
+  const scoped_refptr<Impl> impl_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_TASK_QUEUE_H_
+#endif  // RTC_BASE_TASK_QUEUE_H_

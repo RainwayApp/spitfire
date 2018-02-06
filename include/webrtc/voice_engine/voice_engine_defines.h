@@ -13,28 +13,16 @@
  *  platform specific settings.
  */
 
-#ifndef WEBRTC_VOICE_ENGINE_VOICE_ENGINE_DEFINES_H
-#define WEBRTC_VOICE_ENGINE_VOICE_ENGINE_DEFINES_H
+#ifndef VOICE_ENGINE_VOICE_ENGINE_DEFINES_H_
+#define VOICE_ENGINE_VOICE_ENGINE_DEFINES_H_
 
-#include "webrtc/common_types.h"
-#include "webrtc/modules/audio_processing/include/audio_processing.h"
-#include "webrtc/typedefs.h"
+#include "modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc {
 
 // VolumeControl
 enum { kMinVolumeLevel = 0 };
 enum { kMaxVolumeLevel = 255 };
-// Min scale factor for per-channel volume scaling
-const float kMinOutputVolumeScaling = 0.0f;
-// Max scale factor for per-channel volume scaling
-const float kMaxOutputVolumeScaling = 10.0f;
-// Min scale factor for output volume panning
-const float kMinOutputVolumePanning = 0.0f;
-// Max scale factor for output volume panning
-const float kMaxOutputVolumePanning = 1.0f;
-
-enum { kVoiceEngineMaxIpPacketSizeBytes = 1500 };  // assumes Ethernet
 
 // Audio processing
 const NoiseSuppression::Level kDefaultNsMode = NoiseSuppression::kModerate;
@@ -50,7 +38,6 @@ const bool kDefaultAgcState =
 #else
     true;
 #endif
-const GainControl::Mode kDefaultRxAgcMode = GainControl::kAdaptiveDigital;
 
 // VideoSync
 // Lowest minimum playout delay
@@ -58,18 +45,7 @@ enum { kVoiceEngineMinMinPlayoutDelayMs = 0 };
 // Highest minimum playout delay
 enum { kVoiceEngineMaxMinPlayoutDelayMs = 10000 };
 
-// RTP/RTCP
-// Min 4-bit ID for RTP extension (see section 4.2 in RFC 5285)
-enum { kVoiceEngineMinRtpExtensionId = 1 };
-// Max 4-bit ID for RTP extension
-enum { kVoiceEngineMaxRtpExtensionId = 14 };
-
 }  // namespace webrtc
-
-#define NOT_SUPPORTED(stat)                 \
-  LOG_F(LS_ERROR) << "not supported";       \
-  stat.SetLastError(VE_FUNC_NOT_SUPPORTED); \
-  return -1;
 
 namespace webrtc {
 
@@ -81,15 +57,6 @@ inline int VoEId(int veId, int chId) {
   return (int)((veId << 16) + chId);
 }
 
-inline int VoEModuleId(int veId, int chId) {
-  return (int)((veId << 16) + chId);
-}
-
-// Convert module ID to internal VoE channel ID
-inline int VoEChannelId(int moduleId) {
-  return (int)(moduleId & 0xffff);
-}
-
 }  // namespace webrtc
 
 #if defined(_WIN32)
@@ -99,4 +66,4 @@ inline int VoEChannelId(int moduleId) {
 #define WEBRTC_VOICE_ENGINE_DEFAULT_DEVICE 0
 #endif  // #if (defined(_WIN32)
 
-#endif  // WEBRTC_VOICE_ENGINE_VOICE_ENGINE_DEFINES_H
+#endif  // VOICE_ENGINE_VOICE_ENGINE_DEFINES_H_

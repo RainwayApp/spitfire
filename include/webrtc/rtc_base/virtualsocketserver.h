@@ -8,18 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_RTC_BASE_VIRTUALSOCKETSERVER_H_
-#define WEBRTC_RTC_BASE_VIRTUALSOCKETSERVER_H_
+#ifndef RTC_BASE_VIRTUALSOCKETSERVER_H_
+#define RTC_BASE_VIRTUALSOCKETSERVER_H_
 
 #include <deque>
 #include <map>
 
-#include "webrtc/rtc_base/checks.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/event.h"
-#include "webrtc/rtc_base/fakeclock.h"
-#include "webrtc/rtc_base/messagequeue.h"
-#include "webrtc/rtc_base/socketserver.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/event.h"
+#include "rtc_base/fakeclock.h"
+#include "rtc_base/messagequeue.h"
+#include "rtc_base/socketserver.h"
 
 namespace rtc {
 
@@ -117,6 +117,16 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
   void SetDelayOnAddress(const rtc::SocketAddress& address, int delay_ms) {
     delay_by_ip_[address.ipaddr()] = delay_ms;
   }
+
+  // Used by TurnPortTest and TcpPortTest (for example), to mimic a case where
+  // a proxy returns the local host address instead of the original one the
+  // port was bound against. Please see WebRTC issue 3927 for more detail.
+  //
+  // If SetAlternativeLocalAddress(A, B) is called, then when something
+  // attempts to bind a socket to address A, it will get a socket bound to
+  // address B instead.
+  void SetAlternativeLocalAddress(const rtc::IPAddress& address,
+                                  const rtc::IPAddress& alternative);
 
   typedef std::pair<double, double> Point;
   typedef std::vector<Point> Function;
@@ -273,6 +283,7 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
   uint32_t delay_samples_;
 
   std::map<rtc::IPAddress, int> delay_by_ip_;
+  std::map<rtc::IPAddress, rtc::IPAddress> alternative_address_mapping_;
   std::unique_ptr<Function> delay_dist_;
 
   CriticalSection delay_crit_;
@@ -293,11 +304,6 @@ class VirtualSocket : public AsyncSocket,
 
   SocketAddress GetLocalAddress() const override;
   SocketAddress GetRemoteAddress() const override;
-
-  // Used by TurnPortTest to mimic a case where proxy returns local host address
-  // instead of the original one TurnPort was bound against. Please see WebRTC
-  // issue 3927 for more detail.
-  void SetAlternativeLocalAddress(const SocketAddress& addr);
 
   int Bind(const SocketAddress& addr) override;
   int Connect(const SocketAddress& addr) override;
@@ -353,7 +359,6 @@ class VirtualSocket : public AsyncSocket,
   ConnState state_;
   int error_;
   SocketAddress local_addr_;
-  SocketAddress alternative_local_addr_;
   SocketAddress remote_addr_;
 
   // Pending sockets which can be Accepted
@@ -397,4 +402,4 @@ class VirtualSocket : public AsyncSocket,
 
 }  // namespace rtc
 
-#endif  // WEBRTC_RTC_BASE_VIRTUALSOCKETSERVER_H_
+#endif  // RTC_BASE_VIRTUALSOCKETSERVER_H_

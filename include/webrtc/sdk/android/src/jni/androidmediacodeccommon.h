@@ -8,18 +8,19 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_SDK_ANDROID_SRC_JNI_ANDROIDMEDIACODECCOMMON_H_
-#define WEBRTC_SDK_ANDROID_SRC_JNI_ANDROIDMEDIACODECCOMMON_H_
+#ifndef SDK_ANDROID_SRC_JNI_ANDROIDMEDIACODECCOMMON_H_
+#define SDK_ANDROID_SRC_JNI_ANDROIDMEDIACODECCOMMON_H_
 
 #include <android/log.h>
 #include <string>
 
-#include "webrtc/rtc_base/logging.h"
-#include "webrtc/rtc_base/thread.h"
-#include "webrtc/sdk/android/src/jni/classreferenceholder.h"
-#include "webrtc/sdk/android/src/jni/jni_helpers.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/thread.h"
+#include "sdk/android/src/jni/classreferenceholder.h"
+#include "sdk/android/src/jni/jni_helpers.h"
 
-namespace webrtc_jni {
+namespace webrtc {
+namespace jni {
 
 // Uncomment this define to enable verbose logging for every encoded/decoded
 // video frame.
@@ -70,15 +71,6 @@ static inline void AllowBlockingCalls() {
     current_thread->SetAllowBlockingCalls(true);
 }
 
-// Return the (singleton) Java Enum object corresponding to |index|;
-// |state_class_fragment| is something like "MediaSource$State".
-static inline jobject JavaEnumFromIndexAndClassName(
-    JNIEnv* jni, const std::string& state_class_fragment, int index) {
-  const std::string state_class = "org/webrtc/" + state_class_fragment;
-  return JavaEnumFromIndex(jni, FindClass(jni, state_class.c_str()),
-                           state_class, index);
-}
-
 // Checks for any Java exception, prints stack backtrace and clears
 // currently thrown exception.
 static inline bool CheckException(JNIEnv* jni) {
@@ -91,6 +83,7 @@ static inline bool CheckException(JNIEnv* jni) {
   return false;
 }
 
-}  // namespace webrtc_jni
+}  // namespace jni
+}  // namespace webrtc
 
-#endif  // WEBRTC_SDK_ANDROID_SRC_JNI_ANDROIDMEDIACODECCOMMON_H_
+#endif  // SDK_ANDROID_SRC_JNI_ANDROIDMEDIACODECCOMMON_H_

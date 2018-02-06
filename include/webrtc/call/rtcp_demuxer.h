@@ -8,16 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_CALL_RTCP_DEMUXER_H_
-#define WEBRTC_CALL_RTCP_DEMUXER_H_
+#ifndef CALL_RTCP_DEMUXER_H_
+#define CALL_RTCP_DEMUXER_H_
 
 #include <map>
 #include <string>
 #include <vector>
 
-#include "webrtc/call/rsid_resolution_observer.h"
-#include "webrtc/rtc_base/array_view.h"
-#include "webrtc/rtc_base/basictypes.h"
+#include "api/array_view.h"
+#include "call/ssrc_binding_observer.h"
+#include "rtc_base/basictypes.h"
 
 namespace webrtc {
 
@@ -26,7 +26,7 @@ class RtcpPacketSinkInterface;
 // This class represents the RTCP demuxing, for a single RTP session (i.e., one
 // SSRC space, see RFC 7656). It isn't thread aware, leaving responsibility of
 // multithreading issues to the user of this class.
-class RtcpDemuxer : public RsidResolutionObserver {
+class RtcpDemuxer : public SsrcBindingObserver {
  public:
   RtcpDemuxer();
   ~RtcpDemuxer() override;
@@ -60,9 +60,9 @@ class RtcpDemuxer : public RsidResolutionObserver {
   // Process a new RTCP packet and forward it to the appropriate sinks.
   void OnRtcpPacket(rtc::ArrayView<const uint8_t> packet);
 
-  // Implement RsidResolutionObserver - become notified whenever RSIDs resolve
-  // to an SSRC.
-  void OnRsidResolved(const std::string& rsid, uint32_t ssrc) override;
+  // Implement SsrcBindingObserver - become notified whenever RSIDs resolve to
+  // an SSRC.
+  void OnSsrcBoundToRsid(const std::string& rsid, uint32_t ssrc) override;
 
   // TODO(eladalon): Add the ability to resolve RSIDs and inform observers,
   // like in the RtpDemuxer case, once the relevant standard is finalized.
@@ -82,4 +82,4 @@ class RtcpDemuxer : public RsidResolutionObserver {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_CALL_RTCP_DEMUXER_H_
+#endif  // CALL_RTCP_DEMUXER_H_

@@ -8,18 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_ORTC_ORTCFACTORY_H_
-#define WEBRTC_ORTC_ORTCFACTORY_H_
+#ifndef ORTC_ORTCFACTORY_H_
+#define ORTC_ORTCFACTORY_H_
 
 #include <memory>
 #include <string>
 
-#include "webrtc/api/ortc/ortcfactoryinterface.h"
-#include "webrtc/media/base/mediaengine.h"
-#include "webrtc/media/engine/webrtcmediaengine.h"
-#include "webrtc/pc/channelmanager.h"
-#include "webrtc/rtc_base/constructormagic.h"
-#include "webrtc/rtc_base/scoped_ref_ptr.h"
+#include "api/ortc/ortcfactoryinterface.h"
+#include "media/base/mediaengine.h"
+#include "media/engine/webrtcmediaengine.h"
+#include "pc/channelmanager.h"
+#include "rtc_base/constructormagic.h"
+#include "rtc_base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
@@ -44,13 +44,13 @@ class OrtcFactory : public OrtcFactoryInterface {
   CreateRtpTransportController() override;
 
   RTCErrorOr<std::unique_ptr<RtpTransportInterface>> CreateRtpTransport(
-      const RtcpParameters& rtcp_parameters,
+      const RtpTransportParameters& parameters,
       PacketTransportInterface* rtp,
       PacketTransportInterface* rtcp,
       RtpTransportControllerInterface* transport_controller) override;
 
   RTCErrorOr<std::unique_ptr<SrtpTransportInterface>> CreateSrtpTransport(
-      const RtcpParameters& rtcp_parameters,
+      const RtpTransportParameters& parameters,
       PacketTransportInterface* rtp,
       PacketTransportInterface* rtcp,
       RtpTransportControllerInterface* transport_controller) override;
@@ -103,6 +103,9 @@ class OrtcFactory : public OrtcFactoryInterface {
               rtc::PacketSocketFactory* socket_factory,
               AudioDeviceModule* adm);
 
+  RTCErrorOr<std::unique_ptr<RtpTransportControllerInterface>>
+  CreateRtpTransportController(const RtpTransportParameters& parameters);
+
   // Thread::Invoke doesn't support move-only arguments, so we need to remove
   // the unique_ptr wrapper from media_engine. TODO(deadbeef): Fix this.
   static RTCErrorOr<std::unique_ptr<OrtcFactoryInterface>> Create_s(
@@ -148,4 +151,4 @@ class OrtcFactory : public OrtcFactoryInterface {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_ORTC_ORTCFACTORY_H_
+#endif  // ORTC_ORTCFACTORY_H_
