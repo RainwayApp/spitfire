@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include "webrtc/api/peerconnectioninterface.h"
-#include "webrtc/api/datachannelinterface.h"
+#include "api/peerconnectioninterface.h"
+#include "api/datachannelinterface.h"
 
 
 namespace Spitfire {

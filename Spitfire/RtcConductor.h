@@ -6,7 +6,7 @@
 #include "PeerConnectionObserver.h"
 #include "CreateSessionDescriptionObserver.h"
 #include "SetSessionDescriptionObserver.h"
-#include "webrtc/api/peerconnectioninterface.h"
+#include "api/peerconnectioninterface.h"
 
 namespace Spitfire
 {
