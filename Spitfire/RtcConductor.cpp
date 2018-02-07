@@ -159,7 +159,7 @@ namespace Spitfire
 			config.turn_customizer);
 		allocator->SetPortRange(minPort, maxPort);
 
-		peerObserver->peerConnection = pc_factory_->CreatePeerConnection(config, &constraints, nullptr, nullptr, peerObserver);
+		peerObserver->peerConnection = pc_factory_->CreatePeerConnection(config, &constraints, std::unique_ptr<cricket::PortAllocator>(allocator), nullptr, peerObserver);
 		return peerObserver->peerConnection != nullptr;
 	}
 
