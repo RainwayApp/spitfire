@@ -13,6 +13,7 @@ namespace Example
             //This is a bare bones example that shows the logic in which one might
             //Implement Spitfire into their application
             //TODO a full fledged example
+            new WebRtcSession("a");
         }
     }
 }

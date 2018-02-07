@@ -225,10 +225,11 @@ namespace Spitfire
 
 		public ref class SpitfireRtc
 		{
+
 		private:
+			std::unique_ptr<Spitfire::RtcConductor>* _conductor;
 
 			bool m_isDisposed;
-			Spitfire::RtcConductor * _conductor;
 			int _minPort;
 			int _maxPort;
 
@@ -368,6 +369,53 @@ namespace Spitfire
 				OnDataMessage(label, message);
 			}
 
+
+			void Initialize(int MinPort, int MaxPort)
+			{
+				m_isDisposed = false;
+				_conductor = new std::unique_ptr<Spitfire::RtcConductor>(new Spitfire::RtcConductor());
+				_minPort = MinPort;
+				_maxPort = MaxPort;
+
+				onError = gcnew _OnErrorCallback(this, &SpitfireRtc::_OnError);
+				onErrorHandle = GCHandle::Alloc(onError);
+				_conductor->get()->onError = static_cast<Spitfire::OnErrorCallbackNative>(Marshal::GetFunctionPointerForDelegate(onError).ToPointer());
+
+				onSuccess = gcnew _OnSuccessCallback(this, &SpitfireRtc::_OnSuccess);
+				onSuccessHandle = GCHandle::Alloc(onSuccess);
+				_conductor->get()->onSuccess = static_cast<Spitfire::OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
+
+				onFailure = gcnew _OnFailureCallback(this, &SpitfireRtc::_OnFailure);
+				onFailureHandle = GCHandle::Alloc(onFailure);
+				_conductor->get()->onFailure = static_cast<Spitfire::OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
+
+				onDataMessage = gcnew _OnDataMessageCallback(this, &SpitfireRtc::_OnDataMessage);
+				onDataMessageHandle = GCHandle::Alloc(onDataMessage);
+				_conductor->get()->onDataMessage = static_cast<Spitfire::OnDataMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataMessage).ToPointer());
+
+				onDataBinaryMessage = gcnew _OnDataBinaryMessageCallback(this, &SpitfireRtc::_OnDataBinaryMessage);
+				onDataBinaryMessageHandle = GCHandle::Alloc(onDataBinaryMessage);
+				_conductor->get()->onDataBinaryMessage = static_cast<Spitfire::OnDataBinaryMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataBinaryMessage).ToPointer());
+
+				onIceCandidate = gcnew _OnIceCandidateCallback(this, &SpitfireRtc::_OnIceCandidate);
+				onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
+				_conductor->get()->onIceCandidate = static_cast<Spitfire::OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
+
+
+				onDataChannelStateChange = gcnew _OnDataChannelStateCallback(this, &SpitfireRtc::_OnDataChannelState);
+				onDataChannelStateHandle = GCHandle::Alloc(onDataChannelStateChange);
+				_conductor->get()->onDataChannelState = static_cast<Spitfire::OnDataChannelStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataChannelStateChange).ToPointer());
+
+				onIceStateChange = gcnew _OnIceStateCallback(this, &SpitfireRtc::_OnIceState);
+				onIceStateCallbackHandle = GCHandle::Alloc(onIceStateChange);
+				_conductor->get()->onIceStateChange = static_cast<Spitfire::OnIceStateChangeCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceStateChange).ToPointer());
+
+
+				onBufferAmountChange = gcnew _OnBufferChangeCallback(this, &SpitfireRtc::_OnBufferAmountChange);
+				onBufferAmountChangeHandle = GCHandle::Alloc(onBufferAmountChange);
+				_conductor->get()->onBufferAmountChange = static_cast<Spitfire::OnBufferAmountCallbackNative>(Marshal::GetFunctionPointerForDelegate(onBufferAmountChange).ToPointer());
+			}
+
 		public:
 
 			delegate void OnCallbackSdp(SpitfireSdp ^ sdp);
@@ -413,59 +461,18 @@ namespace Spitfire
 			/// Along with the current amount of data that has been sent/received. 
 			/// </summary>
 			event BufferChange ^ OnBufferAmountChange;
+			SpitfireRtc() {
+				Initialize(1, 65564);
+			}
 
-			SpitfireRtc(int MinPort, int MaxPort)
-			{
-				m_isDisposed = false;
-				_conductor = new Spitfire::RtcConductor();
-				_minPort = MinPort;
-				_maxPort = MaxPort;
-
-				onError = gcnew _OnErrorCallback(this, &SpitfireRtc::_OnError);
-				onErrorHandle = GCHandle::Alloc(onError);
-				_conductor->onError = static_cast<Spitfire::OnErrorCallbackNative>(Marshal::GetFunctionPointerForDelegate(onError).ToPointer());
-
-				onSuccess = gcnew _OnSuccessCallback(this, &SpitfireRtc::_OnSuccess);
-				onSuccessHandle = GCHandle::Alloc(onSuccess);
-				_conductor->onSuccess = static_cast<Spitfire::OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
-
-				onFailure = gcnew _OnFailureCallback(this, &SpitfireRtc::_OnFailure);
-				onFailureHandle = GCHandle::Alloc(onFailure);
-				_conductor->onFailure = static_cast<Spitfire::OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
-
-				onDataMessage = gcnew _OnDataMessageCallback(this, &SpitfireRtc::_OnDataMessage);
-				onDataMessageHandle = GCHandle::Alloc(onDataMessage);
-				_conductor->onDataMessage = static_cast<Spitfire::OnDataMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataMessage).ToPointer());
-
-				onDataBinaryMessage = gcnew _OnDataBinaryMessageCallback(this, &SpitfireRtc::_OnDataBinaryMessage);
-				onDataBinaryMessageHandle = GCHandle::Alloc(onDataBinaryMessage);
-				_conductor->onDataBinaryMessage = static_cast<Spitfire::OnDataBinaryMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataBinaryMessage).ToPointer());
-
-				onIceCandidate = gcnew _OnIceCandidateCallback(this, &SpitfireRtc::_OnIceCandidate);
-				onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
-				_conductor->onIceCandidate = static_cast<Spitfire::OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
-
-
-				onDataChannelStateChange = gcnew _OnDataChannelStateCallback(this, &SpitfireRtc::_OnDataChannelState);
-				onDataChannelStateHandle = GCHandle::Alloc(onDataChannelStateChange);
-				_conductor->onDataChannelState = static_cast<Spitfire::OnDataChannelStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataChannelStateChange).ToPointer());
-
-				onIceStateChange = gcnew _OnIceStateCallback(this, &SpitfireRtc::_OnIceState);
-				onIceStateCallbackHandle = GCHandle::Alloc(onIceStateChange);
-				_conductor->onIceStateChange = static_cast<Spitfire::OnIceStateChangeCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceStateChange).ToPointer());
-
-
-				onBufferAmountChange = gcnew _OnBufferChangeCallback(this, &SpitfireRtc::_OnBufferAmountChange);
-				onBufferAmountChangeHandle = GCHandle::Alloc(onBufferAmountChange);
-				_conductor->onBufferAmountChange = static_cast<Spitfire::OnBufferAmountCallbackNative>(Marshal::GetFunctionPointerForDelegate(onBufferAmountChange).ToPointer());
+			SpitfireRtc(int MinPort, int MaxPort) {
+				Initialize(MinPort, MaxPort);
 			}
 
 			~SpitfireRtc()
 			{
 				if (m_isDisposed)
 					return;
-
-				
 
 				// dispose managed data
 				FreeGCHandle(onErrorHandle);
@@ -477,7 +484,7 @@ namespace Spitfire
 				FreeGCHandle(onDataChannelStateHandle);
 				if (_conductor != nullptr)
 				{
-					_conductor->DeletePeerConnection();
+					_conductor->get()->DeletePeerConnection();
 				}
 
 				this->!SpitfireRtc(); // call finalizer
@@ -513,12 +520,12 @@ namespace Spitfire
 			/// </summary>
 			bool InitializePeerConnection()
 			{
-				return _conductor->InitializePeerConnection(_minPort, _maxPort);
+				return _conductor->get()->InitializePeerConnection(_minPort, _maxPort);
 			}
 
 			void CreateOffer()
 			{
-				_conductor->CreateOffer();
+				_conductor->get()->CreateOffer();
 			}
 
 			/// <summary>
@@ -526,12 +533,12 @@ namespace Spitfire
 			/// </summary>
 			bool ProcessMessages(Int32 delay)
 			{
-				return _conductor->ProcessMessages(delay);
+				return _conductor->get()->ProcessMessages(delay);
 			}
 
 			void SetOfferReply(String ^ type, String ^ sdp)
 			{
-				_conductor->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
+				_conductor->get()->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
 			}
 
 			/// <summary>
@@ -540,12 +547,12 @@ namespace Spitfire
 			/// </summary>
 			void SetOfferRequest(String ^ sdp)
 			{
-				_conductor->OnOfferRequest(marshal_as<std::string>(sdp));
+				_conductor->get()->OnOfferRequest(marshal_as<std::string>(sdp));
 			}
 
 			bool AddIceCandidate(String ^ sdp_mid, Int32 sdp_mlineindex, String ^ sdp)
 			{
-				return _conductor->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
+				return _conductor->get()->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
 			}
 
 			void AddServerConfig(ServerConfig^ config)
@@ -556,7 +563,7 @@ namespace Spitfire
 				auto username = String::IsNullOrWhiteSpace(u) ? "" : marshal_as<std::string>(u);
 				auto p = config->Password;
 				auto password = String::IsNullOrWhiteSpace(p) ? "" : marshal_as<std::string>(p);
-				_conductor->AddServerConfig(hostUri, username, password);
+				_conductor->get()->AddServerConfig(hostUri, username, password);
 			}
 			/// <summary>
 			/// Creates a data channel from within the application.
@@ -578,14 +585,14 @@ namespace Spitfire
 					dc_options.protocol = marshal_as<std::string>(protocol);
 				}
 				 dc_options.reliable = dataChannelOptions->Reliable;
-			    _conductor->CreateDataChannel(marshal_as<std::string>(label), dc_options);
+			    _conductor->get()->CreateDataChannel(marshal_as<std::string>(label), dc_options);
 			}
 			/// <summary>
 			/// Send your text through the data channel
 			/// </summary>
 			void DataChannelSendText(String^ label, String ^ text)
 			{
-				_conductor->DataChannelSendText(marshal_as<std::string>(label), marshal_as<std::string>(text));
+				_conductor->get()->DataChannelSendText(marshal_as<std::string>(label), marshal_as<std::string>(text));
 			}
 			
 
@@ -594,7 +601,7 @@ namespace Spitfire
 			/// </summary>
 			Spitfire::DataChannelInfo^ GetDataChannelInfo(String^ label)
 			{
-				auto rtcInfo = _conductor->GetDataChannelInfo(marshal_as<std::string>(label));
+				auto rtcInfo = _conductor->get()->GetDataChannelInfo(marshal_as<std::string>(label));
 				if (rtcInfo.protocol != "unknown")
 				{
 					auto managedInfo = gcnew Spitfire::DataChannelInfo();
@@ -627,7 +634,7 @@ namespace Spitfire
 			/// </summary>
 			Spitfire::DataChannelState GetDataChannelState(String^ label)
 			{
-				auto state = _conductor->GetDataChannelState(marshal_as<std::string>(label));
+				auto state = _conductor->get()->GetDataChannelState(marshal_as<std::string>(label));
 				DataChannelState managedState = static_cast<DataChannelState>(state);
 				return managedState;
 			}
@@ -642,7 +649,7 @@ namespace Spitfire
 				pin_ptr<uint8_t> thePtr = &array_data[0];
 				uint8_t * bPtr = thePtr;
 				rtc::CopyOnWriteBuffer writeBuffer(bPtr, array_data->Length);
-				_conductor->DataChannelSendData(marshal_as<std::string>(label), webrtc::DataBuffer(writeBuffer, true));
+				_conductor->get()->DataChannelSendData(marshal_as<std::string>(label), webrtc::DataBuffer(writeBuffer, true));
 			}
 
 		protected:
@@ -652,9 +659,8 @@ namespace Spitfire
 				// free unmanaged data
 				if (_conductor != NULL)
 				{
-					delete _conductor;
+					_conductor->release();
 				}
-				_conductor = NULL;
 			}
 		};
 	}
