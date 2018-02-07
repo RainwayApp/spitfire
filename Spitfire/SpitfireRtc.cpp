@@ -229,6 +229,8 @@ namespace Spitfire
 
 			bool m_isDisposed;
 			Spitfire::RtcConductor * _conductor;
+			int _minPort;
+			int _maxPort;
 
 			delegate void _OnErrorCallback();
 			_OnErrorCallback ^ onError;
@@ -412,11 +414,12 @@ namespace Spitfire
 			/// </summary>
 			event BufferChange ^ OnBufferAmountChange;
 
-			SpitfireRtc()
+			SpitfireRtc(int MinPort, int MaxPort)
 			{
 				m_isDisposed = false;
 				_conductor = new Spitfire::RtcConductor();
-
+				_minPort = MinPort;
+				_maxPort = MaxPort;
 
 				onError = gcnew _OnErrorCallback(this, &SpitfireRtc::_OnError);
 				onErrorHandle = GCHandle::Alloc(onError);
@@ -510,7 +513,7 @@ namespace Spitfire
 			/// </summary>
 			bool InitializePeerConnection()
 			{
-				return _conductor->InitializePeerConnection();
+				return _conductor->InitializePeerConnection(_minPort, _maxPort);
 			}
 
 			void CreateOffer()

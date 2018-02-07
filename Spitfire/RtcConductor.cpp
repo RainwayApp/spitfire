@@ -6,6 +6,7 @@
 #include "media/engine/webrtcmediaengine.h"
 #include "pc/test/fakeaudiocapturemodule.h"
 #include "api/test/fakeconstraints.h"
+#include "p2p/client/basicportallocator.h"
 #include <iostream>
 
 using cricket::MediaEngineInterface;
@@ -47,6 +48,8 @@ namespace Spitfire
 		}
 
 		pc_factory_ = nullptr;
+		default_socket_factory_ = nullptr;
+		default_network_manager_ = nullptr;
 
 		if (!dataObservers.empty())
 		{
@@ -70,7 +73,7 @@ namespace Spitfire
 
 	}
 
-	bool RtcConductor::InitializePeerConnection()
+	bool RtcConductor::InitializePeerConnection(int minPort, int maxPort)
 	{
 
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
@@ -95,6 +98,20 @@ namespace Spitfire
 			DeletePeerConnection();
 			return false;
 		}
+
+		default_network_manager_.reset(new rtc::BasicNetworkManager());
+		if (!default_network_manager_) {
+			DeletePeerConnection();
+			return false;
+		}
+
+		default_socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_));
+		if (!default_socket_factory_) {
+			DeletePeerConnection();
+			return false;
+		}
+
+
 		webrtc::PeerConnectionFactoryInterface::Options opt;
 		{
 			//opt.disable_encryption = true;
@@ -103,7 +120,7 @@ namespace Spitfire
 			pc_factory_->SetOptions(opt);
 		}
 
-		if (!CreatePeerConnection(true))
+		if (!CreatePeerConnection(true, minPort, maxPort))
 		{
 			DeletePeerConnection();
 			return false;
@@ -111,7 +128,7 @@ namespace Spitfire
 		return peerObserver->peerConnection != nullptr;
 	}
 
-	bool RtcConductor::CreatePeerConnection(bool dtls)
+	bool RtcConductor::CreatePeerConnection(bool dtls, int minPort, int maxPort)
 	{
 		RTC_DCHECK(pc_factory_ != nullptr);
 		RTC_DCHECK(peerObserver->peerConnection == nullptr);
@@ -127,7 +144,7 @@ namespace Spitfire
 		for each (auto server in serverConfigs)
 		{
 			config.servers.push_back(server);
-		}
+		}	
 
 		webrtc::FakeConstraints constraints;
 		constraints.SetAllowDtlsSctpDataChannels();
@@ -136,6 +153,11 @@ namespace Spitfire
 		constraints.SetMandatoryIceRestart(true);
 		constraints.SetMandatoryUseRtpMux(true);
 		constraints.AddMandatory(webrtc::MediaConstraintsInterface::kVoiceActivityDetection, "false");
+
+		cricket::PortAllocator* allocator = new cricket::BasicPortAllocator(
+			default_network_manager_.get(), default_socket_factory_.get(),
+			config.turn_customizer);
+		allocator->SetPortRange(minPort, maxPort);
 
 		peerObserver->peerConnection = pc_factory_->CreatePeerConnection(config, &constraints, nullptr, nullptr, peerObserver);
 		return peerObserver->peerConnection != nullptr;

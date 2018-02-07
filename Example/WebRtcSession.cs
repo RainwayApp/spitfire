@@ -14,7 +14,7 @@ namespace Example
         public WebRtcSession(string id)
         {
             Id = id;
-            Spitfire = new SpitfireRtc();
+            Spitfire = new SpitfireRtc(44110, 44113);
             Token = new CancellationTokenSource();
         }
 
