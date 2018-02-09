@@ -1,7 +1,4 @@
-
-
 #include "RtcConductor.h"
-
 #include "media/engine/fakewebrtcvideoengine.h";
 #include "media/engine/webrtcmediaengine.h"
 #include "pc/test/fakeaudiocapturemodule.h"

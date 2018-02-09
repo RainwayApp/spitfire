@@ -462,7 +462,7 @@ namespace Spitfire
 			/// </summary>
 			event BufferChange ^ OnBufferAmountChange;
 			SpitfireRtc() {
-				Initialize(1, 65564);
+				Initialize(1025, 65535);
 			}
 
 			SpitfireRtc(int MinPort, int MaxPort) {
