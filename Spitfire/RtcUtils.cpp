@@ -39,24 +39,26 @@
 #pragma comment(lib,"netapi32.lib")
 
 // internal
-
-
-
 #pragma comment(lib,"ana_config_proto.lib")
 #pragma comment(lib,"ana_debug_dump_proto.lib")
 #pragma comment(lib,"audio.lib")
 #pragma comment(lib,"audioproc_debug_proto.lib")
 #pragma comment(lib,"audioproc_protobuf_utils.lib")
 #pragma comment(lib,"audioproc_unittest_proto.lib")
-#pragma comment(lib,"audio_coder.lib")
 #pragma comment(lib,"audio_coding.lib")
-#pragma comment(lib,"audio_conference_mixer.lib")
+#pragma comment(lib,"audio_decoder_g711.lib")
 #pragma comment(lib,"audio_decoder_g722.lib")
 #pragma comment(lib,"audio_decoder_ilbc.lib")
+#pragma comment(lib,"audio_decoder_isac_fix.lib")
+#pragma comment(lib,"audio_decoder_isac_float.lib")
+#pragma comment(lib,"audio_decoder_L16.lib")
 #pragma comment(lib,"audio_decoder_opus.lib")
-#pragma comment(lib,"audio_device.lib")
+#pragma comment(lib,"audio_encoder_g711.lib")
 #pragma comment(lib,"audio_encoder_g722.lib")
 #pragma comment(lib,"audio_encoder_ilbc.lib")
+#pragma comment(lib,"audio_encoder_isac_fix.lib")
+#pragma comment(lib,"audio_encoder_isac_float.lib")
+#pragma comment(lib,"audio_encoder_L16.lib")
 #pragma comment(lib,"audio_encoder_opus_config.lib")
 #pragma comment(lib,"audio_format_conversion.lib")
 #pragma comment(lib,"audio_frame_manipulator.lib")
@@ -64,15 +66,14 @@
 #pragma comment(lib,"audio_level.lib")
 #pragma comment(lib,"audio_mixer_impl.lib")
 #pragma comment(lib,"audio_network_adaptor.lib")
+#pragma comment(lib,"audio_network_adaptor_config.lib")
 #pragma comment(lib,"audio_processing.lib")
 #pragma comment(lib,"audio_processing_sse2.lib")
 #pragma comment(lib,"bitrate_controller.lib")
 #pragma comment(lib,"boringssl.lib")
 #pragma comment(lib,"boringssl_asm.lib")
 #pragma comment(lib,"builtin_audio_decoder_factory.lib")
-#pragma comment(lib,"builtin_audio_decoder_factory_internal.lib")
 #pragma comment(lib,"builtin_audio_encoder_factory.lib")
-#pragma comment(lib,"builtin_audio_encoder_factory_internal.lib")
 #pragma comment(lib,"bwe_simulator_lib.lib")
 #pragma comment(lib,"call.lib")
 #pragma comment(lib,"chart_proto.lib")
@@ -83,11 +84,11 @@
 #pragma comment(lib,"common_video.lib")
 #pragma comment(lib,"congestion_controller.lib")
 #pragma comment(lib,"create_pc_factory.lib")
+#pragma comment(lib,"desktop_capture_differ_sse2.lib")
+#pragma comment(lib,"desktop_capture_generic.lib")
 #pragma comment(lib,"dl.lib")
 #pragma comment(lib,"event_log_visualizer_utils.lib")
 #pragma comment(lib,"field_trial_default.lib")
-#pragma comment(lib,"file_player.lib")
-#pragma comment(lib,"file_recorder.lib")
 #pragma comment(lib,"frame_editing_lib.lib")
 #pragma comment(lib,"g711.lib")
 #pragma comment(lib,"g722.lib")
@@ -117,6 +118,7 @@
 #pragma comment(lib,"ortc.lib")
 #pragma comment(lib,"pacing.lib")
 #pragma comment(lib,"pcm16b.lib")
+#pragma comment(lib,"pc_test_mock.lib")
 #pragma comment(lib,"peerconnection.lib")
 #pragma comment(lib,"primitives.lib")
 #pragma comment(lib,"protobuf_full.lib")
@@ -128,7 +130,7 @@
 #pragma comment(lib,"rent_a_codec.lib")
 #pragma comment(lib,"rtc_audio_video.lib")
 #pragma comment(lib,"rtc_base.lib")
-#pragma comment(lib,"rtc_base_approved.lib")
+#pragma comment(lib,"rtc_base_generic.lib")
 #pragma comment(lib,"rtc_data.lib")
 #pragma comment(lib,"rtc_event_log_impl.lib")
 #pragma comment(lib,"rtc_event_log_parser.lib")
@@ -139,7 +141,6 @@
 #pragma comment(lib,"rtc_p2p.lib")
 #pragma comment(lib,"rtc_pc_base.lib")
 #pragma comment(lib,"rtc_stats.lib")
-#pragma comment(lib,"rtc_task_queue.lib")
 #pragma comment(lib,"rtp_rtcp.lib")
 #pragma comment(lib,"sequenced_task_checker.lib")
 #pragma comment(lib,"simd.lib")
@@ -149,10 +150,8 @@
 #pragma comment(lib,"utility.lib")
 #pragma comment(lib,"video.lib")
 #pragma comment(lib,"video_capture.lib")
-#pragma comment(lib,"video_capture_internal_impl.lib")
 #pragma comment(lib,"video_capture_module.lib")
 #pragma comment(lib,"video_coding.lib")
-#pragma comment(lib,"video_coding_utility.lib")
 #pragma comment(lib,"video_processing.lib")
 #pragma comment(lib,"video_processing_sse2.lib")
 #pragma comment(lib,"video_quality_analysis.lib")
@@ -168,11 +167,9 @@
 #pragma comment(lib,"winsdk_samples.lib")
 #pragma comment(lib,"yasm_utils.lib")
 
-
-
-#include "webrtc/base/ssladapter.h"
-#include "webrtc/base/win32socketinit.h"
-#include "webrtc/base/win32socketserver.h"
+#include "rtc_base/ssladapter.h"
+#include "rtc_base/win32socketinit.h"
+#include "rtc_base/win32socketserver.h"
 
 namespace Spitfire
 {

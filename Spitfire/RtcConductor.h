@@ -6,7 +6,8 @@
 #include "PeerConnectionObserver.h"
 #include "CreateSessionDescriptionObserver.h"
 #include "SetSessionDescriptionObserver.h"
-#include "webrtc/api/peerconnectioninterface.h"
+#include "api/peerconnectioninterface.h"
+#include "p2p/base/basicpacketsocketfactory.h"
 
 namespace Spitfire
 {
@@ -53,7 +54,7 @@ namespace Spitfire
 		RtcConductor();
 		~RtcConductor();
 
-		bool InitializePeerConnection();
+		bool InitializePeerConnection(int minPort, int maxPort);
 		void CreateOffer();
 		void OnOfferReply(std::string type, std::string sdp);
 		void OnOfferRequest(std::string sdp);
@@ -108,8 +109,10 @@ namespace Spitfire
 		rtc::Thread* worker_thread_;
 		rtc::Thread* signaling_thread_;
 		rtc::Thread* network_thread_;
+		std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
+		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
-		bool CreatePeerConnection(bool dtls);
+		bool CreatePeerConnection(bool dtls, int minPort, int maxPort);
 
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;

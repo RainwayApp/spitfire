@@ -360,6 +360,7 @@ typedef struct IMAGE_STAT {
 
 typedef enum {
   LEVEL_UNKNOWN = 0,
+  LEVEL_AUTO = 1,
   LEVEL_1 = 10,
   LEVEL_1_1 = 11,
   LEVEL_2 = 20,
@@ -716,6 +717,9 @@ typedef struct VP9_COMP {
   int compute_source_sad_onepass;
 
   LevelConstraint level_constraint;
+
+  uint8_t *count_arf_frame_usage;
+  uint8_t *count_lastgolden_frame_usage;
 } VP9_COMP;
 
 void vp9_initialize_enc(void);
@@ -867,9 +871,10 @@ static INLINE int denoise_svc(const struct VP9_COMP *const cpi) {
 }
 #endif
 
+#define MIN_LOOKAHEAD_FOR_ARFS 4
 static INLINE int is_altref_enabled(const VP9_COMP *const cpi) {
   return !(cpi->oxcf.mode == REALTIME && cpi->oxcf.rc_mode == VPX_CBR) &&
-         cpi->oxcf.lag_in_frames > 0 &&
+         cpi->oxcf.lag_in_frames >= MIN_LOOKAHEAD_FOR_ARFS &&
          (cpi->oxcf.enable_auto_arf &&
           (!is_two_pass_svc(cpi) ||
            cpi->oxcf.ss_enable_auto_arf[cpi->svc.spatial_layer_id]));
@@ -910,6 +915,18 @@ static INLINE int get_level_index(VP9_LEVEL level) {
     if (level == vp9_level_defs[i].level) return i;
   }
   return -1;
+}
+
+// Return the log2 value of max column tiles corresponding to the level that
+// the picture size fits into.
+static INLINE int log_tile_cols_from_picsize_level(uint32_t pic_size) {
+  int i;
+  for (i = LEVEL_1; i < LEVEL_MAX; ++i) {
+    if (vp9_level_defs[i].max_luma_picture_size > pic_size) {
+      return get_msb(vp9_level_defs[i].max_col_tiles);
+    }
+  }
+  return INT_MAX;
 }
 
 VP9_LEVEL vp9_get_level(const Vp9LevelSpec *const level_spec);

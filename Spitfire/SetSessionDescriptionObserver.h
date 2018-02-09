@@ -1,5 +1,5 @@
 #pragma once
-#include "webrtc/api/jsep.h"
+#include "api/jsep.h"
 
 namespace Spitfire {
 
