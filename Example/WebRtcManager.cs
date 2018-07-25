@@ -38,7 +38,7 @@ namespace Example
         /// </summary>
         /// <param name="id"></param>
         /// <param name="sdp"></param>
-        public static void AddSession(string id, string sdp)
+        public static WebRtcSession AddSession(string id, string sdp)
         {
             var session = Sessions[id] = new WebRtcSession(id);
             using (var go = new ManualResetEvent(false))
@@ -55,6 +55,31 @@ namespace Example
                 if (go.WaitOne(9999))
                     session.Setup(sdp);
             }
+            return session;
+        }
+
+        /// <summary>
+        /// A remote session has sent over its SDP, create a local session based on it.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="sdp"></param>
+        public static WebRtcSession AddSession(string id)
+        {
+            var session = Sessions[id] = new WebRtcSession(id);
+            using (var go = new ManualResetEvent(false))
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    using (session.Spitfire)
+                    {
+                        Console.WriteLine($"Starting WebRTC Loop for {id}");
+                        session.BeginLoop(go);
+                    }
+                }, session.Token.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                if (go.WaitOne(9999))
+                    session.Setup();
+            }
+            return session;
         }
     }
 }

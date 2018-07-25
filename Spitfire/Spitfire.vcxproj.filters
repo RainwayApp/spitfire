@@ -45,6 +45,9 @@
     <ClInclude Include="SetSessionDescriptionObserver.h">
       <Filter>Header Files\Observers</Filter>
     </ClInclude>
+    <ClInclude Include="internals.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RtcConductor.cpp">
@@ -65,7 +68,7 @@
     <ClCompile Include="RtcUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SpitfireRtc.cpp">
+    <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
