@@ -9,8 +9,8 @@ namespace Spitfire.Net
 {
     public class SpitfireRtc : IDisposable
     {
-        const string dll = "Spitfire";
-        const string version = "v2018.08.25";
+        const string dll = "Spitfire.dll";
+        const string version = "v2018.07.25";
         int minPort, maxPort;
 
         static SpitfireRtc()
@@ -21,24 +21,34 @@ namespace Spitfire.Net
                 Directory.CreateDirectory(dir);
             }
 
-            var file = Path.Combine(dir, dll);
+            var fileName = Path.GetFileNameWithoutExtension(dll);
+
+            var fileRootName = Path.Combine(dir, fileName);
+            var file = fileRootName + ".dll";
             if (!File.Exists(file))
             {
                 if (IntPtr.Size == 8)
                 {
-                    CopyFile("Spitfire.Net.x64.Spitfire.dll", file + ".dll");
-                    //CopyFile("Spitfire.Net.x64.Spitfire.pdb", file += ".pdb");
+                    CopyFile("Spitfire.Net.x64.Spitfire.dll", fileRootName + ".dll");
+                    //CopyFile("Spitfire.Net.x64.Spitfire.pdb", fileRootName + ".pdb");
                 }
                 else
                 {
-                    CopyFile("Spitfire.Net.x86.Spitfire.dll", file + ".dll");
+                    CopyFile("Spitfire.Net.x86.Spitfire.dll", fileRootName + ".dll");
                     //CopyFile("Spitfire.Net.x86.Spitfire.pdb", file += ".pdb");
                 }
             }
 
-            if (IntPtr.Zero == LoadLibrary(file + ".dll"))
+            if (IntPtr.Zero == LoadLibraryEx(file + ".dll", IntPtr.Zero, 0))
             {
-                throw new Exception("Failed to load: " + "Spitfire.dll", new Win32Exception());
+                var ex = new Exception("Failed to load: " + "Spitfire.dll", new Win32Exception());
+                throw ex;
+            }
+
+            if( !SetDllDirectory(dir))
+            {
+                var ex = new Win32Exception();
+                throw ex;
             }
         }
 
@@ -258,8 +268,32 @@ namespace Spitfire.Net
             return ProcessMessages(p, delay);
         }
 
-        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Auto)]
         static extern IntPtr LoadLibrary(string lpFileName);
+
+        [System.Flags]
+        enum LoadLibraryFlags : uint
+        {
+            None = 0,
+            DONT_RESOLVE_DLL_REFERENCES = 0x00000001,
+            LOAD_IGNORE_CODE_AUTHZ_LEVEL = 0x00000010,
+            LOAD_LIBRARY_AS_DATAFILE = 0x00000002,
+            LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE = 0x00000040,
+            LOAD_LIBRARY_AS_IMAGE_RESOURCE = 0x00000020,
+            LOAD_LIBRARY_SEARCH_APPLICATION_DIR = 0x00000200,
+            LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR = 0x00000100,
+            LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800,
+            LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400,
+            LOAD_WITH_ALTERED_SEARCH_PATH = 0x00000008
+        }
+
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hReservedNull, LoadLibraryFlags dwFlags);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern bool SetDllDirectory(string lpPathName);
 
         #endregion
 

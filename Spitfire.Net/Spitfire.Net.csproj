@@ -47,5 +47,10 @@
       <Link>x86\Spitfire.dll</Link>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\x64\Release\Spitfire.dll">
+      <Link>x64\Spitfire.dll</Link>
+    </EmbeddedResource>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
