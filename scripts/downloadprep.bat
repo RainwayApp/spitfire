@@ -7,5 +7,5 @@ cd src
 call git branch -r
 call git checkout branch-heads/63
 call gclient sync
-xcopy /Y BUILD.gn webrtc-checkout\src\build\win\BUILD.gn
+xcopy /Y BUILD.gn webrtc-checkout\src\build\config\win\BUILD.gn
 pause
