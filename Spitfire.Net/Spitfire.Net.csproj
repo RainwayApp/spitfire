@@ -43,12 +43,12 @@
     <Compile Include="SpitfireRtc.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\Release\Spitfire.dll">
+    <EmbeddedResource Include="..\$(Configuration)\Spitfire.dll">
       <Link>x86\Spitfire.dll</Link>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\x64\Release\Spitfire.dll">
+    <EmbeddedResource Include="..\x64\$(Configuration)\Spitfire.dll">
       <Link>x64\Spitfire.dll</Link>
     </EmbeddedResource>
   </ItemGroup>
