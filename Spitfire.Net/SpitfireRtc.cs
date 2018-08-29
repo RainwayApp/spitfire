@@ -10,7 +10,7 @@ namespace Spitfire.Net
     public class SpitfireRtc : IDisposable
     {
         const string dll = "Spitfire.dll";
-        const string version = "v2018.07.25";
+        const string version = "v2018.08.29";
         int minPort, maxPort;
 
         static SpitfireRtc()
@@ -39,7 +39,7 @@ namespace Spitfire.Net
                 }
             }
 
-            if (IntPtr.Zero == LoadLibraryEx(file + ".dll", IntPtr.Zero, 0))
+            if (IntPtr.Zero == LoadLibraryEx(file, IntPtr.Zero, 0))
             {
                 var ex = new Exception("Failed to load: " + "Spitfire.dll", new Win32Exception());
                 throw ex;

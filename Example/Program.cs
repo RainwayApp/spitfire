@@ -81,7 +81,6 @@ namespace Example
             EventMessage.Invoke(null, new EventMessageEventArgs(new Message(id, offer)));
             offerEvt.Reset();
             offerEvt.WaitOne();       
-            int x = 0;
         }
 
         private static void SecondSession2()
@@ -121,6 +120,10 @@ namespace Example
             offerEvt.WaitOne();
 
             session = WebRtcManager.AddSession(id.ToString(), offer);
+            session.Spitfire.OnDataMessage += (s, ex) =>
+            {
+                Console.WriteLine("Meesage from peer:" + ex);
+            };
             while (session.AnswerSdp == null)
             {
                 Thread.Sleep(100);
