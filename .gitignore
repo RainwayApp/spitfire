@@ -264,3 +264,4 @@ __pycache__/
 libs.zip
 scripts/*
 !scripts/*.bat
+!scripts/*.gn

@@ -62,7 +62,7 @@ namespace Spitfire
 
 		bool ProcessMessages(int delay)
 		{
-			return rtc::Thread::Current()->ProcessMessages(delay);
+			return rtc::ThreadManager::Instance()->WrapCurrentThread()->ProcessMessages(delay);
 		}
 
 		void AddServerConfig(std::string uri, std::string username, std::string password);

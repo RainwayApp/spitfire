@@ -65,7 +65,7 @@ namespace Spitfire
 		network_thread_->Stop();
 		worker_thread_->Stop();
 		signaling_thread_->Stop();
-		rtc::Thread::Current()->Stop();
+		rtc::ThreadManager::Instance()->CurrentThread()->Stop();
 
 
 	}
