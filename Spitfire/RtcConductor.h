@@ -25,6 +25,7 @@ namespace Spitfire
 		bool reliable;
 		bool ordered;
 		bool negotiated;
+		int id;
 
 		uint32_t messagesSent;
 		uint32_t messagesReceived;

@@ -269,7 +269,8 @@ namespace Spitfire
 		if (observer != dataObservers.end()) {
 
 			const auto dataChannel = observer->second->dataChannel;
-			
+
+			info.id = dataChannel->id();
 			info.currentBuffer = dataChannel->buffered_amount();
 			info.bytesSent = dataChannel->bytes_sent();
 			info.bytesReceived = dataChannel->bytes_received();
