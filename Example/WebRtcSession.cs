@@ -34,18 +34,14 @@ namespace Example
                 Port = 19302,
                 Type = ServerType.Stun,
             });
-
-            var started = Spitfire.InitializePeerConnection();
-            if (started)
+            if (Spitfire.InitializePeerConnection())
             {
                 go.Set();
-                //Keeps the RTC thread alive and active
+                //You only need this until the datachannel opens or the ice state is connected. 
                 while (!Token.Token.IsCancellationRequested && Spitfire.ProcessMessages(1000))
                 {
                     Spitfire.ProcessMessages(1000);
                 }
-                //Do cleanup here
-                Console.WriteLine("WebRTC message loop is dead.");
             }
         }
 
