@@ -29,8 +29,8 @@ namespace Spitfire
 
 		uint32_t messagesSent;
 		uint32_t messagesReceived;
-		uint16_t maxRetransmits;
-		uint16_t maxRetransmitTime;
+		int16_t maxRetransmits;
+		int16_t maxRetransmitTime;
 
 		std::string protocol;
 

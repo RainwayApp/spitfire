@@ -141,8 +141,8 @@ namespace Spitfire
 		unsigned int MessagesSent;
 		unsigned int MessagesReceived;
 
-		unsigned int MaxRetransmits;
-		unsigned int MaxRetransmitTime;
+		int MaxRetransmits;
+		int MaxRetransmitTime;
 
 		String^ Protocol;
 
