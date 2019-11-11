@@ -13,18 +13,12 @@
 
 #include <memory>
 
-#include "logging/rtc_event_log/rtc_event_log_factory_interface.h"
+#include "api/rtc_event_log/rtc_event_log_factory.h"
+#include "api/rtc_event_log/rtc_event_log_factory_interface.h"
 
 namespace webrtc {
 
-class RtcEventLogFactory : public RtcEventLogFactoryInterface {
- public:
-  ~RtcEventLogFactory() override {}
-
-  std::unique_ptr<RtcEventLog> CreateRtcEventLog(
-      RtcEventLog::EncodingType encoding_type) override;
-};
-
+// TODO(bugs.webrtc.org/10284): Stop using the RtcEventLogFactory factory.
 std::unique_ptr<RtcEventLogFactoryInterface> CreateRtcEventLogFactory();
 }  // namespace webrtc
 

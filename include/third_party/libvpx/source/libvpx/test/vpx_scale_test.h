@@ -8,17 +8,20 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TEST_VPX_SCALE_TEST_H_
-#define TEST_VPX_SCALE_TEST_H_
+#ifndef VPX_TEST_VPX_SCALE_TEST_H_
+#define VPX_TEST_VPX_SCALE_TEST_H_
 
 #include "third_party/googletest/src/include/gtest/gtest.h"
 
 #include "./vpx_config.h"
 #include "./vpx_scale_rtcd.h"
+#include "test/acm_random.h"
 #include "test/clear_system_state.h"
 #include "test/register_state_check.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vpx_scale/yv12config.h"
+
+using libvpx_test::ACMRandom;
 
 namespace libvpx_test {
 
@@ -30,7 +33,8 @@ class VpxScaleBase {
                   const int height) {
     memset(img, 0, sizeof(*img));
     ASSERT_EQ(
-        0, vp8_yv12_alloc_frame_buffer(img, width, height, VP8BORDERINPIXELS));
+        0, vp8_yv12_alloc_frame_buffer(img, width, height, VP8BORDERINPIXELS))
+        << "for width: " << width << " height: " << height;
     memset(img->buffer_alloc, kBufFiller, img->frame_size);
   }
 
@@ -65,12 +69,12 @@ class VpxScaleBase {
     ResetScaleImage(&img_, src_width, src_height);
     ResetScaleImage(&ref_img_, dst_width, dst_height);
     ResetScaleImage(&dst_img_, dst_width, dst_height);
-    FillPlane(img_.y_buffer, img_.y_crop_width, img_.y_crop_height,
-              img_.y_stride);
-    FillPlane(img_.u_buffer, img_.uv_crop_width, img_.uv_crop_height,
-              img_.uv_stride);
-    FillPlane(img_.v_buffer, img_.uv_crop_width, img_.uv_crop_height,
-              img_.uv_stride);
+    FillPlaneExtreme(img_.y_buffer, img_.y_crop_width, img_.y_crop_height,
+                     img_.y_stride);
+    FillPlaneExtreme(img_.u_buffer, img_.uv_crop_width, img_.uv_crop_height,
+                     img_.uv_stride);
+    FillPlaneExtreme(img_.v_buffer, img_.uv_crop_width, img_.uv_crop_height,
+                     img_.uv_stride);
   }
 
   void DeallocImages() {
@@ -89,10 +93,21 @@ class VpxScaleBase {
   static const int kBufFiller = 123;
   static const int kBufMax = kBufFiller - 1;
 
-  static void FillPlane(uint8_t *buf, int width, int height, int stride) {
+  static void FillPlane(uint8_t *const buf, const int width, const int height,
+                        const int stride) {
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
         buf[x + (y * stride)] = (x + (width * y)) % kBufMax;
+      }
+    }
+  }
+
+  static void FillPlaneExtreme(uint8_t *const buf, const int width,
+                               const int height, const int stride) {
+    ACMRandom rnd;
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        buf[x + (y * stride)] = rnd.Rand8() % 2 ? 255 : 0;
       }
     }
   }
@@ -183,4 +198,4 @@ class VpxScaleBase {
 
 }  // namespace libvpx_test
 
-#endif  // TEST_VPX_SCALE_TEST_H_
+#endif  // VPX_TEST_VPX_SCALE_TEST_H_

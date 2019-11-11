@@ -25,7 +25,7 @@ class BASE_EXPORT PortProvider {
 
   class Observer {
    public:
-    virtual ~Observer() {};
+    virtual ~Observer() {}
     // Called by the PortProvider to notify observers that the task port was
     // received for a given process.
     // No guarantees are made about the thread on which this notification will
@@ -51,7 +51,7 @@ class BASE_EXPORT PortProvider {
   // ObserverList is not thread-safe, so |lock_| ensures consistency of
   // |observer_list_|.
   base::Lock lock_;
-  base::ObserverList<Observer> observer_list_;
+  base::ObserverList<Observer>::Unchecked observer_list_;
 
   DISALLOW_COPY_AND_ASSIGN(PortProvider);
 };

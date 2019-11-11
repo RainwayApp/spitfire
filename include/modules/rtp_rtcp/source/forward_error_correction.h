@@ -11,18 +11,16 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_FORWARD_ERROR_CORRECTION_H_
 #define MODULES_RTP_RTCP_SOURCE_FORWARD_ERROR_CORRECTION_H_
 
+#include <stddef.h>
 #include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <vector>
 
+#include "api/scoped_refptr.h"
+#include "modules/include/module_fec_types.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/forward_error_correction_internal.h"
-#include "rtc_base/basictypes.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/refcount.h"
-#include "rtc_base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
@@ -68,7 +66,7 @@ class ForwardErrorCorrection {
     // packets belonging to the same SSRC.
     struct LessThan {
       template <typename S, typename T>
-      bool operator() (const S& first, const T& second);
+      bool operator()(const S& first, const T& second);
     };
 
     uint32_t ssrc;
@@ -84,8 +82,8 @@ class ForwardErrorCorrection {
     ReceivedPacket();
     ~ReceivedPacket();
 
-    bool is_fec;    // Set to true if this is an FEC packet and false
-                    // otherwise.
+    bool is_fec;  // Set to true if this is an FEC packet and false
+                  // otherwise.
     rtc::scoped_refptr<Packet> pkt;  // Pointer to the packet storage.
   };
 

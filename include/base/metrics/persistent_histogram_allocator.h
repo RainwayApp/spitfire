@@ -11,9 +11,9 @@
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/feature_list.h"
-#include "base/memory/shared_memory.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "base/process/process_handle.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 
@@ -23,6 +23,7 @@ class BucketRanges;
 class FilePath;
 class PersistentSampleMapRecords;
 class PersistentSparseHistogramDataManager;
+class WritableSharedMemoryRegion;
 
 // Feature definition for enabling histogram persistence.
 BASE_EXPORT extern const Feature kPersistentHistogramsFeature;
@@ -287,9 +288,6 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // operation without that optimization.
   void ClearLastCreatedReferenceForTesting();
 
-  // Histogram containing creation results. Visible for testing.
-  static HistogramBase* GetCreateHistogramResultHistogram();
-
  protected:
   // The structure used to hold histogram data in persistent memory. It is
   // defined and used entirely within the .cc file.
@@ -307,42 +305,6 @@ class BASE_EXPORT PersistentHistogramAllocator {
                                                             Reference ignore);
 
  private:
-  // Enumerate possible creation results for reporting.
-  enum CreateHistogramResultType {
-    // Everything was fine.
-    CREATE_HISTOGRAM_SUCCESS = 0,
-
-    // Pointer to metadata was not valid.
-    CREATE_HISTOGRAM_INVALID_METADATA_POINTER,
-
-    // Histogram metadata was not valid.
-    CREATE_HISTOGRAM_INVALID_METADATA,
-
-    // Ranges information was not valid.
-    CREATE_HISTOGRAM_INVALID_RANGES_ARRAY,
-
-    // Counts information was not valid.
-    CREATE_HISTOGRAM_INVALID_COUNTS_ARRAY,
-
-    // Could not allocate histogram memory due to corruption.
-    CREATE_HISTOGRAM_ALLOCATOR_CORRUPT,
-
-    // Could not allocate histogram memory due to lack of space.
-    CREATE_HISTOGRAM_ALLOCATOR_FULL,
-
-    // Could not allocate histogram memory due to unknown error.
-    CREATE_HISTOGRAM_ALLOCATOR_ERROR,
-
-    // Histogram was of unknown type.
-    CREATE_HISTOGRAM_UNKNOWN_TYPE,
-
-    // Instance has detected a corrupt allocator (recorded only once).
-    CREATE_HISTOGRAM_ALLOCATOR_NEWLY_CORRUPT,
-
-    // Always keep this at the end.
-    CREATE_HISTOGRAM_MAX
-  };
-
   // Create a histogram based on saved (persistent) information about it.
   std::unique_ptr<HistogramBase> CreateHistogram(
       PersistentHistogramData* histogram_data_ptr);
@@ -352,9 +314,6 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // one could not be created.
   HistogramBase* GetOrCreateStatisticsRecorderHistogram(
       const HistogramBase* histogram);
-
-  // Record the result of a histogram creation.
-  static void RecordCreateHistogramResult(CreateHistogramResultType result);
 
   // The memory allocator that provides the actual histogram storage.
   std::unique_ptr<PersistentMemoryAllocator> memory_allocator_;
@@ -423,6 +382,21 @@ class BASE_EXPORT GlobalHistogramAllocator
                                         uint64_t id,
                                         StringPiece name);
 
+  // Constructs a filename using a name.
+  static FilePath ConstructFilePath(const FilePath& dir, StringPiece name);
+
+  // Like above but with timestamp and pid for use in upload directories.
+  static FilePath ConstructFilePathForUploadDir(const FilePath& dir,
+                                                StringPiece name,
+                                                base::Time stamp,
+                                                ProcessId pid);
+
+  // Parses a filename to extract name, timestamp, and pid.
+  static bool ParseFilePath(const FilePath& path,
+                            std::string* out_name,
+                            Time* out_stamp,
+                            ProcessId* out_pid);
+
   // Constructs a set of names in |dir| based on name that can be used for a
   // base + active persistent memory mapped location for CreateWithActiveFile().
   // The spare path is a file that can be pre-created and moved to be active
@@ -457,11 +431,11 @@ class BASE_EXPORT GlobalHistogramAllocator
 #endif
 
   // Create a global allocator using a block of shared memory accessed
-  // through the given |handle| and |size|. The allocator takes ownership
-  // of the handle and closes it upon destruction, though the memory will
-  // continue to live if other processes have access to it.
-  static void CreateWithSharedMemoryHandle(const SharedMemoryHandle& handle,
-                                           size_t size);
+  // through the given |region|. The allocator maps the shared memory into
+  // current process's virtual address space and frees it upon destruction.
+  // The memory will continue to live if other processes have access to it.
+  static void CreateWithSharedMemoryRegion(
+      const WritableSharedMemoryRegion& region);
 
   // Sets a GlobalHistogramAllocator for globally storing histograms in
   // a space that can be persisted or shared between processes. There is only

@@ -11,8 +11,12 @@
 #ifndef MODULES_AUDIO_CODING_AUDIO_NETWORK_ADAPTOR_CHANNEL_CONTROLLER_H_
 #define MODULES_AUDIO_CODING_AUDIO_NETWORK_ADAPTOR_CHANNEL_CONTROLLER_H_
 
+#include <stddef.h>
+
+#include "absl/types/optional.h"
 #include "modules/audio_coding/audio_network_adaptor/controller.h"
-#include "rtc_base/constructormagic.h"
+#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -44,7 +48,7 @@ class ChannelController final : public Controller {
  private:
   const Config config_;
   size_t channels_to_encode_;
-  rtc::Optional<int> uplink_bandwidth_bps_;
+  absl::optional<int> uplink_bandwidth_bps_;
   RTC_DISALLOW_COPY_AND_ASSIGN(ChannelController);
 };
 

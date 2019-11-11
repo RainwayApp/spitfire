@@ -11,17 +11,19 @@
 #ifndef MODULES_UTILITY_SOURCE_PROCESS_THREAD_IMPL_H_
 #define MODULES_UTILITY_SOURCE_PROCESS_THREAD_IMPL_H_
 
+#include <stdint.h>
 #include <list>
 #include <memory>
 #include <queue>
 
+#include "api/task_queue/queued_task.h"
+#include "modules/include/module.h"
 #include "modules/utility/include/process_thread.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/event.h"
 #include "rtc_base/location.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/thread_checker.h"
-#include "system_wrappers/include/event_wrapper.h"
-#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -34,13 +36,13 @@ class ProcessThreadImpl : public ProcessThread {
   void Stop() override;
 
   void WakeUp(Module* module) override;
-  void PostTask(std::unique_ptr<rtc::QueuedTask> task) override;
+  void PostTask(std::unique_ptr<QueuedTask> task) override;
 
   void RegisterModule(Module* module, const rtc::Location& from) override;
   void DeRegisterModule(Module* module) override;
 
  protected:
-  static bool Run(void* obj);
+  static void Run(void* obj);
   bool Process();
 
  private:
@@ -73,16 +75,16 @@ class ProcessThreadImpl : public ProcessThread {
   rtc::CriticalSection lock_;  // Used to guard modules_, tasks_ and stop_.
 
   rtc::ThreadChecker thread_checker_;
-  const std::unique_ptr<EventWrapper> wake_up_;
+  rtc::Event wake_up_;
   // TODO(pbos): Remove unique_ptr and stop recreating the thread.
   std::unique_ptr<rtc::PlatformThread> thread_;
 
   ModuleList modules_;
-  std::queue<rtc::QueuedTask*> queue_;
+  std::queue<QueuedTask*> queue_;
   bool stop_;
   const char* thread_name_;
 };
 
 }  // namespace webrtc
 
-#endif // MODULES_UTILITY_SOURCE_PROCESS_THREAD_IMPL_H_
+#endif  // MODULES_UTILITY_SOURCE_PROCESS_THREAD_IMPL_H_

@@ -62,7 +62,7 @@ class DirReaderLinux {
     if (r == 0)
       return false;
     if (r == -1) {
-      DPLOG(FATAL) << "getdents64 returned an error: " << errno;
+      DPLOG(FATAL) << "getdents64 failed";
       return false;
     }
     size_ = r;
@@ -89,7 +89,7 @@ class DirReaderLinux {
 
  private:
   const int fd_;
-  unsigned char buf_[512];
+  alignas(linux_dirent) unsigned char buf_[512];
   size_t offset_;
   size_t size_;
 

@@ -17,6 +17,8 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/process/process.h"
+#include "base/strings/string16.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -26,7 +28,7 @@
 #include <sys/sysctl.h>
 #elif defined(OS_FREEBSD)
 #include <sys/user.h>
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <dirent.h>
 #endif
 
@@ -36,9 +38,9 @@ namespace base {
 struct ProcessEntry : public PROCESSENTRY32 {
   ProcessId pid() const { return th32ProcessID; }
   ProcessId parent_pid() const { return th32ParentProcessID; }
-  const wchar_t* exe_file() const { return szExeFile; }
+  const char16* exe_file() const { return as_u16cstr(szExeFile); }
 };
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 struct BASE_EXPORT ProcessEntry {
   ProcessEntry();
   ProcessEntry(const ProcessEntry& other);
@@ -58,7 +60,7 @@ struct BASE_EXPORT ProcessEntry {
   std::string exe_file_;
   std::vector<std::string> cmd_line_args_;
 };
-#endif  // defined(OS_POSIX)
+#endif  // defined(OS_WIN)
 
 // Used to filter processes by process ID.
 class ProcessFilter {
@@ -68,7 +70,7 @@ class ProcessFilter {
   virtual bool Includes(const ProcessEntry& entry) const = 0;
 
  protected:
-  virtual ~ProcessFilter() {}
+  virtual ~ProcessFilter() = default;
 };
 
 // This class provides a way to iterate through a list of processes on the
@@ -112,7 +114,7 @@ class BASE_EXPORT ProcessIterator {
 #elif defined(OS_MACOSX) || defined(OS_BSD)
   std::vector<kinfo_proc> kinfo_procs_;
   size_t index_of_kinfo_proc_;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   DIR* procfs_dir_;
 #endif
   ProcessEntry entry_;

@@ -9,25 +9,39 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/debug/stack_trace.h"
 #include "base/macros.h"
 #include "base/trace_event/heap_profiler_allocation_context.h"
 
 namespace base {
 namespace trace_event {
 
-// The allocation context tracker keeps track of thread-local context for heap
-// profiling. It includes a pseudo stack of trace events. On every allocation
-// the tracker provides a snapshot of its context in the form of an
-// |AllocationContext| that is to be stored together with the allocation
-// details.
+// AllocationContextTracker is a thread-local object. Its main purpose is to
+// keep track of a pseudo stack of trace events. Chrome has been instrumented
+// with lots of `TRACE_EVENT` macros. These trace events push their name to a
+// thread-local stack when they go into scope, and pop when they go out of
+// scope, if all of the following conditions have been met:
+//
+//  * A trace is being recorded.
+//  * The category of the event is enabled in the trace config.
+//  * Heap profiling is enabled (with the `--enable-heap-profiling` flag).
+//
+// This means that allocations that occur before tracing is started will not
+// have backtrace information in their context.
+//
+// AllocationContextTracker also keeps track of some thread state not related to
+// trace events. See |AllocationContext|.
+//
+// A thread-local instance of the context tracker is initialized lazily when it
+// is first accessed. This might be because a trace event pushed or popped, or
+// because `GetContextSnapshot()` was called when an allocation occurred
 class BASE_EXPORT AllocationContextTracker {
  public:
   enum class CaptureMode : int32_t {
     DISABLED,      // Don't capture anything
-    PSEUDO_STACK,  // GetContextSnapshot() returns pseudo stack trace
-    NATIVE_STACK,  // GetContextSnapshot() returns native (real) stack trace
-    NO_STACK,  // GetContextSnapshot() returns thread names and task contexts.
+    PSEUDO_STACK,  // Backtrace has trace events
+    MIXED_STACK,   // Backtrace has trace events + from
+                   // HeapProfilerScopedStackFrame
+    NATIVE_STACK,  // Backtrace has full native backtraces from stack unwinding
   };
 
   // Stack frame constructed from trace events in codebase.
@@ -79,16 +93,25 @@ class BASE_EXPORT AllocationContextTracker {
       ignore_scope_depth_--;
   }
 
-  // Pushes a frame onto the thread-local pseudo stack.
+  // Pushes and pops a frame onto the thread-local pseudo stack.
+  // TODO(ssid): Change PseudoStackFrame to const char*. Only event name is
+  // used.
   void PushPseudoStackFrame(PseudoStackFrame stack_frame);
-
-  // Pops a frame from the thread-local pseudo stack.
   void PopPseudoStackFrame(PseudoStackFrame stack_frame);
+
+  // Pushes and pops a native stack frame onto thread local tracked stack.
+  void PushNativeStackFrame(const void* pc);
+  void PopNativeStackFrame(const void* pc);
 
   // Push and pop current task's context. A stack is used to support nested
   // tasks and the top of the stack will be used in allocation context.
   void PushCurrentTaskContext(const char* context);
   void PopCurrentTaskContext(const char* context);
+
+  // Returns most recent task context added by ScopedTaskExecutionTracker.
+  const char* TaskContext() const {
+    return task_contexts_.empty() ? nullptr : task_contexts_.back();
+  }
 
   // Fills a snapshot of the current thread-local context. Doesn't fill and
   // returns false if allocations are being ignored.
@@ -101,8 +124,8 @@ class BASE_EXPORT AllocationContextTracker {
 
   static subtle::Atomic32 capture_mode_;
 
-  // The pseudo stack where frames are |TRACE_EVENT| names.
-  std::vector<PseudoStackFrame> pseudo_stack_;
+  // The pseudo stack where frames are |TRACE_EVENT| names or inserted PCs.
+  std::vector<StackFrame> tracked_stack_;
 
   // The thread name is used as the first entry in the pseudo stack.
   const char* thread_name_;

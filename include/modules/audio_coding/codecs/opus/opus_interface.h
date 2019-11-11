@@ -12,8 +12,9 @@
 #define MODULES_AUDIO_CODING_CODECS_OPUS_OPUS_INTERFACE_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
-#include "typedefs.h"  // NOLINT(build/include)
+#include "modules/audio_coding/codecs/opus/opus_inst.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,14 +27,15 @@ typedef struct WebRtcOpusDecInst OpusDecInst;
 /****************************************************************************
  * WebRtcOpus_EncoderCreate(...)
  *
- * This function create an Opus encoder.
+ * This function creates an Opus encoder that encodes mono or stereo.
  *
  * Input:
- *      - channels           : number of channels.
+ *      - channels           : number of channels; 1 or 2.
  *      - application        : 0 - VOIP applications.
  *                                 Favor speech intelligibility.
  *                             1 - Audio applications.
  *                                 Favor faithfulness to the original input.
+ *      - sample_rate_hz     : sample rate of input audio
  *
  * Output:
  *      - inst               : a pointer to Encoder context that is created
@@ -44,7 +46,40 @@ typedef struct WebRtcOpusDecInst OpusDecInst;
  */
 int16_t WebRtcOpus_EncoderCreate(OpusEncInst** inst,
                                  size_t channels,
-                                 int32_t application);
+                                 int32_t application,
+                                 int sample_rate_hz);
+
+/****************************************************************************
+ * WebRtcOpus_MultistreamEncoderCreate(...)
+ *
+ * This function creates an Opus encoder with any supported channel count.
+ *
+ * Input:
+ *      - channels           : number of channels in the input of the encoder.
+ *      - application        : 0 - VOIP applications.
+ *                                 Favor speech intelligibility.
+ *                             1 - Audio applications.
+ *                                 Favor faithfulness to the original input.
+ *      - streams            : number of streams, as described in RFC 7845.
+ *      - coupled_streams    : number of coupled streams, as described in
+ *                             RFC 7845.
+ *      - channel_mapping    : the channel mapping; pointer to array of
+ *                             `channel` bytes, as described in RFC 7845.
+ *
+ * Output:
+ *      - inst               : a pointer to Encoder context that is created
+ *                             if success.
+ *
+ * Return value              : 0 - Success
+ *                            -1 - Error
+ */
+int16_t WebRtcOpus_MultistreamEncoderCreate(
+    OpusEncInst** inst,
+    size_t channels,
+    int32_t application,
+    size_t streams,
+    size_t coupled_streams,
+    const unsigned char* channel_mapping);
 
 int16_t WebRtcOpus_EncoderFree(OpusEncInst* inst);
 
@@ -123,6 +158,22 @@ int16_t WebRtcOpus_SetPacketLossRate(OpusEncInst* inst, int32_t loss_rate);
  *                             -1 - Error
  */
 int16_t WebRtcOpus_SetMaxPlaybackRate(OpusEncInst* inst, int32_t frequency_hz);
+
+/****************************************************************************
+ * WebRtcOpus_GetMaxPlaybackRate(...)
+ *
+ * Queries the maximum playback rate for encoding. If different single-stream
+ * encoders have different maximum playback rates, this function fails.
+ *
+ * Input:
+ *      - inst               : Encoder context.
+ * Output:
+ *      - result_hz          : The maximum playback rate in Hz.
+ * Return value              :  0 - Success
+ *                             -1 - Error
+ */
+int16_t WebRtcOpus_GetMaxPlaybackRate(OpusEncInst* const inst,
+                                      int32_t* result_hz);
 
 /* TODO(minyue): Check whether an API to check the FEC and the packet loss rate
  * is needed. It might not be very useful since there are not many use cases and
@@ -222,6 +273,40 @@ int16_t WebRtcOpus_DisableCbr(OpusEncInst* inst);
 int16_t WebRtcOpus_SetComplexity(OpusEncInst* inst, int32_t complexity);
 
 /*
+ * WebRtcOpus_GetBandwidth(...)
+ *
+ * This function returns the current bandwidth.
+ *
+ * Input:
+ *      - inst               : Encoder context
+ *
+ * Return value              :  Bandwidth - Success
+ *                             -1 - Error
+ */
+int32_t WebRtcOpus_GetBandwidth(OpusEncInst* inst);
+
+/*
+ * WebRtcOpus_SetBandwidth(...)
+ *
+ * By default Opus decides which bandwidth to encode the signal in depending on
+ * the the bitrate. This function overrules the previous setting and forces the
+ * encoder to encode in narrowband/wideband/fullband/etc.
+ *
+ * Input:
+ *      - inst               : Encoder context
+ *      - bandwidth          : New target bandwidth. Valid values are:
+ *                             OPUS_BANDWIDTH_NARROWBAND
+ *                             OPUS_BANDWIDTH_MEDIUMBAND
+ *                             OPUS_BANDWIDTH_WIDEBAND
+ *                             OPUS_BANDWIDTH_SUPERWIDEBAND
+ *                             OPUS_BANDWIDTH_FULLBAND
+ *
+ * Return value              :  0 - Success
+ *                             -1 - Error
+ */
+int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
+
+/*
  * WebRtcOpus_SetForceChannels(...)
  *
  * If the encoder is initialized as a stereo encoder, Opus will by default
@@ -243,7 +328,39 @@ int16_t WebRtcOpus_SetComplexity(OpusEncInst* inst, int32_t complexity);
  */
 int16_t WebRtcOpus_SetForceChannels(OpusEncInst* inst, size_t num_channels);
 
-int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst, size_t channels);
+int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst,
+                                 size_t channels,
+                                 int sample_rate_hz);
+
+/****************************************************************************
+ * WebRtcOpus_MultistreamDecoderCreate(...)
+ *
+ * This function creates an Opus decoder with any supported channel count.
+ *
+ * Input:
+ *      - channels           : number of output channels that the decoder
+ *                             will produce.
+ *      - streams            : number of encoded streams, as described in
+ *                             RFC 7845.
+ *      - coupled_streams    : number of coupled streams, as described in
+ *                             RFC 7845.
+ *      - channel_mapping    : the channel mapping; pointer to array of
+ *                             `channel` bytes, as described in RFC 7845.
+ *
+ * Output:
+ *      - inst               : a pointer to a Decoder context that is created
+ *                             if success.
+ *
+ * Return value              : 0 - Success
+ *                            -1 - Error
+ */
+int16_t WebRtcOpus_MultistreamDecoderCreate(
+    OpusDecInst** inst,
+    size_t channels,
+    size_t streams,
+    size_t coupled_streams,
+    const unsigned char* channel_mapping);
+
 int16_t WebRtcOpus_DecoderFree(OpusDecInst* inst);
 
 /****************************************************************************
@@ -283,8 +400,10 @@ void WebRtcOpus_DecoderInit(OpusDecInst* inst);
  * Return value              : >0 - Samples per channel in decoded vector
  *                             -1 - Error
  */
-int WebRtcOpus_Decode(OpusDecInst* inst, const uint8_t* encoded,
-                      size_t encoded_bytes, int16_t* decoded,
+int WebRtcOpus_Decode(OpusDecInst* inst,
+                      const uint8_t* encoded,
+                      size_t encoded_bytes,
+                      int16_t* decoded,
                       int16_t* audio_type);
 
 /****************************************************************************
@@ -301,7 +420,8 @@ int WebRtcOpus_Decode(OpusDecInst* inst, const uint8_t* encoded,
  * Return value                   : >0 - number of samples in decoded PLC vector
  *                                  -1 - Error
  */
-int WebRtcOpus_DecodePlc(OpusDecInst* inst, int16_t* decoded,
+int WebRtcOpus_DecodePlc(OpusDecInst* inst,
+                         int16_t* decoded,
                          int number_of_lost_frames);
 
 /****************************************************************************
@@ -322,8 +442,10 @@ int WebRtcOpus_DecodePlc(OpusDecInst* inst, int16_t* decoded,
  *                              0 - No FEC data in the packet
  *                             -1 - Error
  */
-int WebRtcOpus_DecodeFec(OpusDecInst* inst, const uint8_t* encoded,
-                         size_t encoded_bytes, int16_t* decoded,
+int WebRtcOpus_DecodeFec(OpusDecInst* inst,
+                         const uint8_t* encoded,
+                         size_t encoded_bytes,
+                         int16_t* decoded,
                          int16_t* audio_type);
 
 /****************************************************************************
@@ -368,13 +490,15 @@ int WebRtcOpus_PlcDuration(OpusDecInst* inst);
  * Input:
  *        - payload              : Encoded data pointer
  *        - payload_length_bytes : Bytes of encoded data
+ *        - sample_rate_hz       : Sample rate of output audio
  *
  * Return value                  : >0 - The duration of the FEC data in the
  *                                 packet in samples per channel.
  *                                  0 - No FEC data in the packet.
  */
 int WebRtcOpus_FecDurationEst(const uint8_t* payload,
-                              size_t payload_length_bytes);
+                              size_t payload_length_bytes,
+                              int sample_rate_hz);
 
 /****************************************************************************
  * WebRtcOpus_PacketHasFec(...)

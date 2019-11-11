@@ -1,3 +1,4 @@
+// This file is generated. Do not edit.
 #ifndef VP9_RTCD_H_
 #define VP9_RTCD_H_
 
@@ -11,10 +12,10 @@
  * VP9
  */
 
-#include "vpx/vpx_integer.h"
 #include "vp9/common/vp9_common.h"
 #include "vp9/common/vp9_enums.h"
 #include "vp9/common/vp9_filter.h"
+#include "vpx/vpx_integer.h"
 
 struct macroblockd;
 
@@ -85,46 +86,6 @@ int vp9_diamond_search_sad_c(const struct macroblock* x,
                              const struct mv* center_mv);
 #define vp9_diamond_search_sad vp9_diamond_search_sad_c
 
-void vp9_fdct8x8_quant_c(const int16_t* input,
-                         int stride,
-                         tran_low_t* coeff_ptr,
-                         intptr_t n_coeffs,
-                         int skip_block,
-                         const int16_t* round_ptr,
-                         const int16_t* quant_ptr,
-                         tran_low_t* qcoeff_ptr,
-                         tran_low_t* dqcoeff_ptr,
-                         const int16_t* dequant_ptr,
-                         uint16_t* eob_ptr,
-                         const int16_t* scan,
-                         const int16_t* iscan);
-void vp9_fdct8x8_quant_neon(const int16_t* input,
-                            int stride,
-                            tran_low_t* coeff_ptr,
-                            intptr_t n_coeffs,
-                            int skip_block,
-                            const int16_t* round_ptr,
-                            const int16_t* quant_ptr,
-                            tran_low_t* qcoeff_ptr,
-                            tran_low_t* dqcoeff_ptr,
-                            const int16_t* dequant_ptr,
-                            uint16_t* eob_ptr,
-                            const int16_t* scan,
-                            const int16_t* iscan);
-RTCD_EXTERN void (*vp9_fdct8x8_quant)(const int16_t* input,
-                                      int stride,
-                                      tran_low_t* coeff_ptr,
-                                      intptr_t n_coeffs,
-                                      int skip_block,
-                                      const int16_t* round_ptr,
-                                      const int16_t* quant_ptr,
-                                      tran_low_t* qcoeff_ptr,
-                                      tran_low_t* dqcoeff_ptr,
-                                      const int16_t* dequant_ptr,
-                                      uint16_t* eob_ptr,
-                                      const int16_t* scan,
-                                      const int16_t* iscan);
-
 void vp9_fht16x16_c(const int16_t* input,
                     tran_low_t* output,
                     int stride,
@@ -161,10 +122,17 @@ void vp9_fwht4x4_c(const int16_t* input, tran_low_t* output, int stride);
 #define vp9_fwht4x4 vp9_fwht4x4_c
 
 void vp9_iht16x16_256_add_c(const tran_low_t* input,
-                            uint8_t* output,
-                            int pitch,
+                            uint8_t* dest,
+                            int stride,
                             int tx_type);
-#define vp9_iht16x16_256_add vp9_iht16x16_256_add_c
+void vp9_iht16x16_256_add_neon(const tran_low_t* input,
+                               uint8_t* dest,
+                               int stride,
+                               int tx_type);
+RTCD_EXTERN void (*vp9_iht16x16_256_add)(const tran_low_t* input,
+                                         uint8_t* dest,
+                                         int stride,
+                                         int tx_type);
 
 void vp9_iht4x4_16_add_c(const tran_low_t* input,
                          uint8_t* dest,
@@ -291,9 +259,9 @@ static void setup_rtcd_internal(void) {
   vp9_denoiser_filter = vp9_denoiser_filter_c;
   if (flags & HAS_NEON)
     vp9_denoiser_filter = vp9_denoiser_filter_neon;
-  vp9_fdct8x8_quant = vp9_fdct8x8_quant_c;
+  vp9_iht16x16_256_add = vp9_iht16x16_256_add_c;
   if (flags & HAS_NEON)
-    vp9_fdct8x8_quant = vp9_fdct8x8_quant_neon;
+    vp9_iht16x16_256_add = vp9_iht16x16_256_add_neon;
   vp9_iht4x4_16_add = vp9_iht4x4_16_add_c;
   if (flags & HAS_NEON)
     vp9_iht4x4_16_add = vp9_iht4x4_16_add_neon;

@@ -22,23 +22,24 @@ namespace test {
 class MockAudioDeviceModule : public AudioDeviceModule {
  public:
   // RefCounted
-  MOCK_CONST_METHOD0(AddRef, int32_t());
-  MOCK_CONST_METHOD0(Release, int32_t());
+  MOCK_CONST_METHOD0(AddRef, void());
+  MOCK_CONST_METHOD0(Release, rtc::RefCountReleaseStatus());
   // AudioDeviceModule.
   MOCK_CONST_METHOD1(ActiveAudioLayer, int32_t(AudioLayer* audioLayer));
-  MOCK_CONST_METHOD0(LastError, ErrorCode());
   MOCK_METHOD1(RegisterAudioCallback, int32_t(AudioTransport* audioCallback));
   MOCK_METHOD0(Init, int32_t());
   MOCK_METHOD0(Terminate, int32_t());
   MOCK_CONST_METHOD0(Initialized, bool());
   MOCK_METHOD0(PlayoutDevices, int16_t());
   MOCK_METHOD0(RecordingDevices, int16_t());
-  MOCK_METHOD3(PlayoutDeviceName, int32_t(uint16_t index,
-                                          char name[kAdmMaxDeviceNameSize],
-                                          char guid[kAdmMaxGuidSize]));
-  MOCK_METHOD3(RecordingDeviceName, int32_t(uint16_t index,
-                                            char name[kAdmMaxDeviceNameSize],
-                                            char guid[kAdmMaxGuidSize]));
+  MOCK_METHOD3(PlayoutDeviceName,
+               int32_t(uint16_t index,
+                       char name[kAdmMaxDeviceNameSize],
+                       char guid[kAdmMaxGuidSize]));
+  MOCK_METHOD3(RecordingDeviceName,
+               int32_t(uint16_t index,
+                       char name[kAdmMaxDeviceNameSize],
+                       char guid[kAdmMaxGuidSize]));
   MOCK_METHOD1(SetPlayoutDevice, int32_t(uint16_t index));
   MOCK_METHOD1(SetPlayoutDevice, int32_t(WindowsDeviceType device));
   MOCK_METHOD1(SetRecordingDevice, int32_t(uint16_t index));
@@ -83,16 +84,7 @@ class MockAudioDeviceModule : public AudioDeviceModule {
   MOCK_CONST_METHOD1(StereoRecordingIsAvailable, int32_t(bool* available));
   MOCK_METHOD1(SetStereoRecording, int32_t(bool enable));
   MOCK_CONST_METHOD1(StereoRecording, int32_t(bool* enabled));
-  MOCK_METHOD1(SetRecordingChannel, int32_t(const ChannelType channel));
-  MOCK_CONST_METHOD1(RecordingChannel, int32_t(ChannelType* channel));
   MOCK_CONST_METHOD1(PlayoutDelay, int32_t(uint16_t* delayMS));
-  MOCK_CONST_METHOD1(RecordingDelay, int32_t(uint16_t* delayMS));
-  MOCK_METHOD1(SetRecordingSampleRate, int32_t(const uint32_t samplesPerSec));
-  MOCK_CONST_METHOD1(RecordingSampleRate, int32_t(uint32_t* samplesPerSec));
-  MOCK_METHOD1(SetPlayoutSampleRate, int32_t(const uint32_t samplesPerSec));
-  MOCK_CONST_METHOD1(PlayoutSampleRate, int32_t(uint32_t* samplesPerSec));
-  MOCK_METHOD1(SetLoudspeakerStatus, int32_t(bool enable));
-  MOCK_CONST_METHOD1(GetLoudspeakerStatus, int32_t(bool* enabled));
   MOCK_CONST_METHOD0(BuiltInAECIsAvailable, bool());
   MOCK_CONST_METHOD0(BuiltInAGCIsAvailable, bool());
   MOCK_CONST_METHOD0(BuiltInNSIsAvailable, bool());

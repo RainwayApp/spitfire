@@ -14,8 +14,7 @@
 #include <memory>
 #include <string>
 
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 

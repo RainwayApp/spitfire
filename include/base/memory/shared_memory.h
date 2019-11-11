@@ -10,14 +10,14 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/hash.h"
+#include "base/hash/hash.h"
 #include "base/macros.h"
 #include "base/memory/shared_memory_handle.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string16.h"
 #include "build/build_config.h"
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <stdio.h>
 #include <sys/types.h>
 #include <semaphore.h>
@@ -36,10 +36,7 @@ class FilePath;
 
 // Options for creating a shared memory object.
 struct BASE_EXPORT SharedMemoryCreateOptions {
-#if defined(OS_MACOSX) && !defined(OS_IOS)
-  // The type of OS primitive that should back the SharedMemory object.
-  SharedMemoryHandle::Type type = SharedMemoryHandle::MACH;
-#elif !defined(OS_FUCHSIA)
+#if !defined(OS_FUCHSIA)
   // DEPRECATED (crbug.com/345734):
   // If NULL, the object is anonymous.  This pointer is owned by the caller
   // and must live through the call to Create().
@@ -51,7 +48,7 @@ struct BASE_EXPORT SharedMemoryCreateOptions {
   // shared memory must not exist.  This flag is meaningless unless
   // name_deprecated is non-NULL.
   bool open_existing_deprecated = false;
-#endif  // defined(OS_MACOSX) && !defined(OS_IOS)
+#endif
 
   // Size of the shared memory object to be created.
   // When opening an existing object, this has no effect.
@@ -68,6 +65,9 @@ struct BASE_EXPORT SharedMemoryCreateOptions {
 // SharedMemory consumes a SharedMemoryHandle [potentially one that it created]
 // to map a shared memory OS resource into the virtual address space of the
 // current process.
+//
+// DEPRECATED - Use {Writable,ReadOnly}SharedMemoryRegion instead.
+// http://crbug.com/795291
 class BASE_EXPORT SharedMemory {
  public:
   SharedMemory();
@@ -106,7 +106,7 @@ class BASE_EXPORT SharedMemory {
   // primitive.
   static SharedMemoryHandle DuplicateHandle(const SharedMemoryHandle& handle);
 
-#if defined(OS_POSIX) && !defined(OS_FUCHSIA)
+#if defined(OS_POSIX) && !(defined(OS_MACOSX) && !defined(OS_IOS))
   // This method requires that the SharedMemoryHandle is backed by a POSIX fd.
   static int GetFdFromSharedMemoryHandle(const SharedMemoryHandle& handle);
 #endif
@@ -189,11 +189,10 @@ class BASE_EXPORT SharedMemory {
   // identifier is not portable.
   SharedMemoryHandle handle() const;
 
-  // Returns the underlying OS handle for this segment. The caller also gets
-  // ownership of the handle. This is logically equivalent to:
-  //   SharedMemoryHandle dup = DuplicateHandle(handle());
-  //   Close();
-  //   return dup;
+  // Returns the underlying OS handle for this segment. The caller takes
+  // ownership of the handle and memory is unmapped. This is equivalent to
+  // duplicating the handle and then calling Unmap() and Close() on this object,
+  // without the overhead of duplicating the handle.
   SharedMemoryHandle TakeHandle();
 
   // Closes the open shared memory segment. The memory will remain mapped if
@@ -208,7 +207,7 @@ class BASE_EXPORT SharedMemory {
   // that takes ownership of the handle. As such, it's not valid to pass the
   // sample handle to the IPC subsystem twice. Returns an invalid handle on
   // failure.
-  SharedMemoryHandle GetReadOnlyHandle();
+  SharedMemoryHandle GetReadOnlyHandle() const;
 
   // Returns an ID for the mapped region. This is ID of the SharedMemoryHandle
   // that was mapped. The ID is valid even after the SharedMemoryHandle is
@@ -217,7 +216,7 @@ class BASE_EXPORT SharedMemory {
 
  private:
 #if defined(OS_POSIX) && !defined(OS_NACL) && !defined(OS_ANDROID) && \
-    !defined(OS_FUCHSIA) && (!defined(OS_MACOSX) || defined(OS_IOS))
+    (!defined(OS_MACOSX) || defined(OS_IOS))
   bool FilePathForMemoryName(const std::string& mem_name, FilePath* path);
 #endif
 
@@ -226,16 +225,10 @@ class BASE_EXPORT SharedMemory {
   // before being mapped.
   bool external_section_ = false;
   string16 name_;
-#else
+#elif !defined(OS_ANDROID) && !defined(OS_FUCHSIA)
   // If valid, points to the same memory region as shm_, but with readonly
   // permissions.
   SharedMemoryHandle readonly_shm_;
-#endif
-
-#if defined(OS_MACOSX) && !defined(OS_IOS)
-  // The mechanism by which the memory is mapped. Only valid if |memory_| is not
-  // |nullptr|.
-  SharedMemoryHandle::Type mapped_memory_mechanism_ = SharedMemoryHandle::MACH;
 #endif
 
   // The OS primitive that backs the shared memory region.

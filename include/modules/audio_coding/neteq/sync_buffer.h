@@ -11,10 +11,15 @@
 #ifndef MODULES_AUDIO_CODING_NETEQ_SYNC_BUFFER_H_
 #define MODULES_AUDIO_CODING_NETEQ_SYNC_BUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+#include <vector>
+
+#include "api/audio/audio_frame.h"
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
-#include "modules/include/module_common_types.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "modules/audio_coding/neteq/audio_vector.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -34,6 +39,9 @@ class SyncBuffer : public AudioMultiVector {
   // maintain a constant buffer size. The |next_index_| is updated to reflect
   // the move of the beginning of "future" data.
   void PushBack(const AudioMultiVector& append_this) override;
+
+  // Like PushBack, but reads the samples channel-interleaved from the input.
+  void PushBackInterleaved(const rtc::BufferT<int16_t>& append_this);
 
   // Adds |length| zeros to the beginning of each channel. Removes
   // the same number of samples from the end of the SyncBuffer, to
@@ -92,7 +100,7 @@ class SyncBuffer : public AudioMultiVector {
  private:
   size_t next_index_;
   uint32_t end_timestamp_;  // The timestamp of the last sample in the buffer.
-  size_t dtmf_index_;  // Index to the first non-DTMF sample in the buffer.
+  size_t dtmf_index_;       // Index to the first non-DTMF sample in the buffer.
 
   RTC_DISALLOW_COPY_AND_ASSIGN(SyncBuffer);
 };

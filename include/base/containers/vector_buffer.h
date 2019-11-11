@@ -11,8 +11,10 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/containers/util.h"
 #include "base/logging.h"
 #include "base/macros.h"
+#include "base/numerics/checked_math.h"
 
 namespace base {
 namespace internal {
@@ -37,7 +39,7 @@ namespace internal {
 template <typename T>
 class VectorBuffer {
  public:
-  VectorBuffer() {}
+  constexpr VectorBuffer() = default;
 
 #if defined(__clang__) && !defined(__native_client__)
   // This constructor converts an uninitialized void* to a T* which triggers
@@ -45,7 +47,8 @@ class VectorBuffer {
   __attribute__((no_sanitize("cfi-unrelated-cast", "vptr")))
 #endif
   VectorBuffer(size_t count)
-      : buffer_(reinterpret_cast<T*>(malloc(sizeof(T) * count))),
+      : buffer_(reinterpret_cast<T*>(
+            malloc(CheckMul(sizeof(T), count).ValueOrDie()))),
         capacity_(count) {
   }
   VectorBuffer(VectorBuffer&& other) noexcept
@@ -68,8 +71,21 @@ class VectorBuffer {
 
   size_t capacity() const { return capacity_; }
 
-  T& operator[](size_t i) { return buffer_[i]; }
-  const T& operator[](size_t i) const { return buffer_[i]; }
+  T& operator[](size_t i) {
+    // TODO(crbug.com/817982): Some call sites (at least circular_deque.h) are
+    // calling this with `i == capacity_` as a way of getting `end()`. Therefore
+    // we have to allow this for now (`i <= capacity_`), until we fix those call
+    // sites to use real iterators. This comment applies here and to `const T&
+    // operator[]`, below.
+    CHECK_LE(i, capacity_);
+    return buffer_[i];
+  }
+
+  const T& operator[](size_t i) const {
+    CHECK_LE(i, capacity_);
+    return buffer_[i];
+  }
+
   T* begin() { return buffer_; }
   T* end() { return &buffer_[capacity_]; }
 
@@ -87,6 +103,7 @@ class VectorBuffer {
             typename std::enable_if<!std::is_trivially_destructible<T2>::value,
                                     int>::type = 0>
   void DestructRange(T* begin, T* end) {
+    CHECK_LE(begin, end);
     while (begin != end) {
       begin->~T();
       begin++;
@@ -108,8 +125,10 @@ class VectorBuffer {
             typename std::enable_if<base::is_trivially_copyable<T2>::value,
                                     int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
-    DCHECK(!RangesOverlap(from_begin, from_end, to));
-    memcpy(to, from_begin, (from_end - from_begin) * sizeof(T));
+    CHECK(!RangesOverlap(from_begin, from_end, to));
+    memcpy(
+        to, from_begin,
+        CheckSub(get_uintptr(from_end), get_uintptr(from_begin)).ValueOrDie());
   }
 
   // Not trivially copyable, but movable: call the move constructor and
@@ -119,7 +138,7 @@ class VectorBuffer {
                                         !base::is_trivially_copyable<T2>::value,
                                     int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
-    DCHECK(!RangesOverlap(from_begin, from_end, to));
+    CHECK(!RangesOverlap(from_begin, from_end, to));
     while (from_begin != from_end) {
       new (to) T(std::move(*from_begin));
       from_begin->~T();
@@ -135,7 +154,7 @@ class VectorBuffer {
                                         !base::is_trivially_copyable<T2>::value,
                                     int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
-    DCHECK(!RangesOverlap(from_begin, from_end, to));
+    CHECK(!RangesOverlap(from_begin, from_end, to));
     while (from_begin != from_end) {
       new (to) T(*from_begin);
       from_begin->~T();
@@ -148,7 +167,13 @@ class VectorBuffer {
   static bool RangesOverlap(const T* from_begin,
                             const T* from_end,
                             const T* to) {
-    return !(to >= from_end || to + (from_end - from_begin) <= from_begin);
+    const auto from_begin_uintptr = get_uintptr(from_begin);
+    const auto from_end_uintptr = get_uintptr(from_end);
+    const auto to_uintptr = get_uintptr(to);
+    return !(
+        to >= from_end ||
+        CheckAdd(to_uintptr, CheckSub(from_end_uintptr, from_begin_uintptr))
+                .ValueOrDie() <= from_begin_uintptr);
   }
 
   T* buffer_ = nullptr;

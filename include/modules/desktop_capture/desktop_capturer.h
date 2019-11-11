@@ -19,9 +19,10 @@
 #include <type_traits>
 #include <vector>
 
-#include "modules/desktop_capture/desktop_frame.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/desktop_frame.h"
 #include "modules/desktop_capture/shared_memory.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
@@ -29,7 +30,7 @@ class DesktopCaptureOptions;
 class DesktopFrame;
 
 // Abstract interface for screen and window capturers.
-class DesktopCapturer {
+class RTC_EXPORT DesktopCapturer {
  public:
   enum class Result {
     // The frame was captured successfully.
@@ -134,6 +135,10 @@ class DesktopCapturer {
   static std::unique_ptr<DesktopCapturer> CreateScreenCapturer(
       const DesktopCaptureOptions& options);
 
+#if defined(WEBRTC_USE_PIPEWIRE) || defined(USE_X11)
+  static bool IsRunningUnderWayland();
+#endif  // defined(WEBRTC_USE_PIPEWIRE) || defined(USE_X11)
+
  protected:
   // CroppingWindowCapturer needs to create raw capturers without wrappers, so
   // the following two functions are protected.
@@ -152,4 +157,3 @@ class DesktopCapturer {
 }  // namespace webrtc
 
 #endif  // MODULES_DESKTOP_CAPTURE_DESKTOP_CAPTURER_H_
-

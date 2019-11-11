@@ -15,8 +15,7 @@
 
 #include <string>
 
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 namespace test {
@@ -24,7 +23,7 @@ namespace test {
 // Class for handling a looping input audio file.
 class InputAudioFile {
  public:
-  explicit InputAudioFile(const std::string file_name);
+  explicit InputAudioFile(const std::string file_name, bool loop_at_end = true);
 
   virtual ~InputAudioFile();
 
@@ -45,11 +44,14 @@ class InputAudioFile {
   // channels are identical. The output |destination| must have the capacity to
   // hold samples * channels elements. Note that |source| and |destination| can
   // be the same array (i.e., point to the same address).
-  static void DuplicateInterleaved(const int16_t* source, size_t samples,
-                                   size_t channels, int16_t* destination);
+  static void DuplicateInterleaved(const int16_t* source,
+                                   size_t samples,
+                                   size_t channels,
+                                   int16_t* destination);
 
  private:
   FILE* fp_;
+  const bool loop_at_end_;
   RTC_DISALLOW_COPY_AND_ASSIGN(InputAudioFile);
 };
 

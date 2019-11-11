@@ -8,29 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#import <Foundation/Foundation.h>
-
-#import <WebRTC/RTCMacros.h>
-#import <WebRTC/RTCVideoCodec.h>
-
-NS_ASSUME_NONNULL_BEGIN
-
-/** RTCVideoEncoderFactory is an Objective-C version of webrtc::VideoEncoderFactory. */
-RTC_EXPORT
-@protocol RTCVideoEncoderFactory <NSObject>
-
-- (id<RTCVideoEncoder>)createEncoder:(RTCVideoCodecInfo *)info;
-- (NSArray<RTCVideoCodecInfo *> *)supportedCodecs;  // TODO(andersc): "supportedFormats" instead?
-
-@end
-
-/** RTCVideoDecoderFactory is an Objective-C version of webrtc::VideoDecoderFactory. */
-RTC_EXPORT
-@protocol RTCVideoDecoderFactory <NSObject>
-
-- (id<RTCVideoDecoder>)createDecoder:(RTCVideoCodecInfo *)info;
-- (NSArray<RTCVideoCodecInfo *> *)supportedCodecs;  // TODO(andersc): "supportedFormats" instead?
-
-@end
-
-NS_ASSUME_NONNULL_END
+#import "base/RTCVideoDecoderFactory.h"
+#import "base/RTCVideoEncoderFactory.h"
+#import "components/video_codec/RTCDefaultVideoDecoderFactory.h"
+#import "components/video_codec/RTCDefaultVideoEncoderFactory.h"

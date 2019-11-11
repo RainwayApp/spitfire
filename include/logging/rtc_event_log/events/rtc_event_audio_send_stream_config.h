@@ -31,6 +31,13 @@ class RtcEventAudioSendStreamConfig final : public RtcEvent {
 
   bool IsConfigEvent() const override;
 
+  std::unique_ptr<RtcEventAudioSendStreamConfig> Copy() const;
+
+  const rtclog::StreamConfig& config() const { return *config_; }
+
+ private:
+  RtcEventAudioSendStreamConfig(const RtcEventAudioSendStreamConfig& other);
+
   const std::unique_ptr<const rtclog::StreamConfig> config_;
 };
 

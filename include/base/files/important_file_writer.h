@@ -47,7 +47,7 @@ class BASE_EXPORT ImportantFileWriter {
     virtual bool SerializeData(std::string* data) = 0;
 
    protected:
-    virtual ~DataSerializer() {}
+    virtual ~DataSerializer() = default;
   };
 
   // Save |data| to |path| in an atomic manner. Blocks and writes data on the
@@ -106,28 +106,27 @@ class BASE_EXPORT ImportantFileWriter {
   // If called more than once before a write is scheduled on |task_runner|, the
   // latest callbacks clobber the others.
   void RegisterOnNextWriteCallbacks(
-      const Closure& before_next_write_callback,
-      const Callback<void(bool success)>& after_next_write_callback);
+      OnceClosure before_next_write_callback,
+      OnceCallback<void(bool success)> after_next_write_callback);
 
   TimeDelta commit_interval() const {
     return commit_interval_;
   }
 
   // Overrides the timer to use for scheduling writes with |timer_override|.
-  void SetTimerForTesting(Timer* timer_override);
+  void SetTimerForTesting(OneShotTimer* timer_override);
 
  private:
-  const Timer& timer() const {
-    return timer_override_ ? const_cast<const Timer&>(*timer_override_)
-                           : timer_;
+  const OneShotTimer& timer() const {
+    return timer_override_ ? *timer_override_ : timer_;
   }
-  Timer& timer() { return timer_override_ ? *timer_override_ : timer_; }
+  OneShotTimer& timer() { return timer_override_ ? *timer_override_ : timer_; }
 
   void ClearPendingWrite();
 
   // Invoked synchronously on the next write event.
-  Closure before_next_write_callback_;
-  Callback<void(bool success)> after_next_write_callback_;
+  OnceClosure before_next_write_callback_;
+  OnceCallback<void(bool success)> after_next_write_callback_;
 
   // Path being written to.
   const FilePath path_;
@@ -139,7 +138,7 @@ class BASE_EXPORT ImportantFileWriter {
   OneShotTimer timer_;
 
   // An override for |timer_| used for testing.
-  Timer* timer_override_ = nullptr;
+  OneShotTimer* timer_override_ = nullptr;
 
   // Serializer which will provide the data to be saved.
   DataSerializer* serializer_;

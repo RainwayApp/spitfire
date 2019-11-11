@@ -67,8 +67,8 @@ class Test4 {
   int* data();
   size_t size();
 };
-//static_assert(!HasDataAndSize<Test4, int>::value,
-      //        ".data() and .size() are private");
+static_assert(!HasDataAndSize<Test4, int>::value,
+              ".data() and .size() are private");
 
 }  // namespace test_has_data_and_size
 
@@ -133,7 +133,7 @@ static_assert(IsIntlike<int>::value, "");
 static_assert(!IsIntlike<float>::value, "");
 static_assert(!IsIntlike<S>::value, "");
 
-}  // test_enum_intlike
+}  // namespace test_enum_intlike
 
 }  // namespace rtc
 

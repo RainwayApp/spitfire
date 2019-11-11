@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -17,17 +18,20 @@
 #include "base/containers/stack.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/single_thread_task_runner.h"
+#include "base/time/time_override.h"
+#include "base/trace_event/category_registry.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/trace_event/trace_config.h"
 #include "base/trace_event/trace_event_impl.h"
 #include "build/build_config.h"
 
 namespace base {
-
-template <typename Type>
-struct DefaultSingletonTraits;
-class MessageLoop;
 class RefCountedString;
+
+template <typename T>
+class NoDestructor;
 
 namespace trace_event {
 
@@ -59,10 +63,6 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
 
   static TraceLog* GetInstance();
 
-  // Get set of known category groups. This can change as new code paths are
-  // reached. The known category groups are inserted into |category_groups|.
-  void GetKnownCategoryGroups(std::vector<std::string>* category_groups);
-
   // Retrieves a copy (for thread-safety) of the current TraceConfig.
   TraceConfig GetCurrentTraceConfig() const;
 
@@ -90,7 +90,10 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
 
   // Returns true if TraceLog is enabled on recording mode.
   // Note: Returns false even if FILTERING_MODE is enabled.
-  bool IsEnabled() { return enabled_modes_ & RECORDING_MODE; }
+  bool IsEnabled() {
+    AutoLock lock(lock_);
+    return enabled_modes_ & RECORDING_MODE;
+  }
 
   // Returns a bitmap of enabled modes from TraceLog::Mode.
   uint8_t enabled_modes() { return enabled_modes_; }
@@ -123,8 +126,15 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
     // TraceLog::IsEnabled() is false at this point.
     virtual void OnTraceLogDisabled() = 0;
   };
+  // Adds an observer. Cannot be called from within the observer callback.
   void AddEnabledStateObserver(EnabledStateObserver* listener);
+  // Removes an observer. Cannot be called from within the observer callback.
   void RemoveEnabledStateObserver(EnabledStateObserver* listener);
+  // Adds an observer that is owned by TraceLog. This is useful for agents that
+  // implement tracing feature that needs to stay alive as long as TraceLog
+  // does.
+  void AddOwnedEnabledStateObserver(
+      std::unique_ptr<EnabledStateObserver> listener);
   bool HasEnabledStateObserver(EnabledStateObserver* listener) const;
 
   // Asynchronous enabled state listeners. When tracing is enabled or disabled,
@@ -144,6 +154,10 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
     // TraceLog::IsEnabled() is false at this point.
     virtual void OnTraceLogDisabled() = 0;
   };
+  // TODO(oysteine): This API originally needed to use WeakPtrs as the observer
+  // list was copied under the global trace lock, but iterated over outside of
+  // that lock so that observers could add tracing. The list is now protected by
+  // its own lock, so this can be changed to a raw ptr.
   void AddAsyncEnabledStateObserver(
       WeakPtr<AsyncEnabledStateObserver> listener);
   void RemoveAsyncEnabledStateObserver(AsyncEnabledStateObserver* listener);
@@ -158,6 +172,11 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
 
   void SetArgumentFilterPredicate(
       const ArgumentFilterPredicate& argument_filter_predicate);
+  ArgumentFilterPredicate GetArgumentFilterPredicate() const;
+
+  void SetMetadataFilterPredicate(
+      const MetadataFilterPredicate& metadata_filter_predicate);
+  MetadataFilterPredicate GetMetadataFilterPredicate() const;
 
   // Flush all collected events to the given output callback. The callback will
   // be called one or more times either synchronously or asynchronously from
@@ -169,12 +188,28 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   // callback will be called directly with (empty_string, false) to indicate
   // the end of this unsuccessful flush. Flush does the serialization
   // on the same thread if the caller doesn't set use_worker_thread explicitly.
-  typedef base::Callback<void(const scoped_refptr<base::RefCountedString>&,
-                              bool has_more_events)> OutputCallback;
+  using OutputCallback =
+      base::RepeatingCallback<void(const scoped_refptr<base::RefCountedString>&,
+                                   bool has_more_events)>;
   void Flush(const OutputCallback& cb, bool use_worker_thread = false);
 
   // Cancels tracing and discards collected data.
   void CancelTracing(const OutputCallback& cb);
+
+  using AddTraceEventOverrideCallback = void (*)(TraceEvent*,
+                                                 bool thread_will_flush,
+                                                 TraceEventHandle* handle);
+  using OnFlushCallback = void (*)();
+  using UpdateDurationCallback = void (*)(TraceEventHandle handle,
+                                          const TimeTicks& now,
+                                          const ThreadTicks& thread_now);
+  // The callbacks will be called up until the point where the flush is
+  // finished, i.e. must be callable until OutputCallback is called with
+  // has_more_events==false.
+  void SetAddTraceEventOverrides(
+      const AddTraceEventOverrideCallback& add_event_override,
+      const OnFlushCallback& on_flush_callback,
+      const UpdateDurationCallback& update_duration_callback);
 
   // Called by TRACE_EVENT* macros, don't call this directly.
   // The name parameter is a category group for example:
@@ -182,22 +217,25 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   static const unsigned char* GetCategoryGroupEnabled(const char* name);
   static const char* GetCategoryGroupName(
       const unsigned char* category_group_enabled);
+  static constexpr const unsigned char* GetBuiltinCategoryEnabled(
+      const char* name) {
+    TraceCategory* builtin_category =
+        CategoryRegistry::GetBuiltinCategoryByName(name);
+    if (builtin_category)
+      return builtin_category->state_ptr();
+    return nullptr;
+  }
 
   // Called by TRACE_EVENT* macros, don't call this directly.
   // If |copy| is set, |name|, |arg_name1| and |arg_name2| will be deep copied
   // into the event; see "Memory scoping note" and TRACE_EVENT_COPY_XXX above.
-  TraceEventHandle AddTraceEvent(
-      char phase,
-      const unsigned char* category_group_enabled,
-      const char* name,
-      const char* scope,
-      unsigned long long id,
-      int num_args,
-      const char* const* arg_names,
-      const unsigned char* arg_types,
-      const unsigned long long* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-      unsigned int flags);
+  TraceEventHandle AddTraceEvent(char phase,
+                                 const unsigned char* category_group_enabled,
+                                 const char* name,
+                                 const char* scope,
+                                 unsigned long long id,
+                                 TraceArguments* args,
+                                 unsigned int flags);
   TraceEventHandle AddTraceEventWithBindId(
       char phase,
       const unsigned char* category_group_enabled,
@@ -205,11 +243,7 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
       const char* scope,
       unsigned long long id,
       unsigned long long bind_id,
-      int num_args,
-      const char* const* arg_names,
-      const unsigned char* arg_types,
-      const unsigned long long* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
+      TraceArguments* args,
       unsigned int flags);
   TraceEventHandle AddTraceEventWithProcessId(
       char phase,
@@ -218,11 +252,7 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
       const char* scope,
       unsigned long long id,
       int process_id,
-      int num_args,
-      const char* const* arg_names,
-      const unsigned char* arg_types,
-      const unsigned long long* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
+      TraceArguments* args,
       unsigned int flags);
   TraceEventHandle AddTraceEventWithThreadIdAndTimestamp(
       char phase,
@@ -232,11 +262,7 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
       unsigned long long id,
       int thread_id,
       const TimeTicks& timestamp,
-      int num_args,
-      const char* const* arg_names,
-      const unsigned char* arg_types,
-      const unsigned long long* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
+      TraceArguments* args,
       unsigned int flags);
   TraceEventHandle AddTraceEventWithThreadIdAndTimestamp(
       char phase,
@@ -247,23 +273,14 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
       unsigned long long bind_id,
       int thread_id,
       const TimeTicks& timestamp,
-      int num_args,
-      const char* const* arg_names,
-      const unsigned char* arg_types,
-      const unsigned long long* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
+      TraceArguments* args,
       unsigned int flags);
 
   // Adds a metadata event that will be written when the trace log is flushed.
-  void AddMetadataEvent(
-      const unsigned char* category_group_enabled,
-      const char* name,
-      int num_args,
-      const char* const* arg_names,
-      const unsigned char* arg_types,
-      const unsigned long long* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-      unsigned int flags);
+  void AddMetadataEvent(const unsigned char* category_group_enabled,
+                        const char* name,
+                        TraceArguments* args,
+                        unsigned int flags);
 
   void UpdateTraceEventDuration(const unsigned char* category_group_enabled,
                                 const char* name,
@@ -293,8 +310,8 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
     filter_factory_for_testing_ = factory;
   }
 
-  // Allows deleting our singleton instance.
-  static void DeleteForTesting();
+  // Allows clearing up our singleton instance.
+  static void ResetForTesting();
 
   // Allow tests to inspect TraceEvents.
   TraceEvent* GetEventByHandle(TraceEventHandle handle);
@@ -306,9 +323,13 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   // on their sort index, ascending, then by their name, and then tid.
   void SetProcessSortIndex(int sort_index);
 
-  // Sets the name of the process. |process_name| should be a string literal
-  // since it is a whitelisted argument for background field trials.
-  void SetProcessName(const char* process_name);
+  // Sets the name of the process.
+  void set_process_name(const std::string& process_name) {
+    AutoLock lock(lock_);
+    process_name_ = process_name;
+  }
+
+  bool IsProcessNameEmpty() const { return process_name_.empty(); }
 
   // Processes can have labels in addition to their names. Use labels, for
   // instance, to list out the web page titles that a process is handling.
@@ -355,10 +376,9 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
                            ConvertTraceConfigToInternalOptions);
   FRIEND_TEST_ALL_PREFIXES(TraceEventTestFixture,
                            TraceRecordAsMuchAsPossibleMode);
+  FRIEND_TEST_ALL_PREFIXES(TraceEventTestFixture, ConfigTraceBufferLimit);
 
-  // This allows constructor and destructor to be private and usable only
-  // by the Singleton class.
-  friend struct DefaultSingletonTraits<TraceLog>;
+  friend class base::NoDestructor<TraceLog>;
 
   // MemoryDumpProvider implementation.
   bool OnMemoryDump(const MemoryDumpArgs& args,
@@ -384,6 +404,11 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   TraceLog();
   ~TraceLog() override;
   void AddMetadataEventsWhileLocked();
+  template <typename T>
+  void AddMetadataEventWhileLocked(int thread_id,
+                                   const char* metadata_name,
+                                   const char* arg_name,
+                                   const T& value);
 
   InternalTraceOptions trace_options() const {
     return static_cast<InternalTraceOptions>(
@@ -428,7 +453,10 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   }
   void UseNextTraceBuffer();
 
-  TimeTicks OffsetNow() const { return OffsetTimestamp(TimeTicks::Now()); }
+  TimeTicks OffsetNow() const {
+    // This should be TRACE_TIME_TICKS_NOW but include order makes that hard.
+    return OffsetTimestamp(base::subtle::TimeTicksNowIgnoringOverride());
+  }
   TimeTicks OffsetTimestamp(const TimeTicks& timestamp) const {
     return timestamp - time_offset_;
   }
@@ -452,16 +480,24 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   int num_traces_recorded_;
   std::unique_ptr<TraceBuffer> logged_events_;
   std::vector<std::unique_ptr<TraceEvent>> metadata_events_;
-  bool dispatching_to_observer_list_;
-  std::vector<EnabledStateObserver*> enabled_state_observer_list_;
+
+  // The lock protects observers access.
+  mutable Lock observers_lock_;
+  bool dispatching_to_observers_ = false;
+  std::vector<EnabledStateObserver*> enabled_state_observers_;
   std::map<AsyncEnabledStateObserver*, RegisteredAsyncObserver>
       async_observers_;
+  // Manages ownership of the owned observers. The owned observers will also be
+  // added to |enabled_state_observers_|.
+  std::vector<std::unique_ptr<EnabledStateObserver>>
+      owned_enabled_state_observer_copy_;
 
   std::string process_name_;
   std::unordered_map<int, std::string> process_labels_;
   int process_sort_index_;
   std::unordered_map<int, int> thread_sort_indices_;
   std::unordered_map<int, std::string> thread_names_;
+  base::Time process_creation_time_;
 
   // The following two maps are used only when ECHO_TO_CONSOLE.
   std::unordered_map<int, base::stack<TimeTicks>> thread_event_start_times_;
@@ -485,10 +521,10 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   ThreadLocalBoolean thread_blocks_message_loop_;
   ThreadLocalBoolean thread_is_in_trace_event_;
 
-  // Contains the message loops of threads that have had at least one event
-  // added into the local event buffer. Not using SingleThreadTaskRunner
-  // because we need to know the life time of the message loops.
-  hash_set<MessageLoop*> thread_message_loops_;
+  // Contains task runners for the threads that have had at least one event
+  // added into the local event buffer.
+  std::unordered_map<int, scoped_refptr<SingleThreadTaskRunner>>
+      thread_task_runners_;
 
   // For events which can't be added into the thread local buffer, e.g. events
   // from threads without a message loop.
@@ -497,10 +533,14 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
 
   // Set when asynchronous Flush is in progress.
   OutputCallback flush_output_callback_;
-  scoped_refptr<SingleThreadTaskRunner> flush_task_runner_;
+  scoped_refptr<SequencedTaskRunner> flush_task_runner_;
   ArgumentFilterPredicate argument_filter_predicate_;
+  MetadataFilterPredicate metadata_filter_predicate_;
   subtle::AtomicWord generation_;
   bool use_worker_thread_;
+  std::atomic<AddTraceEventOverrideCallback> add_trace_event_override_;
+  std::atomic<OnFlushCallback> on_flush_callback_;
+  std::atomic<UpdateDurationCallback> update_duration_callback_;
 
   FilterFactoryForTesting filter_factory_for_testing_;
 

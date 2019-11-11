@@ -11,6 +11,8 @@
 #ifndef MODULES_AUDIO_MIXER_GAIN_CHANGE_CALCULATOR_H_
 #define MODULES_AUDIO_MIXER_GAIN_CHANGE_CALCULATOR_H_
 
+#include <stdint.h>
+
 #include "api/array_view.h"
 
 namespace webrtc {
@@ -22,6 +24,8 @@ class GainChangeCalculator {
   // gain and handles special cases when the samples are small.
   float CalculateGainChange(rtc::ArrayView<const int16_t> in,
                             rtc::ArrayView<const int16_t> out);
+
+  float LatestGain() const;
 
  private:
   void CalculateGain(rtc::ArrayView<const int16_t> in,

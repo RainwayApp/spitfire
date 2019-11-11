@@ -15,11 +15,9 @@
 
 #include "modules/audio_processing/vad/common.h"
 #include "modules/audio_processing/vad/gmm.h"
-#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
-class AudioFrame;
 class VadCircularBuffer;
 
 // Computes the probability of the input audio frame to be active given

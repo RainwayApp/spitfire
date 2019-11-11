@@ -24,6 +24,13 @@ BASE_EXPORT bool ContentUriExists(const FilePath& content_uri);
 // invalid.
 BASE_EXPORT std::string GetContentUriMimeType(const FilePath& content_uri);
 
+// Gets the display name from a content URI. Returns true if the name was found.
+BASE_EXPORT bool MaybeGetFileDisplayName(const FilePath& content_uri,
+                                         base::string16* file_display_name);
+
+// Deletes a content URI.
+BASE_EXPORT void DeleteContentUri(const FilePath& content_uri);
+
 }  // namespace base
 
 #endif  // BASE_ANDROID_CONTENT_URI_UTILS_H_

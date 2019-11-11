@@ -5,10 +5,10 @@
 #ifndef BASE_TEST_SCOPED_FEATURE_LIST_H_
 #define BASE_TEST_SCOPED_FEATURE_LIST_H_
 
-#include <initializer_list>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
@@ -37,6 +37,11 @@ class ScopedFeatureList final {
   ScopedFeatureList();
   ~ScopedFeatureList();
 
+  struct FeatureAndParams {
+    const Feature& feature;
+    const std::map<std::string, std::string>& params;
+  };
+
   // WARNING: This method will reset any globally configured features to their
   // default values, which can hide feature interaction bugs. Please use
   // sparingly.  https://crbug.com/713390
@@ -63,9 +68,8 @@ class ScopedFeatureList final {
   // continue to apply, unless they conflict with the overrides passed into this
   // method. This is important for testing potentially unexpected feature
   // interactions.
-  void InitWithFeatures(
-      const std::initializer_list<Feature>& enabled_features,
-      const std::initializer_list<Feature>& disabled_features);
+  void InitWithFeatures(const std::vector<Feature>& enabled_features,
+                        const std::vector<Feature>& disabled_features);
 
   // Initializes and registers a FeatureList instance based on present
   // FeatureList and overridden with single enabled feature.
@@ -81,8 +85,22 @@ class ScopedFeatureList final {
       const std::map<std::string, std::string>& feature_parameters);
 
   // Initializes and registers a FeatureList instance based on present
+  // FeatureList and overridden with the given enabled features and the
+  // specified field trial parameters, and the given disabled features.
+  // Note: This creates a scoped global field trial list if there is not
+  // currently one.
+  void InitWithFeaturesAndParameters(
+      const std::vector<FeatureAndParams>& enabled_features,
+      const std::vector<Feature>& disabled_features);
+
+  // Initializes and registers a FeatureList instance based on present
   // FeatureList and overridden with single disabled feature.
   void InitAndDisableFeature(const Feature& feature);
+
+  // Initializes and registers a FeatureList instance based on present
+  // FeatureList and overriden with a single feature either enabled or
+  // disabled depending on |enabled|.
+  void InitWithFeatureState(const Feature& feature, bool enabled);
 
  private:
   // Initializes and registers a FeatureList instance based on present
@@ -95,9 +113,9 @@ class ScopedFeatureList final {
   // features.
   // Trials are expected to outlive the ScopedFeatureList.
   void InitWithFeaturesAndFieldTrials(
-      const std::initializer_list<Feature>& enabled_features,
-      const std::initializer_list<FieldTrial*>& trials_for_enabled_features,
-      const std::initializer_list<Feature>& disabled_features);
+      const std::vector<Feature>& enabled_features,
+      const std::vector<FieldTrial*>& trials_for_enabled_features,
+      const std::vector<Feature>& disabled_features);
 
   // Initializes and registers a FeatureList instance based on present
   // FeatureList and overridden with single enabled feature and associated field
@@ -106,8 +124,9 @@ class ScopedFeatureList final {
   void InitAndEnableFeatureWithFieldTrialOverride(const Feature& feature,
                                                   FieldTrial* trial);
 
+  bool init_called_ = false;
   std::unique_ptr<FeatureList> original_feature_list_;
-  scoped_refptr<FieldTrial> field_trial_override_;
+  std::vector<scoped_refptr<FieldTrial>> field_trial_overrides_;
   std::unique_ptr<base::FieldTrialList> field_trial_list_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedFeatureList);

@@ -35,7 +35,7 @@ namespace webrtc {
 // All public methods must also be called on the same thread. A thread checker
 // will RTC_DCHECK if any method is called on an invalid thread.
 //
-// This class uses AttachCurrentThreadIfNeeded to attach to a Java VM if needed
+// This class uses JvmThreadConnector to attach to a Java VM if needed
 // and detach when the object goes out of scope. Additional thread checking
 // guarantees that no other (possibly non attached) thread is used.
 class AudioTrackJni {
@@ -90,8 +90,10 @@ class AudioTrackJni {
   // |byte_buffer| in |direct_buffer_address_|. The size of the buffer
   // is also stored in |direct_buffer_capacity_in_bytes_|.
   // Called on the same thread as the creating thread.
-  static void JNICALL CacheDirectBufferAddress(
-    JNIEnv* env, jobject obj, jobject byte_buffer, jlong nativeAudioTrack);
+  static void JNICALL CacheDirectBufferAddress(JNIEnv* env,
+                                               jobject obj,
+                                               jobject byte_buffer,
+                                               jlong nativeAudioTrack);
   void OnCacheDirectBufferAddress(JNIEnv* env, jobject byte_buffer);
 
   // Called periodically by the Java based WebRtcAudioTrack object when
@@ -99,8 +101,10 @@ class AudioTrackJni {
   // be written to the memory area |direct_buffer_address_| for playout.
   // This method is called on a high-priority thread from Java. The name of
   // the thread is 'AudioTrackThread'.
-  static void JNICALL GetPlayoutData(
-    JNIEnv* env, jobject obj, jint length, jlong nativeAudioTrack);
+  static void JNICALL GetPlayoutData(JNIEnv* env,
+                                     jobject obj,
+                                     jint length,
+                                     jlong nativeAudioTrack);
   void OnGetPlayoutData(size_t length);
 
   // Stores thread ID in constructor.
@@ -110,9 +114,10 @@ class AudioTrackJni {
   // thread in Java. Detached during construction of this object.
   rtc::ThreadChecker thread_checker_java_;
 
-  // Calls AttachCurrentThread() if this thread is not attached at construction.
+  // Calls JavaVM::AttachCurrentThread() if this thread is not attached at
+  // construction.
   // Also ensures that DetachCurrentThread() is called at destruction.
-  AttachCurrentThreadIfNeeded attach_thread_if_needed_;
+  JvmThreadConnector attach_thread_if_needed_;
 
   // Wraps the JNI interface pointer and methods associated with it.
   std::unique_ptr<JNIEnvironment> j_environment_;

@@ -15,8 +15,7 @@
 #include <string>
 
 #include "modules/audio_coding/neteq/include/neteq.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -51,6 +50,11 @@ class StatisticsCalculator {
   // Same as ExpandedVoiceSamplesCorrection but for noise samples.
   void ExpandedNoiseSamplesCorrection(int num_samples);
 
+  void DecodedOutputPlayed();
+
+  // Mark end of expand event; triggers some stats to be reported.
+  void EndExpandEvent(int fs_hz);
+
   // Reports that |num_samples| samples were produced through preemptive
   // expansion.
   void PreemptiveExpandedSamples(size_t num_samples);
@@ -64,8 +68,11 @@ class StatisticsCalculator {
   // Reports that |num_packets| packets were discarded.
   virtual void PacketsDiscarded(size_t num_packets);
 
-  // Reports that |num_packets| packets samples were discarded.
-  virtual void SecondaryPacketsDiscarded(size_t num_samples);
+  // Reports that |num_packets| secondary (FEC) packets were discarded.
+  virtual void SecondaryPacketsDiscarded(size_t num_packets);
+
+  // Reports that |num_packets| secondary (FEC) packets were received.
+  virtual void SecondaryPacketsReceived(size_t num_packets);
 
   // Reports that |num_samples| were lost.
   void LostSamples(size_t num_samples);
@@ -84,10 +91,19 @@ class StatisticsCalculator {
   // Reports that |num_samples| samples were decoded from secondary packets.
   void SecondaryDecodedSamples(int num_samples);
 
-  // Logs a delayed packet outage event of |outage_duration_ms|. A delayed
-  // packet outage event is defined as an expand period caused not by an actual
-  // packet loss, but by a delayed packet.
-  virtual void LogDelayedPacketOutageEvent(int outage_duration_ms);
+  // Reports that the packet buffer was flushed.
+  void FlushedPacketBuffer();
+
+  // Reports that the jitter buffer received a packet.
+  void ReceivedPacket();
+
+  // Reports that a received packet was delayed by |delay_ms| milliseconds.
+  virtual void RelativePacketArrivalDelay(size_t delay_ms);
+
+  // Logs a delayed packet outage event of |num_samples| expanded at a sample
+  // rate of |fs_hz|. A delayed packet outage event is defined as an expand
+  // period caused not by an actual packet loss, but by a delayed packet.
+  virtual void LogDelayedPacketOutageEvent(int num_samples, int fs_hz);
 
   // Returns the current network statistics in |stats|. The current sample rate
   // is |fs_hz|, the total number of samples in packet buffer and sync buffer
@@ -98,7 +114,7 @@ class StatisticsCalculator {
   void GetNetworkStatistics(int fs_hz,
                             size_t num_samples_in_buffers,
                             size_t samples_per_packet,
-                            NetEqNetworkStatistics *stats);
+                            NetEqNetworkStatistics* stats);
 
   // Populates |preferred_buffer_size_ms|, |jitter_peaks_found| and
   // |clockdrift_ppm| in |stats|. This is a convenience method, and does not
@@ -111,6 +127,8 @@ class StatisticsCalculator {
   // Returns a copy of this class's lifetime statistics. These statistics are
   // never reset.
   NetEqLifetimeStatistics GetLifetimeStatistics() const;
+
+  NetEqOperationsAndState GetOperationsAndState() const;
 
  private:
   static const int kMaxReportPeriod = 60;  // Seconds before auto-reset.
@@ -173,18 +191,21 @@ class StatisticsCalculator {
   // If the correction is negative, it is cached and will be subtracted against
   // future additions to the counter. This is meant to be called from
   // Expanded{Voice,Noise}Samples{Correction}.
-  void ConcealedSamplesCorrection(int num_samples);
+  void ConcealedSamplesCorrection(int num_samples, bool is_voice);
 
   // Calculates numerator / denominator, and returns the value in Q14.
   static uint16_t CalculateQ14Ratio(size_t numerator, uint32_t denominator);
 
   NetEqLifetimeStatistics lifetime_stats_;
+  NetEqOperationsAndState operations_and_state_;
   size_t concealed_samples_correction_ = 0;
+  size_t silent_concealed_samples_correction_ = 0;
   size_t preemptive_samples_;
   size_t accelerate_samples_;
   size_t added_zero_samples_;
   size_t expanded_speech_samples_;
   size_t expanded_noise_samples_;
+  size_t concealed_samples_at_event_end_ = 0;
   size_t discarded_packets_;
   size_t lost_timestamps_;
   uint32_t timestamps_since_last_report_;
@@ -193,6 +214,8 @@ class StatisticsCalculator {
   size_t discarded_secondary_packets_;
   PeriodicUmaCount delayed_packet_outage_counter_;
   PeriodicUmaAverage excess_buffer_delay_;
+  PeriodicUmaCount buffer_full_counter_;
+  bool decoded_output_played_ = false;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(StatisticsCalculator);
 };

@@ -12,7 +12,6 @@
 #define RTC_BASE_NUMERICS_PERCENTILE_FILTER_H_
 
 #include <stdint.h>
-
 #include <iterator>
 #include <set>
 
@@ -40,6 +39,9 @@ class PercentileFilter {
 
   // Get the percentile value. The complexity of this operation is constant.
   T GetPercentileValue() const;
+
+  // Removes all the stored observations.
+  void Reset();
 
  private:
   // Update iterator and index to point at target percentile value.
@@ -110,6 +112,12 @@ T PercentileFilter<T>::GetPercentileValue() const {
   return set_.empty() ? 0 : *percentile_it_;
 }
 
+template <typename T>
+void PercentileFilter<T>::Reset() {
+  set_.clear();
+  percentile_it_ = set_.begin();
+  percentile_index_ = 0;
+}
 }  // namespace webrtc
 
 #endif  // RTC_BASE_NUMERICS_PERCENTILE_FILTER_H_

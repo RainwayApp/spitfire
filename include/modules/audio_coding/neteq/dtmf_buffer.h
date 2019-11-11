@@ -11,11 +11,11 @@
 #ifndef MODULES_AUDIO_CODING_NETEQ_DTMF_BUFFER_H_
 #define MODULES_AUDIO_CODING_NETEQ_DTMF_BUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <list>
-#include <string>  // size_t
 
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -28,19 +28,9 @@ struct DtmfEvent {
 
   // Constructors
   DtmfEvent()
-      : timestamp(0),
-        event_no(0),
-        volume(0),
-        duration(0),
-        end_bit(false) {
-  }
+      : timestamp(0), event_no(0), volume(0), duration(0), end_bit(false) {}
   DtmfEvent(uint32_t ts, int ev, int vol, int dur, bool end)
-      : timestamp(ts),
-        event_no(ev),
-        volume(vol),
-        duration(dur),
-        end_bit(end) {
-  }
+      : timestamp(ts), event_no(ev), volume(vol), duration(dur), end_bit(end) {}
 };
 
 // This is the buffer holding DTMF events while waiting for them to be played.

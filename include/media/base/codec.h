@@ -16,10 +16,10 @@
 #include <string>
 #include <vector>
 
-#include "api/rtpparameters.h"
+#include "api/rtp_parameters.h"
 #include "api/video_codecs/sdp_video_format.h"
-#include "common_types.h"  // NOLINT(build/include)
-#include "media/base/mediaconstants.h"
+#include "media/base/media_constants.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace cricket {
 
@@ -29,26 +29,24 @@ class FeedbackParam {
  public:
   FeedbackParam() = default;
   FeedbackParam(const std::string& id, const std::string& param)
-      : id_(id),
-        param_(param) {
-  }
+      : id_(id), param_(param) {}
   explicit FeedbackParam(const std::string& id)
-      : id_(id),
-        param_(kParamValueEmpty) {
-  }
+      : id_(id), param_(kParamValueEmpty) {}
+
   bool operator==(const FeedbackParam& other) const;
 
   const std::string& id() const { return id_; }
   const std::string& param() const { return param_; }
 
  private:
-  std::string id_;  // e.g. "nack", "ccm"
+  std::string id_;     // e.g. "nack", "ccm"
   std::string param_;  // e.g. "", "rpsi", "fir"
 };
 
 class FeedbackParams {
  public:
   FeedbackParams();
+  ~FeedbackParams();
   bool operator==(const FeedbackParams& other) const;
 
   bool Has(const FeedbackParam& param) const;
@@ -57,13 +55,14 @@ class FeedbackParams {
   void Intersect(const FeedbackParams& from);
 
   const std::vector<FeedbackParam>& params() const { return params_; }
+
  private:
   bool HasDuplicateEntries() const;
 
   std::vector<FeedbackParam> params_;
 };
 
-struct Codec {
+struct RTC_EXPORT Codec {
   int id;
   std::string name;
   int clockrate;
@@ -74,6 +73,7 @@ struct Codec {
 
   // Indicates if this codec is compatible with the specified codec.
   bool Matches(const Codec& codec) const;
+  bool MatchesCapability(const webrtc::RtpCodecCapability& capability) const;
 
   // Find the parameter for |name| and write the value to |out|.
   bool GetParam(const std::string& name, std::string* out) const;
@@ -100,9 +100,7 @@ struct Codec {
 
   bool operator==(const Codec& c) const;
 
-  bool operator!=(const Codec& c) const {
-    return !(*this == c);
-  }
+  bool operator!=(const Codec& c) const { return !(*this == c); }
 
  protected:
   // A Codec can't be created without a subclass.
@@ -142,34 +140,10 @@ struct AudioCodec : public Codec {
 
   bool operator==(const AudioCodec& c) const;
 
-  bool operator!=(const AudioCodec& c) const {
-    return !(*this == c);
-  }
+  bool operator!=(const AudioCodec& c) const { return !(*this == c); }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const AudioCodec& ac) {
-  os << "{id: " << ac.id;
-  os << ", name: " << ac.name;
-  os << ", clockrate: " << ac.clockrate;
-  os << ", bitrate: " << ac.bitrate;
-  os << ", channels: " << ac.channels;
-  os << ", params: {";
-  const char* sep = "";
-  for (const auto& kv : ac.params) {
-    os << sep << kv.first << ": " << kv.second;
-    sep = ", ";
-  }
-  os << "}, feedback_params: {";
-  sep = "";
-  for (const FeedbackParam& fp : ac.feedback_params.params()) {
-    os << sep << fp.id() << ": " << fp.param();
-    sep = ", ";
-  }
-  os << "}}";
-  return os;
-}
-
-struct VideoCodec : public Codec {
+struct RTC_EXPORT VideoCodec : public Codec {
   // Creates a codec with the given parameters.
   VideoCodec(int id, const std::string& name);
   // Creates a codec with the given name and empty id.
@@ -195,9 +169,7 @@ struct VideoCodec : public Codec {
 
   bool operator==(const VideoCodec& c) const;
 
-  bool operator!=(const VideoCodec& c) const {
-    return !(*this == c);
-  }
+  bool operator!=(const VideoCodec& c) const { return !(*this == c); }
 
   static VideoCodec CreateRtxCodec(int rtx_payload_type,
                                    int associated_payload_type);
@@ -220,18 +192,22 @@ struct VideoCodec : public Codec {
   void SetDefaultParameters();
 };
 
-struct DataCodec : public Codec {
-  DataCodec(int id, const std::string& name);
-  DataCodec();
-  DataCodec(const DataCodec& c);
-  DataCodec(DataCodec&& c);
-  ~DataCodec() override = default;
+struct RtpDataCodec : public Codec {
+  RtpDataCodec(int id, const std::string& name);
+  RtpDataCodec();
+  RtpDataCodec(const RtpDataCodec& c);
+  RtpDataCodec(RtpDataCodec&& c);
+  ~RtpDataCodec() override = default;
 
-  DataCodec& operator=(const DataCodec& c);
-  DataCodec& operator=(DataCodec&& c);
+  RtpDataCodec& operator=(const RtpDataCodec& c);
+  RtpDataCodec& operator=(RtpDataCodec&& c);
 
   std::string ToString() const;
 };
+
+// For backwards compatibility
+// TODO(bugs.webrtc.org/10597): Remove when no longer needed.
+typedef RtpDataCodec DataCodec;
 
 // Get the codec setting associated with |payload_type|. If there
 // is no codec associated with that payload type it returns nullptr.
@@ -244,16 +220,20 @@ const Codec* FindCodecById(const std::vector<Codec>& codecs, int payload_type) {
   return nullptr;
 }
 
-bool CodecNamesEq(const std::string& name1, const std::string& name2);
-bool CodecNamesEq(const char* name1, const char* name2);
+bool HasLntf(const Codec& codec);
 bool HasNack(const Codec& codec);
 bool HasRemb(const Codec& codec);
+bool HasRrtr(const Codec& codec);
 bool HasTransportCc(const Codec& codec);
 // Returns the first codec in |supported_codecs| that matches |codec|, or
 // nullptr if no codec matches.
 const VideoCodec* FindMatchingCodec(
     const std::vector<VideoCodec>& supported_codecs,
     const VideoCodec& codec);
+RTC_EXPORT bool IsSameCodec(const std::string& name1,
+                            const CodecParameterMap& params1,
+                            const std::string& name2,
+                            const CodecParameterMap& params2);
 
 }  // namespace cricket
 

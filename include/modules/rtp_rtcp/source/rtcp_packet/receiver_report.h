@@ -11,11 +11,12 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTCP_PACKET_RECEIVER_REPORT_H_
 #define MODULES_RTP_RTCP_SOURCE_RTCP_PACKET_RECEIVER_REPORT_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <vector>
 
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/report_block.h"
-#include "rtc_base/basictypes.h"
 
 namespace webrtc {
 namespace rtcp {
@@ -27,6 +28,7 @@ class ReceiverReport : public RtcpPacket {
   static constexpr size_t kMaxNumberOfReportBlocks = 0x1f;
 
   ReceiverReport();
+  ReceiverReport(const ReceiverReport&);
   ~ReceiverReport() override;
 
   // Parse assumes header is already parsed and validated.
@@ -46,7 +48,7 @@ class ReceiverReport : public RtcpPacket {
   bool Create(uint8_t* packet,
               size_t* index,
               size_t max_length,
-              RtcpPacket::PacketReadyCallback* callback) const override;
+              PacketReadyCallback callback) const override;
 
  private:
   static const size_t kRrBaseLength = 4;

@@ -17,9 +17,11 @@
 #include <GL/gl.h>
 #endif
 
-#include "test/video_renderer.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include <stddef.h>
+#include <stdint.h>
 
+#include "api/video/video_frame.h"
+#include "test/video_renderer.h"
 
 namespace webrtc {
 namespace test {
@@ -44,7 +46,7 @@ class GlRenderer : public VideoRenderer {
 
   void ResizeVideo(size_t width, size_t height);
 };
-}  // test
-}  // webrtc
+}  // namespace test
+}  // namespace webrtc
 
 #endif  // TEST_GL_GL_RENDERER_H_

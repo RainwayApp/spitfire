@@ -11,20 +11,23 @@
 #ifndef LOGGING_RTC_EVENT_LOG_RTC_STREAM_CONFIG_H_
 #define LOGGING_RTC_EVENT_LOG_RTC_STREAM_CONFIG_H_
 
+#include <stdint.h>
 #include <string>
 #include <vector>
 
-#include "api/rtpparameters.h"
-#include "common_types.h"  // NOLINT(build/include)
+#include "api/rtp_headers.h"
+#include "api/rtp_parameters.h"
 
 namespace webrtc {
 namespace rtclog {
 
 struct StreamConfig {
   StreamConfig();
+  StreamConfig(const StreamConfig& other);
   ~StreamConfig();
 
   bool operator==(const StreamConfig& other) const;
+  bool operator!=(const StreamConfig& other) const;
 
   uint32_t local_ssrc = 0;
   uint32_t remote_ssrc = 0;

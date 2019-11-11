@@ -140,7 +140,7 @@ class flat_tree {
             const key_compare& comp = key_compare());
 
   flat_tree(const flat_tree&);
-  flat_tree(flat_tree&&);
+  flat_tree(flat_tree&&) noexcept = default;
 
   flat_tree(std::vector<value_type> items,
             FlatContainerDupes dupe_handling = KEEP_FIRST_OF_DUPES,
@@ -273,6 +273,9 @@ class flat_tree {
   const_iterator find(const K& key) const;
 
   template <typename K>
+  bool contains(const K& key) const;
+
+  template <typename K>
   std::pair<iterator, iterator> equal_range(const K& key);
 
   template <typename K>
@@ -301,7 +304,7 @@ class flat_tree {
   // and lexicograhpical_compare(). If the underlying container type is changed,
   // this code may need to be modified.
 
-  void swap(flat_tree& other);
+  void swap(flat_tree& other) noexcept;
 
   friend bool operator==(const flat_tree& lhs, const flat_tree& rhs) {
     return lhs.impl_.body_ == rhs.impl_.body_;
@@ -327,7 +330,7 @@ class flat_tree {
     return !(lhs > rhs);
   }
 
-  friend void swap(flat_tree& lhs, flat_tree& rhs) { lhs.swap(rhs); }
+  friend void swap(flat_tree& lhs, flat_tree& rhs) noexcept { lhs.swap(rhs); }
 
  protected:
   // Emplaces a new item into the tree that is known not to be in it. This
@@ -518,10 +521,6 @@ flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::flat_tree(
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::flat_tree(
     const flat_tree&) = default;
-
-template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
-flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::flat_tree(flat_tree&&) =
-    default;
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::flat_tree(
@@ -805,8 +804,7 @@ auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(
     const_iterator position) -> iterator {
-  // We have to cast away const because of crbug.com/677044.
-  return erase(const_cast_it(position));
+  return impl_.body_.erase(position);
 }
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
@@ -815,8 +813,7 @@ auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(const K& val)
     -> size_type {
   auto eq_range = equal_range(val);
   auto res = std::distance(eq_range.first, eq_range.second);
-  // We have to cast away const because of crbug.com/677044.
-  erase(const_cast_it(eq_range.first), const_cast_it(eq_range.second));
+  erase(eq_range.first, eq_range.second);
   return res;
 }
 
@@ -824,8 +821,7 @@ template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(
     const_iterator first,
     const_iterator last) -> iterator {
-  // We have to cast away const because of crbug.com/677044.
-  return impl_.body_.erase(const_cast_it(first), const_cast_it(last));
+  return impl_.body_.erase(first, last);
 }
 
 // ----------------------------------------------------------------------------
@@ -867,6 +863,14 @@ auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::find(
     const K& key) const -> const_iterator {
   auto eq_range = equal_range(key);
   return (eq_range.first == eq_range.second) ? end() : eq_range.first;
+}
+
+template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
+template <typename K>
+bool flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::contains(
+    const K& key) const {
+  auto lower = lower_bound(key);
+  return lower != end() && !key_comp()(key, GetKeyFromValue()(*lower));
 }
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
@@ -937,7 +941,7 @@ auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::upper_bound(
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 void flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::swap(
-    flat_tree& other) {
+    flat_tree& other) noexcept {
   std::swap(impl_, other.impl_);
 }
 

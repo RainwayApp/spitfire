@@ -14,16 +14,19 @@
 #include <memory>
 #include <vector>
 
-#include "common_types.h"  // NOLINT(build/include)
-#include "modules/congestion_controller/delay_based_bwe.h"
+#include "api/transport/field_trial_based_config.h"
+#include "api/transport/webrtc_key_value_config.h"
+#include "modules/congestion_controller/goog_cc/delay_based_bwe.h"
+#include "modules/congestion_controller/include/network_changed_observer.h"
+#include "modules/congestion_controller/include/send_side_congestion_controller_interface.h"
 #include "modules/congestion_controller/transport_feedback_adapter.h"
 #include "modules/include/module.h"
 #include "modules/include/module_common_types.h"
 #include "modules/pacing/paced_sender.h"
-#include "modules/pacing/packet_router.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/networkroute.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/deprecation.h"
+#include "rtc_base/network_route.h"
 #include "rtc_base/race_checker.h"
 
 namespace rtc {
@@ -38,67 +41,63 @@ class AcknowledgedBitrateEstimator;
 class ProbeController;
 class RateLimiter;
 class RtcEventLog;
+class CongestionWindowPushbackController;
 
-class SendSideCongestionController : public CallStatsObserver,
-                                     public Module,
-                                     public TransportFeedbackObserver {
+// Deprecated, for somewhat similar functionality GoogCcNetworkController can be
+// used via GoogCcNetworkControllerFactory.
+class DEPRECATED_SendSideCongestionController
+    : public SendSideCongestionControllerInterface {
  public:
-  // Observer class for bitrate changes announced due to change in bandwidth
-  // estimate or due to that the send pacer is full. Fraction loss and rtt is
-  // also part of this callback to allow the observer to optimize its settings
-  // for different types of network environments. The bitrate does not include
-  // packet headers and is measured in bits per second.
-  class Observer {
-   public:
-    virtual void OnNetworkChanged(uint32_t bitrate_bps,
-                                  uint8_t fraction_loss,  // 0 - 255.
-                                  int64_t rtt_ms,
-                                  int64_t probing_interval_ms) = 0;
+  using Observer = NetworkChangedObserver;
+  DEPRECATED_SendSideCongestionController(
+      Clock* clock,
+      Observer* observer,
+      RtcEventLog* event_log,
+      PacedSender* pacer,
+      const WebRtcKeyValueConfig* key_value_config = nullptr);
+  ~DEPRECATED_SendSideCongestionController() override;
 
-   protected:
-    virtual ~Observer() {}
-  };
-  // TODO(holmer): Delete after fixing upstream projects.
-  RTC_DEPRECATED SendSideCongestionController(const Clock* clock,
-                                              Observer* observer,
-                                              RtcEventLog* event_log,
-                                              PacketRouter* packet_router);
-  // TODO(nisse): Consider deleting the |observer| argument to constructors
-  // once CongestionController is deleted.
-  SendSideCongestionController(const Clock* clock,
-                               Observer* observer,
-                               RtcEventLog* event_log,
-                               PacedSender* pacer);
-  ~SendSideCongestionController() override;
-
-  void RegisterPacketFeedbackObserver(PacketFeedbackObserver* observer);
-  void DeRegisterPacketFeedbackObserver(PacketFeedbackObserver* observer);
+  void RegisterPacketFeedbackObserver(
+      PacketFeedbackObserver* observer) override;
+  void DeRegisterPacketFeedbackObserver(
+      PacketFeedbackObserver* observer) override;
 
   // Currently, there can be at most one observer.
-  void RegisterNetworkObserver(Observer* observer);
-  void DeRegisterNetworkObserver(Observer* observer);
+  // TODO(nisse): The RegisterNetworkObserver method is needed because we first
+  // construct this object (as part of RtpTransportControllerSend), then pass a
+  // reference to Call, which then registers itself as the observer. We should
+  // try to break this circular chain of references, and make the observer a
+  // construction time constant.
+  void RegisterNetworkObserver(Observer* observer) override;
+  virtual void DeRegisterNetworkObserver(Observer* observer);
 
-  virtual void SetBweBitrates(int min_bitrate_bps,
-                              int start_bitrate_bps,
-                              int max_bitrate_bps);
+  void SetBweBitrates(int min_bitrate_bps,
+                      int start_bitrate_bps,
+                      int max_bitrate_bps) override;
+
+  void SetAllocatedSendBitrateLimits(int64_t min_send_bitrate_bps,
+                                     int64_t max_padding_bitrate_bps,
+                                     int64_t max_total_bitrate_bps) override;
+
   // Resets the BWE state. Note the first argument is the bitrate_bps.
-  virtual void OnNetworkRouteChanged(const rtc::NetworkRoute& network_route,
-                                     int bitrate_bps,
-                                     int min_bitrate_bps,
-                                     int max_bitrate_bps);
-  virtual void SignalNetworkState(NetworkState state);
-  virtual void SetTransportOverhead(size_t transport_overhead_bytes_per_packet);
+  void OnNetworkRouteChanged(const rtc::NetworkRoute& network_route,
+                             int bitrate_bps,
+                             int min_bitrate_bps,
+                             int max_bitrate_bps) override;
+  void SignalNetworkState(NetworkState state) override;
 
-  virtual BitrateController* GetBitrateController() const;
+  RtcpBandwidthObserver* GetBandwidthObserver() override;
+
+  bool AvailableBandwidth(uint32_t* bandwidth) const override;
   virtual int64_t GetPacerQueuingDelayMs() const;
   virtual int64_t GetFirstPacketTimeMs() const;
 
-  virtual TransportFeedbackObserver* GetTransportFeedbackObserver();
+  TransportFeedbackObserver* GetTransportFeedbackObserver() override;
 
-  RateLimiter* GetRetransmissionRateLimiter();
-  void EnablePeriodicAlrProbing(bool enable);
+  void SetPerPacketFeedbackAvailable(bool available) override;
+  void EnablePeriodicAlrProbing(bool enable) override;
 
-  virtual void OnSentPacket(const rtc::SentPacket& sent_packet);
+  void OnSentPacket(const rtc::SentPacket& sent_packet) override;
 
   // Implements CallStatsObserver.
   void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms) override;
@@ -108,12 +107,21 @@ class SendSideCongestionController : public CallStatsObserver,
   void Process() override;
 
   // Implements TransportFeedbackObserver.
-  void AddPacket(uint32_t ssrc,
-                 uint16_t sequence_number,
-                 size_t length,
-                 const PacedPacketInfo& pacing_info) override;
+  void OnAddPacket(const RtpPacketSendInfo& packet_info) override;
   void OnTransportFeedback(const rtcp::TransportFeedback& feedback) override;
-  std::vector<PacketFeedback> GetTransportFeedbackVector() const override;
+
+  std::vector<PacketFeedback> GetTransportFeedbackVector() const;
+
+  void SetPacingFactor(float pacing_factor) override;
+
+  void SetAllocatedBitrateWithoutFeedback(uint32_t bitrate_bps) override;
+
+  void EnableCongestionWindowPushback(int64_t accepted_queue_ms,
+                                      uint32_t min_pushback_target_bitrate_bps);
+
+  void SetAlrLimitedBackoffExperiment(bool enable);
+
+  void SetMaxProbingBitrate(int64_t max_probing_bitrate_bps);
 
  private:
   void MaybeTriggerOnNetworkChanged();
@@ -124,17 +132,23 @@ class SendSideCongestionController : public CallStatsObserver,
                                            uint8_t fraction_loss,
                                            int64_t rtt);
   void LimitOutstandingBytes(size_t num_outstanding_bytes);
-  const Clock* const clock_;
+  void SendProbes(std::vector<ProbeClusterConfig> probe_configs)
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(&probe_lock_);
+  const FieldTrialBasedConfig field_trial_config_;
+  const WebRtcKeyValueConfig* const key_value_config_;
+  Clock* const clock_;
   rtc::CriticalSection observer_lock_;
   Observer* observer_ RTC_GUARDED_BY(observer_lock_);
   RtcEventLog* const event_log_;
-  std::unique_ptr<PacedSender> owned_pacer_;
-  PacedSender* pacer_;
+  PacedSender* const pacer_;
   const std::unique_ptr<BitrateController> bitrate_controller_;
   std::unique_ptr<AcknowledgedBitrateEstimator> acknowledged_bitrate_estimator_;
-  const std::unique_ptr<ProbeController> probe_controller_;
+  rtc::CriticalSection probe_lock_;
+  const std::unique_ptr<ProbeController> probe_controller_
+      RTC_GUARDED_BY(probe_lock_);
+
   const std::unique_ptr<RateLimiter> retransmission_rate_limiter_;
-  TransportFeedbackAdapter transport_feedback_adapter_;
+  LegacyTransportFeedbackAdapter transport_feedback_adapter_;
   rtc::CriticalSection network_state_lock_;
   uint32_t last_reported_bitrate_bps_ RTC_GUARDED_BY(network_state_lock_);
   uint8_t last_reported_fraction_loss_ RTC_GUARDED_BY(network_state_lock_);
@@ -147,17 +161,26 @@ class SendSideCongestionController : public CallStatsObserver,
   bool pacer_paused_;
   rtc::CriticalSection bwe_lock_;
   int min_bitrate_bps_ RTC_GUARDED_BY(bwe_lock_);
+  std::unique_ptr<ProbeBitrateEstimator> probe_bitrate_estimator_
+      RTC_GUARDED_BY(bwe_lock_);
   std::unique_ptr<DelayBasedBwe> delay_based_bwe_ RTC_GUARDED_BY(bwe_lock_);
-  bool in_cwnd_experiment_;
-  int64_t accepted_queue_ms_;
+  absl::optional<int64_t> cwnd_experiment_parameter_;
   bool was_in_alr_;
+  const bool send_side_bwe_with_overhead_;
+  size_t transport_overhead_bytes_per_packet_ RTC_GUARDED_BY(bwe_lock_);
 
   rtc::RaceChecker worker_race_;
 
-  bool pacer_pushback_experiment_ = false;
-  float encoding_rate_ = 1.0;
+  std::unique_ptr<CongestionWindowPushbackController>
+      congestion_window_pushback_controller_;
 
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(SendSideCongestionController);
+  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(DEPRECATED_SendSideCongestionController);
+};
+class RTC_DEPRECATED SendSideCongestionController
+    : public DEPRECATED_SendSideCongestionController {
+ public:
+  using DEPRECATED_SendSideCongestionController::
+      DEPRECATED_SendSideCongestionController;
 };
 
 }  // namespace webrtc

@@ -12,17 +12,18 @@
 
 #include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "api/test/simulated_network.h"
+#include "call/simulated_packet_receiver.h"
+#include "call/video_send_stream.h"
 #include "modules/rtp_rtcp/include/rtp_header_parser.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/event.h"
 #include "system_wrappers/include/field_trial.h"
-#include "test/constants.h"
 #include "test/direct_transport.h"
 #include "test/gtest.h"
-#include "typedefs.h"  // NOLINT(build/include)
-#include "call/video_send_stream.h"
 
 namespace {
 const int kShortTimeoutMs = 500;
@@ -70,16 +71,7 @@ class RtpRtcpObserver {
  protected:
   RtpRtcpObserver() : RtpRtcpObserver(0) {}
   explicit RtpRtcpObserver(int event_timeout_ms)
-      : observation_complete_(false, false),
-        parser_(RtpHeaderParser::Create()),
-        timeout_ms_(event_timeout_ms) {
-    parser_->RegisterRtpHeaderExtension(kRtpExtensionTransmissionTimeOffset,
-                                        kTOffsetExtensionId);
-    parser_->RegisterRtpHeaderExtension(kRtpExtensionAbsoluteSendTime,
-                                        kAbsSendTimeExtensionId);
-    parser_->RegisterRtpHeaderExtension(kRtpExtensionTransportSequenceNumber,
-                                        kTransportSequenceNumberExtensionId);
-  }
+      : parser_(RtpHeaderParser::Create()), timeout_ms_(event_timeout_ms) {}
 
   rtc::Event observation_complete_;
   const std::unique_ptr<RtpHeaderParser> parser_;
@@ -97,9 +89,9 @@ class PacketTransport : public test::DirectTransport {
                   RtpRtcpObserver* observer,
                   TransportType transport_type,
                   const std::map<uint8_t, MediaType>& payload_type_map,
-                  const FakeNetworkPipe::Config& configuration)
+                  std::unique_ptr<SimulatedPacketReceiverInterface> nw_pipe)
       : test::DirectTransport(task_queue,
-                              configuration,
+                              std::move(nw_pipe),
                               send_call,
                               payload_type_map),
         observer_(observer),

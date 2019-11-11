@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VP9_ENCODER_DENOISER_H_
-#define VP9_ENCODER_DENOISER_H_
+#ifndef VPX_VP9_ENCODER_VP9_DENOISER_H_
+#define VPX_VP9_ENCODER_VP9_DENOISER_H_
 
 #include "vp9/encoder/vp9_block.h"
 #include "vp9/encoder/vp9_skin_detection.h"
@@ -44,11 +44,13 @@ typedef enum vp9_denoiser_level {
 
 typedef struct vp9_denoiser {
   YV12_BUFFER_CONFIG *running_avg_y;
-  YV12_BUFFER_CONFIG mc_running_avg_y;
+  YV12_BUFFER_CONFIG *mc_running_avg_y;
   YV12_BUFFER_CONFIG last_source;
   int frame_buffer_initialized;
   int reset;
   int num_ref_frames;
+  int num_layers;
+  unsigned int current_denoiser_frame;
   VP9_DENOISER_LEVEL denoising_level;
   VP9_DENOISER_LEVEL prev_denoising_level;
 } VP9_DENOISER;
@@ -66,16 +68,18 @@ typedef struct {
 } VP9_PICKMODE_CTX_DEN;
 
 struct VP9_COMP;
+struct SVC;
 
 void vp9_denoiser_update_frame_info(
-    VP9_DENOISER *denoiser, YV12_BUFFER_CONFIG src, FRAME_TYPE frame_type,
-    int refresh_alt_ref_frame, int refresh_golden_frame, int refresh_last_frame,
-    int alt_fb_idx, int gld_fb_idx, int lst_fb_idx, int resized,
-    int svc_base_is_key);
+    VP9_DENOISER *denoiser, YV12_BUFFER_CONFIG src, struct SVC *svc,
+    FRAME_TYPE frame_type, int refresh_alt_ref_frame, int refresh_golden_frame,
+    int refresh_last_frame, int alt_fb_idx, int gld_fb_idx, int lst_fb_idx,
+    int resized, int svc_refresh_denoiser_buffers, int second_spatial_layer);
 
 void vp9_denoiser_denoise(struct VP9_COMP *cpi, MACROBLOCK *mb, int mi_row,
                           int mi_col, BLOCK_SIZE bs, PICK_MODE_CONTEXT *ctx,
-                          VP9_DENOISER_DECISION *denoiser_decision);
+                          VP9_DENOISER_DECISION *denoiser_decision,
+                          int use_gf_temporal_ref);
 
 void vp9_denoiser_reset_frame_stats(PICK_MODE_CONTEXT *ctx);
 
@@ -84,11 +88,13 @@ void vp9_denoiser_update_frame_stats(MODE_INFO *mi, unsigned int sse,
                                      PICK_MODE_CONTEXT *ctx);
 
 int vp9_denoiser_realloc_svc(VP9_COMMON *cm, VP9_DENOISER *denoiser,
+                             struct SVC *svc, int svc_buf_shift,
                              int refresh_alt, int refresh_gld, int refresh_lst,
                              int alt_fb_idx, int gld_fb_idx, int lst_fb_idx);
 
-int vp9_denoiser_alloc(VP9_COMMON *cm, int use_svc, VP9_DENOISER *denoiser,
-                       int width, int height, int ssx, int ssy,
+int vp9_denoiser_alloc(VP9_COMMON *cm, struct SVC *svc, VP9_DENOISER *denoiser,
+                       int use_svc, int noise_sen, int width, int height,
+                       int ssx, int ssy,
 #if CONFIG_VP9_HIGHBITDEPTH
                        int use_highbitdepth,
 #endif
@@ -106,7 +112,9 @@ static INLINE int total_adj_strong_thresh(BLOCK_SIZE bs,
 
 void vp9_denoiser_free(VP9_DENOISER *denoiser);
 
-void vp9_denoiser_set_noise_level(VP9_DENOISER *denoiser, int noise_level);
+void vp9_denoiser_set_noise_level(struct VP9_COMP *const cpi, int noise_level);
+
+void vp9_denoiser_reset_on_first_frame(struct VP9_COMP *const cpi);
 
 int64_t vp9_scale_part_thresh(int64_t threshold, VP9_DENOISER_LEVEL noise_level,
                               int content_state, int temporal_layer_id);
@@ -115,8 +123,10 @@ int64_t vp9_scale_acskip_thresh(int64_t threshold,
                                 VP9_DENOISER_LEVEL noise_level, int abs_sumdiff,
                                 int temporal_layer_id);
 
+void vp9_denoiser_update_ref_frame(struct VP9_COMP *const cpi);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // VP9_ENCODER_DENOISER_H_
+#endif  // VPX_VP9_ENCODER_VP9_DENOISER_H_

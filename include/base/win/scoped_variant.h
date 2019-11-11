@@ -42,6 +42,7 @@ class BASE_EXPORT ScopedVariant {
 
   // Creates a new integral type variant and assigns the value to
   // VARIANT.lVal (32 bit sized field).
+  // NOTE: VT_BOOL constructs here as VARIANT.boolVal.
   explicit ScopedVariant(int value, VARTYPE vt = VT_I4);
 
   // Creates a new double-precision type variant.  |vt| must be either VT_R8
@@ -125,8 +126,9 @@ class BASE_EXPORT ScopedVariant {
   // over that.
   const VARIANT* ptr() const { return &var_; }
 
-  // Like other scoped classes (e.g scoped_refptr, ScopedComPtr, ScopedBstr)
-  // we support the assignment operator for the type we wrap.
+  // Like other scoped classes (e.g. scoped_refptr, ScopedBstr,
+  // Microsoft::WRL::ComPtr) we support the assignment operator for the type we
+  // wrap.
   ScopedVariant& operator=(const VARIANT& var);
 
   // A hack to pass a pointer to the variant where the accepting

@@ -11,11 +11,12 @@
 #ifndef COMMON_AUDIO_RESAMPLER_PUSH_SINC_RESAMPLER_H_
 #define COMMON_AUDIO_RESAMPLER_PUSH_SINC_RESAMPLER_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 
 #include "common_audio/resampler/sinc_resampler.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -36,8 +37,10 @@ class PushSincResampler : public SincResamplerCallback {
   // at least as large as |destination_frames|. Returns the number of samples
   // provided in destination (for convenience, since this will always be equal
   // to |destination_frames|).
-  size_t Resample(const int16_t* source, size_t source_frames,
-                  int16_t* destination, size_t destination_capacity);
+  size_t Resample(const int16_t* source,
+                  size_t source_frames,
+                  int16_t* destination,
+                  size_t destination_capacity);
   size_t Resample(const float* source,
                   size_t source_frames,
                   float* destination,

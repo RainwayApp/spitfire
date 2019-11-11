@@ -18,7 +18,7 @@
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/timestamp_map.h"
 #include "modules/video_coding/timing.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/thread_checker.h"
 
 namespace webrtc {
@@ -34,6 +34,8 @@ struct VCMFrameInformation {
   VideoRotation rotation;
   VideoContentType content_type;
   EncodedImage::Timing timing;
+  int64_t ntp_time_ms;
+  // ColorSpace is not storred here, as it might be modified by decoders.
 };
 
 class VCMDecodedFrameCallback : public DecodedImageCallback {
@@ -46,12 +48,9 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   int32_t Decoded(VideoFrame& decodedImage) override;
   int32_t Decoded(VideoFrame& decodedImage, int64_t decode_time_ms) override;
   void Decoded(VideoFrame& decodedImage,
-               rtc::Optional<int32_t> decode_time_ms,
-               rtc::Optional<uint8_t> qp) override;
-  int32_t ReceivedDecodedReferenceFrame(const uint64_t pictureId) override;
-  int32_t ReceivedDecodedFrame(const uint64_t pictureId) override;
+               absl::optional<int32_t> decode_time_ms,
+               absl::optional<uint8_t> qp) override;
 
-  uint64_t LastReceivedPictureID() const;
   void OnDecoderImplementationName(const char* implementation_name);
 
   void Map(uint32_t timestamp, VCMFrameInformation* frameInfo);
@@ -70,33 +69,32 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   VCMTiming* _timing;
   rtc::CriticalSection lock_;
   VCMTimestampMap _timestampMap RTC_GUARDED_BY(lock_);
-  uint64_t _lastReceivedPictureID;
   int64_t ntp_offset_;
 };
 
 class VCMGenericDecoder {
  public:
+  explicit VCMGenericDecoder(std::unique_ptr<VideoDecoder> decoder);
   explicit VCMGenericDecoder(VideoDecoder* decoder, bool isExternal = false);
   ~VCMGenericDecoder();
 
   /**
-  * Initialize the decoder with the information from the VideoCodec
-  */
+   * Initialize the decoder with the information from the VideoCodec
+   */
   int32_t InitDecode(const VideoCodec* settings, int32_t numberOfCores);
 
   /**
-  * Decode to a raw I420 frame,
-  *
-  * inputVideoBuffer reference to encoded video frame
-  */
+   * Decode to a raw I420 frame,
+   *
+   * inputVideoBuffer reference to encoded video frame
+   */
   int32_t Decode(const VCMEncodedFrame& inputFrame, int64_t nowMs);
 
   /**
-  * Set decode callback. Deregistering while decoding is illegal.
-  */
+   * Set decode callback. Deregistering while decoding is illegal.
+   */
   int32_t RegisterDecodeCompleteCallback(VCMDecodedFrameCallback* callback);
 
-  bool External() const;
   bool PrefersLateDecoding() const;
   bool IsSameDecoder(VideoDecoder* decoder) const {
     return decoder_.get() == decoder;

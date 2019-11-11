@@ -11,8 +11,8 @@
 #ifndef MODULES_AUDIO_CODING_ACM2_CALL_STATISTICS_H_
 #define MODULES_AUDIO_CODING_ACM2_CALL_STATISTICS_H_
 
-#include "common_types.h"  // NOLINT(build/include)
-#include "modules/include/module_common_types.h"
+#include "api/audio/audio_frame.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 
 //
 // This class is for book keeping of calls to ACM. It is not useful to log API

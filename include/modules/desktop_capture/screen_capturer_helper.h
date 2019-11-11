@@ -15,8 +15,8 @@
 
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/desktop_region.h"
-#include "rtc_base/constructormagic.h"
-#include "system_wrappers/include/rw_lock_wrapper.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/synchronization/rw_lock_wrapper.h"
 
 namespace webrtc {
 

@@ -17,16 +17,15 @@
 #include <string>
 
 #include "modules/audio_device/audio_device_generic.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/timeutils.h"
-#include "system_wrappers/include/file_wrapper.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/system/file_wrapper.h"
+#include "rtc_base/time_utils.h"
 
 namespace rtc {
 class PlatformThread;
 }  // namespace rtc
 
 namespace webrtc {
-class EventWrapper;
 
 // This is a fake audio device which plays audio from a file as its microphone
 // and plays out into a file.
@@ -38,9 +37,7 @@ class FileAudioDevice : public AudioDeviceGeneric {
   // The input file should be a readable 48k stereo raw file, and the output
   // file should point to a writable location. The output format will also be
   // 48k stereo raw audio.
-  FileAudioDevice(const int32_t id,
-                  const char* inputFilename,
-                  const char* outputFilename);
+  FileAudioDevice(const char* inputFilename, const char* outputFilename);
   virtual ~FileAudioDevice();
 
   // Retrieve the currently utilized audio layer
@@ -86,10 +83,6 @@ class FileAudioDevice : public AudioDeviceGeneric {
   int32_t StopRecording() override;
   bool Recording() const override;
 
-  // Microphone Automatic Gain Control (AGC)
-  int32_t SetAGC(bool enable) override;
-  bool AGC() const override;
-
   // Audio mixer initialization
   int32_t InitSpeaker() override;
   bool SpeakerIsInitialized() const override;
@@ -130,13 +123,12 @@ class FileAudioDevice : public AudioDeviceGeneric {
 
   // Delay information and control
   int32_t PlayoutDelay(uint16_t& delayMS) const override;
-  int32_t RecordingDelay(uint16_t& delayMS) const override;
 
   void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) override;
 
  private:
-  static bool RecThreadFunc(void*);
-  static bool PlayThreadFunc(void*);
+  static void RecThreadFunc(void*);
+  static void PlayThreadFunc(void*);
   bool RecThreadProcess();
   bool PlayThreadProcess();
 
@@ -144,7 +136,7 @@ class FileAudioDevice : public AudioDeviceGeneric {
   int32_t _record_index;
   AudioDeviceBuffer* _ptrAudioBuffer;
   int8_t* _recordingBuffer;  // In bytes.
-  int8_t* _playoutBuffer;  // In bytes.
+  int8_t* _playoutBuffer;    // In bytes.
   uint32_t _recordingFramesLeft;
   uint32_t _playoutFramesLeft;
   rtc::CriticalSection _critSect;
@@ -162,8 +154,8 @@ class FileAudioDevice : public AudioDeviceGeneric {
   int64_t _lastCallPlayoutMillis;
   int64_t _lastCallRecordMillis;
 
-  FileWrapper& _outputFile;
-  FileWrapper& _inputFile;
+  FileWrapper _outputFile;
+  FileWrapper _inputFile;
   std::string _outputFilename;
   std::string _inputFilename;
 };

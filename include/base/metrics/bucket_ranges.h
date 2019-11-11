@@ -96,10 +96,6 @@ class BASE_EXPORT BucketRanges {
   DISALLOW_COPY_AND_ASSIGN(BucketRanges);
 };
 
-//////////////////////////////////////////////////////////////////////////////
-// Expose only for test.
-BASE_EXPORT extern const uint32_t kCrcTable[256];
-
 }  // namespace base
 
 #endif  // BASE_METRICS_BUCKET_RANGES_H_

@@ -11,10 +11,8 @@
 #ifndef RTC_BASE_WIN32_H_
 #define RTC_BASE_WIN32_H_
 
-#if defined(WEBRTC_WIN)
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+#ifndef WEBRTC_WIN
+#error "Only #include this header in Windows builds"
 #endif
 
 // Make sure we don't get min/max macros
@@ -22,15 +20,20 @@
 #define NOMINMAX
 #endif
 
-#include <winsock2.h>
+// clang-format off
+// clang formating would change include order.
+#include <winsock2.h> // must come first
 #include <windows.h>
+// clang-format on
+
+typedef int socklen_t;
 
 #ifndef SECURITY_MANDATORY_LABEL_AUTHORITY
 // Add defines that we use if we are compiling against older sdks
-#define SECURITY_MANDATORY_MEDIUM_RID               (0x00002000L)
+#define SECURITY_MANDATORY_MEDIUM_RID (0x00002000L)
 #define TokenIntegrityLevel static_cast<TOKEN_INFORMATION_CLASS>(0x19)
 typedef struct _TOKEN_MANDATORY_LABEL {
-    SID_AND_ATTRIBUTES Label;
+  SID_AND_ATTRIBUTES Label;
 } TOKEN_MANDATORY_LABEL, *PTOKEN_MANDATORY_LABEL;
 #endif  // SECURITY_MANDATORY_LABEL_AUTHORITY
 
@@ -38,62 +41,18 @@ typedef struct _TOKEN_MANDATORY_LABEL {
 
 #include <string>
 
-#include "rtc_base/basictypes.h"
-#include "rtc_base/stringutils.h"
-
 namespace rtc {
 
-const char* win32_inet_ntop(int af, const void *src, char* dst, socklen_t size);
-int win32_inet_pton(int af, const char* src, void *dst);
-
-inline std::wstring ToUtf16(const char* utf8, size_t len) {
-  int len16 = ::MultiByteToWideChar(CP_UTF8, 0, utf8, static_cast<int>(len),
-                                    nullptr, 0);
-  wchar_t* ws = STACK_ARRAY(wchar_t, len16);
-  ::MultiByteToWideChar(CP_UTF8, 0, utf8, static_cast<int>(len), ws, len16);
-  return std::wstring(ws, len16);
-}
-
-inline std::wstring ToUtf16(const std::string& str) {
-  return ToUtf16(str.data(), str.length());
-}
-
-inline std::string ToUtf8(const wchar_t* wide, size_t len) {
-  int len8 = ::WideCharToMultiByte(CP_UTF8, 0, wide, static_cast<int>(len),
-                                   nullptr, 0, nullptr, nullptr);
-  char* ns = STACK_ARRAY(char, len8);
-  ::WideCharToMultiByte(CP_UTF8, 0, wide, static_cast<int>(len), ns, len8,
-                        nullptr, nullptr);
-  return std::string(ns, len8);
-}
-
-inline std::string ToUtf8(const wchar_t* wide) {
-  return ToUtf8(wide, wcslen(wide));
-}
-
-inline std::string ToUtf8(const std::wstring& wstr) {
-  return ToUtf8(wstr.data(), wstr.length());
-}
-
-// Convert FILETIME to time_t
-void FileTimeToUnixTime(const FILETIME& ft, time_t* ut);
-
-// Convert time_t to FILETIME
-void UnixTimeToFileTime(const time_t& ut, FILETIME * ft);
-
-// Convert a Utf8 path representation to a non-length-limited Unicode pathname.
-bool Utf8ToWindowsFilename(const std::string& utf8, std::wstring* filename);
-
-// Convert a FILETIME to a UInt64
-inline uint64_t ToUInt64(const FILETIME& ft) {
-  ULARGE_INTEGER r = {{ft.dwLowDateTime, ft.dwHighDateTime}};
-  return r.QuadPart;
-}
+const char* win32_inet_ntop(int af, const void* src, char* dst, socklen_t size);
+int win32_inet_pton(int af, const char* src, void* dst);
 
 enum WindowsMajorVersions {
   kWindows2000 = 5,
   kWindowsVista = 6,
+  kWindows10 = 10,
 };
+
+#if !defined(WINUWP)
 bool GetOsVersion(int* major, int* minor, int* build);
 
 inline bool IsWindowsVistaOrLater() {
@@ -113,16 +72,33 @@ inline bool IsWindows8OrLater() {
           (major > kWindowsVista || (major == kWindowsVista && minor >= 2)));
 }
 
-// Determine the current integrity level of the process.
-bool GetCurrentProcessIntegrityLevel(int* level);
-
-inline bool IsCurrentProcessLowIntegrity() {
-  int level;
-  return (GetCurrentProcessIntegrityLevel(&level) &&
-      level < SECURITY_MANDATORY_MEDIUM_RID);
+inline bool IsWindows10OrLater() {
+  int major;
+  return (GetOsVersion(&major, nullptr, nullptr) && (major >= kWindows10));
 }
+
+#else
+
+// When targetting WinUWP the OS must be Windows 10 (or greater) as lesser
+// Windows OS targets are not supported.
+inline bool IsWindowsVistaOrLater() {
+  return true;
+}
+
+inline bool IsWindowsXpOrLater() {
+  return true;
+}
+
+inline bool IsWindows8OrLater() {
+  return true;
+}
+
+inline bool IsWindows10OrLater() {
+  return true;
+}
+
+#endif  // !defined(WINUWP)
 
 }  // namespace rtc
 
-#endif  // WEBRTC_WIN
 #endif  // RTC_BASE_WIN32_H_

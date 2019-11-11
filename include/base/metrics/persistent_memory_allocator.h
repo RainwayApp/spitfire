@@ -16,13 +16,13 @@
 #include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
+#include "base/memory/shared_memory_mapping.h"
 #include "base/strings/string_piece.h"
 
 namespace base {
 
 class HistogramBase;
 class MemoryMappedFile;
-class SharedMemory;
 
 // Simple allocator for pieces of a memory block that may be persistent
 // to some storage or shared across multiple processes. This class resides
@@ -328,7 +328,8 @@ class BASE_EXPORT PersistentMemoryAllocator {
   // The |sync| parameter indicates if this call should block until the flush
   // is complete but is only advisory and may or may not have an effect
   // depending on the capabilities of the OS. Synchronous flushes are allowed
-  // only from theads that are allowed to do I/O.
+  // only from theads that are allowed to do I/O but since |sync| is only
+  // advisory, all flushes should be done on IO-capable threads.
   void Flush(bool sync);
 
   // Direct access to underlying memory segment. If the segment is shared
@@ -626,6 +627,7 @@ class BASE_EXPORT PersistentMemoryAllocator {
   const MemoryType mem_type_;      // Type of memory allocation.
   const uint32_t mem_size_;        // Size of entire memory segment.
   const uint32_t mem_page_;        // Page size allocations shouldn't cross.
+  const size_t vm_page_size_;      // The page size used by the OS.
 
  private:
   struct SharedMetadata;
@@ -708,32 +710,53 @@ class BASE_EXPORT LocalPersistentMemoryAllocator
 };
 
 
-// This allocator takes a shared-memory object and performs allocation from
-// it. The memory must be previously mapped via Map() or MapAt(). The allocator
-// takes ownership of the memory object.
-class BASE_EXPORT SharedPersistentMemoryAllocator
+// This allocator takes a writable shared memory mapping object and performs
+// allocation from it. The allocator takes ownership of the mapping object.
+class BASE_EXPORT WritableSharedPersistentMemoryAllocator
     : public PersistentMemoryAllocator {
  public:
-  SharedPersistentMemoryAllocator(std::unique_ptr<SharedMemory> memory,
-                                  uint64_t id,
-                                  base::StringPiece name,
-                                  bool read_only);
-  ~SharedPersistentMemoryAllocator() override;
-
-  SharedMemory* shared_memory() { return shared_memory_.get(); }
+  WritableSharedPersistentMemoryAllocator(
+      base::WritableSharedMemoryMapping memory,
+      uint64_t id,
+      base::StringPiece name);
+  ~WritableSharedPersistentMemoryAllocator() override;
 
   // Ensure that the memory isn't so invalid that it would crash when passing it
   // to the allocator. This doesn't guarantee the data is valid, just that it
   // won't cause the program to abort. The existing IsCorrupt() call will handle
   // the rest.
-  static bool IsSharedMemoryAcceptable(const SharedMemory& memory);
+  static bool IsSharedMemoryAcceptable(
+      const base::WritableSharedMemoryMapping& memory);
 
  private:
-  std::unique_ptr<SharedMemory> shared_memory_;
+  base::WritableSharedMemoryMapping shared_memory_;
 
-  DISALLOW_COPY_AND_ASSIGN(SharedPersistentMemoryAllocator);
+  DISALLOW_COPY_AND_ASSIGN(WritableSharedPersistentMemoryAllocator);
 };
 
+// This allocator takes a read-only shared memory mapping object and performs
+// allocation from it. The allocator takes ownership of the mapping object.
+class BASE_EXPORT ReadOnlySharedPersistentMemoryAllocator
+    : public PersistentMemoryAllocator {
+ public:
+  ReadOnlySharedPersistentMemoryAllocator(
+      base::ReadOnlySharedMemoryMapping memory,
+      uint64_t id,
+      base::StringPiece name);
+  ~ReadOnlySharedPersistentMemoryAllocator() override;
+
+  // Ensure that the memory isn't so invalid that it would crash when passing it
+  // to the allocator. This doesn't guarantee the data is valid, just that it
+  // won't cause the program to abort. The existing IsCorrupt() call will handle
+  // the rest.
+  static bool IsSharedMemoryAcceptable(
+      const base::ReadOnlySharedMemoryMapping& memory);
+
+ private:
+  base::ReadOnlySharedMemoryMapping shared_memory_;
+
+  DISALLOW_COPY_AND_ASSIGN(ReadOnlySharedPersistentMemoryAllocator);
+};
 
 #if !defined(OS_NACL)  // NACL doesn't support any kind of file access in build.
 // This allocator takes a memory-mapped file object and performs allocation
@@ -756,6 +779,14 @@ class BASE_EXPORT FilePersistentMemoryAllocator
   // won't cause the program to abort. The existing IsCorrupt() call will handle
   // the rest.
   static bool IsFileAcceptable(const MemoryMappedFile& file, bool read_only);
+
+  // Load all or a portion of the file into memory for fast access. This can
+  // be used to force the disk access to be done on a background thread and
+  // then have the data available to be read on the main thread with a greatly
+  // reduced risk of blocking due to I/O. The risk isn't eliminated completely
+  // because the system could always release the memory when under pressure
+  // but this can happen to any block of memory (i.e. swapped out).
+  void Cache();
 
  protected:
   // PersistentMemoryAllocator:

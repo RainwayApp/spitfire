@@ -15,105 +15,93 @@
  * video_capture_impl.h
  */
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame.h"
-#include "common_video/libyuv/include/webrtc_libyuv.h"
+#include "api/video/video_rotation.h"
+#include "api/video/video_sink_interface.h"
 #include "modules/video_capture/video_capture.h"
 #include "modules/video_capture/video_capture_config.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/scoped_ref_ptr.h"
+#include "modules/video_capture/video_capture_defines.h"
+#include "rtc_base/critical_section.h"
 
-namespace webrtc
-{
+namespace webrtc {
 
 namespace videocapturemodule {
 // Class definitions
-class VideoCaptureImpl: public VideoCaptureModule, public VideoCaptureExternal
-{
-public:
+class VideoCaptureImpl : public VideoCaptureModule {
+ public:
+  /*
+   *   Create a video capture module object
+   *
+   *   id              - unique identifier of this video capture module object
+   *   deviceUniqueIdUTF8 -  name of the device. Available names can be found by
+   * using GetDeviceName
+   */
+  static rtc::scoped_refptr<VideoCaptureModule> Create(
+      const char* deviceUniqueIdUTF8);
 
-    /*
-     *   Create a video capture module object
-     *
-     *   id              - unique identifier of this video capture module object
-     *   deviceUniqueIdUTF8 -  name of the device. Available names can be found by using GetDeviceName
-     */
-   static rtc::scoped_refptr<VideoCaptureModule> Create(
-       const char* deviceUniqueIdUTF8);
+  static DeviceInfo* CreateDeviceInfo();
 
-    /*
-     *   Create a video capture module object used for external capture.
-     *
-     *   id              - unique identifier of this video capture module object
-     *   externalCapture - [out] interface to call when a new frame is captured.
-     */
-   static rtc::scoped_refptr<VideoCaptureModule> Create(
-       VideoCaptureExternal*& externalCapture);
+  // Helpers for converting between (integral) degrees and
+  // VideoRotation values.  Return 0 on success.
+  static int32_t RotationFromDegrees(int degrees, VideoRotation* rotation);
+  static int32_t RotationInDegrees(VideoRotation rotation, int* degrees);
 
-    static DeviceInfo* CreateDeviceInfo();
+  // Call backs
+  void RegisterCaptureDataCallback(
+      rtc::VideoSinkInterface<VideoFrame>* dataCallback) override;
+  void DeRegisterCaptureDataCallback() override;
 
-    // Helpers for converting between (integral) degrees and
-    // VideoRotation values.  Return 0 on success.
-    static int32_t RotationFromDegrees(int degrees, VideoRotation* rotation);
-    static int32_t RotationInDegrees(VideoRotation rotation, int* degrees);
+  int32_t SetCaptureRotation(VideoRotation rotation) override;
+  bool SetApplyRotation(bool enable) override;
+  bool GetApplyRotation() override;
 
-    //Call backs
-    void RegisterCaptureDataCallback(
-        rtc::VideoSinkInterface<VideoFrame>* dataCallback) override;
-    void DeRegisterCaptureDataCallback() override;
+  const char* CurrentDeviceName() const override;
 
-    int32_t SetCaptureRotation(VideoRotation rotation) override;
-    bool SetApplyRotation(bool enable) override;
-    bool GetApplyRotation() override {
-      return apply_rotation_;
-    }
+  // |capture_time| must be specified in NTP time format in milliseconds.
+  int32_t IncomingFrame(uint8_t* videoFrame,
+                        size_t videoFrameLength,
+                        const VideoCaptureCapability& frameInfo,
+                        int64_t captureTime = 0);
 
-    const char* CurrentDeviceName() const override;
+  // Platform dependent
+  int32_t StartCapture(const VideoCaptureCapability& capability) override;
+  int32_t StopCapture() override;
+  bool CaptureStarted() override;
+  int32_t CaptureSettings(VideoCaptureCapability& /*settings*/) override;
 
-    // Implement VideoCaptureExternal
-    // |capture_time| must be specified in NTP time format in milliseconds.
-    int32_t IncomingFrame(uint8_t* videoFrame,
-                          size_t videoFrameLength,
-                          const VideoCaptureCapability& frameInfo,
-                          int64_t captureTime = 0) override;
+ protected:
+  VideoCaptureImpl();
+  ~VideoCaptureImpl() override;
 
-    // Platform dependent
-    int32_t StartCapture(const VideoCaptureCapability& capability) override
-    {
-        _requestedCapability = capability;
-        return -1;
-    }
-    int32_t StopCapture() override { return -1; }
-    bool CaptureStarted() override {return false; }
-    int32_t CaptureSettings(VideoCaptureCapability& /*settings*/) override
-    { return -1; }
+  char* _deviceUniqueId;  // current Device unique name;
+  rtc::CriticalSection _apiCs;
+  VideoCaptureCapability _requestedCapability;  // Should be set by platform
+                                                // dependent code in
+                                                // StartCapture.
+ private:
+  void UpdateFrameCount();
+  uint32_t CalculateFrameRate(int64_t now_ns);
+  int32_t DeliverCapturedFrame(VideoFrame& captureFrame);
 
-protected:
-    VideoCaptureImpl();
-    virtual ~VideoCaptureImpl();
-    int32_t DeliverCapturedFrame(VideoFrame& captureFrame);
+  // last time the module process function was called.
+  int64_t _lastProcessTimeNanos;
+  // last time the frame rate callback function was called.
+  int64_t _lastFrameRateCallbackTimeNanos;
 
-    char* _deviceUniqueId; // current Device unique name;
-    rtc::CriticalSection _apiCs;
-    VideoCaptureCapability _requestedCapability; // Should be set by platform dependent code in StartCapture.
-private:
-    void UpdateFrameCount();
-    uint32_t CalculateFrameRate(int64_t now_ns);
+  rtc::VideoSinkInterface<VideoFrame>* _dataCallBack;
 
-    // last time the module process function was called.
-    int64_t _lastProcessTimeNanos;
-    // last time the frame rate callback function was called.
-    int64_t _lastFrameRateCallbackTimeNanos;
+  int64_t _lastProcessFrameTimeNanos;
+  // timestamp for local captured frames
+  int64_t _incomingFrameTimesNanos[kFrameRateCountHistorySize];
+  VideoRotation _rotateFrame;  // Set if the frame should be rotated by the
+                               // capture module.
 
-    rtc::VideoSinkInterface<VideoFrame>* _dataCallBack;
-
-    int64_t _lastProcessFrameTimeNanos;
-    // timestamp for local captured frames
-    int64_t _incomingFrameTimesNanos[kFrameRateCountHistorySize];
-    VideoRotation _rotateFrame;  // Set if the frame should be rotated by the
-                                 // capture module.
-
-    // Indicate whether rotation should be applied before delivered externally.
-    bool apply_rotation_;
+  // Indicate whether rotation should be applied before delivered externally.
+  bool apply_rotation_;
 };
 }  // namespace videocapturemodule
 }  // namespace webrtc

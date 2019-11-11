@@ -33,24 +33,6 @@
 #else
 // DCHECK_IS_ON() && defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
 
-// Macro copied from gtest-death-test-internal.h as it's (1) internal for now
-// and (2) only defined if !GTEST_HAS_DEATH_TEST which is only a subset of the
-// conditions in which it's needed here.
-// TODO(gab): Expose macro in upstream gtest repo for consumers like us that
-// want more specific death tests and remove this hack.
-#define GTEST_UNSUPPORTED_DEATH_TEST(statement, regex, terminator)  \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                     \
-  if (::testing::internal::AlwaysTrue()) {                          \
-    GTEST_LOG_(WARNING)                                             \
-        << "Death tests are not supported in this configuration.\n" \
-        << "Statement '" #statement "' cannot be verified.";        \
-  } else if (::testing::internal::AlwaysFalse()) {                  \
-    ::testing::internal::RE::PartialMatch(".*", (regex));           \
-    GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);      \
-    terminator;                                                     \
-  } else                                                            \
-    ::testing::Message()
-
 #define EXPECT_DCHECK_DEATH(statement) \
     GTEST_UNSUPPORTED_DEATH_TEST(statement, "Check failed", )
 #define ASSERT_DCHECK_DEATH(statement) \
@@ -58,6 +40,29 @@
 
 #endif
 // DCHECK_IS_ON() && defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
+
+// As above, but for CHECK().
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
+
+// Official builds will CHECK, but also eat stream parameters. So match "".
+#if defined(OFFICIAL_BUILD) && defined(NDEBUG)
+#define EXPECT_CHECK_DEATH(statement) EXPECT_DEATH(statement, "")
+#define ASSERT_CHECK_DEATH(statement) ASSERT_DEATH(statement, "")
+#else
+#define EXPECT_CHECK_DEATH(statement) EXPECT_DEATH(statement, "Check failed")
+#define ASSERT_CHECK_DEATH(statement) ASSERT_DEATH(statement, "Check failed")
+#endif  // defined(OFFICIAL_BUILD) && defined(NDEBUG)
+
+#else  // defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
+
+// Note GTEST_UNSUPPORTED_DEATH_TEST takes a |regex| only to see whether it is a
+// valid regex. It is never evaluated.
+#define EXPECT_CHECK_DEATH(statement) \
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, "", )
+#define ASSERT_CHECK_DEATH(statement) \
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, "", return )
+
+#endif  // defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
 
 namespace base {
 

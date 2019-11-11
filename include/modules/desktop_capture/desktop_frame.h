@@ -11,34 +11,43 @@
 #ifndef MODULES_DESKTOP_CAPTURE_DESKTOP_FRAME_H_
 #define MODULES_DESKTOP_CAPTURE_DESKTOP_FRAME_H_
 
+#include <stdint.h>
 #include <memory>
+#include <vector>
 
-#include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/desktop_region.h"
 #include "modules/desktop_capture/shared_memory.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
+const float kStandardDPI = 96.0f;
+
 // DesktopFrame represents a video frame captured from the screen.
-class DesktopFrame {
+class RTC_EXPORT DesktopFrame {
  public:
   // DesktopFrame objects always hold RGBA data.
   static const int kBytesPerPixel = 4;
 
   virtual ~DesktopFrame();
 
-  // Returns the rectangle in full desktop coordinates to indicate the area
-  // covered by the DesktopFrame.
+  // Returns the rectangle in full desktop coordinates to indicate it covers
+  // the area of top_left() to top_letf() + size() / scale_factor().
   DesktopRect rect() const;
 
-  // Size of the frame.
+  // Returns the scale factor from DIPs to physical pixels of the frame.
+  // Assumes same scale in both X and Y directions at present.
+  float scale_factor() const;
+
+  // Size of the frame. In physical coordinates, mapping directly from the
+  // underlying buffer.
   const DesktopSize& size() const { return size_; }
 
   // The top-left of the frame in full desktop coordinates. E.g. the top left
-  // monitor should start from (0, 0).
+  // monitor should start from (0, 0). The desktop coordinates may be scaled by
+  // OS, but this is always consistent with the MouseCursorMonitor.
   const DesktopVector& top_left() const { return top_left_; }
   void set_top_left(const DesktopVector& top_left) { top_left_ = top_left; }
 
@@ -82,9 +91,7 @@ class DesktopFrame {
   // Not all DesktopCapturer implementations set this field; it's set to
   // kUnknown by default.
   uint32_t capturer_id() const { return capturer_id_; }
-  void set_capturer_id(uint32_t capturer_id) {
-    capturer_id_ = capturer_id;
-  }
+  void set_capturer_id(uint32_t capturer_id) { capturer_id_ = capturer_id; }
 
   // Copies various information from |other|. Anything initialized in
   // constructor are not copied.
@@ -103,6 +110,15 @@ class DesktopFrame {
   // |other| anymore. For example, CroppedDesktopFrame and
   // DesktopFrameWithCursor.
   void MoveFrameInfoFrom(DesktopFrame* other);
+
+  // Set and get the ICC profile of the frame data pixels. Useful to build the
+  // a ColorSpace object from clients of webrtc library like chromium. The
+  // format of an ICC profile is defined in the following specification
+  // http://www.color.org/specification/ICC1v43_2010-12.pdf.
+  const std::vector<uint8_t>& icc_profile() const { return icc_profile_; }
+  void set_icc_profile(const std::vector<uint8_t>& icc_profile) {
+    icc_profile_ = icc_profile;
+  }
 
  protected:
   DesktopFrame(DesktopSize size,
@@ -125,13 +141,15 @@ class DesktopFrame {
   DesktopVector dpi_;
   int64_t capture_time_ms_;
   uint32_t capturer_id_;
+  std::vector<uint8_t> icc_profile_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(DesktopFrame);
 };
 
 // A DesktopFrame that stores data in the heap.
-class BasicDesktopFrame : public DesktopFrame {
+class RTC_EXPORT BasicDesktopFrame : public DesktopFrame {
  public:
+  // The entire data buffer used for the frame is initialized with zeros.
   explicit BasicDesktopFrame(DesktopSize size);
 
   ~BasicDesktopFrame() override;
@@ -185,4 +203,3 @@ class SharedMemoryDesktopFrame : public DesktopFrame {
 }  // namespace webrtc
 
 #endif  // MODULES_DESKTOP_CAPTURE_DESKTOP_FRAME_H_
-

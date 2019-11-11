@@ -13,7 +13,7 @@
 
 #include <stddef.h>
 
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -28,7 +28,8 @@ class BufferLevelFilter {
   // corresponding number of packets, and is subtracted from the filtered
   // value (thus bypassing the filter operation). |packet_len_samples| is the
   // number of audio samples carried in each incoming packet.
-  virtual void Update(size_t buffer_size_packets, int time_stretched_samples,
+  virtual void Update(size_t buffer_size_packets,
+                      int time_stretched_samples,
                       size_t packet_len_samples);
 
   // Set the current target buffer level (obtained from

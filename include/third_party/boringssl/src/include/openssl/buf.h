@@ -89,9 +89,13 @@ OPENSSL_EXPORT int BUF_MEM_reserve(BUF_MEM *buf, size_t cap);
 // zeros. It returns the length of |buf|, or zero if there's an error.
 OPENSSL_EXPORT size_t BUF_MEM_grow(BUF_MEM *buf, size_t len);
 
-// BUF_MEM_grow_clean acts the same as |BUF_MEM_grow|, but clears the previous
-// contents of memory if reallocing.
+// BUF_MEM_grow_clean calls |BUF_MEM_grow|. BoringSSL always zeros memory
+// allocated memory on free.
 OPENSSL_EXPORT size_t BUF_MEM_grow_clean(BUF_MEM *buf, size_t len);
+
+// BUF_MEM_append appends |in| to |buf|. It returns one on success and zero on
+// error.
+OPENSSL_EXPORT int BUF_MEM_append(BUF_MEM *buf, const void *in, size_t len);
 
 // BUF_strdup returns an allocated, duplicate of |str|.
 OPENSSL_EXPORT char *BUF_strdup(const char *str);
@@ -120,11 +124,11 @@ OPENSSL_EXPORT size_t BUF_strlcat(char *dst, const char *src, size_t dst_size);
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(BUF_MEM, BUF_MEM_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

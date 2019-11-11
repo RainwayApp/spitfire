@@ -15,13 +15,12 @@
 
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/include/module_common_types.h"
-#include "rtc_base/criticalsection.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/critical_section.h"
 
 namespace webrtc {
 
-#define MAX_NUM_PAYLOADS   50
-#define MAX_NUM_FRAMESIZES  6
+#define MAX_NUM_PAYLOADS 50
+#define MAX_NUM_FRAMESIZES 6
 
 // TODO(turajs): Write constructor for this structure.
 struct ACMTestFrameSizeStats {
@@ -45,32 +44,20 @@ struct ACMTestPayloadStats {
 
 class Channel : public AudioPacketizationCallback {
  public:
-
   Channel(int16_t chID = -1);
   ~Channel() override;
 
-  int32_t SendData(FrameType frameType,
+  int32_t SendData(AudioFrameType frameType,
                    uint8_t payloadType,
                    uint32_t timeStamp,
                    const uint8_t* payloadData,
-                   size_t payloadSize,
-                   const RTPFragmentationHeader* fragmentation) override;
+                   size_t payloadSize) override;
 
-  void RegisterReceiverACM(AudioCodingModule *acm);
+  void RegisterReceiverACM(AudioCodingModule* acm);
 
   void ResetStats();
 
-  int16_t Stats(CodecInst& codecInst, ACMTestPayloadStats& payloadStats);
-
-  void Stats(uint32_t* numPackets);
-
-  void Stats(uint8_t* payloadType, uint32_t* payloadLenByte);
-
-  void PrintStats(CodecInst& codecInst);
-
-  void SetIsStereo(bool isStereo) {
-    _isStereo = isStereo;
-  }
+  void SetIsStereo(bool isStereo) { _isStereo = isStereo; }
 
   uint32_t LastInTimestamp();
 
@@ -93,7 +80,7 @@ class Channel : public AudioPacketizationCallback {
   }
 
  private:
-  void CalcStatistics(WebRtcRTPHeader& rtpInfo, size_t payloadSize);
+  void CalcStatistics(const RTPHeader& rtp_header, size_t payloadSize);
 
   AudioCodingModule* _receiverACM;
   uint16_t _seqNo;
@@ -106,7 +93,7 @@ class Channel : public AudioPacketizationCallback {
   int16_t _lastPayloadType;
   ACMTestPayloadStats _payloadStats[MAX_NUM_PAYLOADS];
   bool _isStereo;
-  WebRtcRTPHeader _rtpInfo;
+  RTPHeader _rtp_header;
   bool _leftChannel;
   uint32_t _lastInTimestamp;
   bool _useLastFrameSize;

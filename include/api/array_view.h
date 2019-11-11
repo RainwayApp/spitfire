@@ -12,6 +12,7 @@
 #define API_ARRAY_VIEW_H_
 
 #include <algorithm>
+#include <array>
 #include <type_traits>
 
 #include "rtc_base/checks.h"
@@ -169,13 +170,33 @@ class ArrayView final : public impl::ArrayViewBase<T, Size> {
     RTC_DCHECK_EQ(0, size);
   }
 
-  // Construct an ArrayView from an array.
+  // Construct an ArrayView from a C-style array.
   template <typename U, size_t N>
   ArrayView(U (&array)[N])  // NOLINT
       : ArrayView(array, N) {
     static_assert(Size == N || Size == impl::kArrayViewVarSize,
                   "Array size must match ArrayView size");
   }
+
+  // (Only if size is fixed.) Construct a fixed size ArrayView<T, N> from a
+  // non-const std::array instance. For an ArrayView with variable size, the
+  // used ctor is ArrayView(U& u) instead.
+  template <typename U,
+            size_t N,
+            typename std::enable_if<
+                Size == static_cast<std::ptrdiff_t>(N)>::type* = nullptr>
+  ArrayView(std::array<U, N>& u)  // NOLINT
+      : ArrayView(u.data(), u.size()) {}
+
+  // (Only if size is fixed.) Construct a fixed size ArrayView<T, N> where T is
+  // const from a const(expr) std::array instance. For an ArrayView with
+  // variable size, the used ctor is ArrayView(U& u) instead.
+  template <typename U,
+            size_t N,
+            typename std::enable_if<
+                Size == static_cast<std::ptrdiff_t>(N)>::type* = nullptr>
+  ArrayView(const std::array<U, N>& u)  // NOLINT
+      : ArrayView(u.data(), u.size()) {}
 
   // (Only if size is fixed.) Construct an ArrayView from any type U that has a
   // static constexpr size() method whose return value is equal to Size, and a
@@ -209,6 +230,12 @@ class ArrayView final : public impl::ArrayViewBase<T, Size> {
       typename std::enable_if<Size == impl::kArrayViewVarSize &&
                               HasDataAndSize<U, T>::value>::type* = nullptr>
   ArrayView(U& u)  // NOLINT
+      : ArrayView(u.data(), u.size()) {}
+  template <
+      typename U,
+      typename std::enable_if<Size == impl::kArrayViewVarSize &&
+                              HasDataAndSize<U, T>::value>::type* = nullptr>
+  ArrayView(const U& u)  // NOLINT(runtime/explicit)
       : ArrayView(u.data(), u.size()) {}
 
   // Indexing and iteration. These allow mutation even if the ArrayView is
@@ -256,6 +283,23 @@ static_assert(std::is_empty<ArrayView<int, 0>>::value, "");
 template <typename T>
 inline ArrayView<T> MakeArrayView(T* data, size_t size) {
   return ArrayView<T>(data, size);
+}
+
+// Only for primitive types that have the same size and aligment.
+// Allow reinterpret cast of the array view to another primitive type of the
+// same size.
+// Template arguments order is (U, T, Size) to allow deduction of the template
+// arguments in client calls: reinterpret_array_view<target_type>(array_view).
+template <typename U, typename T, std::ptrdiff_t Size>
+inline ArrayView<U, Size> reinterpret_array_view(ArrayView<T, Size> view) {
+  static_assert(sizeof(U) == sizeof(T) && alignof(U) == alignof(T),
+                "ArrayView reinterpret_cast is only supported for casting "
+                "between views that represent the same chunk of memory.");
+  static_assert(
+      std::is_fundamental<T>::value && std::is_fundamental<U>::value,
+      "ArrayView reinterpret_cast is only supported for casting between "
+      "fundamental types.");
+  return ArrayView<U, Size>(reinterpret_cast<U*>(view.data()), view.size());
 }
 
 }  // namespace rtc

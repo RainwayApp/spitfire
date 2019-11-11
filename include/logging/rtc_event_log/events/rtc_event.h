@@ -11,54 +11,9 @@
 #ifndef LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_H_
 #define LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_H_
 
-#include <typedefs.h>
+// TODO(bugs.webrtc.org/10206): For backwards compatibility; Delete as soon as
+// dependencies are updated.
 
-#include "rtc_base/timeutils.h"
-
-namespace webrtc {
-
-// This class allows us to store unencoded RTC events. Subclasses of this class
-// store the actual information. This allows us to keep all unencoded events,
-// even when their type and associated information differ, in the same buffer.
-// Additionally, it prevents dependency leaking - a module that only logs
-// events of type RtcEvent_A doesn't need to know about anything associated
-// with events of type RtcEvent_B.
-class RtcEvent {
- public:
-  // Subclasses of this class have to associate themselves with a unique value
-  // of Type. This leaks the information of existing subclasses into the
-  // superclass, but the *actual* information - rtclog::StreamConfig, etc. -
-  // is kept separate.
-  enum class Type {
-    AudioNetworkAdaptation,
-    AudioPlayout,
-    AudioReceiveStreamConfig,
-    AudioSendStreamConfig,
-    BweUpdateDelayBased,
-    BweUpdateLossBased,
-    LoggingStarted,
-    LoggingStopped,
-    ProbeClusterCreated,
-    ProbeResultFailure,
-    ProbeResultSuccess,
-    RtcpPacketIncoming,
-    RtcpPacketOutgoing,
-    RtpPacketIncoming,
-    RtpPacketOutgoing,
-    VideoReceiveStreamConfig,
-    VideoSendStreamConfig
-  };
-
-  RtcEvent() : timestamp_us_(rtc::TimeMicros()) {}
-  virtual ~RtcEvent() = default;
-
-  virtual Type GetType() const = 0;
-
-  virtual bool IsConfigEvent() const = 0;
-
-  const int64_t timestamp_us_;
-};
-
-}  // namespace webrtc
+#include "api/rtc_event_log/rtc_event.h"
 
 #endif  // LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_H_

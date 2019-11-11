@@ -88,6 +88,10 @@ class RtpDemuxer {
   // different SSRCs.
   static constexpr int kMaxSsrcBindings = 1000;
 
+  // Returns a string that contains all the attributes of the given packet
+  // relevant for demuxing.
+  static std::string DescribePacket(const RtpPacketReceived& packet);
+
   RtpDemuxer();
   ~RtpDemuxer();
 
@@ -136,6 +140,10 @@ class RtpDemuxer {
   void DeregisterSsrcBindingObserver(const SsrcBindingObserver* observer);
   // Deprecated: Use the above method.
   void DeregisterRsidResolutionObserver(const SsrcBindingObserver* observer);
+
+  // Configure whether to look at the MID header extension when demuxing
+  // incoming RTP packets. By default this is enabled.
+  void set_use_mid(bool use_mid) { use_mid_ = use_mid; }
 
  private:
   // Returns true if adding a sink with the given criteria would cause conflicts
@@ -197,6 +205,8 @@ class RtpDemuxer {
   // Observers which will be notified when an RSID association to an SSRC is
   // resolved by this object.
   std::vector<SsrcBindingObserver*> ssrc_binding_observers_;
+
+  bool use_mid_ = true;
 };
 
 }  // namespace webrtc

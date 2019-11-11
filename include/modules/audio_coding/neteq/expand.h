@@ -14,13 +14,13 @@
 #include <assert.h>
 #include <memory>
 
-#include "modules/audio_coding/neteq/audio_multi_vector.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "modules/audio_coding/neteq/audio_vector.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
 // Forward declarations.
+class AudioMultiVector;
 class BackgroundNoise;
 class RandomVector;
 class StatisticsCalculator;
@@ -57,7 +57,7 @@ class Expand {
   virtual void SetParametersForMergeAfterExpand();
 
   // Returns the mute factor for |channel|.
-  int16_t MuteFactor(size_t channel) {
+  int16_t MuteFactor(size_t channel) const {
     assert(channel < num_channels_);
     return channel_parameters_[channel].mute_factor;
   }
@@ -75,13 +75,6 @@ class Expand {
   void GenerateRandomVector(int16_t seed_increment,
                             size_t length,
                             int16_t* random_vector);
-
-  void GenerateBackgroundNoise(int16_t* random_vector,
-                               size_t channel,
-                               int mute_slope,
-                               bool too_many_expands,
-                               size_t num_noise_samples,
-                               int16_t* buffer);
 
   // Initializes member variables at the beginning of an expand period.
   void InitializeForAnExpandPeriod();
@@ -114,7 +107,7 @@ class Expand {
     int16_t ar_filter_state[kUnvoicedLpcOrder];
     int16_t ar_gain;
     int16_t ar_gain_scale;
-    int16_t voice_mix_factor; /* Q14 */
+    int16_t voice_mix_factor;         /* Q14 */
     int16_t current_voice_mix_factor; /* Q14 */
     AudioVector expand_vector0;
     AudioVector expand_vector1;

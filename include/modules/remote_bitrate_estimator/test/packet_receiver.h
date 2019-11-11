@@ -11,13 +11,16 @@
 #ifndef MODULES_REMOTE_BITRATE_ESTIMATOR_TEST_PACKET_RECEIVER_H_
 #define MODULES_REMOTE_BITRATE_ESTIMATOR_TEST_PACKET_RECEIVER_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 #include <string>
 
 #include "modules/remote_bitrate_estimator/test/bwe.h"
 #include "modules/remote_bitrate_estimator/test/bwe_test_framework.h"
 #include "modules/remote_bitrate_estimator/test/metric_recorder.h"
-#include "rtc_base/constructormagic.h"
+#include "modules/remote_bitrate_estimator/test/packet.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 namespace testing {
@@ -36,7 +39,7 @@ class PacketReceiver : public PacketProcessor {
                  bool plot_delay,
                  bool plot_bwe,
                  MetricRecorder* metric_recorder);
-  ~PacketReceiver();
+  ~PacketReceiver() override;
 
   // Implements PacketProcessor.
   void RunFor(int64_t time_ms, Packets* in_out) override;

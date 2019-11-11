@@ -11,26 +11,39 @@
 #ifndef LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_PROBE_CLUSTER_CREATED_H_
 #define LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_PROBE_CLUSTER_CREATED_H_
 
+#include <stdint.h>
+#include <memory>
+
 #include "logging/rtc_event_log/events/rtc_event.h"
 
 namespace webrtc {
 
 class RtcEventProbeClusterCreated final : public RtcEvent {
  public:
-  RtcEventProbeClusterCreated(int id,
-                              int bitrate_bps,
-                              int min_probes,
-                              int min_bytes);
+  RtcEventProbeClusterCreated(int32_t id,
+                              int32_t bitrate_bps,
+                              uint32_t min_probes,
+                              uint32_t min_bytes);
   ~RtcEventProbeClusterCreated() override = default;
 
   Type GetType() const override;
 
   bool IsConfigEvent() const override;
 
-  const int id_;
-  const int bitrate_bps_;
-  const int min_probes_;
-  const int min_bytes_;
+  std::unique_ptr<RtcEventProbeClusterCreated> Copy() const;
+
+  int32_t id() const { return id_; }
+  int32_t bitrate_bps() const { return bitrate_bps_; }
+  uint32_t min_probes() const { return min_probes_; }
+  uint32_t min_bytes() const { return min_bytes_; }
+
+ private:
+  RtcEventProbeClusterCreated(const RtcEventProbeClusterCreated& other);
+
+  const int32_t id_;
+  const int32_t bitrate_bps_;
+  const uint32_t min_probes_;
+  const uint32_t min_bytes_;
 };
 
 }  // namespace webrtc

@@ -6,6 +6,7 @@
 #define BASE_ANDROID_PATH_UTILS_H_
 
 #include <jni.h>
+#include <vector>
 
 #include "base/base_export.h"
 
@@ -21,10 +22,6 @@ namespace android {
 // PathService::Get(base::DIR_ANDROID_APP_DATA, ...) gets the data dir.
 BASE_EXPORT bool GetDataDirectory(FilePath* result);
 
-// Retrieves the absolute path to the database directory that Android
-// framework's SQLiteDatabase class uses when creating database files.
-BASE_EXPORT bool GetDatabaseDirectory(FilePath* result);
-
 // Retrieves the absolute path to the cache directory. The result is placed in
 // the FilePath pointed to by 'result'. This method is dedicated for
 // base_paths_android.c, Using PathService::Get(base::DIR_CACHE, ...) gets the
@@ -35,13 +32,13 @@ BASE_EXPORT bool GetCacheDirectory(FilePath* result);
 // in the FilePath pointed to by 'result'.
 BASE_EXPORT bool GetThumbnailCacheDirectory(FilePath* result);
 
-// Retrieves the path to the downloads internal directory. The result is placed
-// in the FilePath pointed to by 'result'.
-BASE_EXPORT bool GetDownloadInternalDirectory(FilePath* result);
-
 // Retrieves the path to the public downloads directory. The result is placed
 // in the FilePath pointed to by 'result'.
 BASE_EXPORT bool GetDownloadsDirectory(FilePath* result);
+
+// Retrieves the paths to all download directories, including default storage
+// directory, and a private directory on external SD card.
+BASE_EXPORT std::vector<FilePath> GetAllPrivateDownloadsDirectories();
 
 // Retrieves the path to the native JNI libraries via
 // ApplicationInfo.nativeLibraryDir on the Java side. The result is placed in

@@ -11,37 +11,53 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTP_FORMAT_H_
 #define MODULES_RTP_RTCP_SOURCE_RTP_FORMAT_H_
 
-#include <string>
+#include <stdint.h>
+#include <memory>
+#include <vector>
 
+#include "absl/types/optional.h"
+#include "api/array_view.h"
 #include "modules/include/module_common_types.h"
-#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
-#include "rtc_base/constructormagic.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
 
 namespace webrtc {
+
 class RtpPacketToSend;
 
 class RtpPacketizer {
  public:
-  static RtpPacketizer* Create(RtpVideoCodecTypes type,
-                               size_t max_payload_len,
-                               size_t last_packet_reduction_len,
-                               const RTPVideoTypeHeader* rtp_type_header,
-                               FrameType frame_type);
+  struct PayloadSizeLimits {
+    int max_payload_len = 1200;
+    int first_packet_reduction_len = 0;
+    int last_packet_reduction_len = 0;
+    // Reduction len for packet that is first & last at the same time.
+    int single_packet_reduction_len = 0;
+  };
 
-  virtual ~RtpPacketizer() {}
+  // If type is not set, returns a raw packetizer.
+  static std::unique_ptr<RtpPacketizer> Create(
+      absl::optional<VideoCodecType> type,
+      rtc::ArrayView<const uint8_t> payload,
+      PayloadSizeLimits limits,
+      // Codec-specific details.
+      const RTPVideoHeader& rtp_video_header,
+      VideoFrameType frame_type,
+      const RTPFragmentationHeader* fragmentation);
 
-  // Returns total number of packets which would be produced by the packetizer.
-  virtual size_t SetPayloadData(
-      const uint8_t* payload_data,
-      size_t payload_size,
-      const RTPFragmentationHeader* fragmentation) = 0;
+  virtual ~RtpPacketizer() = default;
+
+  // Returns number of remaining packets to produce by the packetizer.
+  virtual size_t NumPackets() const = 0;
 
   // Get the next payload with payload header.
   // Write payload and set marker bit of the |packet|.
   // Returns true on success, false otherwise.
   virtual bool NextPacket(RtpPacketToSend* packet) = 0;
 
-  virtual std::string ToString() = 0;
+  // Split payload_len into sum of integers with respect to |limits|.
+  // Returns empty vector on failure.
+  static std::vector<int> SplitAboutEqually(int payload_len,
+                                            const PayloadSizeLimits& limits);
 };
 
 // TODO(sprang): Update the depacketizer to return a std::unqie_ptr with a copy
@@ -51,13 +67,23 @@ class RtpPacketizer {
 class RtpDepacketizer {
  public:
   struct ParsedPayload {
+    RTPVideoHeader& video_header() { return video; }
+    const RTPVideoHeader& video_header() const { return video; }
+
+    // TODO(bugs.webrtc.org/10397): These are temporary accessors, to enable
+    // move of the frame_type member to inside RTPVideoHeader, without breaking
+    // downstream code.
+    VideoFrameType FrameType() const { return video_header().frame_type; }
+    void SetFrameType(VideoFrameType type) { video_header().frame_type = type; }
+
+    RTPVideoHeader video;
+
     const uint8_t* payload;
     size_t payload_length;
-    FrameType frame_type;
-    RTPTypeHeader type;
   };
 
-  static RtpDepacketizer* Create(RtpVideoCodecTypes type);
+  // If type is not set, returns a raw depacketizer.
+  static RtpDepacketizer* Create(absl::optional<VideoCodecType> type);
 
   virtual ~RtpDepacketizer() {}
 

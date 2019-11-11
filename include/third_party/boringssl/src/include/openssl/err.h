@@ -152,6 +152,9 @@ OPENSSL_EXPORT void ERR_load_ERR_strings(void);
 // ERR_load_crypto_strings does nothing.
 OPENSSL_EXPORT void ERR_load_crypto_strings(void);
 
+// ERR_load_RAND_strings does nothing.
+OPENSSL_EXPORT void ERR_load_RAND_strings(void);
+
 // ERR_free_strings does nothing.
 OPENSSL_EXPORT void ERR_free_strings(void);
 
@@ -261,14 +264,6 @@ OPENSSL_EXPORT void ERR_print_errors_fp(FILE *file);
 
 // ERR_clear_error clears the error queue for the current thread.
 OPENSSL_EXPORT void ERR_clear_error(void);
-
-// ERR_remove_thread_state clears the error queue for the current thread if
-// |tid| is NULL. Otherwise it calls |assert(0)|, because it's no longer
-// possible to delete the error queue for other threads.
-//
-// Error queues are thread-local data and are deleted automatically. You do not
-// need to call this function. Use |ERR_clear_error|.
-OPENSSL_EXPORT void ERR_remove_thread_state(const CRYPTO_THREADID *tid);
 
 // ERR_set_mark "marks" the most recent error for use with |ERR_pop_to_mark|.
 // It returns one if an error was marked and zero if there are no errors.
@@ -382,6 +377,14 @@ enum {
 // ERR_remove_state calls |ERR_clear_error|.
 OPENSSL_EXPORT void ERR_remove_state(unsigned long pid);
 
+// ERR_remove_thread_state clears the error queue for the current thread if
+// |tid| is NULL. Otherwise it calls |assert(0)|, because it's no longer
+// possible to delete the error queue for other threads.
+//
+// Use |ERR_clear_error| instead. Note error queues are deleted automatically on
+// thread exit. You do not need to call this function to release memory.
+OPENSSL_EXPORT void ERR_remove_thread_state(const CRYPTO_THREADID *tid);
+
 // ERR_func_error_string returns the string "OPENSSL_internal".
 OPENSSL_EXPORT const char *ERR_func_error_string(uint32_t packed_error);
 
@@ -395,7 +398,7 @@ OPENSSL_EXPORT const char *ERR_func_error_string(uint32_t packed_error);
 //
 // TODO(fork): remove this function.
 OPENSSL_EXPORT char *ERR_error_string(uint32_t packed_error, char *buf);
-#define ERR_ERROR_STRING_BUF_LEN 256
+#define ERR_ERROR_STRING_BUF_LEN 120
 
 // ERR_GET_FUNC returns zero. BoringSSL errors do not report a function code.
 #define ERR_GET_FUNC(packed_error) 0
@@ -436,38 +439,9 @@ OPENSSL_EXPORT void ERR_add_error_data(unsigned count, ...);
 OPENSSL_EXPORT void ERR_add_error_dataf(const char *format, ...)
     OPENSSL_PRINTF_FORMAT_FUNC(1, 2);
 
-struct err_error_st {
-  // file contains the filename where the error occurred.
-  const char *file;
-  // data contains a NUL-terminated string with optional data. It must be freed
-  // with |OPENSSL_free|.
-  char *data;
-  // packed contains the error library and reason, as packed by ERR_PACK.
-  uint32_t packed;
-  // line contains the line number where the error occurred.
-  uint16_t line;
-  // mark indicates a reversion point in the queue. See |ERR_pop_to_mark|.
-  unsigned mark : 1;
-};
-
-// ERR_NUM_ERRORS is the limit of the number of errors in the queue.
+// ERR_NUM_ERRORS is one more than the limit of the number of errors in the
+// queue.
 #define ERR_NUM_ERRORS 16
-
-// err_state_st (aka |ERR_STATE|) contains the per-thread, error queue.
-typedef struct err_state_st {
-  // errors contains the ERR_NUM_ERRORS most recent errors, organised as a ring
-  // buffer.
-  struct err_error_st errors[ERR_NUM_ERRORS];
-  // top contains the index one past the most recent error. If |top| equals
-  // |bottom| then the queue is empty.
-  unsigned top;
-  // bottom contains the index of the last error in the queue.
-  unsigned bottom;
-
-  // to_free, if not NULL, contains a pointer owned by this structure that was
-  // previously a |data| pointer of one of the elements of |errors|.
-  void *to_free;
-} ERR_STATE;
 
 #define ERR_PACK(lib, reason)                                              \
   (((((uint32_t)(lib)) & 0xff) << 24) | ((((uint32_t)(reason)) & 0xfff)))

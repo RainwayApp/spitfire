@@ -13,10 +13,12 @@
 
 #include <memory>
 
+#include "absl/types/optional.h"
 #include "common_audio/smoothing_filter.h"
 #include "modules/audio_coding/audio_network_adaptor/controller.h"
+#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
 #include "modules/audio_coding/audio_network_adaptor/util/threshold_curve.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -56,12 +58,12 @@ class FecControllerPlrBased final : public Controller {
   void MakeDecision(AudioEncoderRuntimeConfig* config) override;
 
  private:
-  bool FecEnablingDecision(const rtc::Optional<float>& packet_loss) const;
-  bool FecDisablingDecision(const rtc::Optional<float>& packet_loss) const;
+  bool FecEnablingDecision(const absl::optional<float>& packet_loss) const;
+  bool FecDisablingDecision(const absl::optional<float>& packet_loss) const;
 
   const Config config_;
   bool fec_enabled_;
-  rtc::Optional<int> uplink_bandwidth_bps_;
+  absl::optional<int> uplink_bandwidth_bps_;
   const std::unique_ptr<SmoothingFilter> packet_loss_smoother_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(FecControllerPlrBased);

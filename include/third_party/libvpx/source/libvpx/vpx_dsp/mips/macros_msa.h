@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VPX_DSP_MIPS_MACROS_MSA_H_
-#define VPX_DSP_MIPS_MACROS_MSA_H_
+#ifndef VPX_VPX_DSP_MIPS_MACROS_MSA_H_
+#define VPX_VPX_DSP_MIPS_MACROS_MSA_H_
 
 #include <msa.h>
 
@@ -555,6 +555,7 @@
 #define VSHF_B2_UB(...) VSHF_B2(v16u8, __VA_ARGS__)
 #define VSHF_B2_SB(...) VSHF_B2(v16i8, __VA_ARGS__)
 #define VSHF_B2_UH(...) VSHF_B2(v8u16, __VA_ARGS__)
+#define VSHF_B2_SH(...) VSHF_B2(v8i16, __VA_ARGS__)
 
 #define VSHF_B4(RTYPE, in0, in1, mask0, mask1, mask2, mask3, out0, out1, out2, \
                 out3)                                                          \
@@ -1182,6 +1183,7 @@
     out1 = (RTYPE)__msa_ilvl_w((v4i32)in0, (v4i32)in1); \
   }
 #define ILVRL_W2_UB(...) ILVRL_W2(v16u8, __VA_ARGS__)
+#define ILVRL_W2_SB(...) ILVRL_W2(v16i8, __VA_ARGS__)
 #define ILVRL_W2_SH(...) ILVRL_W2(v8i16, __VA_ARGS__)
 #define ILVRL_W2_SW(...) ILVRL_W2(v4i32, __VA_ARGS__)
 
@@ -1595,6 +1597,25 @@
     out = (v4i32)__msa_ilvr_h(sign_m, (v8i16)in); \
   }
 
+/* Description : Sign extend byte elements from input vector and return
+                 halfword results in pair of vectors
+   Arguments   : Input   - in           (byte vector)
+                 Outputs - out0, out1   (sign extended halfword vectors)
+                 Return Type - signed halfword
+   Details     : Sign bit of byte elements from input vector 'in' is
+                 extracted and interleaved right with same vector 'in0' to
+                 generate 8 signed halfword elements in 'out0'
+                 Then interleaved left with same vector 'in0' to
+                 generate 8 signed halfword elements in 'out1'
+*/
+#define UNPCK_SB_SH(in, out0, out1)       \
+  {                                       \
+    v16i8 tmp_m;                          \
+                                          \
+    tmp_m = __msa_clti_s_b((v16i8)in, 0); \
+    ILVRL_B2_SH(tmp_m, in, out0, out1);   \
+  }
+
 /* Description : Zero extend unsigned byte elements to halfword elements
    Arguments   : Input   - in          (unsigned byte vector)
                  Outputs - out0, out1  (unsigned  halfword vectors)
@@ -1945,4 +1966,4 @@
                                                                 \
     tmp1_m;                                                     \
   })
-#endif /* VPX_DSP_MIPS_MACROS_MSA_H_ */
+#endif  // VPX_VPX_DSP_MIPS_MACROS_MSA_H_

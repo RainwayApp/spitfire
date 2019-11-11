@@ -11,18 +11,20 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_H_
 #define MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_H_
 
+#include <list>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "modules/rtp_rtcp/include/report_block_data.h"
+#include "modules/rtp_rtcp/include/rtcp_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_nack_stats.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/dlrr.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/ntp_time.h"
-#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 class VideoBitrateAllocationObserver;
@@ -54,8 +56,10 @@ class RTCPReceiver {
                RtcpPacketTypeCounterObserver* packet_type_counter_observer,
                RtcpBandwidthObserver* rtcp_bandwidth_observer,
                RtcpIntraFrameObserver* rtcp_intra_frame_observer,
+               RtcpLossNotificationObserver* rtcp_loss_notification_observer,
                TransportFeedbackObserver* transport_feedback_observer,
                VideoBitrateAllocationObserver* bitrate_allocation_observer,
+               int report_interval_ms,
                ModuleRtpRtcp* owner);
   virtual ~RTCPReceiver();
 
@@ -77,7 +81,7 @@ class RTCPReceiver {
            uint32_t* rtcp_arrival_time_frac,
            uint32_t* rtcp_timestamp) const;
 
-  bool LastReceivedXrReferenceTimeInfo(rtcp::ReceiveTimeInfo* info) const;
+  std::vector<rtcp::ReceiveTimeInfo> ConsumeReceivedXrReferenceTimeInfo();
 
   // Get rtt.
   int32_t RTT(uint32_t remote_ssrc,
@@ -91,16 +95,21 @@ class RTCPReceiver {
 
   // Get statistics.
   int32_t StatisticsReceived(std::vector<RTCPReportBlock>* receiveBlocks) const;
+  // A snapshot of Report Blocks with additional data of interest to statistics.
+  // Within this list, the sender-source SSRC pair is unique and per-pair the
+  // ReportBlockData represents the latest Report Block that was received for
+  // that pair.
+  std::vector<ReportBlockData> GetLatestReportBlockData() const;
 
   // Returns true if we haven't received an RTCP RR for several RTCP
   // intervals, but only triggers true once.
-  bool RtcpRrTimeout(int64_t rtcp_interval_ms);
+  bool RtcpRrTimeout();
 
   // Returns true if we haven't received an RTCP RR telling the receive side
   // has not received RTP packets for too long, i.e. extended highest sequence
   // number hasn't increased for several RTCP intervals. The function only
   // returns true once until a new RR is received.
-  bool RtcpRrSequenceNumberTimeout(int64_t rtcp_interval_ms);
+  bool RtcpRrSequenceNumberTimeout();
 
   std::vector<rtcp::TmmbItem> TmmbrReceived();
   // Return true if new bandwidth should be set.
@@ -111,16 +120,17 @@ class RTCPReceiver {
 
   void RegisterRtcpStatisticsCallback(RtcpStatisticsCallback* callback);
   RtcpStatisticsCallback* GetRtcpStatisticsCallback();
+  void SetReportBlockDataObserver(ReportBlockDataObserver* observer);
 
  private:
   struct PacketInformation;
   struct TmmbrInformation;
-  struct ReportBlockWithRtt;
+  struct RrtrInformation;
   struct LastFirStatus;
   // RTCP report blocks mapped by remote SSRC.
-  using ReportBlockInfoMap = std::map<uint32_t, ReportBlockWithRtt>;
+  using ReportBlockDataMap = std::map<uint32_t, ReportBlockData>;
   // RTCP report blocks map mapped by source SSRC.
-  using ReportBlockMap = std::map<uint32_t, ReportBlockInfoMap>;
+  using ReportBlockMap = std::map<uint32_t, ReportBlockDataMap>;
 
   bool ParseCompoundPacket(const uint8_t* packet_begin,
                            const uint8_t* packet_end,
@@ -212,8 +222,10 @@ class RTCPReceiver {
   rtc::CriticalSection feedbacks_lock_;
   RtcpBandwidthObserver* const rtcp_bandwidth_observer_;
   RtcpIntraFrameObserver* const rtcp_intra_frame_observer_;
+  RtcpLossNotificationObserver* const rtcp_loss_notification_observer_;
   TransportFeedbackObserver* const transport_feedback_observer_;
   VideoBitrateAllocationObserver* const bitrate_allocation_observer_;
+  const int report_interval_ms_;
 
   rtc::CriticalSection rtcp_receiver_lock_;
   uint32_t main_ssrc_ RTC_GUARDED_BY(rtcp_receiver_lock_);
@@ -226,10 +238,13 @@ class RTCPReceiver {
   // When did we receive the last send report.
   NtpTime last_received_sr_ntp_ RTC_GUARDED_BY(rtcp_receiver_lock_);
 
-  // Received XR receive time report.
-  rtcp::ReceiveTimeInfo remote_time_info_;
-  // Time when the report was received.
-  NtpTime last_received_xr_ntp_;
+  // Received RRTR information in ascending receive time order.
+  std::list<RrtrInformation> received_rrtrs_
+      RTC_GUARDED_BY(rtcp_receiver_lock_);
+  // Received RRTR information mapped by remote ssrc.
+  std::map<uint32_t, std::list<RrtrInformation>::iterator>
+      received_rrtrs_ssrc_it_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+
   // Estimated rtt, zero when there is no valid estimate.
   bool xr_rrtr_status_ RTC_GUARDED_BY(rtcp_receiver_lock_);
   int64_t xr_rr_rtt_ms_;
@@ -253,6 +268,11 @@ class RTCPReceiver {
   int64_t last_increased_sequence_number_ms_;
 
   RtcpStatisticsCallback* stats_callback_ RTC_GUARDED_BY(feedbacks_lock_);
+  // TODO(hbos): Remove RtcpStatisticsCallback in favor of
+  // ReportBlockDataObserver; the ReportBlockData contains a superset of the
+  // RtcpStatistics data.
+  ReportBlockDataObserver* report_block_data_observer_
+      RTC_GUARDED_BY(feedbacks_lock_);
 
   RtcpPacketTypeCounterObserver* const packet_type_counter_observer_;
   RtcpPacketTypeCounter packet_type_counter_;

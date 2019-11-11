@@ -11,25 +11,28 @@
 #ifndef COMMON_VIDEO_INCLUDE_INCOMING_VIDEO_STREAM_H_
 #define COMMON_VIDEO_INCLUDE_INCOMING_VIDEO_STREAM_H_
 
+#include <stdint.h>
+
+#include "api/task_queue/task_queue_factory.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_sink_interface.h"
 #include "common_video/video_render_frames.h"
-#include "media/base/videosinkinterface.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/task_queue.h"
+#include "rtc_base/thread_checker.h"
 
 namespace webrtc {
 
 class IncomingVideoStream : public rtc::VideoSinkInterface<VideoFrame> {
  public:
-  IncomingVideoStream(int32_t delay_ms,
+  IncomingVideoStream(TaskQueueFactory* task_queue_factory,
+                      int32_t delay_ms,
                       rtc::VideoSinkInterface<VideoFrame>* callback);
   ~IncomingVideoStream() override;
 
  private:
   void OnFrame(const VideoFrame& video_frame) override;
   void Dequeue();
-
-  // Fwd decl of a QueuedTask implementation for carrying frames over to the TQ.
-  class NewFrameTask;
 
   rtc::ThreadChecker main_thread_checker_;
   rtc::RaceChecker decoder_race_checker_;

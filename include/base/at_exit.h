@@ -10,6 +10,7 @@
 #include "base/containers/stack.h"
 #include "base/macros.h"
 #include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 
 namespace base {
 
@@ -42,7 +43,7 @@ class BASE_EXPORT AtExitManager {
   static void RegisterCallback(AtExitCallbackType func, void* param);
 
   // Registers the specified task to be called at exit.
-  static void RegisterTask(base::Closure task);
+  static void RegisterTask(base::OnceClosure task);
 
   // Calls the functions registered with RegisterCallback in LIFO order. It
   // is possible to register new callbacks after calling this function.
@@ -61,9 +62,15 @@ class BASE_EXPORT AtExitManager {
 
  private:
   base::Lock lock_;
-  base::stack<base::Closure> stack_;
-  bool processing_callbacks_;
-  AtExitManager* next_manager_;  // Stack of managers to allow shadowing.
+
+  base::stack<base::OnceClosure> stack_ GUARDED_BY(lock_);
+
+#if DCHECK_IS_ON()
+  bool processing_callbacks_ GUARDED_BY(lock_) = false;
+#endif
+
+  // Stack of managers to allow shadowing.
+  AtExitManager* const next_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(AtExitManager);
 };

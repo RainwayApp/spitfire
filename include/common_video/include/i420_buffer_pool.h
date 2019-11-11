@@ -11,12 +11,13 @@
 #ifndef COMMON_VIDEO_INCLUDE_I420_BUFFER_POOL_H_
 #define COMMON_VIDEO_INCLUDE_I420_BUFFER_POOL_H_
 
+#include <stddef.h>
 #include <list>
-#include <limits>
 
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "rtc_base/race_checker.h"
-#include "rtc_base/refcountedobject.h"
+#include "rtc_base/ref_counted_object.h"
 
 namespace webrtc {
 
@@ -29,16 +30,23 @@ namespace webrtc {
 // are created. This is to prevent memory leaks where frames are not returned.
 class I420BufferPool {
  public:
-  I420BufferPool()
-      : I420BufferPool(false) {}
-  explicit I420BufferPool(bool zero_initialize)
-      : I420BufferPool(zero_initialize, std::numeric_limits<size_t>::max()) {}
+  I420BufferPool();
+  explicit I420BufferPool(bool zero_initialize);
   I420BufferPool(bool zero_initialze, size_t max_number_of_buffers);
+  ~I420BufferPool();
 
   // Returns a buffer from the pool. If no suitable buffer exist in the pool
   // and there are less than |max_number_of_buffers| pending, a buffer is
   // created. Returns null otherwise.
   rtc::scoped_refptr<I420Buffer> CreateBuffer(int width, int height);
+
+  // Returns a buffer from the pool with the explicitly specified stride.
+  rtc::scoped_refptr<I420Buffer> CreateBuffer(int width,
+                                              int height,
+                                              int stride_y,
+                                              int stride_u,
+                                              int stride_v);
+
   // Clears buffers_ and detaches the thread checker so that it can be reused
   // later from another thread.
   void Release();

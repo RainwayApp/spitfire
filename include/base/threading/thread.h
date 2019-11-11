@@ -14,6 +14,7 @@
 #include "base/callback.h"
 #include "base/macros.h"
 #include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_loop_current.h"
 #include "base/message_loop/timer_slack.h"
 #include "base/sequence_checker.h"
 #include "base/single_thread_task_runner.h"
@@ -29,7 +30,7 @@ class MessagePump;
 class RunLoop;
 
 // IMPORTANT: Instead of creating a base::Thread, consider using
-// base::Create(Sequenced|SingleTreaded)TaskRunnerWithTraits().
+// base::Create(Sequenced|SingleThread)TaskRunnerWithTraits().
 //
 // A simple thread abstraction that establishes a MessageLoop on a new thread.
 // The consumer uses the MessageLoop of the thread to cause code to execute on
@@ -43,7 +44,7 @@ class RunLoop;
 //
 //  (1) Thread::CleanUp()
 //  (2) MessageLoop::~MessageLoop
-//  (3.b)    MessageLoop::DestructionObserver::WillDestroyCurrentMessageLoop
+//  (3.b) MessageLoopCurrent::DestructionObserver::WillDestroyCurrentMessageLoop
 //
 // This API is not thread-safe: unless indicated otherwise its methods are only
 // valid from the owning sequence (which is the one from which Start() is
@@ -58,17 +59,35 @@ class RunLoop;
 // Thread object (including ~Thread()).
 class BASE_EXPORT Thread : PlatformThread::Delegate {
  public:
+  class BASE_EXPORT TaskEnvironment {
+   public:
+    virtual ~TaskEnvironment() {}
+
+    virtual scoped_refptr<SingleThreadTaskRunner> GetDefaultTaskRunner() = 0;
+
+    // Binds a RunLoop::Delegate and TaskRunnerHandle to the thread. The
+    // underlying MessagePump will have its |timer_slack| set to the specified
+    // amount.
+    virtual void BindToCurrentThread(TimerSlack timer_slack) = 0;
+  };
+
   struct BASE_EXPORT Options {
-    typedef Callback<std::unique_ptr<MessagePump>()> MessagePumpFactory;
+    using MessagePumpFactory =
+        RepeatingCallback<std::unique_ptr<MessagePump>()>;
 
     Options();
     Options(MessageLoop::Type type, size_t size);
-    Options(const Options& other);
+    Options(Options&& other);
     ~Options();
 
     // Specifies the type of message loop that will be allocated on the thread.
     // This is ignored if message_pump_factory.is_null() is false.
     MessageLoop::Type message_loop_type = MessageLoop::TYPE_DEFAULT;
+
+    // An unbound TaskEnvironment that will be bound to the thread. Ownership
+    // of |task_environment| will be transferred to the thread.
+    // TODO(alexclarke): This should be a std::unique_ptr
+    TaskEnvironment* task_environment = nullptr;
 
     // Specifies timer slack for thread message loop.
     TimerSlack timer_slack = TIMER_SLACK_NONE;
@@ -76,7 +95,8 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // Used to create the MessagePump for the MessageLoop. The callback is Run()
     // on the thread. If message_pump_factory.is_null(), then a MessagePump
     // appropriate for |message_loop_type| is created. Setting this forces the
-    // MessageLoop::Type to TYPE_CUSTOM.
+    // MessageLoop::Type to TYPE_CUSTOM. This is not compatible with a non-null
+    // |task_environment|.
     MessagePumpFactory message_pump_factory;
 
     // Specifies the maximum stack size that the thread is allowed to use.
@@ -117,7 +137,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // init_com_with_mta(false) and then StartWithOptions() with any message loop
   // type other than TYPE_UI.
   void init_com_with_mta(bool use_mta) {
-    DCHECK(!message_loop_);
+    DCHECK(!task_environment_);
     com_status_ = use_mta ? MTA : STA;
   }
 #endif
@@ -189,34 +209,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // relationship with this one.
   void DetachFromSequence();
 
-  // Returns the message loop for this thread.  Use the MessageLoop's
-  // PostTask methods to execute code on the thread.  This only returns
-  // non-null after a successful call to Start.  After Stop has been called,
-  // this will return nullptr.
-  //
-  // NOTE: You must not call this MessageLoop's Quit method directly.  Use
-  // the Thread's Stop method instead.
-  //
-  // In addition to this Thread's owning sequence, this can also safely be
-  // called from the underlying thread itself.
-  MessageLoop* message_loop() const {
-    // This class doesn't provide synchronization around |message_loop_| and as
-    // such only the owner should access it (and the underlying thread which
-    // never sees it before it's set). In practice, many callers are coming from
-    // unrelated threads but provide their own implicit (e.g. memory barriers
-    // from task posting) or explicit (e.g. locks) synchronization making the
-    // access of |message_loop_| safe... Changing all of those callers is
-    // unfeasible; instead verify that they can reliably see
-    // |message_loop_ != nullptr| without synchronization as a proof that their
-    // external synchronization catches the unsynchronized effects of Start().
-    // TODO(gab): Despite all of the above this test has to be disabled for now
-    // per crbug.com/629139#c6.
-    // DCHECK(owning_sequence_checker_.CalledOnValidSequence() ||
-    //        (id_event_.IsSignaled() && id_ == PlatformThread::CurrentId()) ||
-    //        message_loop_);
-    return message_loop_;
-  }
-
   // Returns a TaskRunner for this thread. Use the TaskRunner's PostTask
   // methods to execute code on the thread. Returns nullptr if the thread is not
   // running (e.g. before Start or after Stop have been called). Callers can
@@ -226,11 +218,21 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // In addition to this Thread's owning sequence, this can also safely be
   // called from the underlying thread itself.
   scoped_refptr<SingleThreadTaskRunner> task_runner() const {
-    // Refer to the DCHECK and comment inside |message_loop()|.
+    // This class doesn't provide synchronization around |message_loop_base_|
+    // and as such only the owner should access it (and the underlying thread
+    // which never sees it before it's set). In practice, many callers are
+    // coming from unrelated threads but provide their own implicit (e.g. memory
+    // barriers from task posting) or explicit (e.g. locks) synchronization
+    // making the access of |message_loop_base_| safe... Changing all of those
+    // callers is unfeasible; instead verify that they can reliably see
+    // |message_loop_base_ != nullptr| without synchronization as a proof that
+    // their external synchronization catches the unsynchronized effects of
+    // Start().
     DCHECK(owning_sequence_checker_.CalledOnValidSequence() ||
            (id_event_.IsSignaled() && id_ == PlatformThread::CurrentId()) ||
-           message_loop_);
-    return message_loop_ ? message_loop_->task_runner() : nullptr;
+           task_environment_);
+    return task_environment_ ? task_environment_->GetDefaultTaskRunner()
+                             : nullptr;
   }
 
   // Returns the name of this thread (for display in debugger too).
@@ -244,15 +246,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   //
   // This method is thread-safe.
   PlatformThreadId GetThreadId() const;
-
-  // Returns the current thread handle. If called before Start*() returns or
-  // after Stop() returns, an empty thread handle will be returned.
-  //
-  // This method is thread-safe.
-  //
-  // TODO(robliao): Remove this when it no longer needs to be temporarily
-  // exposed for http://crbug.com/717380.
-  PlatformThreadHandle GetThreadHandle() const;
 
   // Returns true if the thread has been started, and not yet stopped.
   bool IsRunning() const;
@@ -270,14 +263,11 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   static void SetThreadWasQuitProperly(bool flag);
   static bool GetThreadWasQuitProperly();
 
-  // Bind this Thread to an existing MessageLoop instead of starting a new one.
-  void SetMessageLoop(MessageLoop* message_loop);
-
-  bool using_external_message_loop() const {
-    return using_external_message_loop_;
-  }
-
  private:
+  // Friends for message_loop() access:
+  friend class MessageLoopTaskRunnerTest;
+  friend class ScheduleWorkTest;
+
 #if defined(OS_WIN)
   enum ComStatus {
     NONE,
@@ -319,21 +309,14 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Protects |id_| which must only be read while it's signaled.
   mutable WaitableEvent id_event_;
 
-  // The thread's MessageLoop and RunLoop. Valid only while the thread is alive.
-  // Set by the created thread.
-  MessageLoop* message_loop_ = nullptr;
+  // The thread's TaskEnvironment and RunLoop are valid only while the thread is
+  // alive. Set by the created thread.
+  std::unique_ptr<TaskEnvironment> task_environment_;
   RunLoop* run_loop_ = nullptr;
 
-  // True only if |message_loop_| was externally provided by |SetMessageLoop()|
-  // in which case this Thread has no underlying |thread_| and should merely
-  // drop |message_loop_| on Stop(). In that event, this remains true after
-  // Stop() was invoked so that subclasses can use this state to build their own
-  // cleanup logic as required.
-  bool using_external_message_loop_ = false;
-
-  // Stores Options::timer_slack_ until the message loop has been bound to
+  // Stores Options::timer_slack_ until the sequence manager has been bound to
   // a thread.
-  TimerSlack message_loop_timer_slack_ = TIMER_SLACK_NONE;
+  TimerSlack timer_slack_ = TIMER_SLACK_NONE;
 
   // The name of the thread.  Used for debugging purposes.
   const std::string name_;
@@ -347,6 +330,25 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
+
+namespace internal {
+
+class BASE_EXPORT MessageLoopTaskEnvironment : public Thread::TaskEnvironment {
+ public:
+  explicit MessageLoopTaskEnvironment(
+      std::unique_ptr<MessageLoop> message_loop);
+
+  ~MessageLoopTaskEnvironment() override;
+
+  // Thread::TaskEnvironment:
+  scoped_refptr<SingleThreadTaskRunner> GetDefaultTaskRunner() override;
+  void BindToCurrentThread(TimerSlack timer_slack) override;
+
+ private:
+  std::unique_ptr<MessageLoop> message_loop_;
+};
+
+}  // namespace internal
 
 }  // namespace base
 

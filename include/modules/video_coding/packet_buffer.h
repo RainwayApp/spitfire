@@ -12,15 +12,16 @@
 #define MODULES_VIDEO_CODING_PACKET_BUFFER_H_
 
 #include <memory>
+#include <queue>
 #include <set>
 #include <vector>
 
+#include "api/scoped_refptr.h"
 #include "modules/include/module_common_types.h"
 #include "modules/video_coding/packet.h"
 #include "modules/video_coding/rtp_frame_reference_finder.h"
-#include "modules/video_coding/sequence_number_util.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -29,14 +30,13 @@ class Clock;
 
 namespace video_coding {
 
-class FrameObject;
 class RtpFrameObject;
 
-// A received frame is a frame which has received all its packets.
-class OnReceivedFrameCallback {
+// A frame is assembled when all of its packets have been received.
+class OnAssembledFrameCallback {
  public:
-  virtual ~OnReceivedFrameCallback() {}
-  virtual void OnReceivedFrame(std::unique_ptr<RtpFrameObject> frame) = 0;
+  virtual ~OnAssembledFrameCallback() {}
+  virtual void OnAssembledFrame(std::unique_ptr<RtpFrameObject> frame) = 0;
 };
 
 class PacketBuffer {
@@ -45,7 +45,7 @@ class PacketBuffer {
       Clock* clock,
       size_t start_buffer_size,
       size_t max_buffer_size,
-      OnReceivedFrameCallback* frame_callback);
+      OnAssembledFrameCallback* frame_callback);
 
   virtual ~PacketBuffer();
 
@@ -58,8 +58,11 @@ class PacketBuffer {
   void PaddingReceived(uint16_t seq_num);
 
   // Timestamp (not RTP timestamp) of the last received packet/keyframe packet.
-  rtc::Optional<int64_t> LastReceivedPacketMs() const;
-  rtc::Optional<int64_t> LastReceivedKeyframePacketMs() const;
+  absl::optional<int64_t> LastReceivedPacketMs() const;
+  absl::optional<int64_t> LastReceivedKeyframePacketMs() const;
+
+  // Returns number of different frames seen in the packet buffer
+  int GetUniqueFramesSeen() const;
 
   int AddRef() const;
   int Release() const;
@@ -69,7 +72,7 @@ class PacketBuffer {
   PacketBuffer(Clock* clock,
                size_t start_buffer_size,
                size_t max_buffer_size,
-               OnReceivedFrameCallback* frame_callback);
+               OnAssembledFrameCallback* frame_callback);
 
  private:
   friend RtpFrameObject;
@@ -126,6 +129,10 @@ class PacketBuffer {
   void UpdateMissingPackets(uint16_t seq_num)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
+  // Counts unique received timestamps and updates |unique_frames_seen_|.
+  void OnTimestampReceived(uint32_t rtp_timestamp)
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_);
+
   rtc::CriticalSection crit_;
 
   // Buffer size_ and max_size_ must always be a power of two.
@@ -148,17 +155,29 @@ class PacketBuffer {
   // and information needed to determine the continuity between packets.
   std::vector<ContinuityInfo> sequence_buffer_ RTC_GUARDED_BY(crit_);
 
-  // Called when a received frame is found.
-  OnReceivedFrameCallback* const received_frame_callback_;
+  // Called when all packets in a frame are received, allowing the frame
+  // to be assembled.
+  OnAssembledFrameCallback* const assembled_frame_callback_;
 
   // Timestamp (not RTP timestamp) of the last received packet/keyframe packet.
-  rtc::Optional<int64_t> last_received_packet_ms_ RTC_GUARDED_BY(crit_);
-  rtc::Optional<int64_t> last_received_keyframe_packet_ms_
+  absl::optional<int64_t> last_received_packet_ms_ RTC_GUARDED_BY(crit_);
+  absl::optional<int64_t> last_received_keyframe_packet_ms_
       RTC_GUARDED_BY(crit_);
 
-  rtc::Optional<uint16_t> newest_inserted_seq_num_ RTC_GUARDED_BY(crit_);
+  int unique_frames_seen_ RTC_GUARDED_BY(crit_);
+
+  absl::optional<uint16_t> newest_inserted_seq_num_ RTC_GUARDED_BY(crit_);
   std::set<uint16_t, DescendingSeqNumComp<uint16_t>> missing_packets_
       RTC_GUARDED_BY(crit_);
+
+  // Indicates if we should require SPS, PPS, and IDR for a particular
+  // RTP timestamp to treat the corresponding frame as a keyframe.
+  const bool sps_pps_idr_is_h264_keyframe_;
+
+  // Stores several last seen unique timestamps for quick search.
+  std::set<uint32_t> rtp_timestamps_history_set_ RTC_GUARDED_BY(crit_);
+  // Stores the same unique timestamps in the order of insertion.
+  std::queue<uint32_t> rtp_timestamps_history_queue_ RTC_GUARDED_BY(crit_);
 
   mutable volatile int ref_count_ = 0;
 };

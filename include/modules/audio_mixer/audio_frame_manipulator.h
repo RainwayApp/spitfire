@@ -11,7 +11,10 @@
 #ifndef MODULES_AUDIO_MIXER_AUDIO_FRAME_MANIPULATOR_H_
 #define MODULES_AUDIO_MIXER_AUDIO_FRAME_MANIPULATOR_H_
 
-#include "modules/include/module_common_types.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#include "api/audio/audio_frame.h"
 
 namespace webrtc {
 

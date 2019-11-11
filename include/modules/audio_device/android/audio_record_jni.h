@@ -39,7 +39,7 @@ namespace webrtc {
 // All public methods must also be called on the same thread. A thread checker
 // will RTC_DCHECK if any method is called on an invalid thread.
 //
-// This class uses AttachCurrentThreadIfNeeded to attach to a Java VM if needed
+// This class uses JvmThreadConnector to attach to a Java VM if needed
 // and detach when the object goes out of scope. Additional thread checking
 // guarantees that no other (possibly non attached) thread is used.
 class AudioRecordJni {
@@ -48,7 +48,7 @@ class AudioRecordJni {
   class JavaAudioRecord {
    public:
     JavaAudioRecord(NativeRegistration* native_registration,
-                   std::unique_ptr<GlobalRef> audio_track);
+                    std::unique_ptr<GlobalRef> audio_track);
     ~JavaAudioRecord();
 
     int InitRecording(int sample_rate, size_t channels);
@@ -91,8 +91,10 @@ class AudioRecordJni {
   // is also stored in |direct_buffer_capacity_in_bytes_|.
   // This method will be called by the WebRtcAudioRecord constructor, i.e.,
   // on the same thread that this object is created on.
-  static void JNICALL CacheDirectBufferAddress(
-    JNIEnv* env, jobject obj, jobject byte_buffer, jlong nativeAudioRecord);
+  static void JNICALL CacheDirectBufferAddress(JNIEnv* env,
+                                               jobject obj,
+                                               jobject byte_buffer,
+                                               jlong nativeAudioRecord);
   void OnCacheDirectBufferAddress(JNIEnv* env, jobject byte_buffer);
 
   // Called periodically by the Java based WebRtcAudioRecord object when
@@ -101,8 +103,10 @@ class AudioRecordJni {
   // now time to send these to the consumer.
   // This method is called on a high-priority thread from Java. The name of
   // the thread is 'AudioRecordThread'.
-  static void JNICALL DataIsRecorded(
-    JNIEnv* env, jobject obj, jint length, jlong nativeAudioRecord);
+  static void JNICALL DataIsRecorded(JNIEnv* env,
+                                     jobject obj,
+                                     jint length,
+                                     jlong nativeAudioRecord);
   void OnDataIsRecorded(int length);
 
   // Stores thread ID in constructor.
@@ -112,9 +116,10 @@ class AudioRecordJni {
   // thread in Java. Detached during construction of this object.
   rtc::ThreadChecker thread_checker_java_;
 
-  // Calls AttachCurrentThread() if this thread is not attached at construction.
+  // Calls JavaVM::AttachCurrentThread() if this thread is not attached at
+  // construction.
   // Also ensures that DetachCurrentThread() is called at destruction.
-  AttachCurrentThreadIfNeeded attach_thread_if_needed_;
+  JvmThreadConnector attach_thread_if_needed_;
 
   // Wraps the JNI interface pointer and methods associated with it.
   std::unique_ptr<JNIEnvironment> j_environment_;

@@ -11,13 +11,11 @@
 #ifndef CALL_RTP_RTCP_DEMUXER_HELPER_H_
 #define CALL_RTP_RTCP_DEMUXER_HELPER_H_
 
-#include <algorithm>
-#include <map>
-#include <utility>
+#include <stddef.h>
+#include <stdint.h>
 
+#include "absl/types/optional.h"
 #include "api/array_view.h"
-#include "api/optional.h"
-#include "rtc_base/basictypes.h"
 
 namespace webrtc {
 
@@ -90,7 +88,7 @@ bool MultimapHasKey(const Container& c,
   return it_range.first != it_range.second;
 }
 
-rtc::Optional<uint32_t> ParseRtcpPacketSenderSsrc(
+absl::optional<uint32_t> ParseRtcpPacketSenderSsrc(
     rtc::ArrayView<const uint8_t> packet);
 
 }  // namespace webrtc

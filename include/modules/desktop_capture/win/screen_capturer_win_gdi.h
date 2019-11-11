@@ -20,7 +20,7 @@
 #include "modules/desktop_capture/shared_desktop_frame.h"
 #include "modules/desktop_capture/win/display_configuration_monitor.h"
 #include "modules/desktop_capture/win/scoped_thread_desktop.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -44,7 +44,7 @@ class ScreenCapturerWinGdi : public DesktopCapturer {
   bool SelectSource(SourceId id) override;
 
  private:
-  typedef HRESULT (WINAPI * DwmEnableCompositionFunc)(UINT);
+  typedef HRESULT(WINAPI* DwmEnableCompositionFunc)(UINT);
 
   // Make sure that the device contexts match the screen configuration.
   void PrepareCaptureResources();

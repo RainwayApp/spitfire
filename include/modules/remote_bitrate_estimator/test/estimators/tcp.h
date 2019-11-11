@@ -11,9 +11,11 @@
 #ifndef MODULES_REMOTE_BITRATE_ESTIMATOR_TEST_ESTIMATORS_TCP_H_
 #define MODULES_REMOTE_BITRATE_ESTIMATOR_TEST_ESTIMATORS_TCP_H_
 
+#include <stdint.h>
 #include <vector>
 
 #include "modules/remote_bitrate_estimator/test/bwe.h"
+#include "modules/remote_bitrate_estimator/test/packet.h"
 
 namespace webrtc {
 namespace testing {
@@ -21,7 +23,7 @@ namespace bwe {
 class TcpBweReceiver : public BweReceiver {
  public:
   explicit TcpBweReceiver(int flow_id);
-  virtual ~TcpBweReceiver();
+  ~TcpBweReceiver() override;
 
   void ReceivePacket(int64_t arrival_time_ms,
                      const MediaPacket& media_packet) override;

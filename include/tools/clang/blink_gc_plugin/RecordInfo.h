@@ -75,7 +75,7 @@ class RecordInfo {
 
   struct FieldDeclCmp {
     bool operator()(clang::FieldDecl* a, clang::FieldDecl *b) const {
-      return a->getLocStart() < b->getLocStart();
+      return a->getBeginLoc() < b->getBeginLoc();
     }
   };
   typedef std::map<clang::FieldDecl*, FieldPoint, FieldDeclCmp> Fields;
@@ -89,6 +89,7 @@ class RecordInfo {
   Fields& GetFields();
   Bases& GetBases();
   clang::CXXMethodDecl* GetTraceMethod();
+  clang::CXXMethodDecl* GetTraceWrappersMethod();
   clang::CXXMethodDecl* GetTraceDispatchMethod();
   clang::CXXMethodDecl* GetFinalizeDispatchMethod();
 
@@ -130,6 +131,8 @@ class RecordInfo {
 
   Edge* CreateEdge(const clang::Type* type);
   Edge* CreateEdgeFromOriginalType(const clang::Type* type);
+
+  bool HasOptionalFinalizer();
 
   RecordCache* cache_;
   clang::CXXRecordDecl* record_;

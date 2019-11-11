@@ -8,7 +8,7 @@
 #include <string>
 
 #include "base/macros.h"
-#include "base/system_monitor/system_monitor.h"
+#include "base/system/system_monitor.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {
@@ -17,7 +17,7 @@ class MockDevicesChangedObserver
     : public base::SystemMonitor::DevicesChangedObserver {
  public:
   MockDevicesChangedObserver();
-  ~MockDevicesChangedObserver();
+  ~MockDevicesChangedObserver() override;
 
   MOCK_METHOD1(OnDevicesChanged,
                void(base::SystemMonitor::DeviceType device_type));

@@ -30,11 +30,8 @@ class ProcessMemoryDump;
 enum class MemoryDumpType {
   PERIODIC_INTERVAL,     // Dumping memory at periodic intervals.
   EXPLICITLY_TRIGGERED,  // Non maskable dump request.
-  PEAK_MEMORY_USAGE,     // Dumping memory at detected peak total memory usage.
   SUMMARY_ONLY,          // Calculate just the summary & don't add to the trace.
-  VM_REGIONS_ONLY,       // Retrieve only memory maps & don't add to the trace.
-                         // Used only for the heap profiler.
-  LAST = VM_REGIONS_ONLY
+  LAST = SUMMARY_ONLY
 };
 
 // Tells the MemoryDumpProvider(s) how much detailed their dumps should be.
@@ -61,9 +58,8 @@ enum class MemoryDumpLevelOfDetail : uint32_t {
   LAST = DETAILED
 };
 
-// Initial request arguments for a global memory dump. (see
-// MemoryDumpManager::RequestGlobalMemoryDump()). Keep this consistent with
-// memory_instrumentation.mojo and memory_instrumentation_struct_traits.{h,cc}
+// Keep this consistent with memory_instrumentation.mojo and
+// memory_instrumentation_struct_traits.{h,cc}
 struct BASE_EXPORT MemoryDumpRequestArgs {
   // Globally unique identifier. In multi-process dumps, all processes issue a
   // local dump with the same guid. This allows the trace importers to
@@ -86,7 +82,7 @@ struct MemoryDumpArgs {
   uint64_t dump_guid;
 };
 
-using ProcessMemoryDumpCallback = Callback<
+using ProcessMemoryDumpCallback = OnceCallback<
     void(bool success, uint64_t dump_guid, std::unique_ptr<ProcessMemoryDump>)>;
 
 BASE_EXPORT const char* MemoryDumpTypeToString(const MemoryDumpType& dump_type);

@@ -72,7 +72,7 @@
 // Sometimes JSON format uses string representations for other types such
 // like enum, timestamp, or URL.  You can use RegisterCustomField method
 // and specify a function to convert a StringPiece to your type.
-//   bool ConvertFunc(const StringPiece& s, YourEnum* result) {
+//   bool ConvertFunc(StringPiece s, YourEnum* result) {
 //     // do something and return true if succeed...
 //   }
 //   struct Message {
@@ -96,7 +96,7 @@ template<typename StructType>
 class FieldConverterBase {
  public:
   explicit FieldConverterBase(const std::string& path) : field_path_(path) {}
-  virtual ~FieldConverterBase() {}
+  virtual ~FieldConverterBase() = default;
   virtual bool ConvertField(const base::Value& value, StructType* obj)
       const = 0;
   const std::string& field_path() const { return field_path_; }
@@ -109,7 +109,7 @@ class FieldConverterBase {
 template <typename FieldType>
 class ValueConverter {
  public:
-  virtual ~ValueConverter() {}
+  virtual ~ValueConverter() = default;
   virtual bool Convert(const base::Value& value, FieldType* field) const = 0;
 };
 
@@ -140,7 +140,7 @@ class BasicValueConverter;
 template <>
 class BASE_EXPORT BasicValueConverter<int> : public ValueConverter<int> {
  public:
-  BasicValueConverter() {}
+  BasicValueConverter() = default;
 
   bool Convert(const base::Value& value, int* field) const override;
 
@@ -152,7 +152,7 @@ template <>
 class BASE_EXPORT BasicValueConverter<std::string>
     : public ValueConverter<std::string> {
  public:
-  BasicValueConverter() {}
+  BasicValueConverter() = default;
 
   bool Convert(const base::Value& value, std::string* field) const override;
 
@@ -164,7 +164,7 @@ template <>
 class BASE_EXPORT BasicValueConverter<string16>
     : public ValueConverter<string16> {
  public:
-  BasicValueConverter() {}
+  BasicValueConverter() = default;
 
   bool Convert(const base::Value& value, string16* field) const override;
 
@@ -175,7 +175,7 @@ class BASE_EXPORT BasicValueConverter<string16>
 template <>
 class BASE_EXPORT BasicValueConverter<double> : public ValueConverter<double> {
  public:
-  BasicValueConverter() {}
+  BasicValueConverter() = default;
 
   bool Convert(const base::Value& value, double* field) const override;
 
@@ -186,7 +186,7 @@ class BASE_EXPORT BasicValueConverter<double> : public ValueConverter<double> {
 template <>
 class BASE_EXPORT BasicValueConverter<bool> : public ValueConverter<bool> {
  public:
-  BasicValueConverter() {}
+  BasicValueConverter() = default;
 
   bool Convert(const base::Value& value, bool* field) const override;
 
@@ -215,7 +215,7 @@ class ValueFieldConverter : public ValueConverter<FieldType> {
 template <typename FieldType>
 class CustomFieldConverter : public ValueConverter<FieldType> {
  public:
-  typedef bool(*ConvertFunc)(const StringPiece& value, FieldType* field);
+  typedef bool (*ConvertFunc)(StringPiece value, FieldType* field);
 
   explicit CustomFieldConverter(ConvertFunc convert_func)
       : convert_func_(convert_func) {}
@@ -235,7 +235,7 @@ class CustomFieldConverter : public ValueConverter<FieldType> {
 template <typename NestedType>
 class NestedValueConverter : public ValueConverter<NestedType> {
  public:
-  NestedValueConverter() {}
+  NestedValueConverter() = default;
 
   bool Convert(const base::Value& value, NestedType* field) const override {
     return converter_.Convert(value, field);
@@ -250,29 +250,26 @@ template <typename Element>
 class RepeatedValueConverter
     : public ValueConverter<std::vector<std::unique_ptr<Element>>> {
  public:
-  RepeatedValueConverter() {}
+  RepeatedValueConverter() = default;
 
   bool Convert(const base::Value& value,
                std::vector<std::unique_ptr<Element>>* field) const override {
-    const base::ListValue* list = NULL;
-    if (!value.GetAsList(&list)) {
+    if (!value.is_list()) {
       // The field is not a list.
       return false;
     }
 
-    field->reserve(list->GetSize());
-    for (size_t i = 0; i < list->GetSize(); ++i) {
-      const base::Value* element = NULL;
-      if (!list->Get(i, &element))
-        continue;
-
-      std::unique_ptr<Element> e(new Element);
-      if (basic_converter_.Convert(*element, e.get())) {
+    field->reserve(value.GetList().size());
+    size_t i = 0;
+    for (const Value& element : value.GetList()) {
+      auto e = std::make_unique<Element>();
+      if (basic_converter_.Convert(element, e.get())) {
         field->push_back(std::move(e));
       } else {
         DVLOG(1) << "failure at " << i << "-th element";
         return false;
       }
+      i++;
     }
     return true;
   }
@@ -286,27 +283,24 @@ template <typename NestedType>
 class RepeatedMessageConverter
     : public ValueConverter<std::vector<std::unique_ptr<NestedType>>> {
  public:
-  RepeatedMessageConverter() {}
+  RepeatedMessageConverter() = default;
 
   bool Convert(const base::Value& value,
                std::vector<std::unique_ptr<NestedType>>* field) const override {
-    const base::ListValue* list = NULL;
-    if (!value.GetAsList(&list))
+    if (!value.is_list())
       return false;
 
-    field->reserve(list->GetSize());
-    for (size_t i = 0; i < list->GetSize(); ++i) {
-      const base::Value* element = NULL;
-      if (!list->Get(i, &element))
-        continue;
-
-      std::unique_ptr<NestedType> nested(new NestedType);
-      if (converter_.Convert(*element, nested.get())) {
+    field->reserve(value.GetList().size());
+    size_t i = 0;
+    for (const Value& element : value.GetList()) {
+      auto nested = std::make_unique<NestedType>();
+      if (converter_.Convert(element, nested.get())) {
         field->push_back(std::move(nested));
       } else {
         DVLOG(1) << "failure at " << i << "-th element";
         return false;
       }
+      i++;
     }
     return true;
   }
@@ -327,23 +321,20 @@ class RepeatedCustomValueConverter
 
   bool Convert(const base::Value& value,
                std::vector<std::unique_ptr<NestedType>>* field) const override {
-    const base::ListValue* list = NULL;
-    if (!value.GetAsList(&list))
+    if (!value.is_list())
       return false;
 
-    field->reserve(list->GetSize());
-    for (size_t i = 0; i < list->GetSize(); ++i) {
-      const base::Value* element = NULL;
-      if (!list->Get(i, &element))
-        continue;
-
-      std::unique_ptr<NestedType> nested(new NestedType);
-      if ((*convert_func_)(element, nested.get())) {
+    field->reserve(value.GetList().size());
+    size_t i = 0;
+    for (const Value& element : value.GetList()) {
+      auto nested = std::make_unique<NestedType>();
+      if ((*convert_func_)(&element, nested.get())) {
         field->push_back(std::move(nested));
       } else {
         DVLOG(1) << "failure at " << i << "-th element";
         return false;
       }
+      i++;
     }
     return true;
   }
@@ -407,10 +398,9 @@ class JSONValueConverter {
   }
 
   template <typename FieldType>
-  void RegisterCustomField(
-      const std::string& field_name,
-      FieldType StructType::* field,
-      bool (*convert_func)(const StringPiece&, FieldType*)) {
+  void RegisterCustomField(const std::string& field_name,
+                           FieldType StructType::*field,
+                           bool (*convert_func)(StringPiece, FieldType*)) {
     fields_.push_back(
         std::make_unique<internal::FieldConverter<StructType, FieldType>>(
             field_name, field,
@@ -495,15 +485,14 @@ class JSONValueConverter {
   }
 
   bool Convert(const base::Value& value, StructType* output) const {
-    const DictionaryValue* dictionary_value = NULL;
-    if (!value.GetAsDictionary(&dictionary_value))
+    if (!value.is_dict())
       return false;
 
     for (size_t i = 0; i < fields_.size(); ++i) {
       const internal::FieldConverterBase<StructType>* field_converter =
           fields_[i].get();
-      const base::Value* field = NULL;
-      if (dictionary_value->Get(field_converter->field_path(), &field)) {
+      const base::Value* field = value.FindPath(field_converter->field_path());
+      if (field) {
         if (!field_converter->ConvertField(*field, output)) {
           DVLOG(1) << "failure at field " << field_converter->field_path();
           return false;

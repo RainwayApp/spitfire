@@ -11,11 +11,11 @@
 #ifndef MODULES_AUDIO_CODING_AUDIO_NETWORK_ADAPTOR_FEC_CONTROLLER_RPLR_BASED_H_
 #define MODULES_AUDIO_CODING_AUDIO_NETWORK_ADAPTOR_FEC_CONTROLLER_RPLR_BASED_H_
 
-#include <memory>
-
+#include "absl/types/optional.h"
 #include "modules/audio_coding/audio_network_adaptor/controller.h"
+#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
 #include "modules/audio_coding/audio_network_adaptor/util/threshold_curve.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -55,8 +55,8 @@ class FecControllerRplrBased final : public Controller {
 
   const Config config_;
   bool fec_enabled_;
-  rtc::Optional<int> uplink_bandwidth_bps_;
-  rtc::Optional<float> uplink_recoverable_packet_loss_;
+  absl::optional<int> uplink_bandwidth_bps_;
+  absl::optional<float> uplink_recoverable_packet_loss_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(FecControllerRplrBased);
 };

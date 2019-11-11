@@ -11,14 +11,17 @@
 #ifndef MODULES_VIDEO_CODING_FRAME_BUFFER_H_
 #define MODULES_VIDEO_CODING_FRAME_BUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <vector>
 
-#include "modules/include/module_common_types.h"
-#include "modules/video_coding/include/video_coding.h"
+#include "modules/video_coding/codecs/h264/include/h264_globals.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "modules/video_coding/encoded_frame.h"
+#include "modules/video_coding/include/video_coding.h"
 #include "modules/video_coding/jitter_buffer_common.h"
+#include "modules/video_coding/packet.h"
 #include "modules/video_coding/session_info.h"
-#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -27,29 +30,20 @@ class VCMFrameBuffer : public VCMEncodedFrame {
   VCMFrameBuffer();
   virtual ~VCMFrameBuffer();
 
-  VCMFrameBuffer(const VCMFrameBuffer& rhs);
-
   virtual void Reset();
 
   VCMFrameBufferEnum InsertPacket(const VCMPacket& packet,
                                   int64_t timeInMs,
-                                  VCMDecodeErrorMode decode_error_mode,
                                   const FrameData& frame_data);
 
   // State
   // Get current state of frame
   VCMFrameBufferStateEnum GetState() const;
-  // Get current state and timestamp of frame
-  VCMFrameBufferStateEnum GetState(uint32_t& timeStamp) const;
   void PrepareForDecode(bool continuous);
 
-  bool IsRetransmitted() const;
   bool IsSessionComplete() const;
   bool HaveFirstPacket() const;
-  bool HaveLastPacket() const;
   int NumPackets() const;
-  // Makes sure the session contain a decodable stream.
-  void MakeSessionDecodable();
 
   // Sequence numbers
   // Get lowest packet sequence number in frame
@@ -61,7 +55,6 @@ class VCMFrameBuffer : public VCMEncodedFrame {
   int TemporalId() const;
   bool LayerSync() const;
   int Tl0PicId() const;
-  bool NonReference() const;
 
   std::vector<NaluInfo> GetNaluInfos() const;
 
@@ -76,11 +69,7 @@ class VCMFrameBuffer : public VCMEncodedFrame {
 
   int64_t LatestPacketTimeMs() const;
 
-  webrtc::FrameType FrameType() const;
-  void SetPreviousFrameLoss();
-
-  // The number of packets discarded because the decoder can't make use of them.
-  int NotDecodablePackets() const;
+  webrtc::VideoFrameType FrameType() const;
 
  private:
   void SetState(VCMFrameBufferStateEnum state);  // Set state of frame

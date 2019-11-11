@@ -10,45 +10,41 @@
 #ifndef TEST_DIRECT_TRANSPORT_H_
 #define TEST_DIRECT_TRANSPORT_H_
 
-#include <assert.h>
-
 #include <memory>
 
 #include "api/call/transport.h"
+#include "api/test/simulated_network.h"
 #include "call/call.h"
-#include "rtc_base/sequenced_task_checker.h"
+#include "call/simulated_packet_receiver.h"
+#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/thread_annotations.h"
-#include "test/fake_network_pipe.h"
 #include "test/single_threaded_task_queue.h"
 
 namespace webrtc {
 
-class Clock;
 class PacketReceiver;
 
 namespace test {
+class Demuxer {
+ public:
+  explicit Demuxer(const std::map<uint8_t, MediaType>& payload_type_map);
+  ~Demuxer() = default;
+  MediaType GetMediaType(const uint8_t* packet_data,
+                         const size_t packet_length) const;
+  const std::map<uint8_t, MediaType> payload_type_map_;
+  RTC_DISALLOW_COPY_AND_ASSIGN(Demuxer);
+};
 
 // Objects of this class are expected to be allocated and destroyed  on the
 // same task-queue - the one that's passed in via the constructor.
 class DirectTransport : public Transport {
  public:
   DirectTransport(SingleThreadedTaskQueueForTesting* task_queue,
+                  std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
                   Call* send_call,
                   const std::map<uint8_t, MediaType>& payload_type_map);
-
-  DirectTransport(SingleThreadedTaskQueueForTesting* task_queue,
-                  const FakeNetworkPipe::Config& config,
-                  Call* send_call,
-                  const std::map<uint8_t, MediaType>& payload_type_map);
-
-  DirectTransport(SingleThreadedTaskQueueForTesting* task_queue,
-                  const FakeNetworkPipe::Config& config,
-                  Call* send_call,
-                  std::unique_ptr<Demuxer> demuxer);
 
   ~DirectTransport() override;
-
-  void SetConfig(const FakeNetworkPipe::Config& config);
 
   RTC_DEPRECATED void StopSending();
 
@@ -63,18 +59,21 @@ class DirectTransport : public Transport {
   int GetAverageDelayMs();
 
  private:
-  void SendPackets();
+  void ProcessPackets() RTC_EXCLUSIVE_LOCKS_REQUIRED(&process_lock_);
+  void SendPacket(const uint8_t* data, size_t length);
+  void Start();
 
   Call* const send_call_;
-  Clock* const clock_;
 
   SingleThreadedTaskQueueForTesting* const task_queue_;
-  SingleThreadedTaskQueueForTesting::TaskId next_scheduled_task_
-      RTC_GUARDED_BY(&sequence_checker_);
 
-  FakeNetworkPipe fake_network_;
+  rtc::CriticalSection process_lock_;
+  absl::optional<SingleThreadedTaskQueueForTesting::TaskId> next_process_task_
+      RTC_GUARDED_BY(&process_lock_);
 
-  rtc::SequencedTaskChecker sequence_checker_;
+  const Demuxer demuxer_;
+  const std::unique_ptr<SimulatedPacketReceiverInterface> fake_network_;
+
 };
 }  // namespace test
 }  // namespace webrtc

@@ -7,9 +7,11 @@
 
 #include "base/base_export.h"
 #include "base/callback_helpers.h"
+#include "base/compiler_specific.h"
 #include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
+#include "base/threading/sequenced_task_runner_handle.h"
 
 namespace base {
 
@@ -21,11 +23,11 @@ namespace base {
 class BASE_EXPORT ThreadTaskRunnerHandle {
  public:
   // Gets the SingleThreadTaskRunner for the current thread.
-  static scoped_refptr<SingleThreadTaskRunner> Get();
+  static const scoped_refptr<SingleThreadTaskRunner>& Get() WARN_UNUSED_RESULT;
 
   // Returns true if the SingleThreadTaskRunner is already created for
   // the current thread.
-  static bool IsSet();
+  static bool IsSet() WARN_UNUSED_RESULT;
 
   // Overrides ThreadTaskRunnerHandle::Get()'s |task_runner_| to point at
   // |overriding_task_runner| until the returned ScopedClosureRunner goes out of
@@ -36,7 +38,8 @@ class BASE_EXPORT ThreadTaskRunnerHandle {
   // tests where multiple task runners can share the main thread for simplicity
   // and determinism.
   static ScopedClosureRunner OverrideForTesting(
-      scoped_refptr<SingleThreadTaskRunner> overriding_task_runner);
+      scoped_refptr<SingleThreadTaskRunner> overriding_task_runner)
+      WARN_UNUSED_RESULT;
 
   // Binds |task_runner| to the current thread. |task_runner| must belong
   // to the current thread for this to succeed.
@@ -46,6 +49,10 @@ class BASE_EXPORT ThreadTaskRunnerHandle {
 
  private:
   scoped_refptr<SingleThreadTaskRunner> task_runner_;
+
+  // Registers |task_runner_|'s SequencedTaskRunner interface as the
+  // SequencedTaskRunnerHandle on this thread.
+  SequencedTaskRunnerHandle sequenced_task_runner_handle_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadTaskRunnerHandle);
 };

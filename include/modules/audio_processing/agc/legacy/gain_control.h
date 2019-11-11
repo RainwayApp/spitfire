@@ -11,8 +11,6 @@
 #ifndef MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
 #define MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
 
-#include "typedefs.h"  // NOLINT(build/include)
-
 // Errors
 #define AGC_UNSPECIFIED_ERROR 18000
 #define AGC_UNSUPPORTED_FUNCTION_ERROR 18001
@@ -208,7 +206,7 @@ int WebRtcAgc_get_config(void* agcInst, WebRtcAgcConfig* config);
  * This function creates and returns an AGC instance, which will contain the
  * state information for one (duplex) channel.
  */
-void* WebRtcAgc_Create();
+void* WebRtcAgc_Create(void);
 
 /*
  * This function frees the AGC instance created at the beginning.

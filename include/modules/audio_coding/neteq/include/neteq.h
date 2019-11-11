@@ -13,15 +13,18 @@
 
 #include <string.h>  // Provide access to size_t.
 
+#include <map>
 #include <string>
 #include <vector>
 
-#include "api/optional.h"
-#include "common_types.h"  // NOLINT(build/include)
-#include "modules/audio_coding/neteq/audio_decoder_impl.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/scoped_ref_ptr.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "absl/types/optional.h"
+#include "api/audio_codecs/audio_codec_pair_id.h"
+#include "api/audio_codecs/audio_decoder.h"
+#include "api/audio_codecs/audio_format.h"
+#include "api/rtp_headers.h"
+#include "api/scoped_refptr.h"
+#include "modules/audio_coding/neteq/defines.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -30,25 +33,25 @@ class AudioFrame;
 class AudioDecoderFactory;
 
 struct NetEqNetworkStatistics {
-  uint16_t current_buffer_size_ms;  // Current jitter buffer size in ms.
+  uint16_t current_buffer_size_ms;    // Current jitter buffer size in ms.
   uint16_t preferred_buffer_size_ms;  // Target buffer size in ms.
-  uint16_t jitter_peaks_found;  // 1 if adding extra delay due to peaky
-                                // jitter; 0 otherwise.
-  uint16_t packet_loss_rate;  // Loss rate (network + late) in Q14.
-  uint16_t expand_rate;  // Fraction (of original stream) of synthesized
-                         // audio inserted through expansion (in Q14).
+  uint16_t jitter_peaks_found;        // 1 if adding extra delay due to peaky
+                                      // jitter; 0 otherwise.
+  uint16_t packet_loss_rate;          // Loss rate (network + late) in Q14.
+  uint16_t expand_rate;         // Fraction (of original stream) of synthesized
+                                // audio inserted through expansion (in Q14).
   uint16_t speech_expand_rate;  // Fraction (of original stream) of synthesized
                                 // speech inserted through expansion (in Q14).
-  uint16_t preemptive_rate;  // Fraction of data inserted through pre-emptive
-                             // expansion (in Q14).
-  uint16_t accelerate_rate;  // Fraction of data removed through acceleration
-                             // (in Q14).
-  uint16_t secondary_decoded_rate;  // Fraction of data coming from FEC/RED
-                                    // decoding (in Q14).
+  uint16_t preemptive_rate;     // Fraction of data inserted through pre-emptive
+                                // expansion (in Q14).
+  uint16_t accelerate_rate;     // Fraction of data removed through acceleration
+                                // (in Q14).
+  uint16_t secondary_decoded_rate;    // Fraction of data coming from FEC/RED
+                                      // decoding (in Q14).
   uint16_t secondary_discarded_rate;  // Fraction of discarded FEC/RED data (in
                                       // Q14).
-  int32_t clockdrift_ppm;  // Average clock-drift in parts-per-million
-                           // (positive or negative).
+  int32_t clockdrift_ppm;     // Average clock-drift in parts-per-million
+                              // (positive or negative).
   size_t added_zero_samples;  // Number of zero samples added in "off" mode.
   // Statistics for packet waiting times, i.e., the time between a packet
   // arrives until it is decoded.
@@ -67,52 +70,79 @@ struct NetEqLifetimeStatistics {
   uint64_t concealed_samples = 0;
   uint64_t concealment_events = 0;
   uint64_t jitter_buffer_delay_ms = 0;
+  uint64_t jitter_buffer_emitted_count = 0;
+  uint64_t inserted_samples_for_deceleration = 0;
+  uint64_t removed_samples_for_acceleration = 0;
+  uint64_t silent_concealed_samples = 0;
+  uint64_t fec_packets_received = 0;
+  uint64_t fec_packets_discarded = 0;
+  // Below stats are not part of the spec.
+  uint64_t delayed_packet_outage_samples = 0;
+  // This is sum of relative packet arrival delays of received packets so far.
+  // Since end-to-end delay of a packet is difficult to measure and is not
+  // necessarily useful for measuring jitter buffer performance, we report a
+  // relative packet arrival delay. The relative packet arrival delay of a
+  // packet is defined as the arrival delay compared to the first packet
+  // received, given that it had zero delay. To avoid clock drift, the "first"
+  // packet can be made dynamic.
+  uint64_t relative_packet_arrival_delay_ms = 0;
+  uint64_t jitter_buffer_packets_received = 0;
+  // An interruption is a loss-concealment event lasting at least 150 ms. The
+  // two stats below count the number os such events and the total duration of
+  // these events.
+  int32_t interruption_count = 0;
+  int32_t total_interruption_duration_ms = 0;
 };
 
-enum NetEqPlayoutMode {
-  kPlayoutOn,
-  kPlayoutOff,
-  kPlayoutFax,
-  kPlayoutStreaming
+// Metrics that describe the operations performed in NetEq, and the internal
+// state.
+struct NetEqOperationsAndState {
+  // These sample counters are cumulative, and don't reset. As a reference, the
+  // total number of output samples can be found in
+  // NetEqLifetimeStatistics::total_samples_received.
+  uint64_t preemptive_samples = 0;
+  uint64_t accelerate_samples = 0;
+  // Count of the number of buffer flushes.
+  uint64_t packet_buffer_flushes = 0;
+  // The number of primary packets that were discarded.
+  uint64_t discarded_primary_packets = 0;
+  // The statistics below are not cumulative.
+  // The waiting time of the last decoded packet.
+  uint64_t last_waiting_time_ms = 0;
+  // The sum of the packet and jitter buffer size in ms.
+  uint64_t current_buffer_size_ms = 0;
+  // The current frame size in ms.
+  uint64_t current_frame_size_ms = 0;
+  // Flag to indicate that the next packet is available.
+  bool next_packet_available = false;
 };
 
 // This is the interface class for NetEq.
 class NetEq {
  public:
-  enum BackgroundNoiseMode {
-    kBgnOn,    // Default behavior with eternal noise.
-    kBgnFade,  // Noise fades to zero after some time.
-    kBgnOff    // Background noise is always zero.
-  };
-
   struct Config {
-    Config()
-        : sample_rate_hz(16000),
-          enable_post_decode_vad(false),
-          max_packets_in_buffer(50),
-          // |max_delay_ms| has the same effect as calling SetMaximumDelay().
-          max_delay_ms(2000),
-          background_noise_mode(kBgnOff),
-          playout_mode(kPlayoutOn),
-          enable_fast_accelerate(false) {}
+    Config();
+    Config(const Config&);
+    Config(Config&&);
+    ~Config();
+    Config& operator=(const Config&);
+    Config& operator=(Config&&);
 
     std::string ToString() const;
 
-    int sample_rate_hz;  // Initial value. Will change with input data.
-    bool enable_post_decode_vad;
-    size_t max_packets_in_buffer;
-    int max_delay_ms;
-    BackgroundNoiseMode background_noise_mode;
-    NetEqPlayoutMode playout_mode;
-    bool enable_fast_accelerate;
+    int sample_rate_hz = 16000;  // Initial value. Will change with input data.
+    bool enable_post_decode_vad = false;
+    size_t max_packets_in_buffer = 200;
+    int max_delay_ms = 0;
+    int min_delay_ms = 0;
+    bool enable_fast_accelerate = false;
     bool enable_muted_state = false;
+    bool enable_rtx_handling = false;
+    absl::optional<AudioCodecPairId> codec_pair_id;
+    bool for_test_no_time_stretching = false;  // Use only for testing.
   };
 
-  enum ReturnCodes {
-    kOK = 0,
-    kFail = -1,
-    kNotImplemented = -2
-  };
+  enum ReturnCodes { kOK = 0, kFail = -1 };
 
   // Creates a new NetEq object, with parameters set in |config|. The |config|
   // object will only have to be valid for the duration of the call to this
@@ -145,31 +175,17 @@ class NetEq {
   // If muted state is enabled (through Config::enable_muted_state), |muted|
   // may be set to true after a prolonged expand period. When this happens, the
   // |data_| in |audio_frame| is not written, but should be interpreted as being
-  // all zeros.
+  // all zeros. For testing purposes, an override can be supplied in the
+  // |action_override| argument, which will cause NetEq to take this action
+  // next, instead of the action it would normally choose.
   // Returns kOK on success, or kFail in case of an error.
-  virtual int GetAudio(AudioFrame* audio_frame, bool* muted) = 0;
+  virtual int GetAudio(
+      AudioFrame* audio_frame,
+      bool* muted,
+      absl::optional<Operations> action_override = absl::nullopt) = 0;
 
   // Replaces the current set of decoders with the given one.
   virtual void SetCodecs(const std::map<int, SdpAudioFormat>& codecs) = 0;
-
-  // Associates |rtp_payload_type| with |codec| and |codec_name|, and stores the
-  // information in the codec database. Returns 0 on success, -1 on failure.
-  // The name is only used to provide information back to the caller about the
-  // decoders. Hence, the name is arbitrary, and may be empty.
-  virtual int RegisterPayloadType(NetEqDecoder codec,
-                                  const std::string& codec_name,
-                                  uint8_t rtp_payload_type) = 0;
-
-  // Provides an externally created decoder object |decoder| to insert in the
-  // decoder database. The decoder implements a decoder of type |codec| and
-  // associates it with |rtp_payload_type| and |codec_name|. Returns kOK on
-  // success, kFail on failure. The name is only used to provide information
-  // back to the caller about the decoders. Hence, the name is arbitrary, and
-  // may be empty.
-  virtual int RegisterExternalDecoder(AudioDecoder* decoder,
-                                      NetEqDecoder codec,
-                                      const std::string& codec_name,
-                                      uint8_t rtp_payload_type) = 0;
 
   // Associates |rtp_payload_type| with the given codec, which NetEq will
   // instantiate when it needs it. Returns true iff successful.
@@ -196,36 +212,24 @@ class NetEq {
   // the |max_delay_ms| value in the NetEq::Config struct.
   virtual bool SetMaximumDelay(int delay_ms) = 0;
 
-  // The smallest latency required. This is computed bases on inter-arrival
-  // time and internal NetEq logic. Note that in computing this latency none of
-  // the user defined limits (applied by calling setMinimumDelay() and/or
-  // SetMaximumDelay()) are applied.
-  virtual int LeastRequiredDelayMs() const = 0;
+  // Sets a base minimum delay in milliseconds for packet buffer. The minimum
+  // delay which is set via |SetMinimumDelay| can't be lower than base minimum
+  // delay. Calling this method is similar to setting the |min_delay_ms| value
+  // in the NetEq::Config struct. Returns true if the base minimum is
+  // successfully applied, otherwise false is returned.
+  virtual bool SetBaseMinimumDelayMs(int delay_ms) = 0;
 
-  // Not implemented.
-  virtual int SetTargetDelay() = 0;
+  // Returns current value of base minimum delay in milliseconds.
+  virtual int GetBaseMinimumDelayMs() const = 0;
 
   // Returns the current target delay in ms. This includes any extra delay
   // requested through SetMinimumDelay.
-  virtual int TargetDelayMs() = 0;
-
-  // Returns the current total delay (packet buffer and sync buffer) in ms.
-  virtual int CurrentDelayMs() const = 0;
+  virtual int TargetDelayMs() const = 0;
 
   // Returns the current total delay (packet buffer and sync buffer) in ms,
   // with smoothing applied to even out short-time fluctuations due to jitter.
   // The packet buffer part of the delay is not updated during DTX/CNG periods.
   virtual int FilteredCurrentDelayMs() const = 0;
-
-  // Sets the playout mode to |mode|.
-  // Deprecated. Set the mode in the Config struct passed to the constructor.
-  // TODO(henrik.lundin) Delete.
-  virtual void SetPlayoutMode(NetEqPlayoutMode mode) = 0;
-
-  // Returns the current playout mode.
-  // Deprecated.
-  // TODO(henrik.lundin) Delete.
-  virtual NetEqPlayoutMode PlayoutMode() const = 0;
 
   // Writes the current network statistics to |stats|. The statistics are reset
   // after the call.
@@ -235,12 +239,9 @@ class NetEq {
   // never reset.
   virtual NetEqLifetimeStatistics GetLifetimeStatistics() const = 0;
 
-  // Writes the current RTCP statistics to |stats|. The statistics are reset
-  // and a new report period is started with the call.
-  virtual void GetRtcpStatistics(RtcpStatistics* stats) = 0;
-
-  // Same as RtcpStatistics(), but does not reset anything.
-  virtual void GetRtcpStatisticsNoReset(RtcpStatistics* stats) = 0;
+  // Returns statistics about the performed operations and internal state. These
+  // statistics are never reset.
+  virtual NetEqOperationsAndState GetOperationsAndState() const = 0;
 
   // Enables post-decode VAD. When enabled, GetAudio() will return
   // kOutputVADPassive when the signal contains no speech.
@@ -251,34 +252,20 @@ class NetEq {
 
   // Returns the RTP timestamp for the last sample delivered by GetAudio().
   // The return value will be empty if no valid timestamp is available.
-  virtual rtc::Optional<uint32_t> GetPlayoutTimestamp() const = 0;
+  virtual absl::optional<uint32_t> GetPlayoutTimestamp() const = 0;
 
   // Returns the sample rate in Hz of the audio produced in the last GetAudio
   // call. If GetAudio has not been called yet, the configured sample rate
   // (Config::sample_rate_hz) is returned.
   virtual int last_output_sample_rate_hz() const = 0;
 
-  // Returns info about the decoder for the given payload type, or an empty
-  // value if we have no decoder for that payload type.
-  virtual rtc::Optional<CodecInst> GetDecoder(int payload_type) const = 0;
-
-  // Returns the decoder format for the given payload type. Returns empty if no
+  // Returns the decoder info for the given payload type. Returns empty if no
   // such payload type was registered.
-  virtual rtc::Optional<SdpAudioFormat> GetDecoderFormat(
+  virtual absl::optional<SdpAudioFormat> GetDecoderFormat(
       int payload_type) const = 0;
-
-  // Not implemented.
-  virtual int SetTargetNumberOfChannels() = 0;
-
-  // Not implemented.
-  virtual int SetTargetSampleRate() = 0;
 
   // Flushes both the packet buffer and the sync buffer.
   virtual void FlushBuffers() = 0;
-
-  // Current usage of packet-buffer and it's limits.
-  virtual void PacketBufferStatistics(int* current_num_packets,
-                                      int* max_num_packets) const = 0;
 
   // Enables NACK and sets the maximum size of the NACK list, which should be
   // positive and no larger than Nack::kNackListSizeLimit. If NACK is already

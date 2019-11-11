@@ -9,8 +9,11 @@
 
 #include "base/base_export.h"
 #include "base/callback.h"
+#include "base/command_line.h"
+#include "base/metrics/field_trial.h"
 
 namespace base {
+
 namespace android {
 
 // The process the shared library is loaded in.
@@ -28,7 +31,13 @@ enum LibraryProcessType {
   PROCESS_WEBVIEW_CHILD = 4,
 };
 
-typedef bool NativeInitializationHook();
+// Whether fewer code should be prefetched, and no-readahead should be set.
+// Returns true on low-end devices, where this speeds up startup, and false
+// elsewhere, where it slows it down. See
+// https://bugs.chromium.org/p/chromium/issues/detail?id=758566#c71 for details.
+BASE_EXPORT bool IsUsingOrderfileOptimization();
+
+typedef bool NativeInitializationHook(LibraryProcessType library_process_type);
 
 BASE_EXPORT void SetNativeInitializationHook(
     NativeInitializationHook native_initialization_hook);
@@ -45,7 +54,8 @@ BASE_EXPORT void RecordLibraryLoaderRendererHistograms();
 // Note: this can't use base::Callback because there is no way of initializing
 // the default callback without using static objects, which we forbid.
 typedef bool LibraryLoadedHook(JNIEnv* env,
-                               jclass clazz);
+                               jclass clazz,
+                               LibraryProcessType library_process_type);
 
 // Set the hook function to be called (from Java) once the libraries are loaded.
 // SetLibraryLoadedHook may only be called from JNI_OnLoad. The hook function
@@ -62,9 +72,6 @@ BASE_EXPORT void SetVersionNumber(const char* version_number);
 // Call on exit to delete the AtExitManager which OnLibraryLoadedOnUIThread
 // created.
 BASE_EXPORT void LibraryLoaderExitHook();
-
-// Return the process type the shared library is loaded in.
-BASE_EXPORT LibraryProcessType GetLibraryProcessType(JNIEnv* env);
 
 // Initialize AtExitManager, this must be done at the begining of loading
 // shared library.

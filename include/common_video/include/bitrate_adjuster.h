@@ -11,14 +11,15 @@
 #ifndef COMMON_VIDEO_INCLUDE_BITRATE_ADJUSTER_H_
 #define COMMON_VIDEO_INCLUDE_BITRATE_ADJUSTER_H_
 
-#include <functional>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "rtc_base/criticalsection.h"
+#include "absl/types/optional.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/rate_statistics.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
-
-class Clock;
 
 // Certain hardware encoders tend to consistently overshoot the bitrate that
 // they are configured to encode at. This class estimates an adjusted bitrate
@@ -28,8 +29,7 @@ class BitrateAdjuster {
   // min_adjusted_bitrate_pct and max_adjusted_bitrate_pct are the lower and
   // upper bound outputted adjusted bitrates as a percentage of the target
   // bitrate.
-  BitrateAdjuster(Clock* clock,
-                  float min_adjusted_bitrate_pct,
+  BitrateAdjuster(float min_adjusted_bitrate_pct,
                   float max_adjusted_bitrate_pct);
   virtual ~BitrateAdjuster() {}
 
@@ -47,7 +47,7 @@ class BitrateAdjuster {
   uint32_t GetAdjustedBitrateBps() const;
 
   // Returns what we think the current bitrate is.
-  rtc::Optional<uint32_t> GetEstimatedBitrateBps();
+  absl::optional<uint32_t> GetEstimatedBitrateBps();
 
   // This should be called after each frame is encoded. The timestamp at which
   // it is called is used to estimate the output bitrate of the encoder.
@@ -68,7 +68,6 @@ class BitrateAdjuster {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
   rtc::CriticalSection crit_;
-  Clock* const clock_;
   const float min_adjusted_bitrate_pct_;
   const float max_adjusted_bitrate_pct_;
   // The bitrate we want.

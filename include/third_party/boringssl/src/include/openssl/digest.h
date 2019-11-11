@@ -119,18 +119,19 @@ OPENSSL_EXPORT int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx);
 OPENSSL_EXPORT void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
 
 // EVP_MD_CTX_copy_ex sets |out|, which must already be initialised, to be a
-// copy of |in|. It returns one on success and zero on error.
+// copy of |in|. It returns one on success and zero on allocation failure.
 OPENSSL_EXPORT int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out, const EVP_MD_CTX *in);
 
-// EVP_MD_CTX_reset calls |EVP_MD_CTX_cleanup| followed by |EVP_MD_CTX_init|.
-OPENSSL_EXPORT void EVP_MD_CTX_reset(EVP_MD_CTX *ctx);
+// EVP_MD_CTX_reset calls |EVP_MD_CTX_cleanup| followed by |EVP_MD_CTX_init|. It
+// returns one.
+OPENSSL_EXPORT int EVP_MD_CTX_reset(EVP_MD_CTX *ctx);
 
 
 // Digest operations.
 
 // EVP_DigestInit_ex configures |ctx|, which must already have been
 // initialised, for a fresh hashing operation using |type|. It returns one on
-// success and zero otherwise.
+// success and zero on allocation failure.
 OPENSSL_EXPORT int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type,
                                      ENGINE *engine);
 
@@ -268,6 +269,11 @@ OPENSSL_EXPORT EVP_MD_CTX *EVP_MD_CTX_create(void);
 // EVP_MD_CTX_destroy calls |EVP_MD_CTX_free|.
 OPENSSL_EXPORT void EVP_MD_CTX_destroy(EVP_MD_CTX *ctx);
 
+// EVP_DigestFinalXOF returns zero and adds an error to the error queue.
+// BoringSSL does not support any XOF digests.
+OPENSSL_EXPORT int EVP_DigestFinalXOF(EVP_MD_CTX *ctx, uint8_t *out,
+                                      size_t len);
+
 
 struct evp_md_pctx_ops;
 
@@ -294,7 +300,7 @@ struct env_md_ctx_st {
 #if !defined(BORINGSSL_NO_CXX)
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(EVP_MD_CTX, EVP_MD_CTX_free)
 
@@ -302,7 +308,7 @@ using ScopedEVP_MD_CTX =
     internal::StackAllocated<EVP_MD_CTX, int, EVP_MD_CTX_init,
                              EVP_MD_CTX_cleanup>;
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 #endif

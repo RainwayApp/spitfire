@@ -6,14 +6,11 @@
 // are implemented using templates, with a class per callback signature, adding
 // methods to Callback<> itself is unattractive (lots of extra code gets
 // generated).  Instead, consider adding methods here.
-//
-// ResetAndReturn(&cb) is like cb.Reset() but allows executing a callback (via a
-// move or copy) after the original callback is Reset().  This can be handy if
-// Run() reads/writes the variable holding the Callback.
 
 #ifndef BASE_CALLBACK_HELPERS_H_
 #define BASE_CALLBACK_HELPERS_H_
 
+#include <type_traits>
 #include <utility>
 
 #include "base/atomicops.h"
@@ -25,12 +22,33 @@
 
 namespace base {
 
-template <typename CallbackType>
-CallbackType ResetAndReturn(CallbackType* cb) {
-  CallbackType ret(std::move(*cb));
-  DCHECK(!*cb);
-  return ret;
-}
+namespace internal {
+
+template <typename T>
+struct IsBaseCallbackImpl : std::false_type {};
+
+template <typename R, typename... Args>
+struct IsBaseCallbackImpl<OnceCallback<R(Args...)>> : std::true_type {};
+
+template <typename R, typename... Args>
+struct IsBaseCallbackImpl<RepeatingCallback<R(Args...)>> : std::true_type {};
+
+}  // namespace internal
+
+template <typename T>
+using IsBaseCallback = internal::IsBaseCallbackImpl<std::decay_t<T>>;
+
+// SFINAE friendly enabler allowing to overload methods for both Repeating and
+// OnceCallbacks.
+//
+// Usage:
+// template <template <typename> class CallbackType,
+//           ... other template args ...,
+//           typename = EnableIfIsBaseCallback<CallbackType>>
+// void DoStuff(CallbackType<...> cb, ...);
+template <template <typename> class CallbackType>
+using EnableIfIsBaseCallback =
+    std::enable_if_t<IsBaseCallback<CallbackType<void()>>::value>;
 
 namespace internal {
 
@@ -61,6 +79,10 @@ class AdaptCallbackForRepeatingHelper final {
 // Wraps the given OnceCallback into a RepeatingCallback that relays its
 // invocation to the original OnceCallback on the first invocation. The
 // following invocations are just ignored.
+//
+// Note that this deliberately subverts the Once/Repeating paradigm of Callbacks
+// but helps ease the migration from old-style Callbacks. Avoid if possible; use
+// if necessary for migration. TODO(tzik): Remove it. https://crbug.com/730593
 template <typename... Args>
 RepeatingCallback<void(Args...)> AdaptCallbackForRepeating(
     OnceCallback<void(Args...)> callback) {

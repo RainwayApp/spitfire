@@ -9,67 +9,31 @@
  */
 // Do not include this file directly. It's intended to be used only by the JNI
 // generation script. We are exporting types in strange namespaces in order to
-// be compatible with the generated code targeted for Chromium. We are bypassing
-// the wrapping done by Chromium's JniIntWrapper, JavaRef, and
-// ScopedJavaLocalRef, and use raw jobjects instead.
+// be compatible with the generated code targeted for Chromium.
 
 #ifndef SDK_ANDROID_SRC_JNI_JNI_GENERATOR_HELPER_H_
 #define SDK_ANDROID_SRC_JNI_JNI_GENERATOR_HELPER_H_
 
-#include "sdk/android/src/jni/jni_helpers.h"
+#include <jni.h>
+#include <atomic>
+
+#include "rtc_base/checks.h"
+#include "sdk/android/native_api/jni/jni_int_wrapper.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 #define CHECK_CLAZZ(env, jcaller, clazz, ...) RTC_DCHECK(clazz);
+#define CHECK_NATIVE_PTR(env, jcaller, native_ptr, method_name, ...) \
+  RTC_DCHECK(native_ptr) << method_name;
 
 #define BASE_EXPORT
 #define JNI_REGISTRATION_EXPORT __attribute__((visibility("default")))
+#define JNI_GENERATOR_EXPORT extern "C" JNIEXPORT JNICALL
 
-namespace jni_generator {
-inline void CheckException(JNIEnv* env) {
-  CHECK_EXCEPTION(env);
-}
-}  // namespace jni_generator
+#define CHECK_EXCEPTION(jni)        \
+  RTC_CHECK(!jni->ExceptionCheck()) \
+      << (jni->ExceptionDescribe(), jni->ExceptionClear(), "")
 
-namespace {  // NOLINT(build/namespaces)
-// Bypass JniIntWrapper.
-// TODO(magjed): Start using Chromium's JniIntWrapper.
-typedef jint JniIntWrapper;
-inline jint as_jint(JniIntWrapper wrapper) {
-  return wrapper;
-}
-}  // namespace
-
-namespace base {
-
-namespace subtle {
-// This needs to be a type that is big enough to store a jobject/jclass.
-typedef void* AtomicWord;
-}  // namespace subtle
-
-namespace android {
-
-// Implement JavaRef and ScopedJavaLocalRef as a shallow wrapper on top of a
-// jobject/jclass, with no scoped destruction.
-// TODO(magjed): Start using Chromium's scoped Java refs.
-template <typename T>
-class JavaRef {
- public:
-  JavaRef() {}
-  JavaRef(JNIEnv* env, T obj) : obj_(obj) {}
-  T obj() const { return obj_; }
-
-  // Implicit on purpose.
-  JavaRef(const T& obj) : obj_(obj) {}  // NOLINT(runtime/explicit)
-  operator T() const { return obj_; }
-
- private:
-  T obj_;
-};
-
-// TODO(magjed): This looks weird, but it is safe. We don't use DeleteLocalRef
-// in WebRTC, we use ScopedLocalRefFrame instead. We should probably switch to
-// using DeleteLocalRef though.
-template <typename T>
-using ScopedJavaLocalRef = JavaRef<T>;
+namespace webrtc {
 
 // This function will initialize |atomic_class_id| to contain a global ref to
 // the given class, and will return that ref on subsequent calls. The caller is
@@ -78,7 +42,7 @@ using ScopedJavaLocalRef = JavaRef<T>;
 // |atomic_method_id|.
 jclass LazyGetClass(JNIEnv* env,
                     const char* class_name,
-                    base::subtle::AtomicWord* atomic_class_id);
+                    std::atomic<jclass>* atomic_class_id);
 
 // This class is a wrapper for JNIEnv Get(Static)MethodID.
 class MethodID {
@@ -98,10 +62,98 @@ class MethodID {
                            jclass clazz,
                            const char* method_name,
                            const char* jni_signature,
-                           base::subtle::AtomicWord* atomic_method_id);
+                           std::atomic<jmethodID>* atomic_method_id);
 };
+
+}  // namespace webrtc
+
+// Re-export relevant classes into the namespaces the script expects.
+namespace base {
+namespace android {
+
+using webrtc::JavaParamRef;
+using webrtc::JavaRef;
+using webrtc::ScopedJavaLocalRef;
+using webrtc::LazyGetClass;
+using webrtc::MethodID;
 
 }  // namespace android
 }  // namespace base
+
+namespace jni_generator {
+inline void CheckException(JNIEnv* env) {
+  CHECK_EXCEPTION(env);
+}
+
+// A 32 bit number could be an address on stack. Random 64 bit marker on the
+// stack is much less likely to be present on stack.
+constexpr uint64_t kJniStackMarkerValue = 0xbdbdef1bebcade1b;
+
+// Context about the JNI call with exception checked to be stored in stack.
+struct BASE_EXPORT JniJavaCallContextUnchecked {
+  inline JniJavaCallContextUnchecked() {
+// TODO(ssid): Implement for other architectures.
+#if defined(__arm__) || defined(__aarch64__)
+    // This assumes that this method does not increment the stack pointer.
+    asm volatile("mov %0, sp" : "=r"(sp));
+#else
+    sp = 0;
+#endif
+  }
+
+  // Force no inline to reduce code size.
+  template <base::android::MethodID::Type type>
+  void Init(JNIEnv* env,
+            jclass clazz,
+            const char* method_name,
+            const char* jni_signature,
+            std::atomic<jmethodID>* atomic_method_id) {
+    env1 = env;
+
+    // Make sure compiler doesn't optimize out the assignment.
+    memcpy(&marker, &kJniStackMarkerValue, sizeof(kJniStackMarkerValue));
+    // Gets PC of the calling function.
+    pc = reinterpret_cast<uintptr_t>(__builtin_return_address(0));
+
+    method_id = base::android::MethodID::LazyGet<type>(
+        env, clazz, method_name, jni_signature, atomic_method_id);
+  }
+
+  ~JniJavaCallContextUnchecked() {
+    // Reset so that spurious marker finds are avoided.
+    memset(&marker, 0, sizeof(marker));
+  }
+
+  uint64_t marker;
+  uintptr_t sp;
+  uintptr_t pc;
+
+  JNIEnv* env1;
+  jmethodID method_id;
+};
+
+// Context about the JNI call with exception unchecked to be stored in stack.
+struct BASE_EXPORT JniJavaCallContextChecked {
+  // Force no inline to reduce code size.
+  template <base::android::MethodID::Type type>
+  void Init(JNIEnv* env,
+            jclass clazz,
+            const char* method_name,
+            const char* jni_signature,
+            std::atomic<jmethodID>* atomic_method_id) {
+    base.Init<type>(env, clazz, method_name, jni_signature, atomic_method_id);
+    // Reset |pc| to correct caller.
+    base.pc = reinterpret_cast<uintptr_t>(__builtin_return_address(0));
+  }
+
+  ~JniJavaCallContextChecked() { jni_generator::CheckException(base.env1); }
+
+  JniJavaCallContextUnchecked base;
+};
+
+static_assert(sizeof(JniJavaCallContextChecked) ==
+                  sizeof(JniJavaCallContextUnchecked),
+              "Stack unwinder cannot work with structs of different sizes.");
+}  // namespace jni_generator
 
 #endif  // SDK_ANDROID_SRC_JNI_JNI_GENERATOR_HELPER_H_

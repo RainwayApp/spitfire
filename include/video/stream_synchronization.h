@@ -11,10 +11,9 @@
 #ifndef VIDEO_STREAM_SYNCHRONIZATION_H_
 #define VIDEO_STREAM_SYNCHRONIZATION_H_
 
-#include <list>
+#include <stdint.h>
 
 #include "system_wrappers/include/rtp_to_ntp_estimator.h"
-#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

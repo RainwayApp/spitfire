@@ -11,8 +11,8 @@
 #ifndef TEST_FIELD_TRIAL_H_
 #define TEST_FIELD_TRIAL_H_
 
-#include <string>
 #include <map>
+#include <string>
 
 namespace webrtc {
 namespace test {
@@ -30,14 +30,17 @@ namespace test {
 //
 // Note: This method crashes with an error message if an invalid config is
 // passed to it. That can be used to find out if a binary is parsing the flags.
-void InitFieldTrialsFromString(const std::string& config);
+void ValidateFieldTrialsStringOrDie(const std::string& config);
 
 // This class is used to override field-trial configs within specific tests.
 // After this class goes out of scope previous field trials will be restored.
 class ScopedFieldTrials {
  public:
   explicit ScopedFieldTrials(const std::string& config);
+  ScopedFieldTrials(const ScopedFieldTrials&) = delete;
+  ScopedFieldTrials& operator=(const ScopedFieldTrials&) = delete;
   ~ScopedFieldTrials();
+
  private:
   std::string current_field_trials_;
   const char* previous_field_trials_;

@@ -21,15 +21,17 @@
 
 namespace webrtc {
 
+// RAII JavaVM AttachCurrentThread/DetachCurrentThread object.
+//
 // The JNI interface pointer (JNIEnv) is valid only in the current thread.
 // Should another thread need to access the Java VM, it must first call
 // AttachCurrentThread() to attach itself to the VM and obtain a JNI interface
 // pointer. The native thread remains attached to the VM until it calls
 // DetachCurrentThread() to detach.
-class AttachCurrentThreadIfNeeded {
+class JvmThreadConnector {
  public:
-  AttachCurrentThreadIfNeeded();
-  ~AttachCurrentThreadIfNeeded();
+  JvmThreadConnector();
+  ~JvmThreadConnector();
 
  private:
   rtc::ThreadChecker thread_checker_;
@@ -78,8 +80,9 @@ class NativeRegistration : public JavaClass {
   NativeRegistration(JNIEnv* jni, jclass clazz);
   ~NativeRegistration();
 
-  std::unique_ptr<GlobalRef> NewObject(
-      const char* name, const char* signature, ...);
+  std::unique_ptr<GlobalRef> NewObject(const char* name,
+                                       const char* signature,
+                                       ...);
 
  private:
   JNIEnv* const jni_;
@@ -99,7 +102,9 @@ class JNIEnvironment {
   // |loaded_classes| array defined in jvm_android.cc.
   // This method must be called on the construction thread.
   std::unique_ptr<NativeRegistration> RegisterNatives(
-      const char* name, const JNINativeMethod *methods, int num_methods);
+      const char* name,
+      const JNINativeMethod* methods,
+      int num_methods);
 
   // Converts from Java string to std::string.
   // This method must be called on the construction thread.

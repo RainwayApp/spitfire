@@ -53,19 +53,29 @@
 #define API_PROXY_H_
 
 #include <memory>
+#include <string>
 #include <utility>
 
+#include "api/scoped_refptr.h"
 #include "rtc_base/event.h"
-#include "rtc_base/refcountedobject.h"
+#include "rtc_base/message_handler.h"
+#include "rtc_base/message_queue.h"
+#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/thread.h"
+
+namespace rtc {
+class Location;
+}
 
 namespace webrtc {
 
 template <typename R>
 class ReturnType {
  public:
-  template<typename C, typename M>
-  void Invoke(C* c, M m) { r_ = (c->*m)(); }
+  template <typename C, typename M>
+  void Invoke(C* c, M m) {
+    r_ = (c->*m)();
+  }
   template <typename C, typename M, typename T1>
   void Invoke(C* c, M m, T1 a1) {
     r_ = (c->*m)(std::move(a1));
@@ -78,13 +88,22 @@ class ReturnType {
   void Invoke(C* c, M m, T1 a1, T2 a2, T3 a3) {
     r_ = (c->*m)(std::move(a1), std::move(a2), std::move(a3));
   }
-  template<typename C, typename M, typename T1, typename T2, typename T3,
-      typename T4>
+  template <typename C,
+            typename M,
+            typename T1,
+            typename T2,
+            typename T3,
+            typename T4>
   void Invoke(C* c, M m, T1 a1, T2 a2, T3 a3, T4 a4) {
     r_ = (c->*m)(std::move(a1), std::move(a2), std::move(a3), std::move(a4));
   }
-  template<typename C, typename M, typename T1, typename T2, typename T3,
-     typename T4, typename T5>
+  template <typename C,
+            typename M,
+            typename T1,
+            typename T2,
+            typename T3,
+            typename T4,
+            typename T5>
   void Invoke(C* c, M m, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) {
     r_ = (c->*m)(std::move(a1), std::move(a2), std::move(a3), std::move(a4),
                  std::move(a5));
@@ -99,8 +118,10 @@ class ReturnType {
 template <>
 class ReturnType<void> {
  public:
-  template<typename C, typename M>
-  void Invoke(C* c, M m) { (c->*m)(); }
+  template <typename C, typename M>
+  void Invoke(C* c, M m) {
+    (c->*m)();
+  }
   template <typename C, typename M, typename T1>
   void Invoke(C* c, M m, T1 a1) {
     (c->*m)(std::move(a1));
@@ -119,38 +140,25 @@ class ReturnType<void> {
 
 namespace internal {
 
-class SynchronousMethodCall
-    : public rtc::MessageData,
-      public rtc::MessageHandler {
+class SynchronousMethodCall : public rtc::MessageData,
+                              public rtc::MessageHandler {
  public:
-  explicit SynchronousMethodCall(rtc::MessageHandler* proxy)
-      : e_(), proxy_(proxy) {}
-  ~SynchronousMethodCall() {}
+  explicit SynchronousMethodCall(rtc::MessageHandler* proxy);
+  ~SynchronousMethodCall() override;
 
-  void Invoke(const rtc::Location& posted_from, rtc::Thread* t) {
-    if (t->IsCurrent()) {
-      proxy_->OnMessage(nullptr);
-    } else {
-      e_.reset(new rtc::Event(false, false));
-      t->Post(posted_from, this, 0);
-      e_->Wait(rtc::Event::kForever);
-    }
-  }
+  void Invoke(const rtc::Location& posted_from, rtc::Thread* t);
 
  private:
-  void OnMessage(rtc::Message*) {
-    proxy_->OnMessage(nullptr);
-    e_->Set();
-  }
-  std::unique_ptr<rtc::Event> e_;
+  void OnMessage(rtc::Message*) override;
+
+  rtc::Event e_;
   rtc::MessageHandler* proxy_;
 };
 
 }  // namespace internal
 
 template <typename C, typename R>
-class MethodCall0 : public rtc::Message,
-                    public rtc::MessageHandler {
+class MethodCall0 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)();
   MethodCall0(C* c, Method m) : c_(c), m_(m) {}
@@ -161,7 +169,7 @@ class MethodCall0 : public rtc::Message,
   }
 
  private:
-  void OnMessage(rtc::Message*) {  r_.Invoke(c_, m_); }
+  void OnMessage(rtc::Message*) { r_.Invoke(c_, m_); }
 
   C* c_;
   Method m_;
@@ -169,8 +177,7 @@ class MethodCall0 : public rtc::Message,
 };
 
 template <typename C, typename R>
-class ConstMethodCall0 : public rtc::Message,
-                         public rtc::MessageHandler {
+class ConstMethodCall0 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)() const;
   ConstMethodCall0(C* c, Method m) : c_(c), m_(m) {}
@@ -188,9 +195,8 @@ class ConstMethodCall0 : public rtc::Message,
   ReturnType<R> r_;
 };
 
-template <typename C, typename R,  typename T1>
-class MethodCall1 : public rtc::Message,
-                    public rtc::MessageHandler {
+template <typename C, typename R, typename T1>
+class MethodCall1 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)(T1 a1);
   MethodCall1(C* c, Method m, T1 a1) : c_(c), m_(m), a1_(std::move(a1)) {}
@@ -209,9 +215,8 @@ class MethodCall1 : public rtc::Message,
   T1 a1_;
 };
 
-template <typename C, typename R,  typename T1>
-class ConstMethodCall1 : public rtc::Message,
-                         public rtc::MessageHandler {
+template <typename C, typename R, typename T1>
+class ConstMethodCall1 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)(T1 a1) const;
   ConstMethodCall1(C* c, Method m, T1 a1) : c_(c), m_(m), a1_(std::move(a1)) {}
@@ -231,8 +236,7 @@ class ConstMethodCall1 : public rtc::Message,
 };
 
 template <typename C, typename R, typename T1, typename T2>
-class MethodCall2 : public rtc::Message,
-                    public rtc::MessageHandler {
+class MethodCall2 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)(T1 a1, T2 a2);
   MethodCall2(C* c, Method m, T1 a1, T2 a2)
@@ -256,8 +260,7 @@ class MethodCall2 : public rtc::Message,
 };
 
 template <typename C, typename R, typename T1, typename T2, typename T3>
-class MethodCall3 : public rtc::Message,
-                    public rtc::MessageHandler {
+class MethodCall3 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)(T1 a1, T2 a2, T3 a3);
   MethodCall3(C* c, Method m, T1 a1, T2 a2, T3 a3)
@@ -285,10 +288,13 @@ class MethodCall3 : public rtc::Message,
   T3 a3_;
 };
 
-template <typename C, typename R, typename T1, typename T2, typename T3,
-    typename T4>
-class MethodCall4 : public rtc::Message,
-                    public rtc::MessageHandler {
+template <typename C,
+          typename R,
+          typename T1,
+          typename T2,
+          typename T3,
+          typename T4>
+class MethodCall4 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)(T1 a1, T2 a2, T3 a3, T4 a4);
   MethodCall4(C* c, Method m, T1 a1, T2 a2, T3 a3, T4 a4)
@@ -319,10 +325,14 @@ class MethodCall4 : public rtc::Message,
   T4 a4_;
 };
 
-template <typename C, typename R, typename T1, typename T2, typename T3,
-    typename T4, typename T5>
-class MethodCall5 : public rtc::Message,
-                    public rtc::MessageHandler {
+template <typename C,
+          typename R,
+          typename T1,
+          typename T2,
+          typename T3,
+          typename T4,
+          typename T5>
+class MethodCall5 : public rtc::Message, public rtc::MessageHandler {
  public:
   typedef R (C::*Method)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5);
   MethodCall5(C* c, Method m, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5)
@@ -355,7 +365,6 @@ class MethodCall5 : public rtc::Message,
   T5 a5_;
 };
 
-
 // Helper macros to reduce code duplication.
 #define PROXY_MAP_BOILERPLATE(c)                          \
   template <class INTERNAL_CLASS>                         \
@@ -370,8 +379,12 @@ class MethodCall5 : public rtc::Message,
     const INTERNAL_CLASS* internal() const { return c_; } \
     INTERNAL_CLASS* internal() { return c_; }
 
+// clang-format off
+// clang-format would put the semicolon alone,
+// leading to a presubmit error (cpplint.py)
 #define END_PROXY_MAP() \
   };
+// clang-format on
 
 #define SIGNALING_PROXY_MAP_BOILERPLATE(c)                               \
  protected:                                                              \

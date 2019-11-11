@@ -11,10 +11,18 @@
 #ifndef TEST_CONFIGURABLE_FRAME_SIZE_ENCODER_H_
 #define TEST_CONFIGURABLE_FRAME_SIZE_ENCODER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+#include <functional>
 #include <memory>
 #include <vector>
 
+#include "absl/types/optional.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_frame.h"
+#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
+#include "modules/video_coding/include/video_codec_interface.h"
 
 namespace webrtc {
 namespace test {
@@ -22,35 +30,37 @@ namespace test {
 class ConfigurableFrameSizeEncoder : public VideoEncoder {
  public:
   explicit ConfigurableFrameSizeEncoder(size_t max_frame_size);
-  virtual ~ConfigurableFrameSizeEncoder();
+  ~ConfigurableFrameSizeEncoder() override;
 
   int32_t InitEncode(const VideoCodec* codec_settings,
                      int32_t number_of_cores,
                      size_t max_payload_size) override;
 
   int32_t Encode(const VideoFrame& input_image,
-                 const CodecSpecificInfo* codec_specific_info,
-                 const std::vector<FrameType>* frame_types) override;
+                 const std::vector<VideoFrameType>* frame_types) override;
 
   int32_t RegisterEncodeCompleteCallback(
       EncodedImageCallback* callback) override;
 
   int32_t Release() override;
 
-  int32_t SetChannelParameters(uint32_t packet_loss, int64_t rtt) override;
-
-  int32_t SetRateAllocation(const BitrateAllocation& allocation,
-                            uint32_t framerate) override;
-
-  int32_t SetPeriodicKeyFrames(bool enable) override;
+  void SetRates(const RateControlParameters& parameters) override;
 
   int32_t SetFrameSize(size_t size);
 
+  void SetCodecType(VideoCodecType codec_type_);
+
+  void RegisterPostEncodeCallback(
+      std::function<void(void)> post_encode_callback);
+
  private:
   EncodedImageCallback* callback_;
+  absl::optional<std::function<void(void)>> post_encode_callback_;
+
   const size_t max_frame_size_;
   size_t current_frame_size_;
   std::unique_ptr<uint8_t[]> buffer_;
+  VideoCodecType codec_type_;
 };
 
 }  // namespace test

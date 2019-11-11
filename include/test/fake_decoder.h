@@ -11,10 +11,14 @@
 #ifndef TEST_FAKE_DECODER_H_
 #define TEST_FAKE_DECODER_H_
 
-#include <vector>
+#include <stdint.h>
 
+#include "api/task_queue/task_queue_factory.h"
+#include "api/video/encoded_image.h"
+#include "api/video_codecs/video_codec.h"
+#include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/include/video_codec_interface.h"
-#include "system_wrappers/include/clock.h"
+#include "rtc_base/task_queue.h"
 
 namespace webrtc {
 namespace test {
@@ -22,6 +26,7 @@ namespace test {
 class FakeDecoder : public VideoDecoder {
  public:
   FakeDecoder();
+  explicit FakeDecoder(TaskQueueFactory* task_queue_factory);
   virtual ~FakeDecoder() {}
 
   int32_t InitDecode(const VideoCodec* config,
@@ -29,8 +34,6 @@ class FakeDecoder : public VideoDecoder {
 
   int32_t Decode(const EncodedImage& input,
                  bool missing_frames,
-                 const RTPFragmentationHeader* fragmentation,
-                 const CodecSpecificInfo* codec_specific_info,
                  int64_t render_time_ms) override;
 
   int32_t RegisterDecodeCompleteCallback(
@@ -42,9 +45,15 @@ class FakeDecoder : public VideoDecoder {
 
   static const char* kImplementationName;
 
+  void SetDelayedDecoding(int decode_delay_ms);
+
  private:
-  VideoCodec config_;
   DecodedImageCallback* callback_;
+  int width_;
+  int height_;
+  std::unique_ptr<rtc::TaskQueue> task_queue_;
+  TaskQueueFactory* task_queue_factory_;
+  int decode_delay_ms_;
 };
 
 class FakeH264Decoder : public FakeDecoder {
@@ -53,23 +62,9 @@ class FakeH264Decoder : public FakeDecoder {
 
   int32_t Decode(const EncodedImage& input,
                  bool missing_frames,
-                 const RTPFragmentationHeader* fragmentation,
-                 const CodecSpecificInfo* codec_specific_info,
                  int64_t render_time_ms) override;
 };
 
-class FakeNullDecoder : public FakeDecoder {
- public:
-  virtual ~FakeNullDecoder() {}
-
-  int32_t Decode(const EncodedImage& input,
-                 bool missing_frames,
-                 const RTPFragmentationHeader* fragmentation,
-                 const CodecSpecificInfo* codec_specific_info,
-                 int64_t render_time_ms) override {
-    return 0;
-  }
-};
 }  // namespace test
 }  // namespace webrtc
 

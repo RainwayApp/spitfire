@@ -12,8 +12,7 @@
 #define MODULES_AUDIO_PROCESSING_NS_NOISE_SUPPRESSION_H_
 
 #include <stddef.h>
-
-#include "typedefs.h"  // NOLINT(build/include)
+#include <stdint.h>
 
 typedef struct NsHandleT NsHandle;
 
@@ -24,7 +23,7 @@ extern "C" {
 /*
  * This function creates an instance of the floating point Noise Suppression.
  */
-NsHandle* WebRtcNs_Create();
+NsHandle* WebRtcNs_Create(void);
 
 /*
  * This function frees the dynamic memory of a specified noise suppression
@@ -93,9 +92,9 @@ void WebRtcNs_Analyze(NsHandle* NS_inst, const float* spframe);
  *      - outframe      : Pointer to output frame for each band
  */
 void WebRtcNs_Process(NsHandle* NS_inst,
-                     const float* const* spframe,
-                     size_t num_bands,
-                     float* const* outframe);
+                      const float* const* spframe,
+                      size_t num_bands,
+                      float* const* outframe);
 
 /* Returns the internally used prior speech probability of the current frame.
  * There is a frequency bin based one as well, with which this should not be
@@ -126,7 +125,7 @@ const float* WebRtcNs_noise_estimate(const NsHandle* handle);
  *
  * Return value         : Number of frequency bins.
  */
-size_t WebRtcNs_num_freq();
+size_t WebRtcNs_num_freq(void);
 
 #ifdef __cplusplus
 }

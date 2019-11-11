@@ -15,15 +15,17 @@
 #ifndef MODULES_BITRATE_CONTROLLER_INCLUDE_BITRATE_CONTROLLER_H_
 #define MODULES_BITRATE_CONTROLLER_INCLUDE_BITRATE_CONTROLLER_H_
 
-#include <map>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "modules/congestion_controller/delay_based_bwe.h"
+#include "modules/congestion_controller/goog_cc/delay_based_bwe.h"
 #include "modules/include/module.h"
-#include "modules/pacing/paced_sender.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "rtc_base/deprecation.h"
 
 namespace webrtc {
 
+class Clock;
 class RtcEventLog;
 
 // Deprecated
@@ -45,7 +47,7 @@ class BitrateObserver {
                                 int64_t target_set_time,
                                 uint64_t congestion_window) {}
   virtual void OnBytesAcked(size_t bytes) {}
-  virtual size_t pacer_queue_size_in_bytes() { return 0; }
+  virtual size_t pacer_queue_size_in_bytes();
   virtual ~BitrateObserver() {}
 };
 
@@ -60,17 +62,19 @@ class BitrateController : public Module, public RtcpBandwidthObserver {
   // Deprecated:
   // TODO(perkj): BitrateObserver has been deprecated and is not used in WebRTC.
   // Remove this method once other other projects does not use it.
-  static BitrateController* CreateBitrateController(const Clock* clock,
+  static BitrateController* CreateBitrateController(Clock* clock,
                                                     BitrateObserver* observer,
                                                     RtcEventLog* event_log);
 
-  static BitrateController* CreateBitrateController(const Clock* clock,
+  static BitrateController* CreateBitrateController(Clock* clock,
                                                     RtcEventLog* event_log);
 
-  virtual ~BitrateController() {}
+  ~BitrateController() override {}
 
+  // Deprecated, use raw pointer to BitrateController instance instead.
   // Creates RtcpBandwidthObserver caller responsible to delete.
-  virtual RtcpBandwidthObserver* CreateRtcpBandwidthObserver() = 0;
+  RTC_DEPRECATED virtual RtcpBandwidthObserver*
+  CreateRtcpBandwidthObserver() = 0;
 
   // Deprecated
   virtual void SetStartBitrate(int start_bitrate_bps) = 0;
@@ -89,8 +93,6 @@ class BitrateController : public Module, public RtcpBandwidthObserver {
   // Gets the available payload bandwidth in bits per second. Note that
   // this bandwidth excludes packet headers.
   virtual bool AvailableBandwidth(uint32_t* bandwidth) const = 0;
-
-  virtual void SetReservedBitrate(uint32_t reserved_bitrate_bps) = 0;
 
   virtual bool GetNetworkParameters(uint32_t* bitrate,
                                     uint8_t* fraction_loss,

@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "base/atomicops.h"
-#include "base/containers/hash_tables.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/singleton.h"
@@ -33,16 +32,6 @@ class Thread;
 namespace trace_event {
 
 class MemoryDumpProvider;
-class HeapProfilerSerializationState;
-
-enum HeapProfilingMode {
-  kHeapProfilingModeDisabled,
-  kHeapProfilingModePseudo,
-  kHeapProfilingModeNative,
-  kHeapProfilingModeNoStack,
-  kHeapProfilingModeTaskProfiler,
-  kHeapProfilingModeInvalid  // Disabled permanently or unsupported.
-};
 
 // This is the interface exposed to the rest of the codebase to deal with
 // memory tracing. The main entry point for clients is represented by
@@ -50,9 +39,10 @@ enum HeapProfilingMode {
 class BASE_EXPORT MemoryDumpManager {
  public:
   using RequestGlobalDumpFunction =
-      RepeatingCallback<void(const MemoryDumpRequestArgs& args)>;
+      RepeatingCallback<void(MemoryDumpType, MemoryDumpLevelOfDetail)>;
 
-  static const char* const kTraceCategory;
+  static constexpr const char* const kTraceCategory =
+      TRACE_DISABLED_BY_DEFAULT("memory-infra");
 
   // This value is returned as the tracing id of the child processes by
   // GetTracingProcessId() when tracing is not enabled.
@@ -72,8 +62,7 @@ class BASE_EXPORT MemoryDumpManager {
   //  request_dump_function: Function to invoke a global dump. Global dump
   //      involves embedder-specific behaviors like multiprocess handshaking.
   //      TODO(primiano): this is only required to trigger global dumps from
-  //      the scheduler and the peak detector. Should be removed once they are
-  //      both moved out of base.
+  //      the scheduler. Should be removed once they are both moved out of base.
   void Initialize(RequestGlobalDumpFunction request_dump_function,
                   bool is_coordinator);
 
@@ -109,15 +98,13 @@ class BASE_EXPORT MemoryDumpManager {
   // This method takes ownership of the dump provider and guarantees that:
   //  - The |mdp| will be deleted at some point in the near future.
   //  - Its deletion will not happen concurrently with the OnMemoryDump() call.
-  // Note that OnMemoryDump() and PollFastMemoryTotal() calls can still happen
-  // after this method returns.
+  // Note that OnMemoryDump() calls can still happen after this method returns.
   void UnregisterAndDeleteDumpProviderSoon(
       std::unique_ptr<MemoryDumpProvider> mdp);
 
   // Prepare MemoryDumpManager for CreateProcessDump() calls for tracing-related
   // modes (i.e. |level_of_detail| != SUMMARY_ONLY).
-  // Also initializes the peak detector, scheduler and heap profiler with the
-  // given config.
+  // Also initializes the scheduler with the given config.
   void SetupForTracing(const TraceConfig::MemoryDumpConfig&);
 
   // Tear-down tracing related state.
@@ -129,30 +116,10 @@ class BASE_EXPORT MemoryDumpManager {
   // thread on which CreateProcessDump() was called. This method should only be
   // used by the memory-infra service while creating a global memory dump.
   void CreateProcessDump(const MemoryDumpRequestArgs& args,
-                         const ProcessMemoryDumpCallback& callback);
-
-  // Returns the heap profiling mode configured on the command-line, if any.
-  // If heap profiling is configured but not supported by this binary, or if an
-  // invalid mode is specified, then kHeapProfilingInvalid is returned.
-  static HeapProfilingMode GetHeapProfilingModeFromCommandLine();
-
-  // Enable heap profiling if supported, and kEnableHeapProfiling command line
-  // is specified.
-  void EnableHeapProfilingIfNeeded();
-
-  // Enable heap profiling with specified |profiling_mode|.
-  // Use kHeapProfilingModeDisabled to disable, but it can't be re-enabled then.
-  // Returns true if mode has been *changed* to the desired |profiling_mode|.
-  bool EnableHeapProfiling(HeapProfilingMode profiling_mode);
-  HeapProfilingMode GetHeapProfilingMode();
+                         ProcessMemoryDumpCallback callback);
 
   // Lets tests see if a dump provider is registered.
   bool IsDumpProviderRegisteredForTesting(MemoryDumpProvider*);
-
-  const scoped_refptr<HeapProfilerSerializationState>&
-  heap_profiler_serialization_state_for_testing() const {
-    return heap_profiler_serialization_state_;
-  }
 
   // Returns a unique id for identifying the processes. The id can be
   // retrieved by child processes only when tracing is enabled. This is
@@ -169,7 +136,7 @@ class BASE_EXPORT MemoryDumpManager {
   // allocator registered (which is currently the case for Mac OS).
   const char* system_allocator_pool_name() const {
     return kSystemAllocatorPoolName;
-  };
+  }
 
   // When set to true, calling |RegisterMemoryDumpProvider| is a no-op.
   void set_dumper_registrations_ignored_for_testing(bool ignored) {
@@ -180,6 +147,8 @@ class BASE_EXPORT MemoryDumpManager {
   friend std::default_delete<MemoryDumpManager>;  // For the testing instance.
   friend struct DefaultSingletonTraits<MemoryDumpManager>;
   friend class MemoryDumpManagerTest;
+  FRIEND_TEST_ALL_PREFIXES(MemoryDumpManagerTest,
+                           NoStackOverflowWithTooManyMDPs);
 
   // Holds the state of a process memory dump that needs to be carried over
   // across task runners in order to fulfill an asynchronous CreateProcessDump()
@@ -189,8 +158,6 @@ class BASE_EXPORT MemoryDumpManager {
     ProcessMemoryDumpAsyncState(
         MemoryDumpRequestArgs req_args,
         const MemoryDumpProviderInfo::OrderedSet& dump_providers,
-        scoped_refptr<HeapProfilerSerializationState>
-            heap_profiler_serialization_state,
         ProcessMemoryDumpCallback callback,
         scoped_refptr<SequencedTaskRunner> dump_thread_task_runner);
     ~ProcessMemoryDumpAsyncState();
@@ -205,12 +172,6 @@ class BASE_EXPORT MemoryDumpManager {
     // the dump. This is a copy of |dump_providers_| at the beginning of a dump
     // and becomes empty at the end, when all dump providers have been invoked.
     std::vector<scoped_refptr<MemoryDumpProviderInfo>> pending_dump_providers;
-
-    // The HeapProfilerSerializationState object, which is shared by all
-    // the ProcessMemoryDump and MemoryAllocatorDump instances through all the
-    // tracing session lifetime.
-    scoped_refptr<HeapProfilerSerializationState>
-        heap_profiler_serialization_state;
 
     // Callback passed to the initial call to CreateProcessDump().
     ProcessMemoryDumpCallback callback;
@@ -238,24 +199,24 @@ class BASE_EXPORT MemoryDumpManager {
   virtual ~MemoryDumpManager();
 
   static void SetInstanceForTesting(MemoryDumpManager* instance);
-  static uint32_t GetDumpsSumKb(const std::string&, const ProcessMemoryDump*);
-
-  void FinishAsyncProcessDump(
-      std::unique_ptr<ProcessMemoryDumpAsyncState> pmd_async_state);
 
   // Lazily initializes dump_thread_ and returns its TaskRunner.
   scoped_refptr<base::SequencedTaskRunner> GetOrCreateBgTaskRunnerLocked();
 
-  // Calls InvokeOnMemoryDump() for the next MDP on the task runner specified by
-  // the MDP while registration. On failure to do so, skips and continues to
-  // next MDP.
-  void SetupNextMemoryDump(
-      std::unique_ptr<ProcessMemoryDumpAsyncState> pmd_async_state);
+  // Calls InvokeOnMemoryDump() for the each MDP that belongs to the current
+  // task runner and switches to the task runner of the next MDP. Handles
+  // failures in MDP and thread hops, and always calls FinishAsyncProcessDump()
+  // at the end.
+  void ContinueAsyncProcessDump(
+      ProcessMemoryDumpAsyncState* owned_pmd_async_state);
 
-  // Invokes OnMemoryDump() of the next MDP and calls SetupNextMemoryDump() at
-  // the end to continue the ProcessMemoryDump. Should be called on the MDP task
+  // Invokes OnMemoryDump() of the given MDP. Should be called on the MDP task
   // runner.
-  void InvokeOnMemoryDump(ProcessMemoryDumpAsyncState* owned_pmd_async_state);
+  void InvokeOnMemoryDump(MemoryDumpProviderInfo* mdpinfo,
+                          ProcessMemoryDump* pmd);
+
+  void FinishAsyncProcessDump(
+      std::unique_ptr<ProcessMemoryDumpAsyncState> pmd_async_state);
 
   // Helper for RegierDumpProvider* functions.
   void RegisterDumpProviderInternal(
@@ -268,21 +229,6 @@ class BASE_EXPORT MemoryDumpManager {
   void UnregisterDumpProviderInternal(MemoryDumpProvider* mdp,
                                       bool take_mdp_ownership_and_delete_async);
 
-  // Fills the passed vector with the subset of dump providers which were
-  // registered with is_fast_polling_supported == true.
-  void GetDumpProvidersForPolling(
-      std::vector<scoped_refptr<MemoryDumpProviderInfo>>*);
-
-  // Initialize |heap_profiler_serialization_state_| when tracing and heap
-  // profiler are enabled.
-  void InitializeHeapProfilerStateIfNeededLocked();
-
-  // Sends OnHeapProfilingEnabled() notifcation to mdp ensuring OnMemoryDump()
-  // is not called at the same time.
-  void NotifyHeapProfilingEnabledLocked(
-      scoped_refptr<MemoryDumpProviderInfo> mdpinfo,
-      bool enabled);
-
   bool can_request_global_dumps() const {
     return !request_dump_function_.is_null();
   }
@@ -290,10 +236,6 @@ class BASE_EXPORT MemoryDumpManager {
   // An ordered set of registered MemoryDumpProviderInfo(s), sorted by task
   // runner affinity (MDPs belonging to the same task runners are adjacent).
   MemoryDumpProviderInfo::OrderedSet dump_providers_;
-
-  // Shared among all the PMDs to keep state scoped to the tracing session.
-  scoped_refptr<HeapProfilerSerializationState>
-      heap_profiler_serialization_state_;
 
   // Function provided by the embedder to handle global dump requests.
   RequestGlobalDumpFunction request_dump_function_;
@@ -315,8 +257,6 @@ class BASE_EXPORT MemoryDumpManager {
 
   // When true, calling |RegisterMemoryDumpProvider| is a no-op.
   bool dumper_registrations_ignored_for_testing_;
-
-  HeapProfilingMode heap_profiling_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(MemoryDumpManager);
 };

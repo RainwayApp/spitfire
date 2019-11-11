@@ -16,48 +16,35 @@
 #include <memory>
 #include <set>
 
+#include "api/ref_counted_base.h"
 #include "modules/desktop_capture/mac/desktop_configuration.h"
-#include "rtc_base/constructormagic.h"
-#include "system_wrappers/include/atomic32.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
 
 namespace webrtc {
 
-class EventWrapper;
-
 // The class provides functions to synchronize capturing and display
 // reconfiguring across threads, and the up-to-date MacDesktopConfiguration.
-class DesktopConfigurationMonitor {
+class DesktopConfigurationMonitor : public rtc::RefCountedBase {
  public:
   DesktopConfigurationMonitor();
-  // Acquires a lock on the current configuration.
-  void Lock();
-  // Releases the lock previously acquired.
-  void Unlock();
-  // Returns the current desktop configuration. Should only be called when the
-  // lock has been acquired.
-  const MacDesktopConfiguration& desktop_configuration() {
-    return desktop_configuration_;
-  }
+  // Returns the current desktop configuration.
+  MacDesktopConfiguration desktop_configuration();
 
-  void AddRef() { ++ref_count_; }
-  void Release() {
-    if (--ref_count_ == 0)
-      delete this;
-  }
+ protected:
+  ~DesktopConfigurationMonitor() override;
 
  private:
   static void DisplaysReconfiguredCallback(CGDirectDisplayID display,
                                            CGDisplayChangeSummaryFlags flags,
-                                           void *user_parameter);
-  ~DesktopConfigurationMonitor();
-
+                                           void* user_parameter);
   void DisplaysReconfigured(CGDirectDisplayID display,
                             CGDisplayChangeSummaryFlags flags);
 
-  Atomic32 ref_count_;
+  rtc::CriticalSection desktop_configuration_lock_;
+  MacDesktopConfiguration desktop_configuration_
+      RTC_GUARDED_BY(&desktop_configuration_lock_);
   std::set<CGDirectDisplayID> reconfiguring_displays_;
-  MacDesktopConfiguration desktop_configuration_;
-  std::unique_ptr<EventWrapper> display_configuration_capture_event_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(DesktopConfigurationMonitor);
 };

@@ -15,10 +15,14 @@
 
 namespace base {
 
+namespace internal {
+class AbstractPromise;
+}  // namespace internal
+
 struct TaskRunnerTraits;
 
 // A TaskRunner is an object that runs posted tasks (in the form of
-// Closure objects).  The TaskRunner interface provides a way of
+// OnceClosure objects).  The TaskRunner interface provides a way of
 // decoupling task posting from the mechanics of how each task will be
 // run.  TaskRunner provides very weak guarantees as to how posted
 // tasks are run (or if they're run at all).  In particular, it only
@@ -93,8 +97,8 @@ class BASE_EXPORT TaskRunner
   // |task| and |reply| are guaranteed to be deleted on the thread
   // from which PostTaskAndReply() is invoked.  This allows objects
   // that must be deleted on the originating thread to be bound into
-  // the |task| and |reply| Closures.  In particular, it can be useful
-  // to use WeakPtr<> in the |reply| Closure so that the reply
+  // the |task| and |reply| OnceClosures.  In particular, it can be useful
+  // to use WeakPtr<> in the |reply| OnceClosure so that the reply
   // operation can be canceled. See the following pseudo-code:
   //
   // class DataBuffer : public RefCountedThreadSafe<DataBuffer> {
@@ -111,8 +115,8 @@ class BASE_EXPORT TaskRunner
   //      scoped_refptr<DataBuffer> buffer = new DataBuffer();
   //      target_thread_.task_runner()->PostTaskAndReply(
   //          FROM_HERE,
-  //          base::Bind(&DataBuffer::AddData, buffer),
-  //          base::Bind(&DataLoader::OnDataReceived, AsWeakPtr(), buffer));
+  //          base::BindOnce(&DataBuffer::AddData, buffer),
+  //          base::BindOnce(&DataLoader::OnDataReceived, AsWeakPtr(), buffer));
   //    }
   //
   //  private:
@@ -133,12 +137,14 @@ class BASE_EXPORT TaskRunner
                         OnceClosure task,
                         OnceClosure reply);
 
+  // TODO(alexclarke): This should become pure virtual and replace
+  // PostDelayedTask. NB passing by reference to reduce binary size.
+  bool PostPromiseInternal(
+      const scoped_refptr<internal::AbstractPromise>& promise,
+      base::TimeDelta delay);
+
  protected:
   friend struct TaskRunnerTraits;
-
-  // Only the Windows debug build seems to need this: see
-  // http://crbug.com/112250.
-  friend class RefCountedThreadSafe<TaskRunner, TaskRunnerTraits>;
 
   TaskRunner();
   virtual ~TaskRunner();

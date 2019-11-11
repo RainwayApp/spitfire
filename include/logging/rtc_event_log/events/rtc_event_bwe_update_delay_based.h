@@ -11,6 +11,9 @@
 #ifndef LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_BWE_UPDATE_DELAY_BASED_H_
 #define LOGGING_RTC_EVENT_LOG_EVENTS_RTC_EVENT_BWE_UPDATE_DELAY_BASED_H_
 
+#include <stdint.h>
+#include <memory>
+
 #include "logging/rtc_event_log/events/rtc_event.h"
 
 namespace webrtc {
@@ -26,6 +29,14 @@ class RtcEventBweUpdateDelayBased final : public RtcEvent {
   Type GetType() const override;
 
   bool IsConfigEvent() const override;
+
+  std::unique_ptr<RtcEventBweUpdateDelayBased> Copy() const;
+
+  int32_t bitrate_bps() const { return bitrate_bps_; }
+  BandwidthUsage detector_state() const { return detector_state_; }
+
+ private:
+  RtcEventBweUpdateDelayBased(const RtcEventBweUpdateDelayBased& other);
 
   const int32_t bitrate_bps_;
   const BandwidthUsage detector_state_;

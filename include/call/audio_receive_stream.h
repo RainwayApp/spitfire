@@ -16,34 +16,34 @@
 #include <string>
 #include <vector>
 
+#include "absl/types/optional.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/call/transport.h"
-#include "api/optional.h"
-#include "api/rtpparameters.h"
-#include "api/rtpreceiverinterface.h"
+#include "api/crypto/crypto_options.h"
+#include "api/media_transport_config.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_receiver_interface.h"
+#include "api/scoped_refptr.h"
 #include "call/rtp_config.h"
-#include "common_types.h"  // NOLINT(build/include)
-#include "rtc_base/scoped_ref_ptr.h"
-#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 class AudioSinkInterface;
-
-// WORK IN PROGRESS
-// This class is under development and is not yet intended for for use outside
-// of WebRtc/Libjingle. Please use the VoiceEngine API instead.
-// See: https://bugs.chromium.org/p/webrtc/issues/detail?id=4690
+class FrameDecryptorInterface;
 
 class AudioReceiveStream {
  public:
   struct Stats {
+    Stats();
+    ~Stats();
     uint32_t remote_ssrc = 0;
     int64_t bytes_rcvd = 0;
     uint32_t packets_rcvd = 0;
+    uint64_t fec_packets_received = 0;
+    uint64_t fec_packets_discarded = 0;
     uint32_t packets_lost = 0;
     float fraction_lost = 0.0f;
     std::string codec_name;
-    rtc::Optional<int> codec_payload_type;
+    absl::optional<int> codec_payload_type;
     uint32_t ext_seqnum = 0;
     uint32_t jitter_ms = 0;
     uint32_t jitter_buffer_ms = 0;
@@ -56,8 +56,12 @@ class AudioReceiveStream {
     uint64_t total_samples_received = 0;
     double total_output_duration = 0.0;
     uint64_t concealed_samples = 0;
+    uint64_t silent_concealed_samples = 0;
     uint64_t concealment_events = 0;
     double jitter_buffer_delay_seconds = 0.0;
+    uint64_t jitter_buffer_emitted_count = 0;
+    uint64_t inserted_samples_for_deceleration = 0;
+    uint64_t removed_samples_for_acceleration = 0;
     // Stats below DO NOT correspond directly to anything in the WebRTC stats
     float expand_rate = 0.0f;
     float speech_expand_rate = 0.0f;
@@ -65,6 +69,7 @@ class AudioReceiveStream {
     float secondary_discarded_rate = 0.0f;
     float accelerate_rate = 0.0f;
     float preemptive_expand_rate = 0.0f;
+    uint64_t delayed_packet_outage_samples = 0;
     int32_t decoding_calls_to_silence_generator = 0;
     int32_t decoding_calls_to_neteq = 0;
     int32_t decoding_normal = 0;
@@ -73,13 +78,27 @@ class AudioReceiveStream {
     int32_t decoding_plc_cng = 0;
     int32_t decoding_muted_output = 0;
     int64_t capture_start_ntp_time_ms = 0;
+    // The timestamp at which the last packet was received, i.e. the time of the
+    // local clock when it was received - not the RTP timestamp of that packet.
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-lastpacketreceivedtimestamp
+    absl::optional<int64_t> last_packet_received_timestamp_ms;
+    uint64_t jitter_buffer_flushes = 0;
+    double relative_packet_arrival_delay_seconds = 0.0;
+    int32_t interruption_count = 0;
+    int32_t total_interruption_duration_ms = 0;
   };
 
   struct Config {
+    Config();
+    ~Config();
+
     std::string ToString() const;
 
     // Receive-stream specific RTP settings.
     struct Rtp {
+      Rtp();
+      ~Rtp();
+
       std::string ToString() const;
 
       // Synchronization source (stream identifier) to be received.
@@ -103,11 +122,13 @@ class AudioReceiveStream {
 
     Transport* rtcp_send_transport = nullptr;
 
-    // Underlying VoiceEngine handle, used to map AudioReceiveStream to lower-
-    // level components.
-    // TODO(solenberg): Remove when VoiceEngine channels are created outside
-    // of Call.
-    int voe_channel_id = -1;
+    MediaTransportConfig media_transport_config;
+
+    // NetEq settings.
+    size_t jitter_buffer_max_packets = 200;
+    bool jitter_buffer_fast_accelerate = false;
+    int jitter_buffer_min_delay_ms = 0;
+    bool jitter_buffer_enable_rtx_handling = false;
 
     // Identifier for an A/V synchronization group. Empty string to disable.
     // TODO(pbos): Synchronize streams in a sync group, not just one video
@@ -118,7 +139,20 @@ class AudioReceiveStream {
     std::map<int, SdpAudioFormat> decoder_map;
 
     rtc::scoped_refptr<AudioDecoderFactory> decoder_factory;
+
+    absl::optional<AudioCodecPairId> codec_pair_id;
+
+    // Per PeerConnection crypto options.
+    webrtc::CryptoOptions crypto_options;
+
+    // An optional custom frame decryptor that allows the entire frame to be
+    // decrypted in whatever way the caller choses. This is not required by
+    // default.
+    rtc::scoped_refptr<webrtc::FrameDecryptorInterface> frame_decryptor;
   };
+
+  // Reconfigure the stream according to the Configuration.
+  virtual void Reconfigure(const Config& config) = 0;
 
   // Starts stream activity.
   // When a stream is active, it can receive, process and deliver packets.
@@ -128,22 +162,28 @@ class AudioReceiveStream {
   virtual void Stop() = 0;
 
   virtual Stats GetStats() const = 0;
-  // TODO(solenberg): Remove, once AudioMonitor is gone.
-  virtual int GetOutputLevel() const = 0;
 
   // Sets an audio sink that receives unmixed audio from the receive stream.
-  // Ownership of the sink is passed to the stream and can be used by the
-  // caller to do lifetime management (i.e. when the sink's dtor is called).
+  // Ownership of the sink is managed by the caller.
   // Only one sink can be set and passing a null sink clears an existing one.
   // NOTE: Audio must still somehow be pulled through AudioTransport for audio
   // to stream through this sink. In practice, this happens if mixed audio
   // is being pulled+rendered and/or if audio is being pulled for the purposes
   // of feeding to the AEC.
-  virtual void SetSink(std::unique_ptr<AudioSinkInterface> sink) = 0;
+  virtual void SetSink(AudioSinkInterface* sink) = 0;
 
   // Sets playback gain of the stream, applied when mixing, and thus after it
   // is potentially forwarded to any attached AudioSinkInterface implementation.
   virtual void SetGain(float gain) = 0;
+
+  // Sets a base minimum for the playout delay. Base minimum delay sets lower
+  // bound on minimum delay value determining lower bound on playout delay.
+  //
+  // Returns true if value was successfully set, false overwise.
+  virtual bool SetBaseMinimumPlayoutDelayMs(int delay_ms) = 0;
+
+  // Returns current value of base minimum delay in milliseconds.
+  virtual int GetBaseMinimumPlayoutDelayMs() const = 0;
 
   virtual std::vector<RtpSource> GetSources() const = 0;
 

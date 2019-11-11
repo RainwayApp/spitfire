@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_SPIN_LOCK_H
-#define BASE_ALLOCATOR_PARTITION_ALLOCATOR_SPIN_LOCK_H
+#ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_SPIN_LOCK_H_
+#define BASE_ALLOCATOR_PARTITION_ALLOCATOR_SPIN_LOCK_H_
 
 #include <atomic>
 #include <memory>
@@ -22,8 +22,8 @@ namespace subtle {
 
 class BASE_EXPORT SpinLock {
  public:
-  SpinLock();
-  ~SpinLock();
+  constexpr SpinLock() = default;
+  ~SpinLock() = default;
   using Guard = std::lock_guard<SpinLock>;
 
   ALWAYS_INLINE void lock() {
@@ -47,4 +47,4 @@ class BASE_EXPORT SpinLock {
 }  // namespace subtle
 }  // namespace base
 
-#endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_SPIN_LOCK_H
+#endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_SPIN_LOCK_H_

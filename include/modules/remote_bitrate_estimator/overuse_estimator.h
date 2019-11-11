@@ -10,13 +10,28 @@
 #ifndef MODULES_REMOTE_BITRATE_ESTIMATOR_OVERUSE_ESTIMATOR_H_
 #define MODULES_REMOTE_BITRATE_ESTIMATOR_OVERUSE_ESTIMATOR_H_
 
+#include <stdint.h>
 #include <deque>
 
-#include "common_types.h"  // NOLINT(build/include)
 #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
+
+// Bandwidth over-use detector options.  These are used to drive
+// experimentation with bandwidth estimation parameters.
+// TODO(terelius): This is only used in overuse_estimator.cc, and only in the
+// default constructed state. Can we move the relevant variables into that
+// class and delete this?
+struct OverUseDetectorOptions {
+  OverUseDetectorOptions() = default;
+  double initial_slope = 8.0 / 512.0;
+  double initial_offset = 0;
+  double initial_e[2][2] = {{100.0, 0.0}, {0.0, 1e-1}};
+  double initial_process_noise[2] = {1e-13, 1e-3};
+  double initial_avg_noise = 0.0;
+  double initial_var_noise = 50.0;
+};
 
 class OveruseEstimator {
  public:
@@ -34,20 +49,14 @@ class OveruseEstimator {
               int64_t now_ms);
 
   // Returns the estimated noise/jitter variance in ms^2.
-  double var_noise() const {
-    return var_noise_;
-  }
+  double var_noise() const { return var_noise_; }
 
   // Returns the estimated inter-arrival time delta offset in ms.
-  double offset() const {
-    return offset_;
-  }
+  double offset() const { return offset_; }
 
   // Returns the number of deltas which the current over-use estimator state is
   // based on.
-  unsigned int num_of_deltas() const {
-    return num_of_deltas_;
-  }
+  unsigned int num_of_deltas() const { return num_of_deltas_; }
 
  private:
   double UpdateMinFramePeriod(double ts_delta);

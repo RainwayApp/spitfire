@@ -16,6 +16,11 @@
 #include <string>
 #include <vector>
 
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #include "base/base_export.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -23,13 +28,8 @@
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
-#include <windows.h>
-#elif defined(OS_POSIX)
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
-
-#if defined(OS_POSIX)
+#include "base/win/windows_types.h"
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/file_descriptor_posix.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
@@ -130,6 +130,12 @@ BASE_EXPORT bool CopyDirectory(const FilePath& from_path,
                                const FilePath& to_path,
                                bool recursive);
 
+// Like CopyDirectory() except trying to overwrite an existing file will not
+// work and will return false.
+BASE_EXPORT bool CopyDirectoryExcl(const FilePath& from_path,
+                                   const FilePath& to_path,
+                                   bool recursive);
+
 // Returns true if the given path exists on the local filesystem,
 // false otherwise.
 BASE_EXPORT bool PathExists(const FilePath& path);
@@ -172,16 +178,22 @@ BASE_EXPORT bool ReadFileToStringWithMaxSize(const FilePath& path,
                                              std::string* contents,
                                              size_t max_size);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 
 // Read exactly |bytes| bytes from file descriptor |fd|, storing the result
 // in |buffer|. This function is protected against EINTR and partial reads.
 // Returns true iff |bytes| bytes have been successfully read from |fd|.
 BASE_EXPORT bool ReadFromFD(int fd, char* buffer, size_t bytes);
 
-// The following functions use POSIX functionality that isn't supported by
-// Fuchsia.
-#if !defined(OS_FUCHSIA)
+// Performs the same function as CreateAndOpenTemporaryFileInDir(), but returns
+// the file-descriptor directly, rather than wrapping it into a FILE. Returns
+// -1 on failure.
+BASE_EXPORT int CreateAndOpenFdForTemporaryFileInDir(const FilePath& dir,
+                                                     FilePath* path);
+
+#endif  // OS_POSIX || OS_FUCHSIA
+
+#if defined(OS_POSIX)
 
 // Creates a symbolic link at |symlink| pointing to |target|.  Returns
 // false on failure.
@@ -223,7 +235,15 @@ BASE_EXPORT bool SetPosixFilePermissions(const FilePath& path, int mode);
 BASE_EXPORT bool ExecutableExistsInPath(Environment* env,
                                         const FilePath::StringType& executable);
 
-#endif  // !OS_FUCHSIA
+#if defined(OS_LINUX) || defined(OS_AIX)
+// Determine if files under a given |path| can be mapped and then mprotect'd
+// PROT_EXEC. This depends on the mount options used for |path|, which vary
+// among different Linux distributions and possibly local configuration. It also
+// depends on details of kernel--ChromeOS uses the noexec option for /dev/shm
+// but its kernel allows mprotect with PROT_EXEC anyway.
+BASE_EXPORT bool IsPathExecutable(const FilePath& path);
+#endif  // OS_LINUX || OS_AIX
+
 #endif  // OS_POSIX
 
 // Returns true if the given directory is empty
@@ -313,6 +333,15 @@ BASE_EXPORT bool DevicePathToDriveLetterPath(const FilePath& device_path,
 // be resolved with this function.
 BASE_EXPORT bool NormalizeToNativeFilePath(const FilePath& path,
                                            FilePath* nt_path);
+
+// Method that wraps the win32 GetLongPathName API, normalizing the specified
+// path to its long form. An example where this is needed is when comparing
+// temp file paths. If a username isn't a valid 8.3 short file name (even just a
+// lengthy name like "user with long name"), Windows will set the TMP and TEMP
+// environment variables to be 8.3 paths. ::GetTempPath (called in
+// base::GetTempDir) just uses the value specified by TMP or TEMP, and so can
+// return a short path. Returns an empty path on error.
+BASE_EXPORT FilePath MakeLongFilePath(const FilePath& input);
 #endif
 
 // This function will return if the given file is a symlink or not.
@@ -351,10 +380,18 @@ BASE_EXPORT int ReadFile(const FilePath& filename, char* data, int max_size);
 BASE_EXPORT int WriteFile(const FilePath& filename, const char* data,
                           int size);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Appends |data| to |fd|. Does not close |fd| when done.  Returns true iff
 // |size| bytes of |data| were written to |fd|.
 BASE_EXPORT bool WriteFileDescriptor(const int fd, const char* data, int size);
+
+// Allocates disk space for the file referred to by |fd| for the byte range
+// starting at |offset| and continuing for |size| bytes. The file size will be
+// changed if |offset|+|len| is greater than the file size. Zeros will fill the
+// new space.
+// After a successful call, subsequent writes into the specified range are
+// guaranteed not to fail because of lack of disk space.
+BASE_EXPORT bool AllocateFileRegion(File* file, int64_t offset, size_t size);
 #endif
 
 // Appends |data| to |filename|.  Returns true iff |size| bytes of |data| were
@@ -376,12 +413,26 @@ BASE_EXPORT bool SetCurrentDirectory(const FilePath& path);
 BASE_EXPORT int GetUniquePathNumber(const FilePath& path,
                                     const FilePath::StringType& suffix);
 
+// If file at |path| already exists, modifies filename portion of |path| to
+// return unique path.
+BASE_EXPORT FilePath GetUniquePath(const FilePath& path);
+
 // Sets the given |fd| to non-blocking mode.
 // Returns true if it was able to set it in the non-blocking mode, otherwise
 // false.
 BASE_EXPORT bool SetNonBlocking(int fd);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+
+// Creates a pipe. Returns true on success, otherwise false.
+// On success, |read_fd| will be set to the fd of the read side, and
+// |write_fd| will be set to the one of write side. If |non_blocking|
+// is set the pipe will be created with O_NONBLOCK|O_CLOEXEC flags set
+// otherwise flag is set to zero (default).
+BASE_EXPORT bool CreatePipe(ScopedFD* read_fd,
+                            ScopedFD* write_fd,
+                            bool non_blocking = false);
+
 // Creates a non-blocking, close-on-exec pipe.
 // This creates a non-blocking pipe that is not intended to be shared with any
 // child process. This will be done atomically if the operating system supports
@@ -408,7 +459,7 @@ BASE_EXPORT bool VerifyPathControlledByUser(const base::FilePath& base,
                                             const base::FilePath& path,
                                             uid_t owner_uid,
                                             const std::set<gid_t>& group_gids);
-#endif  // defined(OS_POSIX)
+#endif  // defined(OS_POSIX) || defined(OS_FUCHSIA)
 
 #if defined(OS_MACOSX) && !defined(OS_IOS)
 // Is |path| writable only by a user with administrator privileges?
@@ -445,7 +496,7 @@ enum FileSystemType {
 BASE_EXPORT bool GetFileSystemType(const FilePath& path, FileSystemType* type);
 #endif
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Get a temporary directory for shared memory files. The directory may depend
 // on whether the destination is intended for executable files, which in turn
 // depends on how /dev/shmem was mounted. As a result, you must supply whether

@@ -11,12 +11,15 @@
 #ifndef MODULES_AUDIO_CODING_CODECS_RED_AUDIO_ENCODER_COPY_RED_H_
 #define MODULES_AUDIO_CODING_CODECS_RED_AUDIO_ENCODER_COPY_RED_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
-#include <vector>
 
+#include "absl/types/optional.h"
+#include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "rtc_base/buffer.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -57,7 +60,7 @@ class AudioEncoderCopyRed final : public AudioEncoder {
       float uplink_recoverable_packet_loss_fraction) override;
   void OnReceivedUplinkBandwidth(
       int target_audio_bitrate_bps,
-      rtc::Optional<int64_t> bwe_period_ms) override;
+      absl::optional<int64_t> bwe_period_ms) override;
 
  protected:
   EncodedInfo EncodeImpl(uint32_t rtp_timestamp,

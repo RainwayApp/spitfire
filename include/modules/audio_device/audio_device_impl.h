@@ -8,24 +8,24 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef AUDIO_DEVICE_AUDIO_DEVICE_IMPL_H_
-#define AUDIO_DEVICE_AUDIO_DEVICE_IMPL_H_
+#ifndef MODULES_AUDIO_DEVICE_AUDIO_DEVICE_IMPL_H_
+#define MODULES_AUDIO_DEVICE_AUDIO_DEVICE_IMPL_H_
 
 #if defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
 
+#include <stdint.h>
 #include <memory>
 
+#include "api/task_queue/task_queue_factory.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_device/include/audio_device.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/criticalsection.h"
 
 namespace webrtc {
 
 class AudioDeviceGeneric;
 class AudioManager;
 
-class AudioDeviceModuleImpl : public AudioDeviceModule {
+class AudioDeviceModuleImpl : public AudioDeviceModuleForTest {
  public:
   enum PlatformType {
     kPlatformNotSupported = 0,
@@ -41,14 +41,12 @@ class AudioDeviceModuleImpl : public AudioDeviceModule {
   int32_t CreatePlatformSpecificObjects();
   int32_t AttachAudioBuffer();
 
-  AudioDeviceModuleImpl(const int32_t id, const AudioLayer audioLayer);
+  AudioDeviceModuleImpl(AudioLayer audio_layer,
+                        TaskQueueFactory* task_queue_factory);
   ~AudioDeviceModuleImpl() override;
 
   // Retrieve the currently utilized audio layer
   int32_t ActiveAudioLayer(AudioLayer* audioLayer) const override;
-
-  // Error handling
-  ErrorCode LastError() const override;
 
   // Full-duplex transportation of PCM audio
   int32_t RegisterAudioCallback(AudioTransport* audioCallback) override;
@@ -90,10 +88,6 @@ class AudioDeviceModuleImpl : public AudioDeviceModule {
   int32_t StopRecording() override;
   bool Recording() const override;
 
-  // Microphone Automatic Gain Control (AGC)
-  int32_t SetAGC(bool enable) override;
-  bool AGC() const override;
-
   // Audio mixer initialization
   int32_t InitSpeaker() override;
   bool SpeakerIsInitialized() const override;
@@ -131,22 +125,9 @@ class AudioDeviceModuleImpl : public AudioDeviceModule {
   int32_t StereoRecordingIsAvailable(bool* available) const override;
   int32_t SetStereoRecording(bool enable) override;
   int32_t StereoRecording(bool* enabled) const override;
-  int32_t SetRecordingChannel(const ChannelType channel) override;
-  int32_t RecordingChannel(ChannelType* channel) const override;
 
   // Delay information and control
   int32_t PlayoutDelay(uint16_t* delayMS) const override;
-  int32_t RecordingDelay(uint16_t* delayMS) const override;
-
-  // Native sample rate controls (samples/sec)
-  int32_t SetRecordingSampleRate(const uint32_t samplesPerSec) override;
-  int32_t RecordingSampleRate(uint32_t* samplesPerSec) const override;
-  int32_t SetPlayoutSampleRate(const uint32_t samplesPerSec) override;
-  int32_t PlayoutSampleRate(uint32_t* samplesPerSec) const override;
-
-  // Mobile device specific functions
-  int32_t SetLoudspeakerStatus(bool enable) override;
-  int32_t GetLoudspeakerStatus(bool* enabled) const override;
 
   bool BuiltInAECIsAvailable() const override;
   int32_t EnableBuiltInAEC(bool enable) override;
@@ -160,37 +141,36 @@ class AudioDeviceModuleImpl : public AudioDeviceModule {
   int GetRecordAudioParameters(AudioParameters* params) const override;
 #endif  // WEBRTC_IOS
 
-  int32_t Id() { return _id; }
 #if defined(WEBRTC_ANDROID)
   // Only use this acccessor for test purposes on Android.
   AudioManager* GetAndroidAudioManagerForTest() {
-    return _audioManagerAndroid.get();
+    return audio_manager_android_.get();
   }
 #endif
-  AudioDeviceBuffer* GetAudioDeviceBuffer() { return &_audioDeviceBuffer; }
+  AudioDeviceBuffer* GetAudioDeviceBuffer() { return &audio_device_buffer_; }
+
+  int RestartPlayoutInternally() override { return -1; }
+  int RestartRecordingInternally() override { return -1; }
+  int SetPlayoutSampleRate(uint32_t sample_rate) override { return -1; }
+  int SetRecordingSampleRate(uint32_t sample_rate) override { return -1; }
 
  private:
   PlatformType Platform() const;
   AudioLayer PlatformAudioLayer() const;
 
-  rtc::CriticalSection _critSect;
-  rtc::CriticalSection _critSectAudioCb;
-
-  AudioDeviceGeneric* _ptrAudioDevice;
-
-  AudioDeviceBuffer _audioDeviceBuffer;
+  AudioLayer audio_layer_;
+  PlatformType platform_type_ = kPlatformNotSupported;
+  bool initialized_ = false;
 #if defined(WEBRTC_ANDROID)
-  std::unique_ptr<AudioManager> _audioManagerAndroid;
+  // Should be declared first to ensure that it outlives other resources.
+  std::unique_ptr<AudioManager> audio_manager_android_;
 #endif
-  int32_t _id;
-  AudioLayer _platformAudioLayer;
-  PlatformType _platformType;
-  bool _initialized;
-  mutable ErrorCode _lastError;
+  AudioDeviceBuffer audio_device_buffer_;
+  std::unique_ptr<AudioDeviceGeneric> audio_device_;
 };
 
 }  // namespace webrtc
 
 #endif  // defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
 
-#endif  // MODULES_INTERFACE_AUDIO_DEVICE_IMPL_H_
+#endif  // MODULES_AUDIO_DEVICE_AUDIO_DEVICE_IMPL_H_

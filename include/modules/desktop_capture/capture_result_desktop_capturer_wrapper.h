@@ -15,15 +15,15 @@
 
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_capturer_wrapper.h"
+#include "modules/desktop_capture/desktop_frame.h"
 
 namespace webrtc {
 
 // A DesktopCapturerWrapper implementation to capture the result of
 // |base_capturer|. Derived classes are expected to provide a ResultObserver
 // implementation to observe the DesktopFrame returned by |base_capturer_|.
-class CaptureResultDesktopCapturerWrapper
-    : public DesktopCapturerWrapper,
-      public DesktopCapturer::Callback {
+class CaptureResultDesktopCapturerWrapper : public DesktopCapturerWrapper,
+                                            public DesktopCapturer::Callback {
  public:
   using Callback = DesktopCapturer::Callback;
 

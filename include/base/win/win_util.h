@@ -22,40 +22,24 @@
 #ifndef BASE_WIN_WIN_UTIL_H_
 #define BASE_WIN_WIN_UTIL_H_
 
-#include <windows.h>
 #include <stdint.h>
+#include "base/win/windows_types.h"
 
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/strings/string16.h"
 
 struct IPropertyStore;
 struct _tagpropertykey;
 typedef _tagpropertykey PROPERTYKEY;
 
-// This is the same as NONCLIENTMETRICS except that the
-// unused member |iPaddedBorderWidth| has been removed.
-struct NONCLIENTMETRICS_XP {
-    UINT    cbSize;
-    int     iBorderWidth;
-    int     iScrollWidth;
-    int     iScrollHeight;
-    int     iCaptionWidth;
-    int     iCaptionHeight;
-    LOGFONTW lfCaptionFont;
-    int     iSmCaptionWidth;
-    int     iSmCaptionHeight;
-    LOGFONTW lfSmCaptionFont;
-    int     iMenuWidth;
-    int     iMenuHeight;
-    LOGFONTW lfMenuFont;
-    LOGFONTW lfStatusFont;
-    LOGFONTW lfMessageFont;
-};
-
 namespace base {
+
+struct NativeLibraryLoadError;
+
 namespace win {
 
 inline uint32_t HandleToUint32(HANDLE h) {
@@ -71,10 +55,9 @@ inline HANDLE Uint32ToHandle(uint32_t h) {
       static_cast<uintptr_t>(static_cast<int32_t>(h)));
 }
 
-BASE_EXPORT void GetNonClientMetrics(NONCLIENTMETRICS_XP* metrics);
-
-// Returns the string representing the current user sid.
-BASE_EXPORT bool GetUserSidString(std::wstring* user_sid);
+// Returns the string representing the current user sid. Does not modify
+// |user_sid| on failure.
+BASE_EXPORT bool GetUserSidString(string16* user_sid);
 
 // Returns false if user account control (UAC) has been disabled with the
 // EnableLUA registry flag. Returns true if user account control is enabled.
@@ -94,13 +77,18 @@ BASE_EXPORT bool SetBooleanValueForPropertyStore(
 BASE_EXPORT bool SetStringValueForPropertyStore(
     IPropertyStore* property_store,
     const PROPERTYKEY& property_key,
-    const wchar_t* property_string_value);
+    const char16* property_string_value);
+
+// Sets the CLSID value for a given key in a given IPropertyStore.
+BASE_EXPORT bool SetClsidForPropertyStore(IPropertyStore* property_store,
+                                          const PROPERTYKEY& property_key,
+                                          const CLSID& property_clsid_value);
 
 // Sets the application id in given IPropertyStore. The function is intended
 // for tagging application/chromium shortcut, browser window and jump list for
 // Win7.
 BASE_EXPORT bool SetAppIdForPropertyStore(IPropertyStore* property_store,
-                                          const wchar_t* app_id);
+                                          const char16* app_id);
 
 // Adds the specified |command| using the specified |name| to the AutoRun key.
 // |root_key| could be HKCU or HKLM or the root of any user hive.
@@ -133,21 +121,32 @@ BASE_EXPORT void SetAbortBehaviorForCrashReporting();
 BASE_EXPORT bool IsWindows10TabletMode(HWND hwnd);
 
 // A tablet is a device that is touch enabled and also is being used
-// "like a tablet". This is used by the following:-
-// 1. Metrics:- To gain insight into how users use Chrome.
-// 2. Physical keyboard presence :- If a device is in tablet mode, it means
+// "like a tablet". This is used by the following:
+// 1. Metrics: To gain insight into how users use Chrome.
+// 2. Physical keyboard presence: If a device is in tablet mode, it means
 //    that there is no physical keyboard attached.
-// 3. To set the right interactions media queries,
-//    see https://drafts.csswg.org/mediaqueries-4/#mf-interaction
 // This function optionally sets the |reason| parameter to determine as to why
 // or why not a device was deemed to be a tablet.
-// Returns true if the device is in tablet mode.
-BASE_EXPORT bool IsTabletDevice(std::string* reason);
+// Returns true if the user has set Windows 10 in tablet mode.
+BASE_EXPORT bool IsTabletDevice(std::string* reason, HWND hwnd);
+
+// Return true if the device is physically used as a tablet independently of
+// Windows tablet mode. It checks if the device:
+// - Is running Windows 8 or newer,
+// - Has a touch digitizer,
+// - Is not docked,
+// - Has a supported rotation sensor,
+// - Is not in laptop mode,
+// - prefers the mobile or slate power management profile (per OEM choice), and
+// - Is in slate mode.
+// This function optionally sets the |reason| parameter to determine as to why
+// or why not a device was deemed to be a tablet.
+BASE_EXPORT bool IsDeviceUsedAsATablet(std::string* reason);
 
 // A slate is a touch device that may have a keyboard attached. This function
-// returns true if a keyboard is attached and optionally will set the reason
+// returns true if a keyboard is attached and optionally will set the |reason|
 // parameter to the detection method that was used to detect the keyboard.
-BASE_EXPORT bool IsKeyboardPresentOnSlate(std::string* reason);
+BASE_EXPORT bool IsKeyboardPresentOnSlate(std::string* reason, HWND hwnd);
 
 // Get the size of a struct up to and including the specified member.
 // This is necessary to set compatible struct sizes for different versions
@@ -162,20 +161,19 @@ BASE_EXPORT bool IsEnrolledToDomain();
 // Returns true if the machine is being managed by an MDM system.
 BASE_EXPORT bool IsDeviceRegisteredWithManagement();
 
-// Returns true if the current machine is considered enterprise managed in some
-// fashion.  A machine is considered managed if it is either domain enrolled
-// or registered with an MDM.
-BASE_EXPORT bool IsEnterpriseManaged();
-
-// Used by tests to mock any wanted state. Call with |state| set to true to
-// simulate being in a domain and false otherwise.
-BASE_EXPORT void SetDomainStateForTesting(bool state);
-
 // Returns true if the current process can make USER32 or GDI32 calls such as
 // CreateWindow and CreateDC. Windows 8 and above allow the kernel component
-// of these calls to be disabled which can cause undefined behaviour such as
-// crashes. This function can be used to guard areas of code using these calls
-// and provide a fallback path if necessary.
+// of these calls to be disabled (also known as win32k lockdown) which can
+// cause undefined behaviour such as crashes. This function can be used to
+// guard areas of code using these calls and provide a fallback path if
+// necessary.
+// Because they are not always needed (and not needed at all in processes that
+// have the win32k lockdown), USER32 and GDI32 are delayloaded. Attempts to
+// load them in those processes will cause a crash. Any code which uses USER32
+// or GDI32 and may run in a locked-down process MUST be guarded using this
+// method. Before the dlls were delayloaded, method calls into USER32 and GDI32
+// did not work, so adding calls to this method to guard them simply avoids
+// unnecessary method calls.
 BASE_EXPORT bool IsUser32AndGdi32Available();
 
 // Takes a snapshot of the modules loaded in the |process|. The returned
@@ -196,6 +194,48 @@ BASE_EXPORT bool IsProcessPerMonitorDpiAware();
 
 // Enable high-DPI support for the current process.
 BASE_EXPORT void EnableHighDPISupport();
+
+// Returns a string representation of |rguid|.
+BASE_EXPORT string16 String16FromGUID(REFGUID rguid);
+
+// Attempts to pin user32.dll to ensure it remains loaded. If it isn't loaded
+// yet, the module will first be loaded and then the pin will be attempted. If
+// pinning is successful, returns true. If the module cannot be loaded and/or
+// pinned, |error| is set and the method returns false.
+BASE_EXPORT bool PinUser32(NativeLibraryLoadError* error = nullptr);
+
+// Gets a pointer to a function within user32.dll, if available. If user32.dll
+// cannot be loaded or the function cannot be found, this function returns
+// nullptr and sets |error|. Once loaded, user32.dll is pinned, and therefore
+// the function pointer returned by this function will never change and can be
+// cached.
+BASE_EXPORT void* GetUser32FunctionPointer(
+    const char* function_name,
+    NativeLibraryLoadError* error = nullptr);
+
+// Allows changing the domain enrolled state for the life time of the object.
+// The original state is restored upon destruction.
+class BASE_EXPORT ScopedDomainStateForTesting {
+ public:
+  ScopedDomainStateForTesting(bool state);
+  ~ScopedDomainStateForTesting();
+
+ private:
+  bool initial_state_;
+  DISALLOW_COPY_AND_ASSIGN(ScopedDomainStateForTesting);
+};
+
+// Allows changing the management registration state for the life time of the
+// object.  The original state is restored upon destruction.
+class BASE_EXPORT ScopedDeviceRegisteredWithManagementForTesting {
+ public:
+  ScopedDeviceRegisteredWithManagementForTesting(bool state);
+  ~ScopedDeviceRegisteredWithManagementForTesting();
+
+ private:
+  bool initial_state_;
+  DISALLOW_COPY_AND_ASSIGN(ScopedDeviceRegisteredWithManagementForTesting);
+};
 
 }  // namespace win
 }  // namespace base

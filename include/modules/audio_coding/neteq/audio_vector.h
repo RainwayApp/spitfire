@@ -11,12 +11,12 @@
 #ifndef MODULES_AUDIO_CODING_NETEQ_AUDIO_VECTOR_H_
 #define MODULES_AUDIO_CODING_NETEQ_AUDIO_VECTOR_H_
 
-#include <string.h>  // Access to size_t.
+#include <string.h>
+#include <cstdint>
 #include <memory>
 
 #include "rtc_base/checks.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -75,7 +75,8 @@ class AudioVector {
   // them at |position|. The length of the AudioVector is increased by |length|.
   // |position| = 0 means that the new values are prepended to the vector.
   // |position| = Size() means that the new values are appended to the vector.
-  virtual void InsertAt(const int16_t* insert_this, size_t length,
+  virtual void InsertAt(const int16_t* insert_this,
+                        size_t length,
                         size_t position);
 
   // Like InsertAt, but inserts |length| zero elements at |position|.
@@ -140,10 +141,12 @@ class AudioVector {
 
   void Reserve(size_t n);
 
-  void InsertByPushBack(const int16_t* insert_this, size_t length,
+  void InsertByPushBack(const int16_t* insert_this,
+                        size_t length,
                         size_t position);
 
-  void InsertByPushFront(const int16_t* insert_this, size_t length,
+  void InsertByPushFront(const int16_t* insert_this,
+                         size_t length,
                          size_t position);
 
   void InsertZerosByPushBack(size_t length, size_t position);

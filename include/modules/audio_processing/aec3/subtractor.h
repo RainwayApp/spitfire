@@ -11,10 +11,13 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_SUBTRACTOR_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_SUBTRACTOR_H_
 
+#include <math.h>
+#include <stddef.h>
 #include <array>
-#include <algorithm>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/adaptive_fir_filter.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec3_fft.h"
@@ -22,18 +25,21 @@
 #include "modules/audio_processing/aec3/echo_path_variability.h"
 #include "modules/audio_processing/aec3/main_filter_update_gain.h"
 #include "modules/audio_processing/aec3/render_buffer.h"
+#include "modules/audio_processing/aec3/render_signal_analyzer.h"
 #include "modules/audio_processing/aec3/shadow_filter_update_gain.h"
 #include "modules/audio_processing/aec3/subtractor_output.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
-#include "modules/audio_processing/utility/ooura_fft.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
 // Proves linear echo cancellation functionality
 class Subtractor {
  public:
-  Subtractor(ApmDataDumper* data_dumper, Aec3Optimization optimization);
+  Subtractor(const EchoCanceller3Config& config,
+             ApmDataDumper* data_dumper,
+             Aec3Optimization optimization);
   ~Subtractor();
 
   // Performs the echo subtraction.
@@ -45,6 +51,9 @@ class Subtractor {
 
   void HandleEchoPathChange(const EchoPathVariability& echo_path_variability);
 
+  // Exits the initial state.
+  void ExitInitialState();
+
   // Returns the block-wise frequency response for the main adaptive filter.
   const std::vector<std::array<float, kFftLengthBy2Plus1>>&
   FilterFrequencyResponse() const {
@@ -52,23 +61,59 @@ class Subtractor {
   }
 
   // Returns the estimate of the impulse response for the main adaptive filter.
-  const std::array<float, kAdaptiveFilterTimeDomainLength>&
-  FilterImpulseResponse() const {
+  const std::vector<float>& FilterImpulseResponse() const {
     return main_filter_.FilterImpulseResponse();
   }
 
-  bool ConvergedFilter() const { return converged_filter_; }
+  void DumpFilters() {
+    main_filter_.DumpFilter("aec3_subtractor_H_main", "aec3_subtractor_h_main");
+    shadow_filter_.DumpFilter("aec3_subtractor_H_shadow",
+                              "aec3_subtractor_h_shadow");
+  }
 
  private:
+  class FilterMisadjustmentEstimator {
+   public:
+    FilterMisadjustmentEstimator() = default;
+    ~FilterMisadjustmentEstimator() = default;
+    // Update the misadjustment estimator.
+    void Update(const SubtractorOutput& output);
+    // GetMisadjustment() Returns a recommended scale for the filter so the
+    // prediction error energy gets closer to the energy that is seen at the
+    // microphone input.
+    float GetMisadjustment() const {
+      RTC_DCHECK_GT(inv_misadjustment_, 0.0f);
+      // It is not aiming to adjust all the estimated mismatch. Instead,
+      // it adjusts half of that estimated mismatch.
+      return 2.f / sqrtf(inv_misadjustment_);
+    }
+    // Returns true if the prediciton error energy is significantly larger
+    // than the microphone signal energy and, therefore, an adjustment is
+    // recommended.
+    bool IsAdjustmentNeeded() const { return inv_misadjustment_ > 10.f; }
+    void Reset();
+    void Dump(ApmDataDumper* data_dumper) const;
+
+   private:
+    const int n_blocks_ = 4;
+    int n_blocks_acum_ = 0;
+    float e2_acum_ = 0.f;
+    float y2_acum_ = 0.f;
+    float inv_misadjustment_ = 0.f;
+    int overhang_ = 0.f;
+  };
+
   const Aec3Fft fft_;
   ApmDataDumper* data_dumper_;
   const Aec3Optimization optimization_;
+  const EchoCanceller3Config config_;
+
   AdaptiveFirFilter main_filter_;
   AdaptiveFirFilter shadow_filter_;
   MainFilterUpdateGain G_main_;
   ShadowFilterUpdateGain G_shadow_;
-  bool converged_filter_ = false;
-
+  FilterMisadjustmentEstimator filter_misadjustment_estimator_;
+  size_t poor_shadow_filter_counter_ = 0;
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(Subtractor);
 };
 

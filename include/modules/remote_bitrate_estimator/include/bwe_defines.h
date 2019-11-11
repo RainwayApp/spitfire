@@ -11,8 +11,11 @@
 #ifndef MODULES_REMOTE_BITRATE_ESTIMATOR_INCLUDE_BWE_DEFINES_H_
 #define MODULES_REMOTE_BITRATE_ESTIMATOR_INCLUDE_BWE_DEFINES_H_
 
-#include "api/optional.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include <stdint.h>
+
+#include "absl/types/optional.h"
+#include "api/network_state_predictor.h"
+#include "api/units/data_rate.h"
 
 #define BWE_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define BWE_MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -21,6 +24,7 @@ namespace webrtc {
 
 namespace congestion_controller {
 int GetMinBitrateBps();
+DataRate GetMinBitrate();
 }  // namespace congestion_controller
 
 static const int64_t kBitrateWindowMs = 1000;
@@ -35,26 +39,15 @@ enum BweNames {
   kBweNamesMax = 4
 };
 
-enum class BandwidthUsage {
-  kBwNormal = 0,
-  kBwUnderusing = 1,
-  kBwOverusing = 2,
-  kLast
-};
-
 enum RateControlState { kRcHold, kRcIncrease, kRcDecrease };
-
-enum RateControlRegion { kRcNearMax, kRcAboveMax, kRcMaxUnknown };
 
 struct RateControlInput {
   RateControlInput(BandwidthUsage bw_state,
-                   const rtc::Optional<uint32_t>& incoming_bitrate,
-                   double noise_var);
+                   const absl::optional<DataRate>& estimated_throughput);
   ~RateControlInput();
 
   BandwidthUsage bw_state;
-  rtc::Optional<uint32_t> incoming_bitrate;
-  double noise_var;
+  absl::optional<DataRate> estimated_throughput;
 };
 }  // namespace webrtc
 

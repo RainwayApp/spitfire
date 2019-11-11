@@ -14,14 +14,15 @@
 #include <memory>
 #include <vector>
 
+#include "absl/types/optional.h"
+#include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_format.h"
-#include "rtc_base/refcount.h"
+#include "rtc_base/ref_count.h"
 
 namespace webrtc {
 
 // A factory that creates AudioEncoders.
-// NOTE: This class is still under development and may change without notice.
 class AudioEncoderFactory : public rtc::RefCountInterface {
  public:
   // Returns a prioritized list of audio codecs, to use for signaling etc.
@@ -30,15 +31,28 @@ class AudioEncoderFactory : public rtc::RefCountInterface {
   // Returns information about how this format would be encoded, provided it's
   // supported. More format and format variations may be supported than those
   // returned by GetSupportedEncoders().
-  virtual rtc::Optional<AudioCodecInfo> QueryAudioEncoder(
+  virtual absl::optional<AudioCodecInfo> QueryAudioEncoder(
       const SdpAudioFormat& format) = 0;
 
   // Creates an AudioEncoder for the specified format. The encoder will tags its
-  // payloads with the specified payload type.
+  // payloads with the specified payload type. The `codec_pair_id` argument is
+  // used to link encoders and decoders that talk to the same remote entity: if
+  // a AudioEncoderFactory::MakeAudioEncoder() and a
+  // AudioDecoderFactory::MakeAudioDecoder() call receive non-null IDs that
+  // compare equal, the factory implementations may assume that the encoder and
+  // decoder form a pair. (The intended use case for this is to set up
+  // communication between the AudioEncoder and AudioDecoder instances, which is
+  // needed for some codecs with built-in bandwidth adaptation.)
+  //
+  // Note: Implementations need to be robust against combinations other than
+  // one encoder, one decoder getting the same ID; such encoders must still
+  // work.
+  //
   // TODO(ossu): Try to avoid audio encoders having to know their payload type.
   virtual std::unique_ptr<AudioEncoder> MakeAudioEncoder(
       int payload_type,
-      const SdpAudioFormat& format) = 0;
+      const SdpAudioFormat& format,
+      absl::optional<AudioCodecPairId> codec_pair_id) = 0;
 };
 
 }  // namespace webrtc

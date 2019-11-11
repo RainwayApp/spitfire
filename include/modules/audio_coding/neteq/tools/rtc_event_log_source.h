@@ -13,11 +13,13 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "absl/types/optional.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "modules/audio_coding/neteq/tools/packet_source.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -31,12 +33,15 @@ class RtcEventLogSource : public PacketSource {
  public:
   // Creates an RtcEventLogSource reading from |file_name|. If the file cannot
   // be opened, or has the wrong format, NULL will be returned.
-  static RtcEventLogSource* Create(const std::string& file_name);
+  static std::unique_ptr<RtcEventLogSource> CreateFromFile(
+      const std::string& file_name,
+      absl::optional<uint32_t> ssrc_filter);
+  // Same as above, but uses a string with the file contents.
+  static std::unique_ptr<RtcEventLogSource> CreateFromString(
+      const std::string& file_contents,
+      absl::optional<uint32_t> ssrc_filter);
 
   virtual ~RtcEventLogSource();
-
-  // Registers an RTP header extension and binds it to |id|.
-  virtual bool RegisterRtpHeaderExtension(RTPExtensionType type, uint8_t id);
 
   std::unique_ptr<Packet> NextPacket() override;
 
@@ -48,13 +53,13 @@ class RtcEventLogSource : public PacketSource {
  private:
   RtcEventLogSource();
 
-  bool OpenFile(const std::string& file_name);
+  bool Initialize(const ParsedRtcEventLog& parsed_log,
+                  absl::optional<uint32_t> ssrc_filter);
 
+  std::vector<std::unique_ptr<Packet>> rtp_packets_;
   size_t rtp_packet_index_ = 0;
+  std::vector<int64_t> audio_outputs_;
   size_t audio_output_index_ = 0;
-
-  ParsedRtcEventLog parsed_stream_;
-  std::unique_ptr<RtpHeaderParser> parser_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(RtcEventLogSource);
 };

@@ -15,7 +15,6 @@
 
 #include "modules/rtp_rtcp/source/rtcp_packet/rtpfb.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/tmmb_item.h"
-#include "rtc_base/basictypes.h"
 
 namespace webrtc {
 namespace rtcp {
@@ -42,7 +41,7 @@ class Tmmbr : public Rtpfb {
   bool Create(uint8_t* packet,
               size_t* index,
               size_t max_length,
-              RtcpPacket::PacketReadyCallback* callback) const override;
+              PacketReadyCallback callback) const override;
 
  private:
   // Media ssrc is unused, shadow base class setter.

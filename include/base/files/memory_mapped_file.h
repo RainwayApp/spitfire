@@ -44,6 +44,14 @@ class BASE_EXPORT MemoryMappedFile {
     // needed. Note, however, that the maximum size will still be reserved
     // in the process address space.
     READ_WRITE_EXTEND,
+
+#if defined(OS_WIN)
+    // This provides read access, but as executable code used for prefetching
+    // DLLs into RAM to avoid inefficient hard fault patterns such as during
+    // process startup. The accessing thread could be paused while data from
+    // the file is read into memory (if needed).
+    READ_CODE_IMAGE,
+#endif
   };
 
   // The default constructor sets all members to invalid/null values.
@@ -61,7 +69,7 @@ class BASE_EXPORT MemoryMappedFile {
     int64_t offset;
 
     // Length of the region in bytes.
-    int64_t size;
+    size_t size;
   };
 
   // Opens an existing file and maps it into memory. |access| can be read-only
@@ -69,8 +77,8 @@ class BASE_EXPORT MemoryMappedFile {
   // to a valid memory mapped file then this method will fail and return
   // false. If it cannot open the file, the file does not exist, or the
   // memory mapping fails, it will return false.
-  bool Initialize(const FilePath& file_name, Access access);
-  bool Initialize(const FilePath& file_name) {
+  WARN_UNUSED_RESULT bool Initialize(const FilePath& file_name, Access access);
+  WARN_UNUSED_RESULT bool Initialize(const FilePath& file_name) {
     return Initialize(file_name, READ_ONLY);
   }
 
@@ -79,17 +87,19 @@ class BASE_EXPORT MemoryMappedFile {
   // of |file| and closes it when done. |file| must have been opened with
   // permissions suitable for |access|. If the memory mapping fails, it will
   // return false.
-  bool Initialize(File file, Access access);
-  bool Initialize(File file) {
+  WARN_UNUSED_RESULT bool Initialize(File file, Access access);
+  WARN_UNUSED_RESULT bool Initialize(File file) {
     return Initialize(std::move(file), READ_ONLY);
   }
 
-  // As above, but works with a region of an already-opened file. All forms of
-  // |access| are allowed. If READ_WRITE_EXTEND is specified then |region|
-  // provides the maximum size of the file. If the memory mapping fails, it
-  // return false.
-  bool Initialize(File file, const Region& region, Access access);
-  bool Initialize(File file, const Region& region) {
+  // As above, but works with a region of an already-opened file. |access|
+  // must not be READ_CODE_IMAGE. If READ_WRITE_EXTEND is specified then
+  // |region| provides the maximum size of the file. If the memory mapping
+  // fails, it return false.
+  WARN_UNUSED_RESULT bool Initialize(File file,
+                                     const Region& region,
+                                     Access access);
+  WARN_UNUSED_RESULT bool Initialize(File file, const Region& region) {
     return Initialize(std::move(file), region, READ_ONLY);
   }
 
@@ -108,10 +118,16 @@ class BASE_EXPORT MemoryMappedFile {
   // - |aligned_size| is a multiple of the VM granularity and >= |size|.
   // - |offset| is the displacement of |start| w.r.t |aligned_start|.
   static void CalculateVMAlignedBoundaries(int64_t start,
-                                           int64_t size,
+                                           size_t size,
                                            int64_t* aligned_start,
-                                           int64_t* aligned_size,
+                                           size_t* aligned_size,
                                            int32_t* offset);
+
+#if defined(OS_WIN)
+  // Maps the executable file to memory, set |data_| to that memory address.
+  // Return true on success.
+  bool MapImageToMemory(Access access);
+#endif
 
   // Map the file to memory, set data_ to that memory address. Return true on
   // success, false on any kind of failure. This is a helper for Initialize().

@@ -13,9 +13,7 @@
 
 #include <memory>
 
-#include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/source/forward_error_correction.h"
-#include "rtc_base/basictypes.h"
 #include "rtc_base/random.h"
 
 namespace webrtc {
@@ -23,7 +21,7 @@ namespace test {
 namespace fec {
 
 struct AugmentedPacket : public ForwardErrorCorrection::Packet {
-  WebRtcRTPHeader header;
+  RTPHeader header;
 };
 
 // TODO(brandtr): Consider merging MediaPacketGenerator and
@@ -36,11 +34,8 @@ class MediaPacketGenerator {
   MediaPacketGenerator(uint32_t min_packet_size,
                        uint32_t max_packet_size,
                        uint32_t ssrc,
-                       Random* random)
-      : min_packet_size_(min_packet_size),
-        max_packet_size_(max_packet_size),
-        ssrc_(ssrc),
-        random_(random) {}
+                       Random* random);
+  ~MediaPacketGenerator();
 
   // Construct the media packets, up to |num_media_packets| packets.
   ForwardErrorCorrection::PacketList ConstructMediaPackets(

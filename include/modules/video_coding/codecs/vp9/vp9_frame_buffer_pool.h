@@ -12,13 +12,14 @@
 #ifndef MODULES_VIDEO_CODING_CODECS_VP9_VP9_FRAME_BUFFER_POOL_H_
 #define MODULES_VIDEO_CODING_CODECS_VP9_VP9_FRAME_BUFFER_POOL_H_
 
+#ifdef RTC_ENABLE_VP9
+
 #include <vector>
 
-#include "rtc_base/basictypes.h"
+#include "api/scoped_refptr.h"
 #include "rtc_base/buffer.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/refcount.h"
-#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/ref_count.h"
 
 struct vpx_codec_ctx;
 struct vpx_codec_frame_buffer;
@@ -120,5 +121,7 @@ class Vp9FrameBufferPool {
 };
 
 }  // namespace webrtc
+
+#endif  // RTC_ENABLE_VP9
 
 #endif  // MODULES_VIDEO_CODING_CODECS_VP9_VP9_FRAME_BUFFER_POOL_H_

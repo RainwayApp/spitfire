@@ -11,16 +11,19 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_MATCHED_FILTER_H_
 
-#include <array>
-#include <memory>
+#include <stddef.h>
 #include <vector>
 
-#include "api/optional.h"
+#include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
-#include "modules/audio_processing/aec3/downsampled_render_buffer.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/system/arch.h"
 
 namespace webrtc {
+
+class ApmDataDumper;
+struct DownsampledRenderBuffer;
+
 namespace aec3 {
 
 #if defined(WEBRTC_HAS_NEON)
@@ -28,6 +31,7 @@ namespace aec3 {
 // Filter core for the matched filter that is optimized for NEON.
 void MatchedFilterCore_NEON(size_t x_start_index,
                             float x2_sum_threshold,
+                            float smoothing,
                             rtc::ArrayView<const float> x,
                             rtc::ArrayView<const float> y,
                             rtc::ArrayView<float> h,
@@ -41,6 +45,7 @@ void MatchedFilterCore_NEON(size_t x_start_index,
 // Filter core for the matched filter that is optimized for SSE2.
 void MatchedFilterCore_SSE2(size_t x_start_index,
                             float x2_sum_threshold,
+                            float smoothing,
                             rtc::ArrayView<const float> x,
                             rtc::ArrayView<const float> y,
                             rtc::ArrayView<float> h,
@@ -52,6 +57,7 @@ void MatchedFilterCore_SSE2(size_t x_start_index,
 // Filter core for the matched filter.
 void MatchedFilterCore(size_t x_start_index,
                        float x2_sum_threshold,
+                       float smoothing,
                        rtc::ArrayView<const float> x,
                        rtc::ArrayView<const float> y,
                        rtc::ArrayView<float> h,
@@ -60,7 +66,6 @@ void MatchedFilterCore(size_t x_start_index,
 
 }  // namespace aec3
 
-class ApmDataDumper;
 
 // Produces recursively updated cross-correlation estimates for several signal
 // shifts where the intra-shift spacing is uniform.
@@ -81,16 +86,19 @@ class MatchedFilter {
 
   MatchedFilter(ApmDataDumper* data_dumper,
                 Aec3Optimization optimization,
+                size_t sub_block_size,
                 size_t window_size_sub_blocks,
                 int num_matched_filters,
                 size_t alignment_shift_sub_blocks,
-                float excitation_limit);
+                float excitation_limit,
+                float smoothing,
+                float matching_filter_threshold);
 
   ~MatchedFilter();
 
   // Updates the correlation with the values in the capture buffer.
   void Update(const DownsampledRenderBuffer& render_buffer,
-              const std::array<float, kSubBlockSize>& capture);
+              rtc::ArrayView<const float> capture);
 
   // Resets the matched filter.
   void Reset();
@@ -100,16 +108,27 @@ class MatchedFilter {
     return lag_estimates_;
   }
 
-  // Returns the number of lag estimates produced using the shifted signals.
-  size_t NumLagEstimates() const { return filters_.size(); }
+  // Returns the maximum filter lag.
+  size_t GetMaxFilterLag() const {
+    return filters_.size() * filter_intra_lag_shift_ + filters_[0].size();
+  }
+
+  // Log matched filter properties.
+  void LogFilterProperties(int sample_rate_hz,
+                           size_t shift,
+                           size_t downsampling_factor) const;
 
  private:
   ApmDataDumper* const data_dumper_;
   const Aec3Optimization optimization_;
+  const size_t sub_block_size_;
   const size_t filter_intra_lag_shift_;
   std::vector<std::vector<float>> filters_;
   std::vector<LagEstimate> lag_estimates_;
+  std::vector<size_t> filters_offsets_;
   const float excitation_limit_;
+  const float smoothing_;
+  const float matching_filter_threshold_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(MatchedFilter);
 };

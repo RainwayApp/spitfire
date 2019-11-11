@@ -11,12 +11,12 @@
 #ifndef MODULES_DESKTOP_CAPTURE_DESKTOP_REGION_H_
 #define MODULES_DESKTOP_CAPTURE_DESKTOP_REGION_H_
 
+#include <stdint.h>
 #include <map>
 #include <vector>
 
 #include "modules/desktop_capture/desktop_geometry.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
@@ -24,7 +24,7 @@ namespace webrtc {
 //
 // Internally each region is stored as a set of rows where each row contains one
 // or more rectangles aligned vertically.
-class DesktopRegion {
+class RTC_EXPORT DesktopRegion {
  private:
   // The following private types need to be declared first because they are used
   // in the public Iterator.
@@ -166,4 +166,3 @@ class DesktopRegion {
 }  // namespace webrtc
 
 #endif  // MODULES_DESKTOP_CAPTURE_DESKTOP_REGION_H_
-

@@ -13,7 +13,6 @@
 #include "rtc_tools/event_log_visualizer/plot_base.h"
 
 namespace webrtc {
-namespace plotting {
 
 class PythonPlot final : public Plot {
  public:
@@ -24,13 +23,15 @@ class PythonPlot final : public Plot {
 
 class PythonPlotCollection final : public PlotCollection {
  public:
-  PythonPlotCollection();
+  explicit PythonPlotCollection(bool shared_xaxis = false);
   ~PythonPlotCollection() override;
   void Draw() override;
   Plot* AppendNewPlot() override;
+
+ private:
+  bool shared_xaxis_;
 };
 
-}  // namespace plotting
 }  // namespace webrtc
 
 #endif  // RTC_TOOLS_EVENT_LOG_VISUALIZER_PLOT_PYTHON_H_

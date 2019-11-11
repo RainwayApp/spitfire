@@ -85,11 +85,8 @@ struct conf_value_st {
   char *value;
 };
 
-struct conf_st {
-  LHASH_OF(CONF_VALUE) *data;
-};
-
 DEFINE_STACK_OF(CONF_VALUE)
+DECLARE_LHASH_OF(CONF_VALUE)
 
 
 // NCONF_new returns a fresh, empty |CONF|, or NULL on error. The |method|
@@ -141,13 +138,9 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
 #define CONF_MFLAGS_DEFAULT_SECTION 0
 #define CONF_MFLAGS_IGNORE_MISSING_FILE 0
 
-typedef struct conf_must_be_null_st CONF_MUST_BE_NULL;
-
-// CONF_modules_load_file returns one. |filename| was originally a string, with
-// NULL indicating the default. BoringSSL does not support configuration files,
-// so this stub emulates the "default" no-op file but intentionally breaks
-// compilation of consumers actively attempting to use this subsystem.
-OPENSSL_EXPORT int CONF_modules_load_file(CONF_MUST_BE_NULL *filename,
+// CONF_modules_load_file returns one. BoringSSL is defined to have no config
+// file options, thus loading from |filename| always succeeds by doing nothing.
+OPENSSL_EXPORT int CONF_modules_load_file(const char *filename,
                                           const char *appname,
                                           unsigned long flags);
 
@@ -155,7 +148,7 @@ OPENSSL_EXPORT int CONF_modules_load_file(CONF_MUST_BE_NULL *filename,
 OPENSSL_EXPORT void CONF_modules_free(void);
 
 // OPENSSL_config does nothing.
-OPENSSL_EXPORT void OPENSSL_config(CONF_MUST_BE_NULL *config_name);
+OPENSSL_EXPORT void OPENSSL_config(const char *config_name);
 
 // OPENSSL_no_config does nothing.
 OPENSSL_EXPORT void OPENSSL_no_config(void);
@@ -166,11 +159,11 @@ OPENSSL_EXPORT void OPENSSL_no_config(void);
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(CONF, NCONF_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

@@ -13,11 +13,11 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
+#include "api/function_view.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/mac/desktop_configuration.h"
-#include "rtc_base/function_view.h"
 
 namespace webrtc {
 
@@ -48,19 +48,59 @@ bool IsWindowOnScreen(CGWindowID id);
 // valid title can be retrieved, this function returns an empty string.
 std::string GetWindowTitle(CFDictionaryRef window);
 
+// Returns utf-8 encoded title of window |id|. If |id| cannot be found or no
+// valid title can be retrieved, this function returns an empty string.
+std::string GetWindowTitle(CGWindowID id);
+
+// Returns utf-8 encoded owner name of |window|. If |window| is not a window or
+// if no valid owner name can be retrieved, returns an empty string.
+std::string GetWindowOwnerName(CFDictionaryRef window);
+
+// Returns utf-8 encoded owner name of the given window |id|. If |id| cannot be
+// found or if no valid owner name can be retrieved, returns an empty string.
+std::string GetWindowOwnerName(CGWindowID id);
+
 // Returns id of |window|. If |window| is not a window or the window id cannot
 // be retrieved, this function returns kNullWindowId.
 WindowId GetWindowId(CFDictionaryRef window);
+
+// Returns the pid of the process owning |window|. Return 0 if |window| is not
+// a window or no valid owner can be retrieved.
+int GetWindowOwnerPid(CFDictionaryRef window);
+
+// Returns the pid of the process owning the window |id|. Return 0 if |id|
+// cannot be found or no valid owner can be retrieved.
+int GetWindowOwnerPid(CGWindowID id);
+
+// Returns the DIP to physical pixel scale at |position|. |position| is in
+// *unscaled* system coordinate, i.e. it's device-independent and the primary
+// monitor starts from (0, 0). If |position| is out of the system display, this
+// function returns 1.
+float GetScaleFactorAtPosition(const MacDesktopConfiguration& desktop_config,
+                               DesktopVector position);
+
+// Returns the DIP to physical pixel scale factor of the window with |id|.
+// The bounds of the window with |id| is in DIP coordinates and |size| is the
+// CGImage size of the window with |id| in physical coordinates. Comparing them
+// can give the current scale factor.
+// If the window overlaps multiple monitors, OS will decide on which monitor the
+// window is displayed and use its scale factor to the window. So this method
+// still works.
+float GetWindowScaleFactor(CGWindowID id, DesktopSize size);
 
 // Returns the bounds of |window|. If |window| is not a window or the bounds
 // cannot be retrieved, this function returns an empty DesktopRect. The returned
 // DesktopRect is in system coordinate, i.e. the primary monitor always starts
 // from (0, 0).
+// Deprecated: This function should be avoided in favor of the overload with
+// MacDesktopConfiguration.
 DesktopRect GetWindowBounds(CFDictionaryRef window);
 
 // Returns the bounds of window with |id|. If |id| does not represent a window
 // or the bounds cannot be retrieved, this function returns an empty
 // DesktopRect. The returned DesktopRect is in system coordinates.
+// Deprecated: This function should be avoided in favor of the overload with
+// MacDesktopConfiguration.
 DesktopRect GetWindowBounds(CGWindowID id);
 
 }  // namespace webrtc

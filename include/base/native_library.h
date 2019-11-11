@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/files/file_path.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
@@ -21,8 +22,6 @@
 #endif  // OS_*
 
 namespace base {
-
-class FilePath;
 
 #if defined(OS_WIN)
 using NativeLibrary = HMODULE;
@@ -46,7 +45,7 @@ struct NativeLibraryStruct {
   };
 };
 using NativeLibrary = NativeLibraryStruct*;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 using NativeLibrary = void*;
 #endif  // OS_*
 
@@ -60,7 +59,7 @@ struct BASE_EXPORT NativeLibraryLoadError {
 
 #if defined(OS_WIN)
   DWORD code;
-#else
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   std::string message;
 #endif  // OS_WIN
 };
@@ -83,6 +82,25 @@ struct BASE_EXPORT NativeLibraryOptions {
 BASE_EXPORT NativeLibrary LoadNativeLibrary(const FilePath& library_path,
                                             NativeLibraryLoadError* error);
 
+#if defined(OS_WIN)
+// Loads a native library from the system directory using the appropriate flags.
+// The function first checks to see if the library is already loaded and will
+// get a handle if so. This method results in a lock that may block the calling
+// thread.
+BASE_EXPORT NativeLibrary
+LoadSystemLibrary(FilePath::StringPieceType name,
+                  NativeLibraryLoadError* error = nullptr);
+
+// Gets the module handle for the specified system library and pins it to
+// ensure it never gets unloaded. If the module is not loaded, it will first
+// call LoadSystemLibrary to load it. If the module cannot be pinned, this
+// method returns null and includes the error. This method results in a lock
+// that may block the calling thread.
+BASE_EXPORT NativeLibrary
+PinSystemLibrary(FilePath::StringPieceType name,
+                 NativeLibraryLoadError* error = nullptr);
+#endif
+
 // Loads a native library from disk.  Release it with UnloadNativeLibrary when
 // you're done.  Returns NULL on failure.
 // If |error| is not NULL, it may be filled in on load error.
@@ -98,12 +116,20 @@ BASE_EXPORT void UnloadNativeLibrary(NativeLibrary library);
 BASE_EXPORT void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
                                                       StringPiece name);
 
-// Returns the full platform specific name for a native library.
-// |name| must be ASCII.
-// For example:
-// "mylib" returns "mylib.dll" on Windows, "libmylib.so" on Linux,
-// "libmylib.dylib" on Mac.
+// Returns the full platform-specific name for a native library. |name| must be
+// ASCII. This is also the default name for the output of a gn |shared_library|
+// target. See tools/gn/docs/reference.md#shared_library.
+// For example for "mylib", it returns:
+// - "mylib.dll" on Windows
+// - "libmylib.so" on Linux
+// - "libmylib.dylib" on Mac
 BASE_EXPORT std::string GetNativeLibraryName(StringPiece name);
+
+// Returns the full platform-specific name for a gn |loadable_module| target.
+// See tools/gn/docs/reference.md#loadable_module
+// The returned name is the same as GetNativeLibraryName() on all platforms
+// except for Mac where for "mylib" it returns "mylib.so".
+BASE_EXPORT std::string GetLoadableModuleName(StringPiece name);
 
 }  // namespace base
 

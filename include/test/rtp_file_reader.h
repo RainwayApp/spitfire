@@ -13,8 +13,6 @@
 #include <set>
 #include <string>
 
-#include "common_types.h"  // NOLINT(build/include)
-
 namespace webrtc {
 namespace test {
 
@@ -37,11 +35,13 @@ class RtpFileReader {
 
   virtual ~RtpFileReader() {}
   static RtpFileReader* Create(FileFormat format,
-                               const std::string& filename);
+                               const uint8_t* data,
+                               size_t size,
+                               const std::set<uint32_t>& ssrc_filter);
+  static RtpFileReader* Create(FileFormat format, const std::string& filename);
   static RtpFileReader* Create(FileFormat format,
                                const std::string& filename,
                                const std::set<uint32_t>& ssrc_filter);
-
   virtual bool NextPacket(RtpPacket* packet) = 0;
 };
 }  // namespace test

@@ -5,7 +5,7 @@
 #ifndef BASE_WIN_OBJECT_WATCHER_H_
 #define BASE_WIN_OBJECT_WATCHER_H_
 
-#include <windows.h>
+#include "base/win/windows_types.h"
 
 #include "base/base_export.h"
 #include "base/callback.h"
@@ -107,7 +107,7 @@ class BASE_EXPORT ObjectWatcher {
 
   // A callback pre-bound to Signal() that is posted to the caller's task runner
   // when the wait completes.
-  Closure callback_;
+  RepeatingClosure callback_;
 
   // The object being watched.
   HANDLE object_ = nullptr;

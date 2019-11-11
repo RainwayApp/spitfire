@@ -38,13 +38,14 @@ class RefCountedDeleteOnSequence : public subtle::RefCountedThreadSafeBase {
 
   // A SequencedTaskRunner for the current sequence can be acquired by calling
   // SequencedTaskRunnerHandle::Get().
-  RefCountedDeleteOnSequence(scoped_refptr<SequencedTaskRunner> task_runner)
+  RefCountedDeleteOnSequence(
+      scoped_refptr<SequencedTaskRunner> owning_task_runner)
       : subtle::RefCountedThreadSafeBase(T::kRefCountPreference),
-        task_runner_(std::move(task_runner)) {
-    DCHECK(task_runner_);
+        owning_task_runner_(std::move(owning_task_runner)) {
+    DCHECK(owning_task_runner_);
   }
 
-  void AddRef() const { subtle::RefCountedThreadSafeBase::AddRef(); }
+  void AddRef() const { AddRefImpl(T::kRefCountPreference); }
 
   void Release() const {
     if (subtle::RefCountedThreadSafeBase::Release())
@@ -55,16 +56,31 @@ class RefCountedDeleteOnSequence : public subtle::RefCountedThreadSafeBase {
   friend class DeleteHelper<RefCountedDeleteOnSequence>;
   ~RefCountedDeleteOnSequence() = default;
 
+  SequencedTaskRunner* owning_task_runner() {
+    return owning_task_runner_.get();
+  }
+  const SequencedTaskRunner* owning_task_runner() const {
+    return owning_task_runner_.get();
+  }
+
  private:
   void DestructOnSequence() const {
     const T* t = static_cast<const T*>(this);
-    if (task_runner_->RunsTasksInCurrentSequence())
+    if (owning_task_runner_->RunsTasksInCurrentSequence())
       delete t;
     else
-      task_runner_->DeleteSoon(FROM_HERE, t);
+      owning_task_runner_->DeleteSoon(FROM_HERE, t);
   }
 
-  const scoped_refptr<SequencedTaskRunner> task_runner_;
+  void AddRefImpl(subtle::StartRefCountFromZeroTag) const {
+    subtle::RefCountedThreadSafeBase::AddRef();
+  }
+
+  void AddRefImpl(subtle::StartRefCountFromOneTag) const {
+    subtle::RefCountedThreadSafeBase::AddRefWithCheck();
+  }
+
+  const scoped_refptr<SequencedTaskRunner> owning_task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(RefCountedDeleteOnSequence);
 };

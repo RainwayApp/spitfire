@@ -11,57 +11,55 @@
 #ifndef MODULES_VIDEO_CAPTURE_MAIN_SOURCE_LINUX_VIDEO_CAPTURE_LINUX_H_
 #define MODULES_VIDEO_CAPTURE_MAIN_SOURCE_LINUX_VIDEO_CAPTURE_LINUX_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 
-#include "common_types.h"  // NOLINT(build/include)
+#include "modules/video_capture/video_capture_defines.h"
 #include "modules/video_capture/video_capture_impl.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/platform_thread.h"
 
-namespace webrtc
-{
-namespace videocapturemodule
-{
-class VideoCaptureModuleV4L2: public VideoCaptureImpl
-{
-public:
-    VideoCaptureModuleV4L2();
-    virtual ~VideoCaptureModuleV4L2();
-    virtual int32_t Init(const char* deviceUniqueId);
-    virtual int32_t StartCapture(const VideoCaptureCapability& capability);
-    virtual int32_t StopCapture();
-    virtual bool CaptureStarted();
-    virtual int32_t CaptureSettings(VideoCaptureCapability& settings);
+namespace webrtc {
+namespace videocapturemodule {
+class VideoCaptureModuleV4L2 : public VideoCaptureImpl {
+ public:
+  VideoCaptureModuleV4L2();
+  ~VideoCaptureModuleV4L2() override;
+  int32_t Init(const char* deviceUniqueId);
+  int32_t StartCapture(const VideoCaptureCapability& capability) override;
+  int32_t StopCapture() override;
+  bool CaptureStarted() override;
+  int32_t CaptureSettings(VideoCaptureCapability& settings) override;
 
-private:
-    enum {kNoOfV4L2Bufffers=4};
+ private:
+  enum { kNoOfV4L2Bufffers = 4 };
 
-    static bool CaptureThread(void*);
-    bool CaptureProcess();
-    bool AllocateVideoBuffers();
-    bool DeAllocateVideoBuffers();
+  static void CaptureThread(void*);
+  bool CaptureProcess();
+  bool AllocateVideoBuffers();
+  bool DeAllocateVideoBuffers();
 
-    // TODO(pbos): Stop using unique_ptr and resetting the thread.
-    std::unique_ptr<rtc::PlatformThread> _captureThread;
-    rtc::CriticalSection _captureCritSect;
+  // TODO(pbos): Stop using unique_ptr and resetting the thread.
+  std::unique_ptr<rtc::PlatformThread> _captureThread;
+  rtc::CriticalSection _captureCritSect;
+  bool quit_ RTC_GUARDED_BY(_captureCritSect);
+  int32_t _deviceId;
+  int32_t _deviceFd;
 
-    int32_t _deviceId;
-    int32_t _deviceFd;
-
-    int32_t _buffersAllocatedByDevice;
-    int32_t _currentWidth;
-    int32_t _currentHeight;
-    int32_t _currentFrameRate;
-    bool _captureStarted;
-    VideoType _captureVideoType;
-    struct Buffer
-    {
-        void *start;
-        size_t length;
-    };
-    Buffer *_pool;
+  int32_t _buffersAllocatedByDevice;
+  int32_t _currentWidth;
+  int32_t _currentHeight;
+  int32_t _currentFrameRate;
+  bool _captureStarted;
+  VideoType _captureVideoType;
+  struct Buffer {
+    void* start;
+    size_t length;
+  };
+  Buffer* _pool;
 };
 }  // namespace videocapturemodule
 }  // namespace webrtc
 
-#endif // MODULES_VIDEO_CAPTURE_MAIN_SOURCE_LINUX_VIDEO_CAPTURE_LINUX_H_
+#endif  // MODULES_VIDEO_CAPTURE_MAIN_SOURCE_LINUX_VIDEO_CAPTURE_LINUX_H_

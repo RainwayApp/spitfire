@@ -13,22 +13,25 @@
 #ifndef MODULES_VIDEO_CODING_CODECS_VP8_INCLUDE_VP8_H_
 #define MODULES_VIDEO_CODING_CODECS_VP8_INCLUDE_VP8_H_
 
+#include <memory>
+
+#include "api/video_codecs/vp8_frame_buffer_controller.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 
 namespace webrtc {
 
-class VP8Encoder : public VideoEncoder {
+class VP8Encoder {
  public:
-  static VP8Encoder* Create();
+  static std::unique_ptr<VideoEncoder> Create();
 
-  virtual ~VP8Encoder() {}
+  static std::unique_ptr<VideoEncoder> Create(
+      std::unique_ptr<Vp8FrameBufferControllerFactory>
+          frame_buffer_controller_factory);
 };  // end of VP8Encoder class
 
-class VP8Decoder : public VideoDecoder {
+class VP8Decoder {
  public:
-  static VP8Decoder* Create();
-
-  virtual ~VP8Decoder() {}
+  static std::unique_ptr<VideoDecoder> Create();
 };  // end of VP8Decoder class
 }  // namespace webrtc
 

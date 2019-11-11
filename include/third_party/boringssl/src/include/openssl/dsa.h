@@ -73,6 +73,10 @@ extern "C" {
 
 // DSA contains functions for signing and verifying with the Digital Signature
 // Algorithm.
+//
+// This module is deprecated and retained for legacy reasons only. It is not
+// considered a priority for performance or hardening work. Do not use it in
+// new code. Use Ed25519, ECDSA with P-256, or RSA instead.
 
 
 // Allocation and destruction.
@@ -172,7 +176,7 @@ OPENSSL_EXPORT void DSA_SIG_free(DSA_SIG *sig);
 // DSA_do_sign returns a signature of the hash in |digest| by the key in |dsa|
 // and returns an allocated, DSA_SIG structure, or NULL on error.
 OPENSSL_EXPORT DSA_SIG *DSA_do_sign(const uint8_t *digest, size_t digest_len,
-                                    DSA *dsa);
+                                    const DSA *dsa);
 
 // DSA_do_verify verifies that |sig| is a valid signature, by the public key in
 // |dsa|, of the hash in |digest|. It returns one if so, zero if invalid and -1
@@ -212,7 +216,7 @@ OPENSSL_EXPORT int DSA_do_check_signature(int *out_valid, const uint8_t *digest,
 // (The |type| argument is ignored.)
 OPENSSL_EXPORT int DSA_sign(int type, const uint8_t *digest, size_t digest_len,
                             uint8_t *out_sig, unsigned int *out_siglen,
-                            DSA *dsa);
+                            const DSA *dsa);
 
 // DSA_verify verifies that |sig| is a valid, ASN.1 signature, by the public
 // key in |dsa|, of the hash in |digest|. It returns one if so, zero if invalid
@@ -282,19 +286,6 @@ OPENSSL_EXPORT DSA *DSA_parse_parameters(CBS *cbs);
 // (RFC 3447) and appends the result to |cbb|. It returns one on success and
 // zero on failure.
 OPENSSL_EXPORT int DSA_marshal_parameters(CBB *cbb, const DSA *dsa);
-
-
-// Precomputation.
-
-// DSA_sign_setup precomputes the message independent part of the DSA signature
-// and writes them to |*out_kinv| and |*out_r|. Returns one on success, zero on
-// error.
-//
-// TODO(fork): decide what to do with this. Since making DSA* opaque there's no
-// way for the user to install them. Also, it forces the DSA* not to be const
-// when passing to the signing function.
-OPENSSL_EXPORT int DSA_sign_setup(const DSA *dsa, BN_CTX *ctx,
-                                  BIGNUM **out_kinv, BIGNUM **out_r);
 
 
 // Conversion.
@@ -411,9 +402,6 @@ struct dsa_st {
   BIGNUM *pub_key;   // y public key
   BIGNUM *priv_key;  // x private key
 
-  BIGNUM *kinv;  // Signing pre-calc
-  BIGNUM *r;     // Signing pre-calc
-
   int flags;
   // Normally used to cache montgomery values
   CRYPTO_MUTEX method_mont_lock;
@@ -429,12 +417,13 @@ struct dsa_st {
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(DSA, DSA_free)
+BORINGSSL_MAKE_UP_REF(DSA, DSA_up_ref)
 BORINGSSL_MAKE_DELETER(DSA_SIG, DSA_SIG_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 
@@ -447,5 +436,6 @@ BORINGSSL_MAKE_DELETER(DSA_SIG, DSA_SIG_free)
 #define DSA_R_BAD_VERSION 104
 #define DSA_R_DECODE_ERROR 105
 #define DSA_R_ENCODE_ERROR 106
+#define DSA_R_INVALID_PARAMETERS 107
 
 #endif  // OPENSSL_HEADER_DSA_H

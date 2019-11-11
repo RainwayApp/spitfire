@@ -11,16 +11,13 @@
 #ifndef MEDIA_ENGINE_ADM_HELPERS_H_
 #define MEDIA_ENGINE_ADM_HELPERS_H_
 
-#include "common_types.h"  // NOLINT(build/include)
-
 namespace webrtc {
 
 class AudioDeviceModule;
 
 namespace adm_helpers {
 
-void SetRecordingDevice(AudioDeviceModule* adm);
-void SetPlayoutDevice(AudioDeviceModule* adm);
+void Init(AudioDeviceModule* adm);
 
 }  // namespace adm_helpers
 }  // namespace webrtc

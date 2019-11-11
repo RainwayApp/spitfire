@@ -28,6 +28,13 @@ class RtcEventVideoSendStreamConfig final : public RtcEvent {
 
   bool IsConfigEvent() const override;
 
+  std::unique_ptr<RtcEventVideoSendStreamConfig> Copy() const;
+
+  const rtclog::StreamConfig& config() const { return *config_; }
+
+ private:
+  RtcEventVideoSendStreamConfig(const RtcEventVideoSendStreamConfig& other);
+
   const std::unique_ptr<const rtclog::StreamConfig> config_;
 };
 

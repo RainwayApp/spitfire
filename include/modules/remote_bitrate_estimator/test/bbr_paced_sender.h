@@ -53,7 +53,7 @@ class RtcEventLog;
 struct Packet;
 class BbrPacedSender : public Pacer {
  public:
-  BbrPacedSender(const Clock* clock,
+  BbrPacedSender(Clock* clock,
                  PacedSender::PacketSender* packet_sender,
                  RtcEventLog* event_log);
   ~BbrPacedSender() override;
@@ -68,13 +68,14 @@ class BbrPacedSender : public Pacer {
                     int64_t capture_time_ms,
                     size_t bytes,
                     bool retransmission) override;
+  void SetAccountForAudioPackets(bool account_for_audio) override {}
   int64_t TimeUntilNextProcess() override;
   void OnBytesAcked(size_t bytes) override;
   void Process() override;
   bool TryToSendPacket(Packet* packet);
 
  private:
-  const Clock* const clock_;
+  Clock* const clock_;
   PacedSender::PacketSender* const packet_sender_;
   uint32_t estimated_bitrate_bps_;
   uint32_t min_send_bitrate_kbps_;

@@ -11,15 +11,20 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTP_SENDER_AUDIO_H_
 #define MODULES_RTP_RTCP_SOURCE_RTP_SENDER_AUDIO_H_
 
-#include "common_types.h"  // NOLINT(build/include)
+#include <stddef.h>
+#include <stdint.h>
+
+#include <memory>
+
+#include "absl/strings/string_view.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 #include "modules/rtp_rtcp/source/dtmf_queue.h"
-#include "modules/rtp_rtcp/source/rtp_rtcp_config.h"
 #include "modules/rtp_rtcp/source/rtp_sender.h"
-#include "modules/rtp_rtcp/source/rtp_utility.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/onetimeevent.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/one_time_event.h"
+#include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -28,19 +33,17 @@ class RTPSenderAudio {
   RTPSenderAudio(Clock* clock, RTPSender* rtp_sender);
   ~RTPSenderAudio();
 
-  int32_t RegisterAudioPayload(const char payloadName[RTP_PAYLOAD_NAME_SIZE],
+  int32_t RegisterAudioPayload(absl::string_view payload_name,
                                int8_t payload_type,
                                uint32_t frequency,
                                size_t channels,
-                               uint32_t rate,
-                               RtpUtility::Payload** payload);
+                               uint32_t rate);
 
-  bool SendAudio(FrameType frame_type,
+  bool SendAudio(AudioFrameType frame_type,
                  int8_t payload_type,
                  uint32_t capture_timestamp,
                  const uint8_t* payload_data,
-                 size_t payload_size,
-                 const RTPFragmentationHeader* fragmentation);
+                 size_t payload_size);
 
   // Store the audio level in dBov for
   // header-extension-for-audio-level-indication.
@@ -57,9 +60,13 @@ class RTPSenderAudio {
       uint16_t duration,
       bool marker_bit);  // set on first packet in talk burst
 
-  bool MarkerBit(FrameType frame_type, int8_t payload_type);
+  bool MarkerBit(AudioFrameType frame_type, int8_t payload_type);
 
  private:
+  bool LogAndSendToNetwork(std::unique_ptr<RtpPacketToSend> packet,
+                           StorageType storage,
+                           RtpPacketSender::Priority priority);
+
   Clock* const clock_ = nullptr;
   RTPSender* const rtp_sender_ = nullptr;
 

@@ -11,11 +11,11 @@
 #ifndef RTC_BASE_RANDOM_H_
 #define RTC_BASE_RANDOM_H_
 
+#include <stdint.h>
 #include <limits>
 
 #include "rtc_base/checks.h"
-#include "rtc_base/constructormagic.h"
-#include "typedefs.h"  // NOLINT(build/include)
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 

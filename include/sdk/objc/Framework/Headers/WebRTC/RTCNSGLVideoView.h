@@ -8,34 +8,4 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#import <Foundation/Foundation.h>
-
-#if !TARGET_OS_IPHONE
-
-#import <AppKit/NSOpenGLView.h>
-
-#import <WebRTC/RTCVideoRenderer.h>
-#import <WebRTC/RTCVideoViewShading.h>
-
-NS_ASSUME_NONNULL_BEGIN
-
-@class RTCNSGLVideoView;
-@protocol RTCNSGLVideoViewDelegate
-
-- (void)videoView:(RTCNSGLVideoView *)videoView didChangeVideoSize:(CGSize)size;
-
-@end
-
-@interface RTCNSGLVideoView : NSOpenGLView <RTCVideoRenderer>
-
-@property(nonatomic, weak) id<RTCNSGLVideoViewDelegate> delegate;
-
-- (instancetype)initWithFrame:(NSRect)frameRect
-                  pixelFormat:(NSOpenGLPixelFormat *)format
-                       shader:(id<RTCVideoViewShading>)shader NS_DESIGNATED_INITIALIZER;
-
-@end
-
-NS_ASSUME_NONNULL_END
-
-#endif
+#import "components/renderer/opengl/RTCNSGLVideoView.h"

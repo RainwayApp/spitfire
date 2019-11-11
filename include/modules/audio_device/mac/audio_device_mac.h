@@ -15,10 +15,10 @@
 
 #include "modules/audio_device/audio_device_generic.h"
 #include "modules/audio_device/mac/audio_mixer_manager_mac.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread_annotations.h"
-#include "system_wrappers/include/event_wrapper.h"
 
 #include <AudioToolbox/AudioConverter.h>
 #include <CoreAudio/CoreAudio.h>
@@ -31,7 +31,6 @@ class PlatformThread;
 }  // namespace rtc
 
 namespace webrtc {
-class EventWrapper;
 
 const uint32_t N_REC_SAMPLES_PER_SEC = 48000;
 const uint32_t N_PLAY_SAMPLES_PER_SEC = 48000;
@@ -107,10 +106,6 @@ class AudioDeviceMac : public AudioDeviceGeneric {
   virtual int32_t StopRecording();
   virtual bool Recording() const;
 
-  // Microphone Automatic Gain Control (AGC)
-  virtual int32_t SetAGC(bool enable);
-  virtual bool AGC() const;
-
   // Audio mixer initialization
   virtual int32_t InitSpeaker();
   virtual bool SpeakerIsInitialized() const;
@@ -151,7 +146,6 @@ class AudioDeviceMac : public AudioDeviceGeneric {
 
   // Delay information and control
   virtual int32_t PlayoutDelay(uint16_t& delayMS) const;
-  virtual int32_t RecordingDelay(uint16_t& delayMS) const;
 
   virtual void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer);
 
@@ -246,8 +240,8 @@ class AudioDeviceMac : public AudioDeviceGeneric {
   OSStatus implInConverterProc(UInt32* numberDataPackets,
                                AudioBufferList* data);
 
-  static bool RunCapture(void*);
-  static bool RunRender(void*);
+  static void RunCapture(void*);
+  static void RunRender(void*);
   bool CaptureWorkerThread();
   bool RenderWorkerThread();
 
@@ -257,8 +251,8 @@ class AudioDeviceMac : public AudioDeviceGeneric {
 
   rtc::CriticalSection _critSect;
 
-  EventWrapper& _stopEventRec;
-  EventWrapper& _stopEvent;
+  rtc::Event _stopEventRec;
+  rtc::Event _stopEvent;
 
   // TODO(pbos): Replace with direct members, just start/stop, no need to
   // recreate the thread.
@@ -295,7 +289,6 @@ class AudioDeviceMac : public AudioDeviceGeneric {
   bool _playing;
   bool _recIsInitialized;
   bool _playIsInitialized;
-  bool _AGC;
 
   // Atomically set varaibles
   int32_t _renderDeviceIsAlive;
@@ -336,8 +329,6 @@ class AudioDeviceMac : public AudioDeviceGeneric {
   // Typing detection
   // 0x5c is key "9", after that comes function keys.
   bool prev_key_state_[0x5d];
-
-  int get_mic_volume_counter_ms_;
 };
 
 }  // namespace webrtc

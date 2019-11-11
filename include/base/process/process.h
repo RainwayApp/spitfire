@@ -16,7 +16,7 @@
 #endif
 
 #if defined(OS_FUCHSIA)
-#include "base/fuchsia/scoped_zx_handle.h"
+#include <lib/zx/process.h>
 #endif
 
 #if defined(OS_MACOSX)
@@ -83,7 +83,7 @@ class BASE_EXPORT Process {
   static bool CanBackgroundProcesses();
 
   // Terminates the current process immediately with |exit_code|.
-  static void TerminateCurrentProcessImmediately(int exit_code);
+  [[noreturn]] static void TerminateCurrentProcessImmediately(int exit_code);
 
   // Returns true if this objects represents a valid process.
   bool IsValid() const;
@@ -97,6 +97,16 @@ class BASE_EXPORT Process {
 
   // Get the PID for this process.
   ProcessId Pid() const;
+
+#if !defined(OS_ANDROID)
+  // Get the creation time for this process. Since the Pid can be reused after a
+  // process dies, it is useful to use both the Pid and the creation time to
+  // uniquely identify a process.
+  //
+  // Not available on Android because /proc/stat/ cannot be accessed on O+.
+  // https://issuetracker.google.com/issues/37140047
+  Time CreationTime() const;
+#endif  // !defined(OS_ANDROID)
 
   // Returns true if this process is the current process.
   bool is_current() const;
@@ -133,6 +143,13 @@ class BASE_EXPORT Process {
   // NOTE: |exit_code| is optional, nullptr can be passed if the exit code
   // is not required.
   bool WaitForExitWithTimeout(TimeDelta timeout, int* exit_code) const;
+
+  // Indicates that the process has exited with the specified |exit_code|.
+  // This should be called if process exit is observed outside of this class.
+  // (i.e. Not because Terminate or WaitForExit, above, was called.)
+  // Note that nothing prevents this being called multiple times for a dead
+  // process though that should be avoided.
+  void Exited(int exit_code) const;
 
 #if defined(OS_MACOSX)
   // The Mac needs a Mach port in order to manipulate a process's priority,
@@ -181,7 +198,7 @@ class BASE_EXPORT Process {
 #if defined(OS_WIN)
   win::ScopedHandle process_;
 #elif defined(OS_FUCHSIA)
-  ScopedZxHandle process_;
+  zx::process process_;
 #else
   ProcessHandle process_;
 #endif

@@ -11,9 +11,10 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_DTMF_QUEUE_H_
 #define MODULES_RTP_RTCP_SOURCE_DTMF_QUEUE_H_
 
+#include <stdint.h>
 #include <list>
 
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
 
 namespace webrtc {
 class DtmfQueue {

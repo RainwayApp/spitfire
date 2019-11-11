@@ -13,9 +13,11 @@
 
 #include <vector>
 
-#include "api/optional.h"
+#include "absl/types/optional.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/delay_estimate.h"
 #include "modules/audio_processing/aec3/matched_filter.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -25,22 +27,26 @@ class ApmDataDumper;
 // reliable combined lag estimate.
 class MatchedFilterLagAggregator {
  public:
-  explicit MatchedFilterLagAggregator(ApmDataDumper* data_dumper);
+  MatchedFilterLagAggregator(
+      ApmDataDumper* data_dumper,
+      size_t max_filter_lag,
+      const EchoCanceller3Config::Delay::DelaySelectionThresholds& thresholds);
   ~MatchedFilterLagAggregator();
 
   // Resets the aggregator.
-  void Reset();
+  void Reset(bool hard_reset);
 
   // Aggregates the provided lag estimates.
-  rtc::Optional<size_t> Aggregate(
+  absl::optional<DelayEstimate> Aggregate(
       rtc::ArrayView<const MatchedFilter::LagEstimate> lag_estimates);
 
  private:
   ApmDataDumper* const data_dumper_;
-  std::array<int, 1664> histogram_;
+  std::vector<int> histogram_;
   std::array<int, 250> histogram_data_;
   int histogram_data_index_ = 0;
-  bool filled_histogram_ = false;
+  bool significant_candidate_found_ = false;
+  const EchoCanceller3Config::Delay::DelaySelectionThresholds thresholds_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(MatchedFilterLagAggregator);
 };

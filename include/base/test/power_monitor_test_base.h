@@ -14,6 +14,7 @@ class PowerMonitorTestSource : public PowerMonitorSource {
  public:
   PowerMonitorTestSource();
   ~PowerMonitorTestSource() override;
+  void Shutdown() override;
 
   void GeneratePowerStateEvent(bool on_battery_power);
   void GenerateSuspendEvent();
@@ -36,10 +37,10 @@ class PowerMonitorTestObserver : public PowerObserver {
   void OnResume() override;
 
   // Test status counts.
-  bool last_power_state() { return last_power_state_; }
-  int power_state_changes() { return power_state_changes_; }
-  int suspends() { return suspends_; }
-  int resumes() { return resumes_; }
+  bool last_power_state() const { return last_power_state_; }
+  int power_state_changes() const { return power_state_changes_; }
+  int suspends() const { return suspends_; }
+  int resumes() const { return resumes_; }
 
  private:
   bool last_power_state_; // Last power state we were notified of.
