@@ -14,9 +14,9 @@ Spitfire::Observers::SetSessionDescriptionObserver::SetSessionDescriptionObserve
 
 void Spitfire::Observers::SetSessionDescriptionObserver::OnFailure(const std::string & error)
 {
-	LOG(INFO) << __FUNCTION__;
+	//RTC_LOG(INFO) << __FUNCTION__;
 }
 void Spitfire::Observers::SetSessionDescriptionObserver::OnSuccess()
 {
-	LOG(INFO) << __FUNCTION__;
+	//RTC_LOG(INFO) << __FUNCTION__;
 }

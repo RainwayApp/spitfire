@@ -17,6 +17,7 @@ namespace Example
             //TODO a full fledged example
             SpitfireRtc.EnableLogging();
             var t = new WebRtcSession("a");
+            Console.WriteLine("dada");
             Console.Read();
         }
     }

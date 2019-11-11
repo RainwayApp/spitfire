@@ -1,7 +1,7 @@
 #pragma once
 
-#include "api/mediastreaminterface.h"
-#include "api/peerconnectioninterface.h"
+#include "api/media_stream_interface.h"
+#include "api/peer_connection_interface.h"
 
 namespace Spitfire {
 
@@ -16,17 +16,15 @@ namespace Spitfire {
 			// Triggered when the SignalingState changed.
 			void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
 
-			virtual void OnStateChange(StateType state_changed) { /* Obsolete. Ignore. */ }
-
 			// Triggered when media is received on a new stream from remote peer.
 			void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override
 			{
-				LOG(INFO) << __FUNCTION__ << " ";
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
 
 			void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override
 			{
-				LOG(INFO) << __FUNCTION__ << " ";
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
 
 

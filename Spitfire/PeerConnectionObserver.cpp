@@ -3,7 +3,7 @@
 
 void Spitfire::Observers::PeerConnectionObserver::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state)
 {
-	LOG(INFO) << __FUNCTION__ << " ";
+	RTC_LOG(INFO) << __FUNCTION__ << " ";
 }
 
 
@@ -11,7 +11,7 @@ void Spitfire::Observers::PeerConnectionObserver::OnDataChannel(rtc::scoped_refp
 {
 	if (_manager->dataObservers.find(channel->label()) == _manager->dataObservers.end())
 	{
-		LOG(INFO) << __FUNCTION__ << " " << channel->label();
+		RTC_LOG(INFO) << __FUNCTION__ << " " << channel->label();
 		_manager->dataObservers[channel->label()] = new DataChannelObserver(_manager);
 		_manager->dataObservers[channel->label()]->dataChannel = channel.get();
 		_manager->dataObservers[channel->label()]->dataChannel->RegisterObserver(_manager->dataObservers[channel->label()]);
@@ -20,7 +20,7 @@ void Spitfire::Observers::PeerConnectionObserver::OnDataChannel(rtc::scoped_refp
 
 void Spitfire::Observers::PeerConnectionObserver::OnRenegotiationNeeded()
 {
-	LOG(INFO) << __FUNCTION__ << " ";
+	RTC_LOG(INFO) << __FUNCTION__ << " ";
 }
 
 
@@ -34,17 +34,17 @@ void Spitfire::Observers::PeerConnectionObserver::OnIceConnectionChange(webrtc::
 
 void Spitfire::Observers::PeerConnectionObserver::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
 {
-	LOG(INFO) << __FUNCTION__ << " ";
+	RTC_LOG(INFO) << __FUNCTION__ << " ";
 
 }
 void Spitfire::Observers::PeerConnectionObserver::OnIceCandidate(const webrtc::IceCandidateInterface * candidate)
 {
-	LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
+	RTC_LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
 
 	std::string sdp;
 	if (!candidate->ToString(&sdp))
 	{
-		LOG(LS_ERROR) << "Failed to serialize candidate";
+		RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
 		return;
 	}
 	if (_manager->onIceCandidate != nullptr)
@@ -55,7 +55,7 @@ void Spitfire::Observers::PeerConnectionObserver::OnIceCandidate(const webrtc::I
 
 Spitfire::Observers::PeerConnectionObserver::~PeerConnectionObserver()
 {
-	LOG(INFO) << __FUNCTION__ << " ";
+	RTC_LOG(INFO) << __FUNCTION__ << " ";
 
 }
 

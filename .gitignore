@@ -265,3 +265,4 @@ libs.zip
 scripts/*
 !scripts/*.bat
 !scripts/*.gn
+lib.zip

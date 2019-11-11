@@ -103,7 +103,7 @@ namespace Example
         private void DataChannelOpen(string label)
         {
             Console.WriteLine("$Data Channel Opened!");
-            Console.WriteLine(Spitfire.GetDataChannelInfo(label).Reliable);
+            Console.WriteLine(Spitfire.GetDataChannelInfo(label).MaxRetransmits);
         }
     }
 }

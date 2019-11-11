@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include "api/peerconnectioninterface.h"
-#include "api/datachannelinterface.h"
+#include "api/peer_connection_interface.h"
+#include "api/data_channel_interface.h"
 
 
 namespace Spitfire {

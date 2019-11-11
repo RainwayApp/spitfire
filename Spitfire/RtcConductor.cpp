@@ -1,15 +1,8 @@
 #include "RtcConductor.h"
-#include "media/engine/fakewebrtcvideoengine.h";
-#include "media/engine/webrtcmediaengine.h"
-#include "pc/test/fakeaudiocapturemodule.h"
-#include "api/test/fakeconstraints.h"
-#include "p2p/client/basicportallocator.h"
+#include "p2p/client/basic_port_allocator.h"
 #include <iostream>
 
 using cricket::MediaEngineInterface;
-using cricket::FakeWebRtcVideoDecoderFactory;
-using cricket::FakeWebRtcVideoEncoder;
-using cricket::FakeWebRtcVideoEncoderFactory;
 
 namespace Spitfire
 {
@@ -86,9 +79,12 @@ namespace Spitfire
 		worker_thread_->Start();
 		signaling_thread_->Start();
 
-		pc_factory_ = webrtc::CreatePeerConnectionFactory(network_thread_, worker_thread_, signaling_thread_, FakeAudioCaptureModule::Create(),
-			new FakeWebRtcVideoEncoderFactory(),
-			new FakeWebRtcVideoDecoderFactory());
+		webrtc::PeerConnectionFactoryDependencies factory_deps;
+		factory_deps.network_thread = network_thread_;
+		factory_deps.worker_thread = worker_thread_;
+		factory_deps.signaling_thread = signaling_thread_;
+
+		pc_factory_ = webrtc::CreateModularPeerConnectionFactory(std::move(factory_deps));
 
 		if (!pc_factory_)
 		{
@@ -107,6 +103,13 @@ namespace Spitfire
 			DeletePeerConnection();
 			return false;
 		}
+
+		default_relay_port_factory_.reset(new cricket::TurnPortFactory());
+		if (!default_relay_port_factory_) {
+			DeletePeerConnection();
+			return false;
+		}
+
 
 
 		webrtc::PeerConnectionFactoryInterface::Options opt;
@@ -135,7 +138,7 @@ namespace Spitfire
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 		//no clue why this was set to true
 		config.disable_ipv6 = false;
-		config.enable_dtls_srtp = rtc::Optional<bool>(dtls);
+		config.enable_dtls_srtp = absl::optional<bool>(dtls);
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
 
 		for each (auto server in serverConfigs)
@@ -143,20 +146,14 @@ namespace Spitfire
 			config.servers.push_back(server);
 		}	
 
-		webrtc::FakeConstraints constraints;
-		constraints.SetAllowDtlsSctpDataChannels();
-		constraints.SetMandatoryReceiveVideo(false);
-		constraints.SetMandatoryReceiveAudio(false);
-		constraints.SetMandatoryIceRestart(true);
-		constraints.SetMandatoryUseRtpMux(true);
-		constraints.AddMandatory(webrtc::MediaConstraintsInterface::kVoiceActivityDetection, "false");
-
-		cricket::PortAllocator* allocator = new cricket::BasicPortAllocator(
-			default_network_manager_.get(), default_socket_factory_.get(),
-			config.turn_customizer);
+		std::unique_ptr<cricket::PortAllocator> allocator = std::unique_ptr<cricket::PortAllocator>(new cricket::BasicPortAllocator(
+			default_network_manager_.get(),
+			default_socket_factory_.get(),
+			config.turn_customizer,
+			default_relay_port_factory_.get()));
 		allocator->SetPortRange(minPort, maxPort);
 
-		peerObserver->peerConnection = pc_factory_->CreatePeerConnection(config, &constraints, std::unique_ptr<cricket::PortAllocator>(allocator), nullptr, peerObserver);
+		peerObserver->peerConnection = pc_factory_->CreatePeerConnection(config, std::move(allocator), nullptr, peerObserver.get());
 		return peerObserver->peerConnection != nullptr;
 	}
 
@@ -174,7 +171,10 @@ namespace Spitfire
 		if (!peerObserver->peerConnection)
 			return;
 
-		peerObserver->peerConnection->CreateOffer(sessionObserver, nullptr);
+		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+		options.offer_to_receive_audio = false;
+		options.offer_to_receive_video = false;
+		peerObserver->peerConnection->CreateOffer(sessionObserver, options);
 	}
 
 	void RtcConductor::OnOfferReply(std::string type, std::string sdp)
@@ -186,7 +186,7 @@ namespace Spitfire
 		webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription(type, sdp, &error));
 		if (!session_description)
 		{
-			LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
 			return;
 		}
 		peerObserver->peerConnection->SetRemoteDescription(setSessionObserver, session_description);
@@ -201,7 +201,7 @@ namespace Spitfire
 		webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("offer", sdp, &error));
 		if (!session_description)
 		{
-			LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
 			return;
 		}
 		peerObserver->peerConnection->SetRemoteDescription(setSessionObserver, session_description);
@@ -221,7 +221,7 @@ namespace Spitfire
 		webrtc::IceCandidateInterface * candidate = webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
 		if (!candidate)
 		{
-			LOG(WARNING) << "Can't parse received candidate message. "
+			RTC_LOG(WARNING) << "Can't parse received candidate message. "
 				<< "SdpParseError was: " << error.description;
 			return false;
 		}
@@ -231,7 +231,7 @@ namespace Spitfire
 
 		if (!peerObserver->peerConnection->AddIceCandidate(candidate))
 		{
-			LOG(WARNING) << "Failed to apply the received candidate";
+			RTC_LOG(WARNING) << "Failed to apply the received candidate";
 			return false;
 		}
 		return true;

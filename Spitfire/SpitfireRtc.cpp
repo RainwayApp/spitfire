@@ -10,7 +10,7 @@ using namespace System::Reflection;
 using namespace System;
 using namespace System::IO;
 using namespace System::Diagnostics;
-using namespace msclr::interop;
+using namespace msclr::interop;	
 
 
 [assembly:System::Runtime::Versioning::TargetFrameworkAttribute(L".NETFramework,Version=v4.0", FrameworkDisplayName = L".NET Framework 4")];
@@ -186,7 +186,7 @@ namespace Spitfire
 		 /// sent. After this time, no more retransmissions will be sent. -1 if unset.
 		 /// Cannot be set along with |MaxRetransmits|.
 		 /// </summary>
-		int MaxRetransmitTime = -1;
+		Nullable<int> MaxRetransmitTime;
 
 		/* 
 		 * The max number of retransmissions. -1 if unset.
@@ -196,7 +196,7 @@ namespace Spitfire
 		 /// The max number of retransmissions. -1 if unset.
 		 /// Cannot be set along with |MaxRetransmitTime|.
 		 /// </summary>
-		int MaxRetransmits = -1;
+		Nullable<int> MaxRetransmits;
 		 /// <summary>
 		 /// This is set by the application and opaque to the WebRTC implementation.
 		 /// </summary>
@@ -576,8 +576,12 @@ namespace Spitfire
 
 				webrtc::DataChannelInit dc_options;
 				dc_options.id = dataChannelOptions->Id;
-				dc_options.maxRetransmits = dataChannelOptions->MaxRetransmits;
-				dc_options.maxRetransmitTime = dataChannelOptions->MaxRetransmitTime;
+				if (dataChannelOptions->MaxRetransmits.HasValue) {
+					dc_options.maxRetransmits.emplace(dataChannelOptions->MaxRetransmits.Value);
+				}
+				if (dataChannelOptions->MaxRetransmitTime.HasValue) {
+					dc_options.maxRetransmitTime.emplace(dataChannelOptions->MaxRetransmitTime.Value);
+				}
 				dc_options.negotiated = dataChannelOptions->Negotiated;
 				dc_options.ordered = dataChannelOptions->Ordered;
 				if (!String::IsNullOrWhiteSpace(protocol))

@@ -6,8 +6,9 @@
 #include "PeerConnectionObserver.h"
 #include "CreateSessionDescriptionObserver.h"
 #include "SetSessionDescriptionObserver.h"
-#include "api/peerconnectioninterface.h"
-#include "p2p/base/basicpacketsocketfactory.h"
+#include "api/peer_connection_interface.h"
+#include "p2p/client/relay_port_factory_interface.h"
+#include "p2p/base/basic_packet_socket_factory.h"
 
 namespace Spitfire
 {
@@ -118,6 +119,7 @@ namespace Spitfire
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
+		std::unique_ptr<cricket::RelayPortFactoryInterface> default_relay_port_factory_;
 	};
 }
 #endif  // WEBRTC_NET_CONDUCTOR_H_
