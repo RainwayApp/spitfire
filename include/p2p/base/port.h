@@ -15,11 +15,14 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/types/optional.h"
 #include "api/candidate.h"
+#include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
+#include "api/transport/stun.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
@@ -27,9 +30,7 @@
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/p2p_constants.h"
-#include "p2p/base/packet_socket_factory.h"
 #include "p2p/base/port_interface.h"
-#include "p2p/base/stun.h"
 #include "p2p/base/stun_request.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
@@ -55,11 +56,6 @@ extern const int DISCARD_PORT;
 extern const char TCPTYPE_ACTIVE_STR[];
 extern const char TCPTYPE_PASSIVE_STR[];
 extern const char TCPTYPE_SIMOPEN_STR[];
-
-enum RelayType {
-  RELAY_GTURN,  // Legacy google relay service.
-  RELAY_TURN    // Standard (TURN) relay service.
-};
 
 enum IcePriorityValue {
   ICE_TYPE_PREFERENCE_RELAY_TLS = 0,
@@ -128,6 +124,32 @@ struct ProtocolAddress {
     return address == o.address && proto == o.proto;
   }
   bool operator!=(const ProtocolAddress& o) const { return !(*this == o); }
+};
+
+struct IceCandidateErrorEvent {
+  IceCandidateErrorEvent() = default;
+  IceCandidateErrorEvent(std::string address,
+                         int port,
+                         std::string url,
+                         int error_code,
+                         std::string error_text)
+      : address(std::move(address)),
+        port(port),
+        url(std::move(url)),
+        error_code(error_code),
+        error_text(std::move(error_text)) {}
+
+  std::string address;
+  int port = 0;
+  std::string url;
+  int error_code = 0;
+  std::string error_text;
+};
+
+struct CandidatePairChangeEvent {
+  CandidatePair selected_candidate_pair;
+  int64_t last_data_received_ms;
+  std::string reason;
 };
 
 typedef std::set<rtc::SocketAddress> ServerAddresses;
@@ -227,9 +249,10 @@ class Port : public PortInterface,
   // Fired when candidates are discovered by the port. When all candidates
   // are discovered that belong to port SignalAddressReady is fired.
   sigslot::signal2<Port*, const Candidate&> SignalCandidateReady;
-
   // Provides all of the above information in one handy object.
   const std::vector<Candidate>& Candidates() const override;
+  // Fired when candidate discovery failed using certain server.
+  sigslot::signal2<Port*, const IceCandidateErrorEvent&> SignalCandidateError;
 
   // SignalPortComplete is sent when port completes the task of candidates
   // allocation.
@@ -267,11 +290,7 @@ class Port : public PortInterface,
   virtual bool CanHandleIncomingPacketsFrom(
       const rtc::SocketAddress& remote_addr) const;
 
-  // Sends a response message (normal or error) to the given request.  One of
-  // these methods should be called as a response to SignalUnknownAddress.
-  // NOTE: You MUST call CreateConnection BEFORE SendBindingResponse.
-  void SendBindingResponse(StunMessage* request,
-                           const rtc::SocketAddress& addr) override;
+  // Sends a response error to the given request.
   void SendBindingErrorResponse(StunMessage* request,
                                 const rtc::SocketAddress& addr,
                                 int error_code,

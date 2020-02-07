@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_property.h"
 #include "third_party/blink/renderer/core/animation/animation_effect.h"
 #include "third_party/blink/renderer/core/animation/animation_effect_owner.h"
+#include "third_party/blink/renderer/core/animation/animation_timeline.h"
 #include "third_party/blink/renderer/core/animation/compositor_animations.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -62,12 +63,12 @@ class ExceptionState;
 class PaintArtifactCompositor;
 class TreeScope;
 
-class CORE_EXPORT Animation final : public EventTargetWithInlineData,
-                                    public ActiveScriptWrappable<Animation>,
-                                    public ContextLifecycleObserver,
-                                    public CompositorAnimationDelegate,
-                                    public CompositorAnimationClient,
-                                    public AnimationEffectOwner {
+class CORE_EXPORT Animation : public EventTargetWithInlineData,
+                              public ActiveScriptWrappable<Animation>,
+                              public ContextLifecycleObserver,
+                              public CompositorAnimationDelegate,
+                              public CompositorAnimationClient,
+                              public AnimationEffectOwner {
   DEFINE_WRAPPERTYPEINFO();
   USING_GARBAGE_COLLECTED_MIXIN(Animation);
 
@@ -75,7 +76,7 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   enum AnimationPlayState {
     kUnset,
     kIdle,
-    kPending,
+    kPending,  // TODO(crbug.com/958433) remove non-spec compliant state.
     kRunning,
     kPaused,
     kFinished
@@ -94,10 +95,12 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
                            AnimationTimeline*,
                            ExceptionState&);
 
-  Animation(ExecutionContext*, DocumentTimeline*, AnimationEffect*);
-
+  Animation(ExecutionContext*, AnimationTimeline*, AnimationEffect*);
   ~Animation() override;
   void Dispose();
+
+  virtual bool IsCSSAnimation() const { return false; }
+  virtual bool IsCSSTransition() const { return false; }
 
   // Returns whether the animation is finished.
   bool Update(TimingUpdateReason);
@@ -109,10 +112,12 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   Animation* GetAnimation() override { return this; }
 
   // timeToEffectChange returns:
-  //  infinity  - if this animation is no longer in effect
-  //  0         - if this animation requires an update on the next frame
-  //  n         - if this animation requires an update after 'n' units of time
-  double TimeToEffectChange();
+  //  nullopt                  - if this animation is no longer in effect
+  //  AnimationTimeDelta()     - if this animation requires an update on the
+  //                             next frame
+  //  AnimationTimeDelta() > 0 - if this animation requires an update
+  //                             after 'n' units of time
+  base::Optional<AnimationTimeDelta> TimeToEffectChange();
 
   void cancel();
 
@@ -121,31 +126,36 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   void setCurrentTime(double new_current_time,
                       bool is_null,
                       ExceptionState& = ASSERT_NO_EXCEPTION);
+  base::Optional<double> UnlimitedCurrentTime() const;
 
-  double CurrentTimeInternal() const;
-  double UnlimitedCurrentTimeInternal() const;
-
-  void SetCurrentTimeInternal(double new_current_time,
-                              TimingUpdateReason = kTimingUpdateOnDemand);
-  bool Paused() const { return paused_ && !is_paused_for_testing_; }
+  // https://drafts.csswg.org/web-animations/#play-states
   static const char* PlayStateString(AnimationPlayState);
-  String playState() const { return PlayStateString(animation_play_state_); }
-  AnimationPlayState PlayStateInternal() const;
+  AnimationPlayState CalculateAnimationPlayState() const;
+  String playState() const {
+    return PlayStateString(CalculateAnimationPlayState());
+  }
+
   bool pending() const;
 
   void pause(ExceptionState& = ASSERT_NO_EXCEPTION);
   void play(ExceptionState& = ASSERT_NO_EXCEPTION);
   void reverse(ExceptionState& = ASSERT_NO_EXCEPTION);
   void finish(ExceptionState& = ASSERT_NO_EXCEPTION);
-  void updatePlaybackRate(double playback_rate);
+  void updatePlaybackRate(double playback_rate,
+                          ExceptionState& = ASSERT_NO_EXCEPTION);
 
   ScriptPromise finished(ScriptState*);
   ScriptPromise ready(ScriptState*);
 
-  bool Playing() const override {
-    return !(PlayStateInternal() == kIdle || Limited() || paused_ ||
-             is_paused_for_testing_);
+  bool Paused() const {
+    return CalculateAnimationPlayState() == kPaused && !is_paused_for_testing_;
   }
+
+  bool Playing() const override {
+    return CalculateAnimationPlayState() == kRunning && !Limited() &&
+           !is_paused_for_testing_;
+  }
+
   bool Limited() const { return Limited(CurrentTimeInternal()); }
   bool FinishedInternal() const { return finished_; }
 
@@ -158,20 +168,16 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   void ContextDestroyed(ExecutionContext*) override;
 
   double playbackRate() const;
-  void setPlaybackRate(double);
-  AnimationTimeline* timeline() {
-    return static_cast<AnimationTimeline*>(timeline_);
-  }
-  const DocumentTimeline* TimelineInternal() const { return timeline_; }
-  DocumentTimeline* TimelineInternal() { return timeline_; }
-  double TimelineTime() const {
-    return timeline_ ? timeline_->currentTime() : NullValue();
-  }
+  void setPlaybackRate(double, ExceptionState& = ASSERT_NO_EXCEPTION);
+  AnimationTimeline* timeline() { return timeline_; }
+  Document* GetDocument();
 
   double startTime(bool& is_null) const;
   base::Optional<double> startTime() const;
   base::Optional<double> StartTimeInternal() const { return start_time_; }
-  void setStartTime(double, bool is_null);
+  void setStartTime(double,
+                    bool is_null,
+                    ExceptionState& = ASSERT_NO_EXCEPTION);
 
   const AnimationEffect* effect() const { return content_.Get(); }
   AnimationEffect* effect() { return content_.Get(); }
@@ -200,8 +206,9 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   void CancelIncompatibleAnimationsOnCompositor();
   bool HasActiveAnimationsOnCompositor();
   void SetCompositorPending(bool effect_changed = false);
-  void NotifyCompositorStartTime(double timeline_time);
-  void NotifyStartTime(double timeline_time);
+  void NotifyReady(double ready_time);
+  void CommitPendingPlay(double ready_time);
+  void CommitPendingPause(double ready_time);
   // CompositorAnimationClient implementation.
   CompositorAnimation* GetCompositorAnimation() const override {
     return compositor_animation_ ? compositor_animation_->GetAnimation()
@@ -240,17 +247,26 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
                           RegisteredEventListener&) override;
 
  private:
+  // TODO(crbug.com/960944): Deprecate. This version of the play state is not to
+  // spec due to the inclusion of a 'pending' state. Whether or not an animation
+  // is pending is separate from the actual play state.
+  AnimationPlayState PlayStateInternal() const;
+
+  base::Optional<double> CurrentTimeInternal() const;
+  void SetCurrentTimeInternal(double new_current_time);
+  void SetCurrentTimeInternal(double new_current_time, TimingUpdateReason);
+
   void ClearOutdated();
   void ForceServiceOnNextFrame();
 
   double EffectEnd() const;
-  bool Limited(double current_time) const;
+  bool Limited(base::Optional<double> current_time) const;
 
   // Playback rate that will take effect once any pending tasks are resolved.
   // If there are no pending tasks, then the effective playback rate equals the
   // active playback rate.
   double EffectivePlaybackRate() const;
-  void ResolvePendingPlaybackRate();
+  void ApplyPendingPlaybackRate();
 
   // https://drafts.csswg.org/web-animations/#play-states
   // Per spec the viable states are: idle, running, paused and finished.
@@ -258,19 +274,13 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   // similar purpose to micro-tasks in the spec. This additional state is for
   // internal flow control only and should not be reported via
   // animation.playState.
-  // TODO(crbug.com/958433): Cleanup implementation to better align with the
-  // spec.
-  AnimationPlayState CalculatePlayState() const;
-  // Spec compliant variant of play state calculation that is reported via
-  // animation.playState.
-  AnimationPlayState CalculateAnimationPlayState() const;
+  // TODO(crbug.com/958433): Deprecate this method in favor of the
+  // spec-compliant GetPlayState().
+  AnimationPlayState CalculateExtendedPlayState() const;
 
   base::Optional<double> CalculateStartTime(double current_time) const;
-  double CalculateCurrentTime() const;
+  base::Optional<double> CalculateCurrentTime() const;
 
-  void UnpauseInternal();
-  void SetPlaybackRateInternal(double);
-  void SetStartTimeInternal(base::Optional<double>);
   void UpdateCurrentTimingState(TimingUpdateReason);
 
   void BeginUpdatingState();
@@ -296,28 +306,53 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   void RejectAndResetPromise(AnimationPromise*);
   void RejectAndResetPromiseMaybeAsync(AnimationPromise*);
 
+  // Updates the finished state of the animation. If the update is the result of
+  // a discontinuous time change then the value for current time is not bound by
+  // the limits of the animation. The finished notification may be synchronous
+  // or asynchronous. A synchronous notification is used in the case of
+  // explicitly calling finish on an animation.
+  enum class UpdateType { kContinuous, kDiscontinuous };
+  enum class NotificationType { kAsync, kSync };
+  void UpdateFinishedState(UpdateType update_context,
+                           NotificationType notification_type);
   void QueueFinishedEvent();
 
+  // Plays an animation. When auto_rewind is enabled, the current time can be
+  // adjusted to accommodate reversal of an animation or snapping to an
+  // endpoint.
+  enum class AutoRewind { kDisabled, kEnabled };
+  void PlayInternal(AutoRewind auto_rewind, ExceptionState& exception_state);
+
   void ResetPendingTasks();
+  double TimelineTime() const;
+  DocumentTimeline& TickingTimeline();
+
+  void ScheduleAsyncFinish();
+  void AsyncFinishMicrotask();
+  void CommitFinishNotification();
+
+  // Tracking the state of animations in dev tools.
+  void NotifyProbe();
 
   String id_;
 
   // Extended play state with additional pending state for managing timing of
   // micro-tasks.
+  // TODO(crbug.com/958433): Phase out this version of the play state. Should
+  // just need the reported play state.
   AnimationPlayState internal_play_state_;
-  // Web exposed play state, which does not have pending state.
-  AnimationPlayState animation_play_state_;
+  // Extended play state reported to dev tools. This play state has an
+  // additional pending state that is not part of the spec by expected by dev
+  // tools.
+  AnimationPlayState reported_play_state_;
   double playback_rate_;
-  // Playback rate that is currently in effect if differing from playback_rate_.
-  // When playback_rate_ is modified, the new rate takes effect on the next
-  // async tick. The currently active value is stored for use by the
-  // Animation.playbackRate method.
-  // TODO(crbug.com/960944): Switch to using pending_playback_rate_ once the
-  // web-animations implementation is more closely aligned with the spec (i.e.
-  // supports scheduling of pending tasks).
-  base::Optional<double> active_playback_rate_;
+  // The pending playback rate is not currently in effect. It typically takes
+  // effect when running a scheduled task in response to the animation being
+  // ready.
+  base::Optional<double> pending_playback_rate_;
   base::Optional<double> start_time_;
   base::Optional<double> hold_time_;
+  base::Optional<double> previous_current_time_;
 
   unsigned sequence_number_;
 
@@ -328,7 +363,7 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   // Document refers to the timeline's document if there is a timeline.
   // Otherwise it refers to the document for the execution context.
   Member<Document> document_;
-  Member<DocumentTimeline> timeline_;
+  Member<AnimationTimeline> timeline_;
 
   // Reflects all pausing, including via pauseForTesting().
   bool paused_;
@@ -340,6 +375,8 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   // control.
   bool pending_pause_;
   bool pending_play_;
+  bool pending_finish_notification_;
+  bool has_queued_microtask_;
 
   // This indicates timing information relevant to the animation's effect
   // has changed by means other than the ordinary progression of time
@@ -353,7 +390,9 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
 
   Member<Event> pending_cancelled_event_;
 
-  enum CompositorAction { kNone, kPause, kStart, kPauseThenStart };
+  // TODO(crbug.com/960944): Consider reintroducing kPause and cleanup use of
+  // mutually exclusive pending_play_ and pending_pause_ flags.
+  enum CompositorAction { kNone, kStart };
 
   class CompositorState {
     USING_FAST_MALLOC(CompositorState);
@@ -362,9 +401,9 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
     explicit CompositorState(Animation& animation)
         : start_time(animation.start_time_),
           hold_time(animation.hold_time_),
-          playback_rate(animation.playback_rate_),
+          playback_rate(animation.EffectivePlaybackRate()),
           effect_changed(false),
-          pending_action(kStart) {}
+          pending_action(animation.start_time_ ? kNone : kStart) {}
     base::Optional<double> start_time;
     base::Optional<double> hold_time;
     double playback_rate;
@@ -397,8 +436,8 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
   // CompositorAnimation objects need to eagerly sever their connection to their
   // Animation delegate; use a separate 'holder' on-heap object to accomplish
   // that.
-  class CompositorAnimationHolder
-      : public GarbageCollectedFinalized<CompositorAnimationHolder> {
+  class CompositorAnimationHolder final
+      : public GarbageCollected<CompositorAnimationHolder> {
     USING_PRE_FINALIZER(CompositorAnimationHolder, Dispose);
 
    public:
@@ -435,8 +474,10 @@ class CORE_EXPORT Animation final : public EventTargetWithInlineData,
 
   bool effect_suppressed_;
 
-  FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTest,
+  FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTestCompositeAfterPaint,
                            NoCompositeWithoutCompositedElementId);
+  FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTestNoCompositing,
+                           PendingActivityWithFinishedEventListener);
 };
 
 }  // namespace blink

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/base_export.h"
+#include "base/optional.h"
 #include "base/profiler/frame.h"
 #include "base/sampling_heap_profiler/module_cache.h"
 #include "base/time/time.h"
@@ -26,13 +27,39 @@ class BASE_EXPORT ProfileBuilder {
   // up modules from addresses.
   virtual ModuleCache* GetModuleCache() = 0;
 
+  struct BASE_EXPORT MetadataItem {
+    MetadataItem(uint64_t name_hash, Optional<int64_t> key, int64_t value);
+    MetadataItem();
+
+    MetadataItem(const MetadataItem& other);
+    MetadataItem& operator=(const MetadataItem& other);
+
+    // The hash of the metadata name, as produced by HashMetricName().
+    uint64_t name_hash;
+    // The key if specified when setting the item.
+    Optional<int64_t> key;
+    // The value of the metadata item.
+    int64_t value;
+  };
+
+  static constexpr size_t MAX_METADATA_COUNT = 50;
+  typedef std::array<MetadataItem, MAX_METADATA_COUNT> MetadataItemArray;
+
+  class MetadataProvider {
+   public:
+    MetadataProvider() = default;
+    virtual ~MetadataProvider() = default;
+
+    virtual size_t GetItems(ProfileBuilder::MetadataItemArray* const items) = 0;
+  };
+
   // Records metadata to be associated with the current sample. To avoid
   // deadlock on locks taken by the suspended profiled thread, implementations
   // of this method must not execute any code that could take a lock, including
   // heap allocation or use of CHECK/DCHECK/LOG statements. Generally
   // implementations should simply atomically copy metadata state to be
   // associated with the sample.
-  virtual void RecordMetadata() {}
+  virtual void RecordMetadata(MetadataProvider* metadata_provider) {}
 
   // Records a new set of frames. Invoked when sampling a sample completes.
   virtual void OnSampleCompleted(std::vector<Frame> frames) = 0;

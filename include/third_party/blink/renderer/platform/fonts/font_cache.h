@@ -31,10 +31,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_CACHE_H_
 
 #include <limits.h>
+
 #include <memory>
+#include <string>
 
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/platform/fonts/fallback_list_composite_key.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache_client.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache_key.h"
@@ -46,15 +49,23 @@
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
-#include "third_party/blink/renderer/platform/wtf/text/cstring.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
+
+#if defined(OS_LINUX)
+#include "ui/gfx/font_fallback_linux.h"
+#endif
+
+#if defined(OS_WIN)
+#include "third_party/blink/public/mojom/dwrite_font_proxy/dwrite_font_proxy.mojom-blink.h"
+#include "third_party/blink/renderer/platform/fonts/win/fallback_family_style_cache_win.h"
+#endif
 
 class SkString;
 class SkTypeface;
@@ -206,6 +217,20 @@ class PLATFORM_EXPORT FontCache {
   static void SetUseSkiaFontFallback(bool use_skia_font_fallback) {
     use_skia_font_fallback_ = use_skia_font_fallback;
   }
+
+  // On Windows pre 8.1 establish a connection to the DWriteFontProxy service in
+  // order to retrieve family names for fallback lookup.
+  void EnsureServiceConnected();
+
+  scoped_refptr<SimpleFontData> GetFallbackFamilyNameFromHardcodedChoices(
+      const FontDescription&,
+      UChar32 codepoint,
+      FontFallbackPriority fallback_priority);
+
+  scoped_refptr<SimpleFontData> GetDWriteFallbackFamily(
+      const FontDescription&,
+      UChar32 codepoint,
+      FontFallbackPriority fallback_priority);
 #endif  // defined(OS_WIN)
 
   static void AcceptLanguagesChanged(const String&);
@@ -217,17 +242,9 @@ class PLATFORM_EXPORT FontCache {
 #endif  // defined(OS_ANDROID)
 
 #if defined(OS_LINUX)
-  struct PlatformFallbackFont {
-    String name;
-    CString filename;
-    int fontconfig_interface_id;
-    int ttc_index;
-    bool is_bold;
-    bool is_italic;
-  };
-  static void GetFontForCharacter(UChar32,
+  static bool GetFontForCharacter(UChar32,
                                   const char* preferred_locale,
-                                  PlatformFallbackFont*);
+                                  gfx::FallbackFontData*);
 #endif  // defined(OS_LINUX)
 
   scoped_refptr<SimpleFontData> FontDataFromFontPlatformData(
@@ -257,8 +274,7 @@ class PLATFORM_EXPORT FontCache {
       const SimpleFontData* font_data_to_substitute,
       FontFallbackPriority = FontFallbackPriority::kText);
   sk_sp<SkTypeface> CreateTypefaceFromUniqueName(
-      const FontFaceCreationParams& creation_params,
-      CString& name);
+      const FontFaceCreationParams& creation_params);
 
   static Bcp47Vector GetBcp47LocaleForRequest(
       const FontDescription& font_description,
@@ -299,7 +315,7 @@ class PLATFORM_EXPORT FontCache {
 
   sk_sp<SkTypeface> CreateTypeface(const FontDescription&,
                                    const FontFaceCreationParams&,
-                                   CString& name);
+                                   std::string& name);
 
 #if defined(OS_ANDROID) || defined(OS_LINUX)
   static AtomicString GetFamilyNameForCharacter(SkFontMgr*,
@@ -336,6 +352,8 @@ class PLATFORM_EXPORT FontCache {
   // Windows creates an SkFontMgr for unit testing automatically. This flag is
   // to ensure it's not happening in the production from the crash log.
   bool is_test_font_mgr_ = false;
+  mojo::Remote<mojom::blink::DWriteFontProxy> service_;
+  std::unique_ptr<FallbackFamilyStyleCache> fallback_params_cache_;
 #endif  // defined(OS_WIN)
 
 #if defined(OS_LINUX) || defined(OS_CHROMEOS)
@@ -351,6 +369,15 @@ class PLATFORM_EXPORT FontCache {
 
   void PurgePlatformFontDataCache();
   void PurgeFallbackListShaperCache();
+
+  // A maximum float value to which we limit incoming font sizes. This is the
+  // smallest float so that multiplying it by
+  // FontCacheKey::PrecisionMultiplier() is still smaller than
+  // std::numeric_limits<unsigned>::max() - 1 in order to avoid hitting HashMap
+  // sentinel values (placed at std::numeric_limits<unsigned>::max() and
+  // std::numeric_limits<unsigned>::max() - 1) for SizedFontPlatformDataSet and
+  // FontPlatformDataCache.
+  const float font_size_limit_;
 
   friend class SimpleFontData;  // For fontDataFromFontPlatformData
   friend class FontFallbackList;
@@ -373,4 +400,4 @@ AtomicString ToAtomicString(const SkString&);
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_CACHE_H_

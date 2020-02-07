@@ -35,18 +35,17 @@
 
 #include "base/macros.h"
 #include "base/threading/thread_checker.h"
+#include "third_party/blink/public/mojom/service_worker/dispatch_fetch_event_params.mojom-blink.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/modules/service_worker/web_service_worker_context_proxy.h"
 #include "third_party/blink/renderer/core/workers/worker_reporting_proxy.h"
-#include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
-class ParentExecutionContextTaskRunners;
 class ServiceWorkerGlobalScope;
 class WebEmbeddedWorkerImpl;
 class WebServiceWorkerContextClient;
@@ -63,22 +62,22 @@ class WebServiceWorkerContextClient;
 // An instance of this class is supposed to outlive until
 // workerThreadTerminated() is called by its corresponding
 // WorkerGlobalScope.
-class ServiceWorkerGlobalScopeProxy final
-    : public GarbageCollectedFinalized<ServiceWorkerGlobalScopeProxy>,
-      public WebServiceWorkerContextProxy,
-      public WorkerReportingProxy {
+//
+// TODO(bashi): Update the above comment and method comments once we move
+// creation of this class off the main thread.
+class ServiceWorkerGlobalScopeProxy final : public WebServiceWorkerContextProxy,
+                                            public WorkerReportingProxy {
  public:
-  static ServiceWorkerGlobalScopeProxy* Create(WebEmbeddedWorkerImpl&,
-                                               WebServiceWorkerContextClient&);
-
   ServiceWorkerGlobalScopeProxy(WebEmbeddedWorkerImpl&,
-                                WebServiceWorkerContextClient&);
+                                WebServiceWorkerContextClient&,
+                                scoped_refptr<base::SingleThreadTaskRunner>
+                                    parent_thread_default_task_runner);
   ~ServiceWorkerGlobalScopeProxy() override;
 
   // WebServiceWorkerContextProxy overrides:
-  void BindServiceWorker(mojo::ScopedMessagePipeHandle request) override;
+  void BindServiceWorker(mojo::ScopedMessagePipeHandle receiver_pipe) override;
   void BindControllerServiceWorker(
-      mojo::ScopedMessagePipeHandle request) override;
+      mojo::ScopedMessagePipeHandle receiver_pipe) override;
   void OnNavigationPreloadResponse(
       int fetch_event_id,
       std::unique_ptr<WebURLResponse>,
@@ -87,10 +86,13 @@ class ServiceWorkerGlobalScopeProxy final
       int fetch_event_id,
       std::unique_ptr<WebServiceWorkerError>) override;
   void OnNavigationPreloadComplete(int fetch_event_id,
-                                   TimeTicks completion_time,
+                                   base::TimeTicks completion_time,
                                    int64_t encoded_data_length,
                                    int64_t encoded_body_length,
                                    int64_t decoded_body_length) override;
+  bool IsWindowInteractionAllowed() override;
+  void PauseEvaluation() override;
+  void ResumeEvaluation() override;
 
   // WorkerReportingProxy overrides:
   void CountFeature(WebFeature) override;
@@ -104,10 +106,8 @@ class ServiceWorkerGlobalScopeProxy final
                             SourceLocation*) override;
   void WillInitializeWorkerContext() override;
   void DidCreateWorkerGlobalScope(WorkerOrWorkletGlobalScope*) override;
-  void DidInitializeWorkerContext() override;
   void DidLoadClassicScript() override;
-  void DidFailToLoadClassicScript() override;
-  void DidFetchScript(int64_t app_cache_id) override;
+  void DidFetchScript() override;
   void DidFailToFetchClassicScript() override;
   void DidFailToFetchModuleScript() override;
   void WillEvaluateClassicScript(size_t script_size,
@@ -120,8 +120,14 @@ class ServiceWorkerGlobalScopeProxy final
   void DidCloseWorkerGlobalScope() override;
   void WillDestroyWorkerGlobalScope() override;
   void DidTerminateWorkerThread() override;
+  bool IsServiceWorkerGlobalScopeProxy() const override;
 
-  void Trace(blink::Visitor*);
+  // Called from ServiceWorkerGlobalScope.
+  void SetupNavigationPreload(
+      int fetch_event_id,
+      const KURL& url,
+      mojom::blink::FetchEventPreloadHandlePtr preload_handle);
+  void RequestTermination(WTF::CrossThreadOnceFunction<void(bool)> callback);
 
   // Detaches this proxy object entirely from the outside world, clearing out
   // all references.
@@ -140,8 +146,8 @@ class ServiceWorkerGlobalScopeProxy final
   // as part of its finalization.
   WebEmbeddedWorkerImpl* embedded_worker_;
 
-  Member<ParentExecutionContextTaskRunners>
-      parent_execution_context_task_runners_;
+  scoped_refptr<base::SingleThreadTaskRunner>
+      parent_thread_default_task_runner_;
 
   WebServiceWorkerContextClient* client_;
 
@@ -150,6 +156,16 @@ class ServiceWorkerGlobalScopeProxy final
   THREAD_CHECKER(worker_thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(ServiceWorkerGlobalScopeProxy);
+};
+
+// TODO(leonhsl): This is only used by ServiceWorkerGlobalScope for calling
+// WebServiceWorkerContextClient::{SetupNavigationPreload,RequestTermination}(),
+// which will be Onion Soupped eventually, at that time we'd remove this.
+template <>
+struct DowncastTraits<ServiceWorkerGlobalScopeProxy> {
+  static bool AllowFrom(const WorkerReportingProxy& proxy) {
+    return proxy.IsServiceWorkerGlobalScopeProxy();
+  }
 };
 
 }  // namespace blink

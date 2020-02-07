@@ -7,6 +7,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
+#include "third_party/blink/public/mojom/timing/worker_timing_container.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -26,19 +27,46 @@ class ExecutionContext;
 class CORE_EXPORT WorkerResourceTimingNotifierImpl final
     : public WorkerResourceTimingNotifier {
  public:
-  WorkerResourceTimingNotifierImpl();
-  explicit WorkerResourceTimingNotifierImpl(ExecutionContext&);
+  static WorkerResourceTimingNotifierImpl* CreateForInsideResourceFetcher(
+      ExecutionContext&);
+  static WorkerResourceTimingNotifierImpl* CreateForOutsideResourceFetcher(
+      ExecutionContext&);
+
+  // Do not call this. Use static creation function instead. This is public
+  // only for MakeGarbageCollected.
+  explicit WorkerResourceTimingNotifierImpl(
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
   ~WorkerResourceTimingNotifierImpl() override = default;
 
-  void AddResourceTiming(const WebResourceTimingInfo&,
-                         const AtomicString& initiator_type) override;
+  void AddResourceTiming(
+      const WebResourceTimingInfo&,
+      const AtomicString& initiator_type,
+      mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+          worker_timing_receiver) override;
+
+  void Trace(Visitor*) override;
 
  private:
-  void AddCrossThreadResourceTiming(const WebResourceTimingInfo&,
-                                    const String& initiator_type);
+  void AddCrossThreadResourceTiming(
+      const WebResourceTimingInfo&,
+      const String& initiator_type,
+      mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+          worker_timing_receiver);
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  CrossThreadWeakPersistent<ExecutionContext> execution_context_;
+
+  // Used when the execution context lives on the same sequence of this
+  // notifier.
+  // Note that using CrossThreadWeakPersistent should be fine to hold a
+  // reference to an object that lives on the same sequence. Theoretically we
+  // don't need to use Member<ExecutionContext> here, but we've seen
+  // mysterious crashes when we do so.
+  // TODO(crbug.com/959508): Merge |inside_execution_context_| and
+  // |outside_execution_context_|.
+  Member<ExecutionContext> inside_execution_context_;
+  // Used when the execution context lives on a different sequence of this
+  // notifier.
+  CrossThreadWeakPersistent<ExecutionContext> outside_execution_context_;
 
   DISALLOW_COPY_AND_ASSIGN(WorkerResourceTimingNotifierImpl);
 };
@@ -51,8 +79,11 @@ class CORE_EXPORT NullWorkerResourceTimingNotifier final
   NullWorkerResourceTimingNotifier() = default;
   ~NullWorkerResourceTimingNotifier() override = default;
 
-  void AddResourceTiming(const WebResourceTimingInfo&,
-                         const AtomicString& initiator_type) override {}
+  void AddResourceTiming(
+      const WebResourceTimingInfo&,
+      const AtomicString& initiator_type,
+      mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+          worker_timing_receiver) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullWorkerResourceTimingNotifier);

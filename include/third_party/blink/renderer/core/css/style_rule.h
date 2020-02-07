@@ -32,13 +32,10 @@
 
 namespace blink {
 
-class CSSIdentifierValue;
 class CSSRule;
 class CSSStyleSheet;
-class CSSValueList;
 
-class CORE_EXPORT StyleRuleBase
-    : public GarbageCollectedFinalized<StyleRuleBase> {
+class CORE_EXPORT StyleRuleBase : public GarbageCollected<StyleRuleBase> {
  public:
   enum RuleType {
     kCharset,
@@ -47,12 +44,12 @@ class CORE_EXPORT StyleRuleBase
     kMedia,
     kFontFace,
     kPage,
+    kProperty,
     kKeyframes,
     kKeyframe,
     kNamespace,
     kSupports,
     kViewport,
-    kFontFeatureValues,
   };
 
   RuleType GetType() const { return static_cast<RuleType>(type_); }
@@ -64,13 +61,11 @@ class CORE_EXPORT StyleRuleBase
   bool IsNamespaceRule() const { return GetType() == kNamespace; }
   bool IsMediaRule() const { return GetType() == kMedia; }
   bool IsPageRule() const { return GetType() == kPage; }
+  bool IsPropertyRule() const { return GetType() == kProperty; }
   bool IsStyleRule() const { return GetType() == kStyle; }
   bool IsSupportsRule() const { return GetType() == kSupports; }
   bool IsViewportRule() const { return GetType() == kViewport; }
   bool IsImportRule() const { return GetType() == kImport; }
-  bool IsFontFeatureValuesRule() const {
-    return GetType() == kFontFeatureValues;
-  }
 
   StyleRuleBase* Copy() const;
 
@@ -192,6 +187,32 @@ class StyleRulePage : public StyleRuleBase {
   CSSSelectorList selector_list_;
 };
 
+class StyleRuleProperty : public StyleRuleBase {
+ public:
+  static StyleRuleProperty* Create(const String& name,
+                                   CSSPropertyValueSet* properties) {
+    return MakeGarbageCollected<StyleRuleProperty>(name, properties);
+  }
+
+  StyleRuleProperty(const String& name, CSSPropertyValueSet*);
+  StyleRuleProperty(const StyleRuleProperty&);
+  ~StyleRuleProperty();
+
+  const CSSPropertyValueSet& Properties() const { return *properties_; }
+  MutableCSSPropertyValueSet& MutableProperties();
+  const String& GetName() const { return name_; }
+
+  StyleRuleProperty* Copy() const {
+    return MakeGarbageCollected<StyleRuleProperty>(*this);
+  }
+
+  void TraceAfterDispatch(blink::Visitor*);
+
+ private:
+  String name_;
+  Member<CSSPropertyValueSet> properties_;
+};
+
 class CORE_EXPORT StyleRuleGroup : public StyleRuleBase {
  public:
   const HeapVector<Member<StyleRuleBase>>& ChildRules() const {
@@ -297,29 +318,6 @@ class StyleRuleCharset : public StyleRuleBase {
  private:
 };
 
-class CORE_EXPORT StyleRuleFontFeatureValues : public StyleRuleBase {
- public:
-  StyleRuleFontFeatureValues(const CSSValueList* font_family,
-                             const CSSIdentifierValue* font_display);
-  StyleRuleFontFeatureValues(const StyleRuleFontFeatureValues&) = default;
-
-  StyleRuleFontFeatureValues* Copy() const {
-    return MakeGarbageCollected<StyleRuleFontFeatureValues>(*this);
-  }
-
-  const CSSValueList& FontFamily() const {
-    DCHECK(font_family_);
-    return *font_family_;
-  }
-  const CSSIdentifierValue* FontDisplay() const { return font_display_; }
-
-  void TraceAfterDispatch(blink::Visitor*);
-
- private:
-  Member<const CSSValueList> font_family_;
-  Member<const CSSIdentifierValue> font_display_;
-};
-
 template <>
 struct DowncastTraits<StyleRule> {
   static bool AllowFrom(const StyleRuleBase& rule) {
@@ -337,6 +335,13 @@ struct DowncastTraits<StyleRuleFontFace> {
 template <>
 struct DowncastTraits<StyleRulePage> {
   static bool AllowFrom(const StyleRuleBase& rule) { return rule.IsPageRule(); }
+};
+
+template <>
+struct DowncastTraits<StyleRuleProperty> {
+  static bool AllowFrom(const StyleRuleBase& rule) {
+    return rule.IsPropertyRule();
+  }
 };
 
 template <>
@@ -364,13 +369,6 @@ template <>
 struct DowncastTraits<StyleRuleCharset> {
   static bool AllowFrom(const StyleRuleBase& rule) {
     return rule.IsCharsetRule();
-  }
-};
-
-template <>
-struct DowncastTraits<StyleRuleFontFeatureValues> {
-  static bool AllowFrom(const StyleRuleBase& rule) {
-    return rule.IsFontFeatureValuesRule();
   }
 };
 

@@ -59,12 +59,15 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
       IgnoredReasons* = nullptr) const;
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;
   const AXObject* InheritsPresentationalRoleFrom() const override;
+  ax::mojom::Role DetermineTableSectionRole() const;
+  ax::mojom::Role DetermineTableCellRole() const;
+  ax::mojom::Role DetermineTableRowRole() const;
   ax::mojom::Role DetermineAccessibilityRole() override;
   virtual ax::mojom::Role NativeRoleIgnoringAria() const;
   void AlterSliderOrSpinButtonValue(bool increase);
   AXObject* ActiveDescendant() override;
   String AriaAccessibilityDescription() const;
-  String AriaAutoComplete() const override;
+  String AutoComplete() const override;
   void AccessibilityChildrenFromAOMProperty(AOMRelationListProperty,
                                             AXObject::AXObjectVector&) const;
 
@@ -110,6 +113,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool IsNativeImage() const;
   bool IsNativeTextControl() const final;
   bool IsNonNativeTextControl() const final;
+  bool IsOffScreen() const override;
   bool IsPasswordField() const final;
   bool IsProgressIndicator() const override;
   bool IsRichlyEditable() const override;
@@ -152,6 +156,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool MinValueForRange(float* out_value) const override;
   bool StepValueForRange(float* out_value) const override;
   KURL Url() const override;
+  AXObject* ChooserPopup() const override;
   String StringValue() const override;
 
   // ARIA attributes.
@@ -230,6 +235,9 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   // Aria-owns.
   void ComputeAriaOwnsChildren(
       HeapVector<Member<AXObject>>& owned_children) const;
+
+  FRIEND_TEST_ALL_PREFIXES(AccessibilityTest, SetNeedsToUpdateChildren);
+  FRIEND_TEST_ALL_PREFIXES(AccessibilityTest, UpdateChildrenIfNecessary);
 
  private:
   Member<Node> node_;

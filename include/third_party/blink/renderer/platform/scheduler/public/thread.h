@@ -29,10 +29,11 @@
 #include "base/callback_forward.h"
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/task/task_observer.h"
 #include "base/threading/thread.h"
-#include "third_party/blink/public/platform/web_thread_type.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_type.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -52,7 +53,7 @@ class Platform;
 typedef uintptr_t PlatformThreadId;
 
 struct PLATFORM_EXPORT ThreadCreationParams {
-  explicit ThreadCreationParams(WebThreadType);
+  explicit ThreadCreationParams(ThreadType);
 
   ThreadCreationParams& SetThreadNameForTest(const char* name);
 
@@ -60,10 +61,16 @@ struct PLATFORM_EXPORT ThreadCreationParams {
   // of this thread.
   ThreadCreationParams& SetFrameOrWorkerScheduler(FrameOrWorkerScheduler*);
 
-  WebThreadType thread_type;
+  ThreadCreationParams& SetSupportsGC(bool supports_gc);
+
+  ThreadType thread_type;
   const char* name;
   FrameOrWorkerScheduler* frame_or_worker_scheduler;  // NOT OWNED
+
+  // Do NOT set the thread priority for non-WebAudio usages. Please consult
+  // scheduler-dev@ first in order to use an elevated thread priority.
   base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
+
   bool supports_gc = false;
 };
 
@@ -82,15 +89,11 @@ class PLATFORM_EXPORT Thread {
   using IdleTask = base::OnceCallback<void(base::TimeTicks deadline)>;
 
   // TaskObserver is an observer fired before and after a task is executed.
-  using TaskObserver = base::MessageLoop::TaskObserver;
+  using TaskObserver = base::TaskObserver;
 
   // Creates a new thread. This may be called from a non-main thread (e.g.
   // nested Web workers).
   static std::unique_ptr<Thread> CreateThread(const ThreadCreationParams&);
-
-  // Creates a WebAudio-specific thread with the elevated priority. Do NOT use
-  // for any other purpose.
-  static std::unique_ptr<Thread> CreateWebAudioThread();
 
   // Create and save (as a global variable) the compositor thread. The thread
   // will be accessible through CompositorThread().
@@ -144,6 +147,12 @@ class PLATFORM_EXPORT Thread {
 
   // Returns the scheduler associated with the thread.
   virtual ThreadScheduler* Scheduler() = 0;
+
+  // See WorkerThread::ShutdownOnThread().
+  virtual void ShutdownOnThread() {}
+
+ protected:
+  static void UpdateThreadTLS(Thread* thread);
 
  private:
   // For Platform and ScopedMainThreadOverrider. Return the thread object

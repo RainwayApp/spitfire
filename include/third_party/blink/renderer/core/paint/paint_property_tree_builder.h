@@ -12,13 +12,13 @@
 #include "third_party/blink/renderer/platform/graphics/paint/effect_paint_property_node.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scroll_paint_property_node.h"
 #include "third_party/blink/renderer/platform/graphics/paint/transform_paint_property_node.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class FragmentData;
 class LayoutObject;
-class LayoutTableSection;
+class LayoutNGTableSectionInterface;
 class LocalFrameView;
 class PaintLayer;
 class VisualViewport;
@@ -109,6 +109,7 @@ struct PaintPropertyTreeBuilderFragmentContext {
   // offset to paint at the desired place.
   PhysicalOffset repeating_paint_offset_adjustment;
 
+  FloatSize paint_offset_delta;
   PhysicalOffset old_paint_offset;
 };
 
@@ -137,7 +138,7 @@ struct PaintPropertyTreeBuilderContext {
   // In a fragmented context, repeating table headers and footers and their
   // descendants in paint order repeatedly paint in all fragments after the
   // fragment where the object first appears.
-  const LayoutTableSection* repeating_table_section = nullptr;
+  const LayoutNGTableSectionInterface* repeating_table_section = nullptr;
 
   // Specifies the reason the subtree update was forced. For simplicity, this
   // only categorizes it into two categories:

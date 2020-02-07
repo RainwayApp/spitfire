@@ -32,17 +32,22 @@
 #include <memory>
 
 #include "base/macros.h"
-#include "mojo/public/cpp/bindings/strong_binding_set.h"
-#include "third_party/blink/public/common/frame/occlusion_state.h"
-#include "third_party/blink/public/mojom/ad_tagging/ad_frame.mojom-blink.h"
-#include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink.h"
-#include "third_party/blink/public/mojom/loader/pause_subresource_loading_handle.mojom-blink.h"
-#include "third_party/blink/public/mojom/loader/previews_resource_loading_hints.mojom-blink.h"
+#include "base/time/default_tick_clock.h"
+#include "base/unguessable_token.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/unique_receiver_set.h"
+#include "third_party/blink/public/mojom/ad_tagging/ad_frame.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
+#include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/loader/pause_subresource_loading_handle.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/reporting/reporting.mojom-blink.h"
-#include "third_party/blink/public/mojom/web_feature/web_feature.mojom-blink.h"
+#include "third_party/blink/public/mojom/web_feature/web_feature.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/task_type.h"
+#include "third_party/blink/public/platform/viewport_intersection_state.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
 #include "third_party/blink/renderer/core/dom/weak_identifier_map.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/frame/frame.h"
@@ -51,7 +56,7 @@
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/instance_counters.h"
+#include "third_party/blink/renderer/platform/instrumentation/instance_counters.h"
 #include "third_party/blink/renderer/platform/loader/fetch/client_hints_preferences.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
@@ -68,6 +73,7 @@ namespace blink {
 
 class AdTracker;
 class AssociatedInterfaceProvider;
+class BrowserInterfaceBrokerProxy;
 class Color;
 class ContentCaptureManager;
 class Document;
@@ -95,34 +101,33 @@ class Node;
 class NodeTraversal;
 class PerformanceMonitor;
 class PluginData;
-class ResourceRequest;
 class ScriptController;
-class SharedBuffer;
 class SmoothScrollSequencer;
 class SpellChecker;
 class TextSuggestionController;
 class WebContentSettingsClient;
 class WebPluginContainerImpl;
+class WebPrescientNetworking;
 class WebURLLoaderFactory;
-
-namespace mojom {
-namespace blink {
-class DocumentInterfaceBroker;
-}  // namespace blink
-}  // namespace mojom
 
 extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<LocalFrame>;
 
 class CORE_EXPORT LocalFrame final : public Frame,
                                      public FrameScheduler::Delegate,
-                                     public Supplementable<LocalFrame> {
+                                     public Supplementable<LocalFrame>,
+                                     public mojom::blink::LocalFrame {
   USING_GARBAGE_COLLECTED_MIXIN(LocalFrame);
 
  public:
-  LocalFrame(LocalFrameClient*,
-             Page&,
-             FrameOwner*,
-             InterfaceRegistry* = nullptr);
+  // For a description of |inheriting_agent_factory| go see the comment on the
+  // Frame constructor.
+  LocalFrame(
+      LocalFrameClient*,
+      Page&,
+      FrameOwner*,
+      WindowAgentFactory* inheriting_agent_factory,
+      InterfaceRegistry*,
+      const base::TickClock* clock = base::DefaultTickClock::GetInstance());
 
   void Init();
   void SetView(LocalFrameView*);
@@ -136,11 +141,11 @@ class CORE_EXPORT LocalFrame final : public Frame,
   SecurityContext* GetSecurityContext() const override;
   void PrintNavigationErrorMessage(const Frame&, const char* reason);
   void PrintNavigationWarning(const String&);
-  bool PrepareForCommit() override;
+  bool DetachDocument() override;
   void CheckCompleted() override;
   void DidChangeVisibilityState() override;
-  void DidFreeze() override;
-  void DidResume() override;
+  void HookBackForwardCacheEviction() override;
+  void RemoveBackForwardCacheEviction() override;
   // This sets the is_inert_ flag and also recurses through this frame's
   // subtree, updating the inert bit on all descendant frames.
   void SetIsInert(bool) override;
@@ -148,6 +153,9 @@ class CORE_EXPORT LocalFrame final : public Frame,
   bool BubbleLogicalScrollFromChildFrame(ScrollDirection direction,
                                          ScrollGranularity granularity,
                                          Frame* child) override;
+  void DidFocus() override;
+
+  void DidChangeThemeColor();
 
   void DetachChildren();
   // After Document is attached, resets state related to document, and sets
@@ -193,35 +201,23 @@ class CORE_EXPORT LocalFrame final : public Frame,
   // Returns ContentCaptureManager in LocalFrameRoot.
   ContentCaptureManager* GetContentCaptureManager();
 
-  // Activates the user activation states of the |LocalFrame| (provided it's
-  // non-null) and all its ancestors.  Also creates a |UserGestureIndicator|
-  // that contains a |UserGestureToken| with the given status.
-  static std::unique_ptr<UserGestureIndicator> NotifyUserActivation(
-      LocalFrame*,
-      UserGestureToken::Status = UserGestureToken::kPossiblyExistingGesture);
+  // Returns the current state of caret browsing mode.
+  bool IsCaretBrowsingEnabled() const;
 
-  // Similar to above, but used only in old UAv1-specific code.
-  static std::unique_ptr<UserGestureIndicator> NotifyUserActivation(
-      LocalFrame*,
-      UserGestureToken*);
+  // Activates the user activation states of the |LocalFrame| (provided it's
+  // non-null) and all its ancestors.
+  static void NotifyUserActivation(LocalFrame*,
+                                   bool need_browser_verification = false);
 
   // Returns the transient user activation state of the |LocalFrame|, provided
   // it is non-null.  Otherwise returns |false|.
-  //
-  // The |check_if_main_thread| parameter determines if the token based gestures
-  // (legacy UAv1 code) must be used in a thread-safe manner.
-  static bool HasTransientUserActivation(LocalFrame*,
-                                         bool check_if_main_thread = false);
+  static bool HasTransientUserActivation(LocalFrame*);
 
   // Consumes the transient user activation state of the |LocalFrame|, provided
   // the frame pointer is non-null and the state hasn't been consumed since
   // activation.  Returns |true| if successfully consumed the state.
-  //
-  // The |check_if_main_thread| parameter determines if the token based gestures
-  // (legacy code) must be used in a thread-safe manner.
   static bool ConsumeTransientUserActivation(
       LocalFrame*,
-      bool check_if_main_thread = false,
       UserActivationUpdateSource update_source =
           UserActivationUpdateSource::kRenderer);
 
@@ -262,12 +258,13 @@ class CORE_EXPORT LocalFrame final : public Frame,
   String SelectedTextForClipboard() const;
 
   PositionWithAffinityTemplate<EditingAlgorithm<NodeTraversal>>
-  PositionForPoint(const LayoutPoint& frame_point);
-  Document* DocumentAtPoint(const LayoutPoint&);
+  PositionForPoint(const PhysicalOffset& frame_point);
+  Document* DocumentAtPoint(const PhysicalOffset&);
 
   void RemoveSpellingMarkersUnderWords(const Vector<String>& words);
 
   bool ShouldThrottleRendering() const;
+  void DispatchBeforeUnloadEventForFreeze();
 
   // Returns frame scheduler for this frame.
   // FrameScheduler is destroyed during frame detach and nullptr will be
@@ -284,10 +281,9 @@ class CORE_EXPORT LocalFrame final : public Frame,
   bool CanNavigate(const Frame&, const KURL& destination_url = KURL());
 
   service_manager::InterfaceProvider& GetInterfaceProvider();
-  void BindDocumentInterfaceBroker(mojo::ScopedMessagePipeHandle js_handle);
-  mojom::blink::DocumentInterfaceBroker& GetDocumentInterfaceBroker();
-  mojo::ScopedMessagePipeHandle SetDocumentInterfaceBrokerForTesting(
-      mojo::ScopedMessagePipeHandle blink_handle);
+
+  BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker();
+
   InterfaceRegistry* GetInterfaceRegistry() { return interface_registry_; }
 
   // Returns an AssociatedInterfaceProvider the frame can use to request
@@ -300,7 +296,7 @@ class CORE_EXPORT LocalFrame final : public Frame,
   //
   // Navigation-associated interfaces are currently implemented as
   // channel-associated interfaces. See
-  // https://chromium.googlesource.com/chromium/src/+/master/ipc#Using-Channel_associated-Interfaces.
+  // https://chromium.googlesource.com/chromium/src/+/master/docs/mojo_ipc_conversion.md#Channel_Associated-Interfaces
   AssociatedInterfaceProvider* GetRemoteNavigationAssociatedInterfaces();
 
   LocalFrameClient* Client() const;
@@ -314,12 +310,17 @@ class CORE_EXPORT LocalFrame final : public Frame,
   AdTracker* GetAdTracker() { return ad_tracker_; }
   void SetAdTrackerForTesting(AdTracker* ad_tracker);
 
-  // Returns true if Client Lo-Fi should be used for this request.
-  bool IsClientLoFiAllowed(const ResourceRequest&) const;
+  enum class LazyLoadImageSetting {
+    kDisabled,
+    kEnabledExplicit,
+    kEnabledAutomatic
+  };
+  // Returns the enabled state of lazyloading of images.
+  LazyLoadImageSetting GetLazyLoadImageSetting() const;
 
-  // Returns true if lazyloading the image is possible.
-  bool IsExplicitLazyLoadingImageAllowed() const;
-  bool IsAutomaticLazyLoadingImageAllowed() const;
+  // Returns true if parser-blocking script should be force-deferred to execute
+  // after parsing completes for this frame.
+  bool ShouldForceDeferScript() const;
 
   // The returned value is a off-heap raw-ptr and should not be stored.
   WebURLLoaderFactory* GetURLLoaderFactory();
@@ -337,11 +338,17 @@ class CORE_EXPORT LocalFrame final : public Frame,
   // Called on a view for a LocalFrame with a RemoteFrame parent. This makes
   // viewport intersection and occlusion/obscuration available that accounts for
   // remote ancestor frames and their respective scroll positions, clips, etc.
-  void SetViewportIntersectionFromParent(const IntRect&, FrameOcclusionState);
+  void SetViewportIntersectionFromParent(const ViewportIntersectionState&);
+
+  // See viewport_intersection_state.h for more info on these methods.
+  IntPoint RemoteViewportOffset() const {
+    return intersection_state_.viewport_offset;
+  }
   IntRect RemoteViewportIntersection() const {
-    return remote_viewport_intersection_;
+    return intersection_state_.viewport_intersection;
   }
   FrameOcclusionState GetOcclusionState() const;
+  bool NeedsOcclusionTracking() const;
 
   // Replaces the initial empty document with a Document suitable for
   // |mime_type| and populated with the contents of |data|. Only intended for
@@ -360,10 +367,6 @@ class CORE_EXPORT LocalFrame final : public Frame,
   // be removed.
   bool IsProvisional() const;
 
-  // Returns whether the frame is trying to save network data by showing a
-  // preview.
-  bool IsUsingDataSavingPreview() const;
-
   // True if AdTracker heuristics have determined that this frame is an ad.
   // Calculated in the constructor but LocalFrames created on behalf of OOPIF
   // aren't set until just before commit (ReadyToCommitNavigation time) by the
@@ -375,10 +378,11 @@ class CORE_EXPORT LocalFrame final : public Frame,
   // Updates the frame color overlay to match the highlight ad setting.
   void UpdateAdHighlight();
 
-  // Binds |request| and prevents resource loading until either the frame is
-  // navigated or the request pipe is closed.
+  // Binds |receiver| and prevents resource loading until either the frame is
+  // navigated or the receiver pipe is closed.
   void PauseSubresourceLoading(
-      blink::mojom::blink::PauseSubresourceLoadingHandleRequest request);
+      mojo::PendingReceiver<blink::mojom::blink::PauseSubresourceLoadingHandle>
+          receiver);
 
   void ResumeSubresourceLoading();
 
@@ -388,12 +392,13 @@ class CORE_EXPORT LocalFrame final : public Frame,
     return client_hints_preferences_;
   }
 
-  void BindPreviewsResourceLoadingHintsRequest(
-      blink::mojom::blink::PreviewsResourceLoadingHintsReceiverRequest request);
-
   SmoothScrollSequencer& GetSmoothScrollSequencer();
 
-  const mojom::blink::ReportingServiceProxyPtr& GetReportingService() const;
+  const mojo::Remote<mojom::blink::ReportingServiceProxy>& GetReportingService()
+      const;
+
+  // Returns the frame host ptr.
+  mojom::blink::LocalFrameHost& GetLocalFrameHostRemote();
 
   // Overlays a color on top of this LocalFrameView if it is associated with
   // the main frame. Should not have multiple consumers.
@@ -415,6 +420,9 @@ class CORE_EXPORT LocalFrame final : public Frame,
   void WasHidden();
   void WasShown();
 
+  // Whether the frame clips its content to the frame's size.
+  bool ClipsContent() const;
+
   // For a navigation initiated from this LocalFrame with user gesture, record
   // the UseCounter AdClickNavigation if this frame is an adframe.
   //
@@ -434,7 +442,30 @@ class CORE_EXPORT LocalFrame final : public Frame,
       mojom::WebFeature blocked_cross_origin,
       mojom::WebFeature blocked_same_origin);
 
-  void FinishedLoading();
+  void FinishedLoading(FrameLoader::NavigationFinishState);
+
+  using IsCapturingMediaCallback = base::RepeatingCallback<bool()>;
+  void SetIsCapturingMediaCallback(IsCapturingMediaCallback callback);
+  bool IsCapturingMedia() const;
+
+  void DidChangeVisibleToHitTesting() override;
+
+  WebPrescientNetworking* PrescientNetworking();
+  void SetPrescientNetworkingForTesting(
+      std::unique_ptr<WebPrescientNetworking> prescient_networking);
+
+  // blink::mojom::LocalFrame overrides:
+  void GetTextSurroundingSelection(
+      uint32_t max_length,
+      GetTextSurroundingSelectionCallback callback) final;
+  void SendInterventionReport(const String& id, const String& message) final;
+  void NotifyUserActivation() final;
+  void AddMessageToConsole(mojom::blink::ConsoleMessageLevel level,
+                           const WTF::String& message,
+                           bool discard_duplicates) final;
+  void Collapse(bool collapsed) final;
+  void EnableViewSourceMode() final;
+  void Focus() final;
 
  private:
   friend class FrameNavigationDisabler;
@@ -468,9 +499,10 @@ class CORE_EXPORT LocalFrame final : public Frame,
   ukm::SourceId GetUkmSourceId() override;
   void UpdateTaskTime(base::TimeDelta time) override;
   void UpdateActiveSchedulerTrackedFeatures(uint64_t features_mask) override;
+  const base::UnguessableToken& GetAgentClusterId() const override;
 
   // Activates the user activation states of this frame and all its ancestors.
-  void NotifyUserActivation();
+  void NotifyUserActivation(bool need_browser_verification);
 
   // Returns the transient user activation state of this frame
   bool HasTransientUserActivation();
@@ -481,15 +513,23 @@ class CORE_EXPORT LocalFrame final : public Frame,
 
   void SetFrameColorOverlay(SkColor color);
 
+  void DidFreeze();
+  void DidResume();
   void PauseContext();
   void UnpauseContext();
+
+  void EvictFromBackForwardCache();
+
+  static void BindToReceiver(
+      blink::LocalFrame* frame,
+      mojo::PendingAssociatedReceiver<mojom::blink::LocalFrame> receiver);
 
   std::unique_ptr<FrameScheduler> frame_scheduler_;
 
   // Holds all PauseSubresourceLoadingHandles allowing either |this| to delete
   // them explicitly or the pipe closing to delete them.
-  mojo::StrongBindingSet<blink::mojom::blink::PauseSubresourceLoadingHandle>
-      pause_handle_bindings_;
+  mojo::UniqueReceiverSet<blink::mojom::blink::PauseSubresourceLoadingHandle>
+      pause_handle_receivers_;
 
   mutable FrameLoader loader_;
 
@@ -524,7 +564,7 @@ class CORE_EXPORT LocalFrame final : public Frame,
   // for advertising purposes. It's per-frame (as opposed to per-document)
   // because when an iframe is created on behalf of ad script that same frame is
   // not typically reused for non-ad purposes.
-  blink::mojom::AdFrameType ad_frame_type_ = blink::mojom::AdFrameType::kNonAd;
+  mojom::AdFrameType ad_frame_type_;
 
   Member<CoreProbeSink> probe_sink_;
   scoped_refptr<InspectorTaskRunner> inspector_task_runner_;
@@ -540,16 +580,12 @@ class CORE_EXPORT LocalFrame final : public Frame,
   InterfaceRegistry* const interface_registry_;
   // This is declared mutable so that the service endpoint can be cached by
   // const methods.
-  mutable mojom::blink::ReportingServiceProxyPtr reporting_service_;
+  mutable mojo::Remote<mojom::blink::ReportingServiceProxy> reporting_service_;
 
-  IntRect remote_viewport_intersection_;
-  FrameOcclusionState occlusion_state_ = FrameOcclusionState::kUnknown;
+  ViewportIntersectionState intersection_state_;
 
   // Per-frame URLLoader factory.
   std::unique_ptr<WebURLLoaderFactory> url_loader_factory_;
-
-  std::unique_ptr<mojom::blink::PreviewsResourceLoadingHintsReceiver>
-      previews_resource_loading_hints_receiver_;
 
   ClientHintsPreferences client_hints_preferences_;
 
@@ -563,11 +599,17 @@ class CORE_EXPORT LocalFrame final : public Frame,
   // field would be no longer necessary.
   const bool is_save_data_enabled_;
 
+  IsCapturingMediaCallback is_capturing_media_callback_;
+
   std::unique_ptr<FrameOverlay> frame_color_overlay_;
 
-  mojom::FrameLifecycleState lifecycle_state_ =
-      mojom::FrameLifecycleState::kRunning;
+  mojom::FrameLifecycleState lifecycle_state_;
   base::Optional<mojom::FrameLifecycleState> pending_lifecycle_state_;
+
+  std::unique_ptr<WebPrescientNetworking> prescient_networking_;
+
+  mojo::AssociatedRemote<mojom::blink::LocalFrameHost> local_frame_host_remote_;
+  mojo::AssociatedReceiver<mojom::blink::LocalFrame> receiver_{this};
 };
 
 inline FrameLoader& LocalFrame::Loader() const {

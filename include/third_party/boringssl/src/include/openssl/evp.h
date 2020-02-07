@@ -176,6 +176,7 @@ OPENSSL_EXPORT EC_KEY *EVP_PKEY_get1_EC_KEY(const EVP_PKEY *pkey);
 #define EVP_PKEY_DSA NID_dsa
 #define EVP_PKEY_EC NID_X9_62_id_ecPublicKey
 #define EVP_PKEY_ED25519 NID_ED25519
+#define EVP_PKEY_X25519 NID_X25519
 
 // EVP_PKEY_assign sets the underlying key of |pkey| to |key|, which must be of
 // the given type. It returns one if successful or zero if the |type| argument
@@ -906,6 +907,38 @@ OPENSSL_EXPORT DH *EVP_PKEY_get1_DH(const EVP_PKEY *pkey);
 OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_param_enc(EVP_PKEY_CTX *ctx,
                                                  int encoding);
 
+// EVP_PKEY_set1_tls_encodedpoint replaces |pkey| with a public key encoded by
+// |in|. It returns one on success and zero on error.
+//
+// This function only works on X25519 keys.
+OPENSSL_EXPORT int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *pkey,
+                                                  const uint8_t *in,
+                                                  size_t len);
+
+// EVP_PKEY_get1_tls_encodedpoint sets |*out_ptr| to a newly-allocated buffer
+// containing the raw encoded public key for |pkey|. The caller must call
+// |OPENSSL_free| to release this buffer. The function returns the length of the
+// buffer on success and zero on error.
+//
+// This function only works on X25519 keys.
+OPENSSL_EXPORT size_t EVP_PKEY_get1_tls_encodedpoint(const EVP_PKEY *pkey,
+                                                     uint8_t **out_ptr);
+
+// EVP_PKEY_base_id calls |EVP_PKEY_id|.
+OPENSSL_EXPORT int EVP_PKEY_base_id(const EVP_PKEY *pkey);
+
+// EVP_PKEY_CTX_set_rsa_pss_keygen_md returns 0.
+OPENSSL_EXPORT int EVP_PKEY_CTX_set_rsa_pss_keygen_md(EVP_PKEY_CTX *ctx,
+                                                      const EVP_MD *md);
+
+// EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen returns 0.
+OPENSSL_EXPORT int EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(EVP_PKEY_CTX *ctx,
+                                                           int salt_len);
+
+// EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md returns 0.
+OPENSSL_EXPORT int EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(EVP_PKEY_CTX *ctx,
+                                                           const EVP_MD *md);
+
 
 // Preprocessor compatibility section (hidden).
 //
@@ -919,6 +952,15 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_param_enc(EVP_PKEY_CTX *ctx,
 #define EVP_PKEY_CTX_set_rsa_oaep_md EVP_PKEY_CTX_set_rsa_oaep_md
 #define EVP_PKEY_CTX_set0_rsa_oaep_label EVP_PKEY_CTX_set0_rsa_oaep_label
 #endif
+
+
+// Nodejs compatibility section (hidden).
+//
+// These defines exist for node.js, with the hope that we can eliminate the
+// need for them over time.
+
+#define EVPerr(function, reason) \
+  ERR_put_error(ERR_LIB_EVP, 0, reason, __FILE__, __LINE__)
 
 
 // Private structures.
@@ -994,5 +1036,7 @@ BSSL_NAMESPACE_END
 #define EVP_R_INVALID_SIGNATURE 131
 #define EVP_R_MEMORY_LIMIT_EXCEEDED 132
 #define EVP_R_INVALID_PARAMETERS 133
+#define EVP_R_INVALID_PEER_KEY 134
+#define EVP_R_NOT_XOF_OR_INVALID_LENGTH 135
 
 #endif  // OPENSSL_HEADER_EVP_H

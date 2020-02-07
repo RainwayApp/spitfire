@@ -10,7 +10,7 @@
 #include "third_party/blink/renderer/platform/heap/finalizer_traits.h"
 #include "third_party/blink/renderer/platform/heap/name_traits.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/hash_counted_set.h"
@@ -25,7 +25,7 @@
 namespace blink {
 
 // GCInfo contains metadata for objects that are instantiated from classes that
-// inherit for GarbageCollected or GarbageCollectedFinalized.
+// inherit from GarbageCollected.
 struct GCInfo {
   const TraceCallback trace;
   const FinalizationCallback finalize;
@@ -93,11 +93,9 @@ class PLATFORM_EXPORT GCInfoTable {
   Mutex table_mutex_;
 };
 
-// GCInfoAtBaseType should be used when returning a unique 14 bit integer
-// for a given gcInfo.
 template <typename T>
-struct GCInfoAtBaseType {
-  STATIC_ONLY(GCInfoAtBaseType);
+struct GCInfoTrait {
+  STATIC_ONLY(GCInfoTrait);
   static uint32_t Index() {
     static_assert(sizeof(T), "T must be fully defined");
     static const GCInfo kGcInfo = {
@@ -114,31 +112,6 @@ struct GCInfoAtBaseType {
     DCHECK_GE(index, 1u);
     DCHECK_LT(index, GCInfoTable::kMaxIndex);
     return index;
-  }
-};
-
-template <typename T,
-          bool = WTF::IsSubclassOfTemplate<typename std::remove_const<T>::type,
-                                           GarbageCollected>::value>
-struct GetGarbageCollectedType;
-
-template <typename T>
-struct GetGarbageCollectedType<T, true> {
-  STATIC_ONLY(GetGarbageCollectedType);
-  using type = typename T::GarbageCollectedType;
-};
-
-template <typename T>
-struct GetGarbageCollectedType<T, false> {
-  STATIC_ONLY(GetGarbageCollectedType);
-  using type = T;
-};
-
-template <typename T>
-struct GCInfoTrait {
-  STATIC_ONLY(GCInfoTrait);
-  static uint32_t Index() {
-    return GCInfoAtBaseType<typename GetGarbageCollectedType<T>::type>::Index();
   }
 };
 

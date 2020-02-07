@@ -13,9 +13,10 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
 #include "media/base/media_engine.h"
 #include "modules/audio_device/include/test_audio_device.h"
@@ -36,6 +37,20 @@ class TestPeer final : public PeerConnectionWrapper {
   using PeerConnectionWrapper::PeerConnectionWrapper;
   using VideoConfig = PeerConnectionE2EQualityTestFixture::VideoConfig;
   using AudioConfig = PeerConnectionE2EQualityTestFixture::AudioConfig;
+  using EchoEmulationConfig =
+      PeerConnectionE2EQualityTestFixture::EchoEmulationConfig;
+
+  struct RemotePeerAudioConfig {
+    RemotePeerAudioConfig(AudioConfig config)
+        : sampling_frequency_in_hz(config.sampling_frequency_in_hz),
+          output_file_name(config.output_dump_file_name) {}
+
+    int sampling_frequency_in_hz;
+    absl::optional<std::string> output_file_name;
+  };
+
+  static absl::optional<RemotePeerAudioConfig> CreateRemoteAudioConfig(
+      absl::optional<AudioConfig> config);
 
   // Setups all components, that should be provided to WebRTC
   // PeerConnectionFactory and PeerConnection creation methods,
@@ -43,37 +58,47 @@ class TestPeer final : public PeerConnectionWrapper {
   // injection.
   //
   // |signaling_thread| will be provided by test fixture implementation.
-  // |params| - describes current peer paramters, like current peer video
+  // |params| - describes current peer parameters, like current peer video
   // streams and audio streams
-  // |audio_outpu_file_name| - the name of output file, where incoming audio
-  // stream should be written. It should be provided from remote peer
-  // |params.audio_config.output_file_name|
   static std::unique_ptr<TestPeer> CreateTestPeer(
       std::unique_ptr<InjectableComponents> components,
       std::unique_ptr<Params> params,
+      std::vector<std::unique_ptr<test::FrameGeneratorInterface>>
+          video_generators,
       std::unique_ptr<MockPeerConnectionObserver> observer,
       VideoQualityAnalyzerInjectionHelper* video_analyzer_helper,
       rtc::Thread* signaling_thread,
-      absl::optional<std::string> audio_output_file_name,
+      absl::optional<RemotePeerAudioConfig> remote_audio_config,
       double bitrate_multiplier,
+      absl::optional<EchoEmulationConfig> echo_emulation_config,
       rtc::TaskQueue* task_queue);
 
   Params* params() const { return params_.get(); }
+  std::unique_ptr<test::FrameGeneratorInterface> ReleaseVideoGenerator(
+      size_t i) {
+    return std::move(video_generators_[i]);
+  }
+
   void DetachAecDump() { audio_processing_->DetachAecDump(); }
 
   // Adds provided |candidates| to the owned peer connection.
   bool AddIceCandidates(
-      rtc::ArrayView<const IceCandidateInterface* const> candidates);
+      std::vector<std::unique_ptr<IceCandidateInterface>> candidates);
 
  private:
   TestPeer(rtc::scoped_refptr<PeerConnectionFactoryInterface> pc_factory,
            rtc::scoped_refptr<PeerConnectionInterface> pc,
            std::unique_ptr<MockPeerConnectionObserver> observer,
            std::unique_ptr<Params> params,
+           std::vector<std::unique_ptr<test::FrameGeneratorInterface>>
+               video_generators,
            rtc::scoped_refptr<AudioProcessing> audio_processing);
 
   std::unique_ptr<Params> params_;
+  std::vector<std::unique_ptr<test::FrameGeneratorInterface>> video_generators_;
   rtc::scoped_refptr<AudioProcessing> audio_processing_;
+
+  std::vector<std::unique_ptr<IceCandidateInterface>> remote_ice_candidates_;
 };
 
 }  // namespace webrtc_pc_e2e

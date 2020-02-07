@@ -78,6 +78,7 @@ struct MediaDescriptionOptions {
   // stream information goes in the local descriptions.
   std::vector<SenderOptions> sender_options;
   std::vector<webrtc::RtpCodecCapability> codec_preferences;
+  absl::optional<std::string> alt_protocol;
 
  private:
   // Doesn't DCHECK on |type|.
@@ -106,6 +107,7 @@ struct MediaSessionOptions {
   bool rtcp_mux_enabled = true;
   bool bundle_enabled = false;
   bool offer_extmap_allow_mixed = false;
+  bool raw_packetization_for_video = false;
   std::string rtcp_cname = kDefaultRtcpCname;
   webrtc::CryptoOptions crypto_options;
   // List of media description options in the same order that the media
@@ -113,11 +115,6 @@ struct MediaSessionOptions {
   std::vector<MediaDescriptionOptions> media_description_options;
   std::vector<IceParameters> pooled_ice_credentials;
 
-  // An optional media transport settings.
-  // In the future we may consider using a vector here, to indicate multiple
-  // supported transports.
-  absl::optional<cricket::SessionDescription::MediaTransportSetting>
-      media_transport_settings;
   // Use the draft-ietf-mmusic-sctp-sdp-03 obsolete syntax for SCTP
   // datachannels.
   // Default is true for backwards compatibility with clients that use
@@ -202,6 +199,7 @@ class MediaSessionDescriptionFactory {
       RtpDataCodecs* rtp_data_codecs) const;
   void GetRtpHdrExtsToOffer(
       const std::vector<const ContentInfo*>& current_active_contents,
+      bool extmap_allow_mixed,
       RtpHeaderExtensions* audio_extensions,
       RtpHeaderExtensions* video_extensions) const;
   bool AddTransportOffer(const std::string& content_name,
@@ -362,9 +360,6 @@ const RtpDataContentDescription* GetFirstRtpDataContentDescription(
     const SessionDescription* sdesc);
 const SctpDataContentDescription* GetFirstSctpDataContentDescription(
     const SessionDescription* sdesc);
-// Returns shim. Deprecated - ask for the right protocol instead.
-RTC_DEPRECATED const DataContentDescription* GetFirstDataContentDescription(
-    const SessionDescription* sdesc);
 // Non-const versions of the above functions.
 // Useful when modifying an existing description.
 ContentInfo* GetFirstMediaContent(ContentInfos* contents, MediaType media_type);
@@ -383,8 +378,6 @@ VideoContentDescription* GetFirstVideoContentDescription(
 RtpDataContentDescription* GetFirstRtpDataContentDescription(
     SessionDescription* sdesc);
 SctpDataContentDescription* GetFirstSctpDataContentDescription(
-    SessionDescription* sdesc);
-RTC_DEPRECATED DataContentDescription* GetFirstDataContentDescription(
     SessionDescription* sdesc);
 
 // Helper functions to return crypto suites used for SDES.

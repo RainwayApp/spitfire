@@ -29,7 +29,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_FRAME_CONSOLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_FRAME_CONSOLE_H_
 
-#include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
+#include "third_party/blink/public/mojom/devtools/console_message.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -48,14 +48,13 @@ class SourceLocation;
 // Page to the ChromeClient and Inspector.  It's meant as an abstraction
 // around ChromeClient calls and the way that Blink core/ can add messages to
 // the console.
-class CORE_EXPORT FrameConsole final
-    : public GarbageCollectedFinalized<FrameConsole> {
+class CORE_EXPORT FrameConsole final : public GarbageCollected<FrameConsole> {
  public:
   explicit FrameConsole(LocalFrame&);
 
-  void AddMessage(ConsoleMessage*);
+  void AddMessage(ConsoleMessage*, bool discard_duplicates = false);
 
-  bool AddMessageToStorage(ConsoleMessage*);
+  bool AddMessageToStorage(ConsoleMessage*, bool discard_duplicates = false);
   void ReportMessageToClient(mojom::ConsoleMessageSource,
                              mojom::ConsoleMessageLevel,
                              const String& message,

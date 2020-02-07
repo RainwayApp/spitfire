@@ -9,6 +9,8 @@
 
 #define ARCH_ARM 0
 
+#define ARCH_PPC64LE 0
+
 #define ARCH_X86 0
 
 #define ARCH_X86_32 0
@@ -26,6 +28,8 @@
 #define HAVE_ASM 1
 
 #define HAVE_AS_FUNC 0
+
+#define HAVE_CLOCK_GETTIME 1
 
 #define HAVE_GETAUXVAL 1
 

@@ -89,6 +89,7 @@ class BASE_EXPORT TaskQueueImpl {
   };
 
   using OnNextWakeUpChangedCallback = RepeatingCallback<void(TimeTicks)>;
+  using OnTaskReadyHandler = RepeatingCallback<void(const Task&, LazyNow*)>;
   using OnTaskStartedHandler =
       RepeatingCallback<void(const Task&, const TaskQueue::TaskTiming&)>;
   using OnTaskCompletedHandler =
@@ -102,6 +103,7 @@ class BASE_EXPORT TaskQueueImpl {
   const char* GetName() const;
   bool IsQueueEnabled() const;
   void SetQueueEnabled(bool enabled);
+  void SetShouldReportPostedTasksWhenDisabled(bool should_report);
   bool IsEmpty() const;
   size_t GetNumberOfPendingTasks() const;
   bool HasTaskToRunImmediately() const;
@@ -119,9 +121,10 @@ class BASE_EXPORT TaskQueueImpl {
   void RemoveFence();
   bool HasActiveFence();
   bool BlockedByFence() const;
+  EnqueueOrder GetEnqueueOrderAtWhichWeBecameUnblocked() const;
 
   // Implementation of TaskQueue::SetObserver.
-  void SetOnNextWakeUpChangedCallback(OnNextWakeUpChangedCallback callback);
+  void SetObserver(TaskQueue::Observer* observer);
 
   void UnregisterTaskQueue();
 
@@ -129,6 +132,11 @@ class BASE_EXPORT TaskQueueImpl {
   // |enqueue_order| could run on the queue. Must be called from the main
   // thread.
   bool CouldTaskRun(EnqueueOrder enqueue_order) const;
+
+  // Returns true if a task with |enqueue_order| obtained from this queue was
+  // ever in the queue while it was disabled, blocked by a fence, or less
+  // important than kNormalPriority.
+  bool WasBlockedOrLowPriority(EnqueueOrder enqueue_order) const;
 
   // Must only be called from the thread this task queue was created on.
   void ReloadEmptyImmediateWorkQueue();
@@ -140,8 +148,9 @@ class BASE_EXPORT TaskQueueImpl {
   bool GetQuiescenceMonitored() const { return should_monitor_quiescence_; }
   bool GetShouldNotifyObservers() const { return should_notify_observers_; }
 
-  void NotifyWillProcessTask(const PendingTask& pending_task);
-  void NotifyDidProcessTask(const PendingTask& pending_task);
+  void NotifyWillProcessTask(const Task& task,
+                             bool was_blocked_or_low_priority);
+  void NotifyDidProcessTask(const Task& task);
 
   // Check for available tasks in immediate work queues.
   // Used to check if we need to generate notifications about delayed work.
@@ -192,6 +201,11 @@ class BASE_EXPORT TaskQueueImpl {
   // Iterates over |delayed_incoming_queue| removing canceled tasks. In
   // addition MaybeShrinkQueue is called on all internal queues.
   void ReclaimMemory(TimeTicks now);
+
+  // Registers a handler to invoke when a task posted to this TaskQueueImpl is
+  // ready. For a non-delayed task, this is when the task is posted. For a
+  // delayed task, this is when the delay expires.
+  void SetOnTaskReadyHandler(OnTaskReadyHandler handler);
 
   // Allows wrapping TaskQueue to set a handler to subscribe for notifications
   // about started and completed tasks.
@@ -333,25 +347,54 @@ class BASE_EXPORT TaskQueueImpl {
     // See description inside struct AnyThread for details.
     TimeDomain* time_domain;
 
-    // Callback corresponding to TaskQueue::Observer::OnQueueNextChanged.
-    OnNextWakeUpChangedCallback on_next_wake_up_changed_callback;
+    TaskQueue::Observer* task_queue_observer = nullptr;
 
     std::unique_ptr<WorkQueue> delayed_work_queue;
     std::unique_ptr<WorkQueue> immediate_work_queue;
     DelayedIncomingQueue delayed_incoming_queue;
     ObserverList<TaskObserver>::Unchecked task_observers;
     base::internal::HeapHandle heap_handle;
-    bool is_enabled;
-    trace_event::BlameContext* blame_context;  // Not owned.
+    bool is_enabled = true;
+    trace_event::BlameContext* blame_context = nullptr;  // Not owned.
     EnqueueOrder current_fence;
     Optional<TimeTicks> delayed_fence;
+    // Snapshots the next sequence number when the queue is unblocked, otherwise
+    // it contains EnqueueOrder::none(). If the EnqueueOrder of a task just
+    // popped from this queue is greater than this, it means that the queue was
+    // never disabled or blocked by a fence while the task was queued.
+    EnqueueOrder enqueue_order_at_which_we_became_unblocked;
+    // If the EnqueueOrder of a task just popped from this queue is greater than
+    // this, it means that the queue was never disabled, blocked by a fence or
+    // less important than kNormalPriority while the task was queued.
+    //
+    // Implementation details:
+    // 1) When the queue is made less important than kNormalPriority, this is
+    //    set to EnqueueOrder::max(). The EnqueueOrder of any task will compare
+    //    less than this.
+    // 2) When the queue is made at least as important as kNormalPriority, this
+    //    snapshots the next sequence number. If the queue is blocked, the value
+    //    is irrelevant because no task should be popped. If the queue is not
+    //    blocked, the EnqueueOrder of any already queued task will compare less
+    //    than this.
+    // 3) When the queue is unblocked while at least as important as
+    //    kNormalPriority, this snapshots the next sequence number. The
+    //    EnqueueOrder of any already queued task will compare less than this.
+    EnqueueOrder
+        enqueue_order_at_which_we_became_unblocked_with_normal_priority;
+    OnTaskReadyHandler on_task_ready_handler;
     OnTaskStartedHandler on_task_started_handler;
     OnTaskCompletedHandler on_task_completed_handler;
     // Last reported wake up, used only in UpdateWakeUp to avoid
     // excessive calls.
     Optional<DelayedWakeUp> scheduled_wake_up;
     // If false, queue will be disabled. Used only for tests.
-    bool is_enabled_for_test;
+    bool is_enabled_for_test = true;
+    // The time at which the task queue was disabled, if it is currently
+    // disabled.
+    Optional<TimeTicks> disabled_time;
+    // Whether or not the task queue should emit tracing events for tasks
+    // posted to this queue when it is disabled.
+    bool should_report_posted_tasks_when_disabled = false;
   };
 
   void PostTask(PostedTask task);
@@ -395,8 +438,6 @@ class BASE_EXPORT TaskQueueImpl {
                               TimeTicks now,
                               trace_event::TracedValue* state);
 
-  void EnableOrDisableWithSelector(bool enable);
-
   // Schedules delayed work on time domain and calls the observer.
   void UpdateDelayedWakeUp(LazyNow* lazy_now);
   void UpdateDelayedWakeUpImpl(LazyNow* lazy_now,
@@ -412,6 +453,26 @@ class BASE_EXPORT TaskQueueImpl {
   void MaybeLogPostTask(PostedTask* task);
   void MaybeAdjustTaskDelay(PostedTask* task, CurrentThread current_thread);
 
+  // Reports the task if it was due to IPC and was posted to a disabled queue.
+  // This should be called after WillQueueTask has been called for the task.
+  void MaybeReportIpcTaskQueuedFromMainThread(Task* pending_task,
+                                              const char* task_queue_name);
+  bool ShouldReportIpcTaskQueuedFromAnyThreadLocked(
+      base::TimeDelta* time_since_disabled)
+      EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_);
+  void MaybeReportIpcTaskQueuedFromAnyThreadLocked(Task* pending_task,
+                                                   const char* task_queue_name)
+      EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_);
+  void MaybeReportIpcTaskQueuedFromAnyThreadUnlocked(
+      Task* pending_task,
+      const char* task_queue_name);
+  void ReportIpcTaskQueued(Task* pending_task,
+                           const char* task_queue_name,
+                           const base::TimeDelta& time_since_disabled);
+
+  // Invoked when the queue becomes enabled and not blocked by a fence.
+  void OnQueueUnblocked();
+
   const char* name_;
   SequenceManagerImpl* const sequence_manager_;
 
@@ -422,6 +483,16 @@ class BASE_EXPORT TaskQueueImpl {
   mutable base::internal::CheckedLock any_thread_lock_;
 
   struct AnyThread {
+    // Mirrored from MainThreadOnly. These are only used for tracing.
+    struct TracingOnly {
+      TracingOnly();
+      ~TracingOnly();
+
+      bool is_enabled = true;
+      Optional<TimeTicks> disabled_time;
+      bool should_report_posted_tasks_when_disabled = false;
+    };
+
     explicit AnyThread(TimeDomain* time_domain);
     ~AnyThread();
 
@@ -429,6 +500,8 @@ class BASE_EXPORT TaskQueueImpl {
     // MainThreadOnly. It can be changed only from main thread, so it should be
     // locked before accessing from other threads.
     TimeDomain* time_domain;
+
+    TaskQueue::Observer* task_queue_observer = nullptr;
 
     TaskDeque immediate_incoming_queue;
 
@@ -439,13 +512,17 @@ class BASE_EXPORT TaskQueueImpl {
 
     bool unregistered = false;
 
+    OnTaskReadyHandler on_task_ready_handler;
+
 #if DCHECK_IS_ON()
-    // A cached of |immediate_work_queue->work_queue_set_index()| which is used
+    // A cache of |immediate_work_queue->work_queue_set_index()| which is used
     // to index into
     // SequenceManager::Settings::per_priority_cross_thread_task_delay to apply
     // a priority specific delay for debugging purposes.
     int queue_set_index = 0;
 #endif
+
+    TracingOnly tracing_only;
   };
 
   AnyThread any_thread_ GUARDED_BY(any_thread_lock_);

@@ -28,8 +28,8 @@
 #include <memory>
 
 #include "base/gtest_prod_util.h"
-#include "base/sequence_checker.h"
 #include "base/single_thread_task_runner.h"
+#include "base/threading/thread_checker.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/typed_arrays/array_buffer_view_helpers.h"
@@ -66,8 +66,8 @@ class MODULES_EXPORT RTCDataChannel final
   bool reliable() const;
 
   bool ordered() const;
-  uint16_t maxRetransmitTime() const;
-  uint16_t maxRetransmits() const;
+  uint16_t maxPacketLifeTime(bool&) const;
+  uint16_t maxRetransmits(bool&) const;
   String protocol() const;
   bool negotiated() const;
   uint16_t id(bool& is_null) const;
@@ -175,7 +175,7 @@ class MODULES_EXPORT RTCDataChannel final
   unsigned buffered_amount_;
   bool stopped_;
   scoped_refptr<Observer> observer_;
-  SEQUENCE_CHECKER(sequence_checker_);
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace blink

@@ -33,7 +33,7 @@
 
 #include "third_party/blink/renderer/core/html/forms/date_time_edit_element.h"
 #include "third_party/blink/renderer/core/html/forms/input_type.h"
-#include "third_party/blink/renderer/platform/date_components.h"
+#include "third_party/blink/renderer/platform/text/date_components.h"
 
 namespace blink {
 
@@ -85,7 +85,8 @@ class BaseTemporalInputType : public InputType {
   InputTypeView* CreateView() override;
   ValueMode GetValueMode() const override;
   double ValueAsDate() const override;
-  void SetValueAsDate(double, ExceptionState&) const override;
+  void SetValueAsDate(const base::Optional<base::Time>&,
+                      ExceptionState&) const override;
   double ValueAsDouble() const override;
   void SetValueAsDouble(double,
                         TextFieldEventBehavior,
@@ -97,7 +98,7 @@ class BaseTemporalInputType : public InputType {
   String RangeUnderflowText(const Decimal& minimum) const override;
   Decimal DefaultValueForStepUp() const override;
   bool IsSteppable() const override;
-  virtual String SerializeWithMilliseconds(double) const;
+  virtual String SerializeWithDate(const base::Optional<base::Time>&) const;
   String LocalizeValue(const String&) const override;
   bool SupportsReadOnly() const override;
   bool ShouldRespectListAttribute() override;

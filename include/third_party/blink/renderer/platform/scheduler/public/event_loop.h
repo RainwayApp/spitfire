@@ -22,6 +22,7 @@ class MicrotaskQueue;
 namespace blink {
 
 class Agent;
+class FrameOrWorkerScheduler;
 
 namespace scheduler {
 
@@ -35,6 +36,25 @@ namespace scheduler {
 //    each other.
 //  - Workers and Worklets can have its own EventLoop, as no other browsing
 //    context can access it synchronously.
+//
+// The specification says an event loop has (non-micro) task queues. However,
+// we process regular tasks in a different granularity; in our implementation,
+// a frame has task queues. This is an intentional violation of the
+// specification.
+//
+// Therefore, currently, EventLoop is a unit that just manages a microtask
+// queue: <https://html.spec.whatwg.org/C#microtask-queue>
+//
+// Microtasks queued during a task are executed at the end of the task or
+// after a user script is executed (for the exact timings, refer to the
+// specification). Some web platform features require this functionality.
+//
+// Implementation notes: Originally, microtask queues were created in V8
+// for JavaScript promises. V8 allocates a default microtask queue per isolate,
+// and it still uses the default queue, not the one in this EventLoop class.
+// This is not correct in terms of the standards conformance, and we'll
+// eventually merge the queues so both Blink and V8 can use the microtask queue
+// allocated in the correct granularity.
 class PLATFORM_EXPORT EventLoop final : public WTF::RefCounted<EventLoop> {
   USING_FAST_MALLOC(EventLoop);
 
@@ -53,15 +73,21 @@ class PLATFORM_EXPORT EventLoop final : public WTF::RefCounted<EventLoop> {
   void Disable();
   void Enable();
 
+  void AttachScheduler(FrameOrWorkerScheduler*);
+  void DetachScheduler(FrameOrWorkerScheduler*);
+
   // Returns the MicrotaskQueue instance to be associated to v8::Context. Pass
   // it to v8::Context::New().
   v8::MicrotaskQueue* microtask_queue() const { return microtask_queue_.get(); }
+
+  bool IsSchedulerAttachedForTest(FrameOrWorkerScheduler*);
 
  private:
   friend class WTF::RefCounted<EventLoop>;
   friend blink::Agent;
 
-  explicit EventLoop(v8::Isolate* isolate);
+  EventLoop(v8::Isolate* isolate,
+            std::unique_ptr<v8::MicrotaskQueue> microtask_queue = nullptr);
   ~EventLoop();
 
   static void RunPendingMicrotask(void* data);
@@ -70,6 +96,7 @@ class PLATFORM_EXPORT EventLoop final : public WTF::RefCounted<EventLoop> {
   bool loop_enabled_ = true;
   Deque<base::OnceClosure> pending_microtasks_;
   std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
+  HashSet<FrameOrWorkerScheduler*> schedulers_;
 
   DISALLOW_COPY_AND_ASSIGN(EventLoop);
 };

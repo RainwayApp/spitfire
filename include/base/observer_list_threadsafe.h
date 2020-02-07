@@ -107,7 +107,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     AutoLock auto_lock(lock_);
 
     // Add |observer| to the list of observers.
-    DCHECK(!ContainsKey(observers_, observer));
+    DCHECK(!Contains(observers_, observer));
     const scoped_refptr<SequencedTaskRunner> task_runner =
         SequencedTaskRunnerHandle::Get();
     observers_[observer] = task_runner;
@@ -165,6 +165,41 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
           from_here,
           BindOnce(&ObserverListThreadSafe<ObserverType>::NotifyWrapper, this,
                    observer.first, NotificationData(this, from_here, method)));
+    }
+  }
+
+  // Like Notify() but attempts to synchronously invoke callbacks if they are
+  // associated with this thread.
+  template <typename Method, typename... Params>
+  void NotifySynchronously(const Location& from_here,
+                           Method m,
+                           Params&&... params) {
+    RepeatingCallback<void(ObserverType*)> method =
+        BindRepeating(&Dispatcher<ObserverType, Method>::Run, m,
+                      std::forward<Params>(params)...);
+
+    // The observers may make reentrant calls (which can be a problem due to the
+    // lock), so we extract a list to call synchronously.
+    std::vector<ObserverType*> current_sequence_observers;
+
+    {
+      AutoLock lock(lock_);
+      current_sequence_observers.reserve(observers_.size());
+      for (const auto& observer : observers_) {
+        if (observer.second->RunsTasksInCurrentSequence()) {
+          current_sequence_observers.push_back(observer.first);
+        } else {
+          observer.second->PostTask(
+              from_here,
+              BindOnce(&ObserverListThreadSafe<ObserverType>::NotifyWrapper,
+                       this, observer.first,
+                       NotificationData(this, from_here, method)));
+        }
+      }
+    }
+
+    for (ObserverType* observer : current_sequence_observers) {
+      NotifyWrapper(observer, NotificationData(this, from_here, method));
     }
   }
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGBlockNode_h
-#define NGBlockNode_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BLOCK_NODE_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BLOCK_NODE_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
@@ -15,17 +15,17 @@ namespace blink {
 
 class LayoutBox;
 class NGBaselineRequest;
+class NGBlockBreakToken;
+class NGBoxFragmentBuilder;
 class NGBreakToken;
 class NGConstraintSpace;
-class NGBoxFragmentBuilder;
+class NGEarlyBreak;
 class NGLayoutResult;
 class NGPhysicalBoxFragment;
 class NGPhysicalContainerFragment;
-class NGPhysicalFragment;
 struct MinMaxSize;
 struct NGBoxStrut;
 struct NGLayoutAlgorithmParams;
-struct LogicalOffset;
 
 // Represents a node to be laid out.
 class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
@@ -37,7 +37,8 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
 
   scoped_refptr<const NGLayoutResult> Layout(
       const NGConstraintSpace& constraint_space,
-      const NGBreakToken* break_token = nullptr);
+      const NGBreakToken* break_token = nullptr,
+      const NGEarlyBreak* = nullptr);
 
   // This method is just for use within the |NGSimplifiedLayoutAlgorithm|.
   //
@@ -50,7 +51,11 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   //
   // As OOF-positioned objects have their position, and size computed
   // pre-layout, we need a way to quickly determine if we need to perform this
-  // work. This method compares the containing-block size to determine this.
+  // work.
+  //
+  // We have this "first-tier" cache explicitly for this purpose.
+  // This method compares the containing-block size to determine if we can skip
+  // the position, and size calculation.
   //
   // If the containing-block size hasn't changed, and we are layout-clean we
   // can reuse the previous layout result.
@@ -91,14 +96,32 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   bool ChildrenInline() const;
   bool IsInlineLevel() const;
   bool IsAtomicInlineLevel() const;
+  bool MayHaveAspectRatio() const;
+
+  // Returns true if this node should fill the viewport.
+  // This occurs when we are in quirks-mode and we are *not* OOF-positioned,
+  // floating, or inline-level.
+  //
+  // https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk
+  bool IsQuirkyAndFillsViewport() const {
+    if (!GetDocument().InQuirksMode())
+      return false;
+    if (IsOutOfFlowPositioned())
+      return false;
+    if (IsFloating())
+      return false;
+    if (IsAtomicInlineLevel())
+      return false;
+    return (IsDocumentElement() || IsBody());
+  }
 
   // CSS defines certain cases to synthesize inline block baselines from box.
   // See comments in UseLogicalBottomMarginEdgeForInlineBlockBaseline().
   bool UseLogicalBottomMarginEdgeForInlineBlockBaseline() const;
 
-  // Return true if the block size of this table cell should be considered
-  // restricted (e.g. height of the cell or its table is non-auto).
-  bool IsRestrictedBlockSizeTableCell() const;
+  // Returns true if the custom layout node is in its loaded state (all script
+  // for the web-developer defined layout is ready).
+  bool IsCustomLayoutLoaded() const;
 
   // Layout an atomic inline; e.g., inline block.
   scoped_refptr<const NGLayoutResult> LayoutAtomicInline(
@@ -110,10 +133,6 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   // Called if this is an out-of-flow block which needs to be
   // positioned with legacy layout.
   void UseLegacyOutOfFlowPositioning() const;
-
-  // Save static position for legacy AbsPos layout.
-  void SaveStaticOffsetForLegacy(const LogicalOffset&,
-                                 const LayoutObject* offset_container);
 
   // Write back resolved margins to legacy.
   void StoreMargins(const NGConstraintSpace&, const NGBoxStrut& margins);
@@ -142,22 +161,25 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
 
   // After we run the layout algorithm, this function copies back the geometry
   // data to the layout box.
-  void CopyFragmentDataToLayoutBox(const NGConstraintSpace&,
-                                   const NGLayoutResult&);
+  void CopyFragmentDataToLayoutBox(
+      const NGConstraintSpace&,
+      const NGLayoutResult&,
+      const NGBlockBreakToken* previous_break_token);
+  void CopyFragmentDataToLayoutBoxForInlineChildren(
+      const NGPhysicalBoxFragment& container);
   void CopyFragmentDataToLayoutBoxForInlineChildren(
       const NGPhysicalContainerFragment& container,
       LayoutUnit initial_container_width,
       bool initial_container_is_flipped,
       PhysicalOffset offset = {});
-  void PlaceChildrenInLayoutBox(const NGConstraintSpace&,
-                                const NGPhysicalBoxFragment&,
-                                const PhysicalOffset& offset_from_start);
-  void PlaceChildrenInFlowThread(const NGConstraintSpace&,
-                                 const NGPhysicalBoxFragment&);
+  void PlaceChildrenInLayoutBox(const NGPhysicalBoxFragment&,
+                                const NGBlockBreakToken* previous_break_token);
+  void PlaceChildrenInFlowThread(const NGPhysicalBoxFragment&);
   void CopyChildFragmentPosition(
-      const NGPhysicalFragment& fragment,
-      const PhysicalOffset fragment_offset,
-      const PhysicalOffset additional_offset = PhysicalOffset());
+      const NGPhysicalBoxFragment& child_fragment,
+      PhysicalOffset,
+      const NGPhysicalBoxFragment& container_fragment,
+      const NGBlockBreakToken* previous_container_break_token = nullptr);
 
   void CopyBaselinesFromLegacyLayout(const NGConstraintSpace&,
                                      NGBoxFragmentBuilder*);
@@ -178,4 +200,4 @@ struct DowncastTraits<NGBlockNode> {
 
 }  // namespace blink
 
-#endif  // NGBlockNode
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BLOCK_NODE_H_

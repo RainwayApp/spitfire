@@ -13,7 +13,7 @@
 #include "third_party/blink/renderer/core/animation/property_handle.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -60,7 +60,7 @@ class V8ObjectBuilder;
 // from the keyframe effect. See KeyframeEffectModelBase::EnsureKeyframeGroups.
 //
 // FIXME: Make Keyframe immutable
-class CORE_EXPORT Keyframe : public GarbageCollectedFinalized<Keyframe> {
+class CORE_EXPORT Keyframe : public GarbageCollected<Keyframe> {
  public:
   virtual ~Keyframe() = default;
 
@@ -118,7 +118,7 @@ class CORE_EXPORT Keyframe : public GarbageCollectedFinalized<Keyframe> {
   // Represents a property-specific keyframe as defined in the spec. Refer to
   // the Keyframe class-level documentation for more details.
   class CORE_EXPORT PropertySpecificKeyframe
-      : public GarbageCollectedFinalized<PropertySpecificKeyframe> {
+      : public GarbageCollected<PropertySpecificKeyframe> {
    public:
     PropertySpecificKeyframe(double offset,
                              scoped_refptr<TimingFunction> easing,

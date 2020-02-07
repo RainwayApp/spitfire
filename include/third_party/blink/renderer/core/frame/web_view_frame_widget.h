@@ -8,6 +8,7 @@
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
+#include "base/util/type_safety/pass_key.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/web_frame_widget_base.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
@@ -17,6 +18,7 @@
 
 namespace blink {
 
+class WebFrameWidget;
 class WebViewImpl;
 class WebWidgetClient;
 
@@ -37,14 +39,15 @@ class WebWidgetClient;
 // https://goo.gl/7yVrnb.
 class CORE_EXPORT WebViewFrameWidget : public WebFrameWidgetBase {
  public:
-  explicit WebViewFrameWidget(WebWidgetClient&, WebViewImpl&);
+  explicit WebViewFrameWidget(util::PassKey<WebFrameWidget>,
+                              WebWidgetClient&,
+                              WebViewImpl&);
   ~WebViewFrameWidget() override;
 
   // WebWidget overrides:
   void Close() override;
   WebSize Size() override;
   void Resize(const WebSize&) override;
-  void ResizeVisualViewport(const WebSize&) override;
   void DidEnterFullscreen() override;
   void DidExitFullscreen() override;
   void SetSuppressFrameRequestsWorkaroundFor704763Only(bool) final;
@@ -59,6 +62,8 @@ class CORE_EXPORT WebViewFrameWidget : public WebFrameWidgetBase {
   void EndCommitCompositorFrame() override;
   void RecordStartOfFrameMetrics() override;
   void RecordEndOfFrameMetrics(base::TimeTicks frame_begin_time) override;
+  std::unique_ptr<cc::BeginMainFrameMetrics> GetBeginMainFrameMetrics()
+      override;
   void UpdateLifecycle(LifecycleUpdate requested_update,
                        LifecycleUpdateReason reason) override;
   void ThemeChanged() override;
@@ -67,8 +72,7 @@ class CORE_EXPORT WebViewFrameWidget : public WebFrameWidgetBase {
   void SetCursorVisibilityState(bool is_visible) override;
   void OnFallbackCursorModeToggled(bool is_on) override;
   void ApplyViewportChanges(const ApplyViewportChangesArgs&) override;
-  void RecordWheelAndTouchScrollingCount(bool has_scrolled_by_wheel,
-                                         bool has_scrolled_by_touch) override;
+  void RecordManipulationTypeCounts(cc::ManipulationInfo info) override;
   void SendOverscrollEventFromImplSide(
       const gfx::Vector2dF& overscroll_delta,
       cc::ElementId scroll_latched_element_id) override;
@@ -81,17 +85,15 @@ class CORE_EXPORT WebViewFrameWidget : public WebFrameWidgetBase {
   WebURL GetURLForDebugTrace() override;
 
   // WebFrameWidget overrides:
+  void DidDetachLocalFrameTree() override;
   WebInputMethodController* GetActiveWebInputMethodController() const override;
   bool ScrollFocusedEditableElementIntoView() override;
   WebHitTestResult HitTestResultAt(const gfx::Point&) override;
 
   // WebFrameWidgetBase overrides:
-  void SetLayerTreeView(WebLayerTreeView*, cc::AnimationHost*) override;
+  void SetAnimationHost(cc::AnimationHost*) override;
   bool ForSubframe() const override { return false; }
-  void SetRootGraphicsLayer(GraphicsLayer*) override;
-  GraphicsLayer* RootGraphicsLayer() const override;
   void SetRootLayer(scoped_refptr<cc::Layer>) override;
-  WebLayerTreeView* GetLayerTreeView() const override;
   cc::AnimationHost* AnimationHost() const override;
   HitTestResult CoreHitTestResultAt(const gfx::Point&) override;
   void ZoomToFindInPageRect(const WebRect& rect_in_root_frame) override;

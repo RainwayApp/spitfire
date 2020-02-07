@@ -118,7 +118,6 @@ class SVGSVGElement final : public SVGGraphicsElement,
 
   void ParseAttribute(const AttributeModificationParams&) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
-  bool IsPresentationAttributeWithSVGDOM(const QualifiedName&) const override;
   void CollectStyleForPresentationAttribute(
       const QualifiedName&,
       const AtomicString&,
@@ -132,6 +131,8 @@ class SVGSVGElement final : public SVGGraphicsElement,
   void RemovedFrom(ContainerNode&) override;
 
   void SvgAttributeChanged(const QualifiedName&) override;
+
+  void DidMoveToNewDocument(Document& old_document) override;
 
   bool SelfHasRelativeLengths() const override;
 

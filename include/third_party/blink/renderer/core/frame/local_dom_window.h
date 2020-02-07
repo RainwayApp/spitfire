@@ -28,7 +28,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_LOCAL_DOM_WINDOW_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
+#include "third_party/blink/renderer/core/events/page_transition_event.h"
 #include "third_party/blink/renderer/core/frame/dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
@@ -61,7 +63,6 @@ class MessageEvent;
 class Modulator;
 class Navigator;
 class Screen;
-class ScriptedTaskQueueController;
 class ScriptPromise;
 class ScriptState;
 class ScrollToOptions;
@@ -70,14 +71,13 @@ class SerializedScriptValue;
 class SourceLocation;
 class StyleMedia;
 class TrustedTypePolicyFactory;
-class USVStringOrTrustedURL;
 class V8FrameRequestCallback;
 class V8IdleRequestCallback;
 class V8VoidFunction;
 
-enum PageshowEventPersistence {
-  kPageshowEventNotPersisted = 0,
-  kPageshowEventPersisted = 1
+enum PageTransitionEventPersistence {
+  kPageTransitionEventNotPersisted = 0,
+  kPageTransitionEventPersisted = 1
 };
 
 // Note: if you're thinking of returning something DOM-related by reference,
@@ -218,8 +218,6 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   // Acessibility Object Model
   ScriptPromise getComputedAccessibleNode(ScriptState*, Element*);
 
-  ScriptedTaskQueueController* taskQueue() const;
-
   // WebKit animation extensions
   int requestAnimationFrame(V8FrameRequestCallback*);
   int webkitRequestAnimationFrame(V8FrameRequestCallback*);
@@ -248,11 +246,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   bool isSecureContext() const;
 
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(animationend, kAnimationend)
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(animationiteration, kAnimationiteration)
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(animationstart, kAnimationstart)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(search, kSearch)
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(transitionend, kTransitionend)
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitanimationstart, kWebkitAnimationStart)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitanimationiteration,
@@ -270,7 +264,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   Element* frameElement() const;
 
   DOMWindow* open(v8::Isolate*,
-                  const USVStringOrTrustedURL& string_or_url,
+                  const String& url_string,
                   const AtomicString& target,
                   const String& features,
                   ExceptionState&);
@@ -281,14 +275,15 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   void DispatchPostMessage(
       MessageEvent* event,
-      scoped_refptr<UserGestureToken> token,
       scoped_refptr<const SecurityOrigin> intended_target_origin,
-      std::unique_ptr<SourceLocation> location);
+      std::unique_ptr<SourceLocation> location,
+      const base::UnguessableToken& source_agent_cluster_id);
 
   void DispatchMessageEventWithOriginCheck(
       const SecurityOrigin* intended_target_origin,
-      Event*,
-      std::unique_ptr<SourceLocation>);
+      MessageEvent*,
+      std::unique_ptr<SourceLocation>,
+      const base::UnguessableToken& source_agent_cluster_id);
 
   // Events
   // EventTarget API
@@ -297,7 +292,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   using EventTarget::DispatchEvent;
   DispatchEventResult DispatchEvent(Event&, EventTarget*);
 
-  void FinishedLoading();
+  void FinishedLoading(FrameLoader::NavigationFinishState);
 
   // Dispatch the (deprecated) orientationchange event to this DOMWindow and
   // recurse on its child frames.
@@ -305,7 +300,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   void EnqueueWindowEvent(Event&, TaskType);
   void EnqueueDocumentEvent(Event&, TaskType);
-  void EnqueuePageshowEvent(PageshowEventPersistence);
+  void EnqueueNonPersistedPageshowEvent();
   void EnqueueHashchangeEvent(const String& old_url, const String& new_url);
   void EnqueuePopstateEvent(scoped_refptr<SerializedScriptValue>);
   void DispatchWindowLoadEvent();
@@ -315,6 +310,14 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void AcceptLanguagesChanged();
 
   TrustedTypePolicyFactory* trustedTypes() const;
+
+  void DispatchPersistedPageshowEvent(base::TimeTicks navigation_start);
+
+  void DispatchPagehideEvent(PageTransitionEventPersistence persistence) {
+    DispatchEvent(
+        *PageTransitionEvent::Create(event_type_names::kPagehide, persistence),
+        document_.Get());
+  }
 
  protected:
   // EventTarget overrides.

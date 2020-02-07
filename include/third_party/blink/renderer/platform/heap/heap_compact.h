@@ -10,6 +10,7 @@
 #include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/platform/heap/blink_gc.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 
@@ -36,7 +37,7 @@ class PLATFORM_EXPORT HeapCompact final {
  public:
   // Returns |true| if the ongoing GC may compact the given arena/sub-heap.
   static bool IsCompactableArena(int arena_index) {
-    return arena_index >= BlinkGC::kVector1ArenaIndex &&
+    return arena_index >= BlinkGC::kVectorArenaIndex &&
            arena_index <= BlinkGC::kHashTableArenaIndex;
   }
 
@@ -62,13 +63,8 @@ class PLATFORM_EXPORT HeapCompact final {
     return do_compact_ && (compactable_arenas_ & (0x1u << arena_index));
   }
 
-  // See |Heap::registerMovingObjectReference()| documentation.
-  void RegisterMovingObjectReference(MovableReference* slot);
-
-  // See |Heap::registerMovingObjectCallback()| documentation.
-  void RegisterMovingObjectCallback(MovableReference*,
-                                    MovingObjectCallback,
-                                    void* callback_data);
+  // See |Heap::ShouldRegisterMovingAddress()| documentation.
+  bool ShouldRegisterMovingAddress(Address address);
 
   // Slots that are not contained within live objects are filtered. This can
   // happen when the write barrier for in-payload objects triggers but the outer
@@ -98,17 +94,16 @@ class PLATFORM_EXPORT HeapCompact final {
   // (Called by the sweep compaction pass.)
   void Relocate(Address from, Address to);
 
+  // Updates the callbacks collection of MovableObjectFixups in preparation
+  // for compaction.
+  void UpdateBackingStoreCallbacks();
+
   // Enables compaction for the next garbage collection if technically possible.
   void EnableCompactionForNextGCForTesting() { force_for_next_gc_ = true; }
 
   // Returns true if one or more vector arenas are being compacted.
   bool IsCompactingVectorArenasForTesting() const {
-    for (int i = BlinkGC::kVector1ArenaIndex; i <= BlinkGC::kVector4ArenaIndex;
-         ++i) {
-      if (IsCompactingArena(i))
-        return true;
-    }
-    return false;
+    return IsCompactingArena(BlinkGC::kVectorArenaIndex);
   }
 
   size_t LastFixupCountForTesting() const {
@@ -132,11 +127,6 @@ class PLATFORM_EXPORT HeapCompact final {
 
   ThreadHeap* const heap_;
   std::unique_ptr<MovableObjectFixups> fixups_;
-
-  // The set is to remember slots that traced during
-  // marking phases. The mapping between the slots and the backing stores are
-  // created at the atomic pause phase.
-  HashSet<MovableReference*> traced_slots_;
 
   // Set to |true| when a compacting sweep will go ahead.
   bool do_compact_ = false;

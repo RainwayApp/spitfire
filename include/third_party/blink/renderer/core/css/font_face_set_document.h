@@ -37,7 +37,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -75,6 +75,8 @@ class CORE_EXPORT FontFaceSetDocument final : public FontFaceSet,
  protected:
   bool InActiveContext() const override;
   FontSelector* GetFontSelector() const override {
+    // TODO(Fserb): tracking down crbug.com/988125, can be DCHECK later.
+    CHECK(IsMainThread());
     return GetDocument()->GetStyleEngine().GetFontSelector();
   }
 
@@ -90,15 +92,12 @@ class CORE_EXPORT FontFaceSetDocument final : public FontFaceSet,
 
    public:
     enum Status { kNoWebFonts, kHadBlankText, kDidNotHaveBlankText, kReported };
-    FontLoadHistogram() : status_(kNoWebFonts), count_(0), recorded_(false) {}
-    void IncrementCount() { count_++; }
+    FontLoadHistogram() : status_(kNoWebFonts) {}
     void UpdateStatus(FontFace*);
     void Record();
 
    private:
     Status status_;
-    int count_;
-    bool recorded_;
   };
   FontLoadHistogram histogram_;
   DISALLOW_COPY_AND_ASSIGN(FontFaceSetDocument);

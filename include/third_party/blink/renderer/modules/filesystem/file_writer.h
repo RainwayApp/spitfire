@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/probe/async_task_id.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/filesystem/file_writer_base.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -127,9 +128,10 @@ class FileWriter final : public EventTargetWithInlineData,
   uint64_t truncate_length_;
   uint64_t num_aborts_;
   uint8_t recursion_depth_;
-  double last_progress_notification_time_ms_;
+  base::TimeTicks last_progress_notification_time_;
   Member<Blob> blob_being_written_;
   int request_id_;
+  probe::AsyncTaskId async_task_id_;
 };
 
 }  // namespace blink

@@ -22,15 +22,15 @@ class CORE_EXPORT LayoutNGInsideListMarker final : public LayoutInline {
 
 #if DCHECK_IS_ON()
   void AddChild(LayoutObject* new_child, LayoutObject* before_child) override {
-    // List marker should have at most one child.
-    DCHECK(!FirstChild());
+    // Anonymous list marker should have at most one child.
+    DCHECK(GetNode() || !FirstChild());
     LayoutInline::AddChild(new_child, before_child);
   }
 #endif
 
  private:
   bool IsOfType(LayoutObjectType) const override;
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 };
 
 DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutNGInsideListMarker,

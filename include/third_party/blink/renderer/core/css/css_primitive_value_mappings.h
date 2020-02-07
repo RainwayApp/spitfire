@@ -32,7 +32,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_PRIMITIVE_VALUE_MAPPINGS_H_
 
 #include "cc/input/scroll_snap_data.h"
-#include "third_party/blink/renderer/core/css/css_calculation_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_reflection_direction.h"
@@ -752,6 +751,37 @@ inline FontDescription::Kerning CSSIdentifierValue::ConvertTo() const {
 
   NOTREACHED();
   return FontDescription::kAutoKerning;
+}
+
+template <>
+inline CSSIdentifierValue::CSSIdentifierValue(OpticalSizing optical_sizing)
+    : CSSValue(kIdentifierClass) {
+  switch (optical_sizing) {
+    case kAutoOpticalSizing:
+      value_id_ = CSSValueID::kAuto;
+      return;
+    case kNoneOpticalSizing:
+      value_id_ = CSSValueID::kNone;
+      return;
+  }
+
+  NOTREACHED();
+  value_id_ = CSSValueID::kAuto;
+}
+
+template <>
+inline OpticalSizing CSSIdentifierValue::ConvertTo() const {
+  switch (value_id_) {
+    case CSSValueID::kAuto:
+      return kAutoOpticalSizing;
+    case CSSValueID::kNone:
+      return kNoneOpticalSizing;
+    default:
+      break;
+  }
+
+  NOTREACHED();
+  return kAutoOpticalSizing;
 }
 
 template <>

@@ -35,6 +35,7 @@ class DummyModulator : public Modulator {
   V8CacheOptions GetV8CacheOptions() const override;
   bool IsScriptingDisabled() const override;
 
+  bool ImportMapsEnabled() const override;
   bool BuiltInModuleInfraEnabled() const override;
   bool BuiltInModuleEnabled(blink::layered_api::Module) const override;
   void BuiltInModuleUseCount(blink::layered_api::Module) const override;
@@ -61,12 +62,18 @@ class DummyModulator : public Modulator {
                           const KURL&,
                           const ReferrerScriptInfo&,
                           ScriptPromiseResolver*) override;
-  void RegisterImportMap(const ImportMap*) override;
+  ScriptValue CreateTypeError(const String& message) const override;
+  ScriptValue CreateSyntaxError(const String& message) const override;
+  void RegisterImportMap(const ImportMap*,
+                         ScriptValue error_to_rethrow) override;
   bool IsAcquiringImportMaps() const override;
   void ClearIsAcquiringImportMaps() override;
-  ModuleImportMeta HostGetImportMetaProperties(ModuleRecord) const override;
-  ScriptValue InstantiateModule(ModuleRecord) override;
-  Vector<ModuleRequest> ModuleRequestsFromModuleRecord(ModuleRecord) override;
+  ModuleImportMeta HostGetImportMetaProperties(
+      v8::Local<v8::Module>) const override;
+  const ImportMap* GetImportMapForTest() const override;
+  ScriptValue InstantiateModule(v8::Local<v8::Module>, const KURL&) override;
+  Vector<ModuleRequest> ModuleRequestsFromModuleRecord(
+      v8::Local<v8::Module>) override;
   ScriptValue ExecuteModule(ModuleScript*, CaptureEvalErrorFlag) override;
   ModuleScriptFetcher* CreateModuleScriptFetcher(
       ModuleScriptCustomFetchType) override;

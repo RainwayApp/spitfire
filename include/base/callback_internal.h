@@ -19,9 +19,12 @@ struct FakeBindState;
 
 namespace internal {
 
+class BindStateBase;
 class FinallyExecutorCommon;
 class ThenAndCatchExecutorCommon;
-class BindStateBase;
+
+template <typename ReturnType>
+class PostTaskExecutor;
 
 template <typename Functor, typename... BoundArgs>
 struct BindState;
@@ -42,11 +45,10 @@ using PassingType = std::conditional_t<std::is_scalar<T>::value, T, T&&>;
 // DoInvoke function to perform the function execution.  This allows
 // us to shield the Callback class from the types of the bound argument via
 // "type erasure."
-// At the base level, the only task is to add reference counting data. Don't use
-// RefCountedThreadSafe since it requires the destructor to be a virtual method.
-// Creating a vtable for every BindState template instantiation results in a lot
-// of bloat. Its only task is to call the destructor which can be done with a
-// function pointer.
+// At the base level, the only task is to add reference counting data. Avoid
+// using or inheriting any virtual functions. Creating a vtable for every
+// BindState template instantiation results in a lot of bloat. Its only task is
+// to call the destructor which can be done with a function pointer.
 class BASE_EXPORT BindStateBase
     : public RefCountedThreadSafe<BindStateBase, BindStateBaseRefCountTraits> {
  public:
@@ -139,6 +141,9 @@ class BASE_EXPORT CallbackBase {
  protected:
   friend class FinallyExecutorCommon;
   friend class ThenAndCatchExecutorCommon;
+
+  template <typename ReturnType>
+  friend class PostTaskExecutor;
 
   using InvokeFuncStorage = BindStateBase::InvokeFuncStorage;
 

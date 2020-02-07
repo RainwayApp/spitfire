@@ -9,16 +9,10 @@
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
-namespace cc {
-class TouchActionRegion;
-}
-
 namespace blink {
 
+// TODO(pdr): Rename this TouchActionRect.
 struct PLATFORM_EXPORT HitTestRect {
-  // HitTestRect is a class shared by touch action region, wheel event handler
-  // region and non fast scrollable region. Wheel event handler region and
-  // non-fast scrollable rects use a |allowed_touch_action| of none.
   LayoutRect rect;
   TouchAction allowed_touch_action;
 
@@ -27,7 +21,6 @@ struct PLATFORM_EXPORT HitTestRect {
   HitTestRect(const LayoutRect& layout_rect, TouchAction action)
       : rect(layout_rect), allowed_touch_action(action) {}
 
-  static cc::TouchActionRegion BuildRegion(const Vector<HitTestRect>&);
   static LayoutRect GetBounds(const Vector<HitTestRect>&);
 
   bool operator==(const HitTestRect& rhs) const {

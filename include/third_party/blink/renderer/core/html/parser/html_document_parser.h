@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/parser_content_policy.h"
 #include "third_party/blink/renderer/core/dom/scriptable_document_parser.h"
+#include "third_party/blink/renderer/core/execution_context/context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/core/html/parser/background_html_input_stream.h"
 #include "third_party/blink/renderer/core/html/parser/html_input_stream.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_options.h"
@@ -44,8 +45,6 @@
 #include "third_party/blink/renderer/core/html/parser/parser_synchronization_policy.h"
 #include "third_party/blink/renderer/core/html/parser/preload_request.h"
 #include "third_party/blink/renderer/core/html/parser/text_resource_decoder.h"
-#include "third_party/blink/renderer/core/html/parser/xss_auditor.h"
-#include "third_party/blink/renderer/core/html/parser/xss_auditor_delegate.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/core/script/html_parser_script_runner_host.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
@@ -67,6 +66,7 @@ class HTMLResourcePreloader;
 class HTMLTreeBuilder;
 
 class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
+                                       public ContextLifecycleStateObserver,
                                        private HTMLParserScriptRunnerHost {
   USING_GARBAGE_COLLECTED_MIXIN(HTMLDocumentParser);
   USING_PRE_FINALIZER(HTMLDocumentParser, Dispose);
@@ -102,8 +102,7 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   bool IsParsingAtLineNumber() const final;
   OrdinalNumber LineNumber() const final;
 
-  void PauseScheduledTasks() final;
-  void UnpauseScheduledTasks() final;
+  void ContextLifecycleStateChanged(mojom::FrameLifecycleState) final;
 
   HTMLParserReentryPermit* ReentryPermit() { return reentry_permit_.get(); }
 
@@ -114,7 +113,6 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
     CompactHTMLTokenStream tokens;
     PreloadRequestStream preloads;
     base::Optional<ViewportDescription> viewport;
-    XSSInfoStream xss_infos;
     HTMLTokenizer::State tokenizer_state;
     HTMLTreeBuilderSimulator::State tree_builder_state;
     HTMLInputCheckpoint input_checkpoint;
@@ -159,8 +157,8 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   bool IsWaitingForScripts() const final;
   bool IsExecutingScript() const final;
   void ExecuteScriptsWaitingForResources() final;
-  void DidAddPendingStylesheetInBody() final;
-  void DidLoadAllBodyStylesheets() final;
+  void DidAddPendingParserBlockingStylesheet() final;
+  void DidLoadAllPendingParserBlockingStylesheets() final;
   void CheckIfBodyStylesheetAdded();
   void DocumentElementAvailable() override;
 
@@ -234,8 +232,6 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   Member<HTMLParserScheduler> parser_scheduler_;
   HTMLSourceTracker source_tracker_;
   TextPosition text_position_;
-  XSSAuditor xss_auditor_;
-  XSSAuditorDelegate xss_auditor_delegate_;
 
   // FIXME: last_chunk_before_pause_, tokenizer_, token_, and input_ should be
   // combined into a single state object so they can be set and cleared together
@@ -248,7 +244,6 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   base::WeakPtr<BackgroundHTMLParser> background_parser_;
   Member<HTMLResourcePreloader> preloader_;
   PreloadRequestStream queued_preloads_;
-  TimeTicks appcache_queueing_start_time_;
 
   // If this is non-null, then there is a meta CSP token somewhere in the
   // speculation buffer. Preloads will be deferred until a token matching this
@@ -263,15 +258,14 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   bool should_use_threading_;
   bool end_was_delayed_;
   bool have_background_parser_;
-  bool tasks_were_paused_;
   unsigned pump_session_nesting_level_;
   unsigned pump_speculations_session_nesting_level_;
   bool is_parsing_at_line_number_;
   bool tried_loading_link_headers_;
-  bool added_pending_stylesheet_in_body_;
+  bool added_pending_parser_blocking_stylesheet_;
   bool is_waiting_for_stylesheets_;
 
-  base::WeakPtrFactory<HTMLDocumentParser> weak_factory_;
+  base::WeakPtrFactory<HTMLDocumentParser> weak_factory_{this};
 };
 
 }  // namespace blink

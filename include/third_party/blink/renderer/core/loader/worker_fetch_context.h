@@ -7,8 +7,8 @@
 
 #include <memory>
 #include "base/single_thread_task_runner.h"
-#include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink.h"
-#include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-blink.h"
+#include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/base_fetch_context.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -18,7 +18,6 @@ namespace blink {
 class CoreProbeSink;
 class SubresourceFilter;
 class WebWorkerFetchContext;
-class WorkerContentSettingsClient;
 class WorkerResourceTimingNotifier;
 class WorkerSettings;
 class WorkerOrWorkletGlobalScope;
@@ -83,13 +82,16 @@ class WorkerFetchContext final : public BaseFetchContext {
                                const ClientHintsPreferences&,
                                const FetchParameters::ResourceWidth&,
                                ResourceRequest&) override;
-  FetchContext* Detach() override;
+  mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+  TakePendingWorkerTimingReceiver(int request_id) override;
 
   WorkerSettings* GetWorkerSettings() const;
-  WorkerContentSettingsClient* GetWorkerContentSettingsClient() const;
   WebWorkerFetchContext* GetWebWorkerFetchContext() const {
     return web_context_.get();
   }
+
+  bool AllowRunningInsecureContent(bool enabled_per_settings,
+                                   const KURL& url) const;
 
   void Trace(blink::Visitor*) override;
 
@@ -111,7 +113,8 @@ class WorkerFetchContext final : public BaseFetchContext {
   // WorkerGlobalScope and owned by this WorkerFetchContext.
   const Member<ContentSecurityPolicy> content_security_policy_;
 
-  CrossThreadPersistent<WorkerResourceTimingNotifier> resource_timing_notifier_;
+  const CrossThreadPersistent<WorkerResourceTimingNotifier>
+      resource_timing_notifier_;
 
   // The value of |save_data_enabled_| is read once per frame from
   // NetworkStateNotifier, which is guarded by a mutex lock, and cached locally

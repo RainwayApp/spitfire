@@ -13,13 +13,15 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <memory>
 
 #include "absl/types/optional.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
-class RateStatistics {
+class RTC_EXPORT RateStatistics {
  public:
   static constexpr float kBpsScale = 8000.0f;
 

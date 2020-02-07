@@ -43,32 +43,14 @@ enum GraphicsLayerPaintingPhaseFlags {
   kGraphicsLayerPaintMask = (1 << 2),
   kGraphicsLayerPaintOverflowContents = (1 << 3),
   kGraphicsLayerPaintCompositedScroll = (1 << 4),
-  kGraphicsLayerPaintChildClippingMask = (1 << 5),
-  kGraphicsLayerPaintAncestorClippingMask = (1 << 6),
-  kGraphicsLayerPaintDecoration = (1 << 7),
+  kGraphicsLayerPaintDecoration = (1 << 5),
   kGraphicsLayerPaintAllWithOverflowClip =
       (kGraphicsLayerPaintBackground | kGraphicsLayerPaintForeground |
        kGraphicsLayerPaintMask | kGraphicsLayerPaintDecoration)
 };
 typedef unsigned GraphicsLayerPaintingPhase;
 
-// These values need to be kept consistent with the layer tree flags in
-// core/testing/Internals.idl.
-enum {
-  kLayerTreeNormal = 0,
-  // Dump extra debugging info like layer addresses.
-  kLayerTreeIncludesDebugInfo = 1 << 0,
-  kLayerTreeIncludesPaintInvalidations = 1 << 1,
-  kLayerTreeIncludesPaintingPhases = 1 << 2,
-  kLayerTreeIncludesRootLayer = 1 << 3,
-  kLayerTreeIncludesClipAndScrollParents = 1 << 4,
-  kLayerTreeIncludesCompositingReasons = 1 << 5,
-  kLayerTreeIncludesPaintRecords = 1 << 6,
-  // Outputs all layers as a layer tree. The default is output children
-  // (excluding the root) as a layer list, in paint (preorder) order.
-  kOutputAsLayerTree = 0x4000,
-};
-typedef unsigned LayerTreeFlags;
+enum class DisplayLockContextLifecycleTarget { kSelf, kChildren };
 
 class PLATFORM_EXPORT GraphicsLayerClient {
  public:
@@ -92,9 +74,11 @@ class PLATFORM_EXPORT GraphicsLayerClient {
   // (see LocalFrameView::ShouldThrottleRendering()).
   virtual bool ShouldThrottleRendering() const { return false; }
 
-  virtual bool IsTrackingRasterInvalidations() const { return false; }
+  // Content under a LayoutSVGHiddenContainer is an auxiliary resource for
+  // painting and hit testing.
+  virtual bool IsUnderSVGHiddenContainer() const { return false; }
 
-  virtual void SetOverlayScrollbarsHidden(bool) {}
+  virtual bool IsTrackingRasterInvalidations() const { return false; }
 
   virtual void GraphicsLayersDidChange() {}
 
@@ -105,7 +89,14 @@ class PLATFORM_EXPORT GraphicsLayerClient {
     return nullptr;
   }
 
-  virtual bool PaintBlockedByDisplayLock() const { return false; }
+  // Returns true if this client is prevented from painting by its own
+  // display-lock (in case of target = kSelf) or by any of its ancestors (in
+  // case of target = kSelf or kChildren).
+  virtual bool PaintBlockedByDisplayLockIncludingAncestors(
+      DisplayLockContextLifecycleTarget) const {
+    return false;
+  }
+  virtual void NotifyDisplayLockNeedsGraphicsLayerCollection() {}
 
 #if DCHECK_IS_ON()
   // CompositedLayerMapping overrides this to verify that it is not

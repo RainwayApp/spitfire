@@ -24,6 +24,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_EMBEDDED_CONTENT_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
 #include "third_party/blink/renderer/core/layout/layout_replaced.h"
 
 namespace blink {
@@ -36,14 +37,14 @@ class WebPluginContainerImpl;
 // LayoutEmbeddedObject.
 class CORE_EXPORT LayoutEmbeddedContent : public LayoutReplaced {
  public:
-  explicit LayoutEmbeddedContent(Element*);
+  explicit LayoutEmbeddedContent(HTMLFrameOwnerElement*);
   ~LayoutEmbeddedContent() override;
 
   bool RequiresAcceleratedCompositing() const;
 
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    HitTestAction) override;
 
   void AddRef() { ++ref_count_; }
@@ -74,7 +75,7 @@ class CORE_EXPORT LayoutEmbeddedContent : public LayoutReplaced {
   void PaintReplaced(const PaintInfo&,
                      const PhysicalOffset& paint_offset) const override;
   void InvalidatePaint(const PaintInvalidatorContext&) const final;
-  CursorDirective GetCursor(const LayoutPoint&, Cursor&) const final;
+  CursorDirective GetCursor(const PhysicalOffset&, Cursor&) const final;
 
   bool CanBeSelectionLeafInternal() const final { return true; }
 
@@ -86,9 +87,13 @@ class CORE_EXPORT LayoutEmbeddedContent : public LayoutReplaced {
 
   bool NodeAtPointOverEmbeddedContentView(
       HitTestResult&,
-      const HitTestLocation& location_in_container,
-      const LayoutPoint& accumulated_offset,
+      const HitTestLocation&,
+      const PhysicalOffset& accumulated_offset,
       HitTestAction);
+
+  HTMLFrameOwnerElement* GetFrameOwnerElement() const {
+    return To<HTMLFrameOwnerElement>(GetNode());
+  }
 
   int ref_count_;
 };

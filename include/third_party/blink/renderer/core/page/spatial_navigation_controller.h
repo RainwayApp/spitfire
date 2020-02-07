@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_SPATIAL_NAVIGATION_CONTROLLER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_SPATIAL_NAVIGATION_CONTROLLER_H_
 
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/page/spatial_navigation.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
@@ -14,33 +15,38 @@ namespace blink {
 
 struct FocusCandidate;
 class KeyboardEvent;
-class LayoutRect;
+class LocalFrameView;
 class Node;
 class Page;
+struct PhysicalRect;
 
 // Encapsulates logic and state related to "spatial navigation". Spatial
 // Navigation is used to move and interact with a page in a purely directional
 // way, e.g. keyboard arrows. We use the term "interest" to specify which
 // element the user is currently on.
-class CORE_EXPORT SpatialNavigationController
-    : public GarbageCollectedFinalized<SpatialNavigationController> {
+class CORE_EXPORT SpatialNavigationController final
+    : public GarbageCollected<SpatialNavigationController> {
  public:
   explicit SpatialNavigationController(Page& page);
 
   bool HandleArrowKeyboardEvent(KeyboardEvent* event);
   bool HandleEnterKeyboardEvent(KeyboardEvent* event);
   bool HandleEscapeKeyboardEvent(KeyboardEvent* event);
+  bool HandleImeSubmitKeyboardEvent(KeyboardEvent* event);
+
+  // Called when the enter key is released to clear local state because we don't
+  // get a consistent event stream when the Enter key is partially handled.
+  void ResetEnterKeyState();
 
   // Returns the element that's currently interested. i.e. the Element that's
   // currently indicated to the user.
   Element* GetInterestedElement() const;
 
-  void DidDetachFrameView();
+  void DidDetachFrameView(const LocalFrameView&);
 
   void OnSpatialNavigationSettingChanged();
   void FocusedNodeChanged(Document*);
-
-  void ResetMojoBindings();
+  void FullscreenStateChanged(Element* element);
 
   void Trace(blink::Visitor*);
 
@@ -65,14 +71,14 @@ class CORE_EXPORT SpatialNavigationController
    *                               may be in a nested container.
    */
   bool AdvanceWithinContainer(Node& container,
-                              const LayoutRect& starting_rect_in_root_frame,
+                              const PhysicalRect& starting_rect_in_root_frame,
                               SpatialNavigationDirection direction,
                               Node* interest_child_in_container);
 
   // Parameters have same meanings as method above.
   FocusCandidate FindNextCandidateInContainer(
       Node& container,
-      const LayoutRect& starting_rect_in_root_frame,
+      const PhysicalRect& starting_rect_in_root_frame,
       SpatialNavigationDirection direction,
       Node* interest_child_in_container);
 
@@ -97,17 +103,25 @@ class CORE_EXPORT SpatialNavigationController
   bool UpdateCanExitFocus(Element* element);
   bool UpdateCanSelectInterestedElement(Element* element);
   bool UpdateHasNextFormElement(Element* element);
+  bool UpdateIsFormFocused(Element* element);
   bool UpdateHasDefaultVideoControls(Element* element);
 
-  const mojom::blink::SpatialNavigationHostPtr& GetSpatialNavigationHost();
+  const mojo::Remote<mojom::blink::SpatialNavigationHost>&
+  GetSpatialNavigationHost();
+  void ResetMojoBindings();
 
   // The currently indicated element or nullptr if no node is indicated by
   // spatial navigation.
   WeakMember<Element> interest_element_;
   Member<Page> page_;
 
+  // We need to track whether the enter key has been handled in down or press to
+  // know whether to generate a click on the up.
+  bool enter_key_down_seen_ = false;
+  bool enter_key_press_seen_ = false;
+
   mojom::blink::SpatialNavigationStatePtr spatial_navigation_state_;
-  mojom::blink::SpatialNavigationHostPtr spatial_navigation_host_;
+  mojo::Remote<mojom::blink::SpatialNavigationHost> spatial_navigation_host_;
 };
 
 }  // namespace blink

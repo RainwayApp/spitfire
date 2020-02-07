@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/platform/graphics/gpu/drawing_buffer.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/extensions_3d_util.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "ui/gl/gpu_preference.h"
 
 namespace blink {
 
@@ -42,7 +43,9 @@ class WebGraphicsContext3DProviderForTests
       std::unique_ptr<gpu::webgpu::WebGPUInterface> webgpu)
       : webgpu_(std::move(webgpu)) {}
 
+  gpu::InterfaceBase* InterfaceBase() override { return gl_.get(); }
   gpu::gles2::GLES2Interface* ContextGL() override { return gl_.get(); }
+  gpu::raster::RasterInterface* RasterInterface() override { return nullptr; }
   GrContext* GetGrContext() override { return nullptr; }
   gpu::webgpu::WebGPUInterface* WebGPUInterface() override {
     return webgpu_.get();
@@ -54,6 +57,9 @@ class WebGraphicsContext3DProviderForTests
   const gpu::GpuFeatureInfo& GetGpuFeatureInfo() const override {
     return gpu_feature_info_;
   }
+  const WebglPreferences& GetWebglPreferences() const override {
+    return webgl_preferences_;
+  }
   viz::GLHelper* GetGLHelper() override { return nullptr; }
   void SetLostContextCallback(base::Closure) override {}
   void SetErrorMessageCallback(
@@ -64,6 +70,9 @@ class WebGraphicsContext3DProviderForTests
   viz::TestSharedImageInterface* SharedImageInterface() override {
     return &test_shared_image_interface_;
   }
+  void CopyVideoFrame(media::PaintCanvasVideoRenderer* video_render,
+                      media::VideoFrame* video_frame,
+                      cc::PaintCanvas* canvas) override {}
 
  private:
   cc::StubDecodeCache image_decode_cache_;
@@ -71,6 +80,7 @@ class WebGraphicsContext3DProviderForTests
   std::unique_ptr<gpu::webgpu::WebGPUInterface> webgpu_;
   gpu::Capabilities capabilities_;
   gpu::GpuFeatureInfo gpu_feature_info_;
+  WebglPreferences webgl_preferences_;
   viz::TestSharedImageInterface test_shared_image_interface_;
 };
 
@@ -321,6 +331,13 @@ class GLES2InterfaceForTests : public gpu::gles2::GLES2InterfaceStub,
   void DrawingBufferClientRestorePixelPackBufferBinding() override {
     state_.pixel_pack_buffer_binding = saved_state_.pixel_pack_buffer_binding;
   }
+  bool DrawingBufferClientUserAllocatedMultisampledRenderbuffers() override {
+    // Not unit tested yet. Tested with end-to-end tests.
+    return false;
+  }
+  void DrawingBufferClientForceLostContextWithAutoRecovery() override {
+    // Not unit tested yet. Tested with end-to-end tests.
+  }
 
   // Testing methods.
   gpu::SyncToken MostRecentlyWaitedSyncToken() const {
@@ -442,6 +459,7 @@ class DrawingBufferForTests : public DrawingBuffer {
       : DrawingBuffer(
             std::move(context_provider),
             using_gpu_compositing,
+            false /* usingSwapChain */,
             std::move(extensions_util),
             client,
             false /* discardFramebufferSupported */,
@@ -452,7 +470,8 @@ class DrawingBufferForTests : public DrawingBuffer {
             false /* wantDepth */,
             false /* wantStencil */,
             DrawingBuffer::kAllowChromiumImage /* ChromiumImageUsage */,
-            CanvasColorParams()),
+            CanvasColorParams(),
+            gl::GpuPreference::kHighPerformance),
         live_(nullptr) {}
 
   ~DrawingBufferForTests() override {

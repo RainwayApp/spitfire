@@ -13,7 +13,10 @@
 
 #include <stdint.h>
 
+#include <utility>
+
 #include "absl/types/optional.h"
+#include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
 #include "api/video/color_space.h"
 #include "api/video/hdr_metadata.h"
@@ -26,7 +29,7 @@ namespace webrtc {
 
 class RTC_EXPORT VideoFrame {
  public:
-  struct UpdateRect {
+  struct RTC_EXPORT UpdateRect {
     int offset_x;
     int offset_y;
     int width;
@@ -42,10 +45,35 @@ class RTC_EXPORT VideoFrame {
     void MakeEmptyUpdate();
 
     bool IsEmpty() const;
+
+    // Per-member equality check. Empty rectangles with different offsets would
+    // be considered different.
+    bool operator==(const UpdateRect& other) const {
+      return other.offset_x == offset_x && other.offset_y == offset_y &&
+             other.width == width && other.height == height;
+    }
+
+    bool operator!=(const UpdateRect& other) const { return !(*this == other); }
+
+    // Scales update_rect given original frame dimensions.
+    // Cropping is applied first, then rect is scaled down.
+    // Update rect is snapped to 2x2 grid due to possible UV subsampling and
+    // then expanded by additional 2 pixels in each direction to accommodate any
+    // possible scaling artifacts.
+    // Note, close but not equal update_rects on original frame may result in
+    // the same scaled update rects.
+    UpdateRect ScaleWithFrame(int frame_width,
+                              int frame_height,
+                              int crop_x,
+                              int crop_y,
+                              int crop_width,
+                              int crop_height,
+                              int scaled_width,
+                              int scaled_height) const;
   };
 
   // Preferred way of building VideoFrame objects.
-  class Builder {
+  class RTC_EXPORT Builder {
    public:
     Builder();
     ~Builder();
@@ -61,7 +89,8 @@ class RTC_EXPORT VideoFrame {
     Builder& set_color_space(const absl::optional<ColorSpace>& color_space);
     Builder& set_color_space(const ColorSpace* color_space);
     Builder& set_id(uint16_t id);
-    Builder& set_update_rect(const UpdateRect& update_rect);
+    Builder& set_update_rect(const absl::optional<UpdateRect>& update_rect);
+    Builder& set_packet_infos(RtpPacketInfos packet_infos);
 
    private:
     uint16_t id_ = 0;
@@ -72,6 +101,7 @@ class RTC_EXPORT VideoFrame {
     VideoRotation rotation_ = kVideoRotation_0;
     absl::optional<ColorSpace> color_space_;
     absl::optional<UpdateRect> update_rect_;
+    RtpPacketInfos packet_infos_;
   };
 
   // To be deprecated. Migrate all use to Builder.
@@ -126,11 +156,9 @@ class RTC_EXPORT VideoFrame {
   uint32_t transport_frame_id() const { return timestamp(); }
 
   // Set capture ntp time in milliseconds.
-  // TODO(nisse): Deprecated. Migrate all users to timestamp_us().
   void set_ntp_time_ms(int64_t ntp_time_ms) { ntp_time_ms_ = ntp_time_ms; }
 
   // Get capture ntp time in milliseconds.
-  // TODO(nisse): Deprecated. Migrate all users to timestamp_us().
   int64_t ntp_time_ms() const { return ntp_time_ms_; }
 
   // Naming convention for Coordination of Video Orientation. Please see
@@ -160,15 +188,23 @@ class RTC_EXPORT VideoFrame {
   // initialized VideoFrame.
   rtc::scoped_refptr<webrtc::VideoFrameBuffer> video_frame_buffer() const;
 
+  void set_video_frame_buffer(
+      const rtc::scoped_refptr<VideoFrameBuffer>& buffer);
+
   // TODO(nisse): Deprecated.
   // Return true if the frame is stored in a texture.
   bool is_texture() const {
     return video_frame_buffer()->type() == VideoFrameBuffer::Type::kNative;
   }
 
-  // Always initialized to whole frame update, can be set by Builder or manually
-  // by |set_update_rect|.
-  UpdateRect update_rect() const { return update_rect_; }
+  bool has_update_rect() const { return update_rect_.has_value(); }
+
+  // Returns update_rect set by the builder or set_update_rect() or whole frame
+  // rect if no update rect is available.
+  UpdateRect update_rect() const {
+    return update_rect_.value_or(UpdateRect{0, 0, width(), height()});
+  }
+
   // Rectangle must be within the frame dimensions.
   void set_update_rect(const VideoFrame::UpdateRect& update_rect) {
     RTC_DCHECK_GE(update_rect.offset_x, 0);
@@ -176,6 +212,15 @@ class RTC_EXPORT VideoFrame {
     RTC_DCHECK_LE(update_rect.offset_x + update_rect.width, width());
     RTC_DCHECK_LE(update_rect.offset_y + update_rect.height, height());
     update_rect_ = update_rect;
+  }
+
+  void clear_update_rect() { update_rect_ = absl::nullopt; }
+
+  // Get information about packets used to assemble this video frame. Might be
+  // empty if the information isn't available.
+  const RtpPacketInfos& packet_infos() const { return packet_infos_; }
+  void set_packet_infos(RtpPacketInfos value) {
+    packet_infos_ = std::move(value);
   }
 
  private:
@@ -186,7 +231,8 @@ class RTC_EXPORT VideoFrame {
              int64_t ntp_time_ms,
              VideoRotation rotation,
              const absl::optional<ColorSpace>& color_space,
-             const absl::optional<UpdateRect>& update_rect);
+             const absl::optional<UpdateRect>& update_rect,
+             RtpPacketInfos packet_infos);
 
   uint16_t id_;
   // An opaque reference counted handle that stores the pixel data.
@@ -196,9 +242,16 @@ class RTC_EXPORT VideoFrame {
   int64_t timestamp_us_;
   VideoRotation rotation_;
   absl::optional<ColorSpace> color_space_;
-  // Updated since the last frame area. Unless set explicitly, will always be
-  // a full frame rectangle.
-  UpdateRect update_rect_;
+  // Updated since the last frame area. If present it means that the bounding
+  // box of all the changes is within the rectangular area and is close to it.
+  // If absent, it means that there's no information about the change at all and
+  // update_rect() will return a rectangle corresponding to the entire frame.
+  absl::optional<UpdateRect> update_rect_;
+  // Information about packets used to assemble this video frame. This is needed
+  // by |SourceTracker| when the frame is delivered to the RTCRtpReceiver's
+  // MediaStreamTrack, in order to implement getContributingSources(). See:
+  // https://w3c.github.io/webrtc-pc/#dom-rtcrtpreceiver-getcontributingsources
+  RtpPacketInfos packet_infos_;
 };
 
 }  // namespace webrtc

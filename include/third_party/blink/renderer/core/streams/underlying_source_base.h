@@ -18,11 +18,10 @@
 
 namespace blink {
 
-class ReadableStreamDefaultControllerInterface;
+class ReadableStreamDefaultControllerWithScriptScope;
 
 class CORE_EXPORT UnderlyingSourceBase
     : public ScriptWrappable,
-      public ActiveScriptWrappable<UnderlyingSourceBase>,
       public ContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
   USING_GARBAGE_COLLECTED_MIXIN(UnderlyingSourceBase);
@@ -41,26 +40,20 @@ class CORE_EXPORT UnderlyingSourceBase
 
   ScriptValue type(ScriptState*) const;
 
-  void notifyLockAcquired();
-  void notifyLockReleased();
-
-  // ScriptWrappable
-  bool HasPendingActivity() const override;
-
   // ContextLifecycleObserver
+  // TODO(ricea): Is this still useful?
   void ContextDestroyed(ExecutionContext*) override;
 
  protected:
   explicit UnderlyingSourceBase(ScriptState* script_state)
       : ContextLifecycleObserver(ExecutionContext::From(script_state)) {}
 
-  ReadableStreamDefaultControllerInterface* Controller() const {
+  ReadableStreamDefaultControllerWithScriptScope* Controller() const {
     return controller_;
   }
 
  private:
-  Member<ReadableStreamDefaultControllerInterface> controller_;
-  bool is_stream_locked_ = false;
+  Member<ReadableStreamDefaultControllerWithScriptScope> controller_;
 };
 
 }  // namespace blink

@@ -8,7 +8,7 @@
 #include "third_party/blink/renderer/core/paint/clip_rect.h"
 #include "third_party/blink/renderer/core/paint/paint_invalidator.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -86,10 +86,8 @@ class CORE_EXPORT PrePaintTreeWalk {
   static bool ContextRequiresTreeBuilderContext(const PrePaintTreeWalkContext&,
                                                 const LayoutObject&);
 
-#if DCHECK_IS_ON()
   void CheckTreeBuilderContextState(const LayoutObject&,
                                     const PrePaintTreeWalkContext&);
-#endif
 
   const PrePaintTreeWalkContext& ContextAt(wtf_size_t index) {
     DCHECK_LT(index, context_storage_.size());

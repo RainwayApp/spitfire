@@ -83,7 +83,9 @@ class BASE_EXPORT Sequence : public TaskSource {
   // active Sequence::Transaction.
   Transaction BeginTransaction() WARN_UNUSED_RESULT;
 
+  // TaskSource:
   ExecutionEnvironment GetExecutionEnvironment() override;
+  size_t GetRemainingConcurrency() const override;
 
   // Returns a token that uniquely identifies this Sequence.
   const SequenceToken& token() const { return token_; }
@@ -96,13 +98,13 @@ class BASE_EXPORT Sequence : public TaskSource {
   ~Sequence() override;
 
   // TaskSource:
-  Optional<Task> TakeTask() override WARN_UNUSED_RESULT;
-  bool DidRunTask() override;
+  RunStatus WillRunTask() override;
+  Task TakeTask(TaskSource::Transaction* transaction) override;
+  Task Clear(TaskSource::Transaction* transaction) override;
+  bool DidProcessTask(TaskSource::Transaction* transaction) override;
   SequenceSortKey GetSortKey() const override;
-  void Clear() override;
 
-  // Releases reference to TaskRunner. This might cause this object to be
-  // deleted; therefore, no member access should be made after this method.
+  // Releases reference to TaskRunner.
   void ReleaseTaskRunner();
 
   const SequenceToken token_ = SequenceToken::Create();
@@ -110,7 +112,7 @@ class BASE_EXPORT Sequence : public TaskSource {
   // Queue of tasks to execute.
   base::queue<Task> queue_;
 
-  // True if a worker is currently running a Task from this Sequence.
+  // True if a worker is currently associated with a Task from this Sequence.
   bool has_worker_ = false;
 
   // Holds data stored through the SequenceLocalStorageSlot API.

@@ -10,7 +10,6 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
-#include "base/memory/shared_memory_handle.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 
@@ -26,6 +25,12 @@
 #include <sys/types.h>
 #include "base/file_descriptor_posix.h"
 #include "base/files/scoped_file.h"
+#endif
+
+#if defined(OS_LINUX)
+namespace content {
+class SandboxIPCHandler;
+}
 #endif
 
 namespace base {
@@ -109,8 +114,32 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
     CREATE_FILE_MAPPING_FAILURE = 6,
     REDUCE_PERMISSIONS_FAILURE = 7,
     ALREADY_EXISTS = 8,
-    kMaxValue = ALREADY_EXISTS
+    ALLOCATE_FILE_REGION_FAILURE = 9,
+    FSTAT_FAILURE = 10,
+    INODES_MISMATCH = 11,
+    GET_SHMEM_TEMP_DIR_FAILURE = 12,
+    kMaxValue = GET_SHMEM_TEMP_DIR_FAILURE
   };
+
+#if defined(OS_LINUX)
+  // Structure to limit access to executable region creation.
+  struct ExecutableRegion {
+   private:
+    // Creates a new shared memory region the unsafe mode (writable and not and
+    // convertible to read-only), and in addition marked executable. A ScopedFD
+    // to this region is returned. Any any mapping will have to be done
+    // manually, including setting executable permissions if necessary
+    //
+    // This is only used to support sandbox_ipc_linux.cc, and should not be used
+    // anywhere else in chrome. This is restricted via AllowCreateExecutable.
+    // TODO(crbug.com/982879): remove this when NaCl is unshipped.
+    //
+    // Returns an invalid ScopedFD if the call fails.
+    static ScopedFD CreateFD(size_t size);
+
+    friend class content::SandboxIPCHandler;
+  };
+#endif
 
 // Platform-specific shared memory type used by this class.
 #if defined(OS_MACOSX) && !defined(OS_IOS)
@@ -160,15 +189,6 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
                                          const UnguessableToken& guid);
 #endif
 
-  // As Take, above, but from a SharedMemoryHandle. This takes ownership of the
-  // handle. |mode| must be kUnsafe or kReadOnly; the latter must be used with a
-  // handle created with SharedMemoryHandle::GetReadOnlyHandle().
-  // TODO(crbug.com/795291): this should only be used while transitioning from
-  // the old shared memory API, and should be removed when done.
-  static PlatformSharedMemoryRegion TakeFromSharedMemoryHandle(
-      const SharedMemoryHandle& handle,
-      Mode mode);
-
   // Default constructor initializes an invalid instance, i.e. an instance that
   // doesn't wrap any valid platform handle.
   PlatformSharedMemoryRegion();
@@ -182,7 +202,9 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
   ~PlatformSharedMemoryRegion();
 
   // Passes ownership of the platform handle to the caller. The current instance
-  // becomes invalid. It's the responsibility of the caller to close the handle.
+  // becomes invalid. It's the responsibility of the caller to close the
+  // handle. If the current instance is invalid, ScopedPlatformHandle will also
+  // be invalid.
   ScopedPlatformHandle PassPlatformHandle() WARN_UNUSED_RESULT;
 
   // Returns the platform handle. The current instance keeps ownership of this
@@ -242,7 +264,13 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
                            CreateReadOnlyRegionDeathTest);
   FRIEND_TEST_ALL_PREFIXES(PlatformSharedMemoryRegionTest,
                            CheckPlatformHandlePermissionsCorrespondToMode);
-  static PlatformSharedMemoryRegion Create(Mode mode, size_t size);
+  static PlatformSharedMemoryRegion Create(Mode mode,
+                                           size_t size
+#if defined(OS_LINUX)
+                                           ,
+                                           bool executable = false
+#endif
+  );
 
   static bool CheckPlatformHandlePermissionsCorrespondToMode(
       PlatformHandle handle,

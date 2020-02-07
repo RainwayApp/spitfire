@@ -21,14 +21,17 @@
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_loop_current.h"
+#include "base/message_loop/message_pump_type.h"
 #include "base/pending_task.h"
 #include "base/run_loop.h"
+#include "base/sequenced_task_runner.h"
 #include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
 #include "base/task/common/task_annotator.h"
 #include "base/task/sequence_manager/associated_thread_id.h"
 #include "base/task/sequence_manager/enqueue_order.h"
+#include "base/task/sequence_manager/enqueue_order_generator.h"
 #include "base/task/sequence_manager/sequence_manager.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "base/task/sequence_manager/task_queue_selector.h"
@@ -99,6 +102,8 @@ class BASE_EXPORT SequenceManagerImpl
 
   // SequenceManager implementation:
   void BindToCurrentThread() override;
+  const scoped_refptr<SequencedTaskRunner>& GetTaskRunnerForCurrentTask()
+      override;
   void BindToMessagePump(std::unique_ptr<MessagePump> message_pump) override;
   void SetObserver(Observer* observer) override;
   void AddTaskTimeObserver(TaskTimeObserver* task_time_observer) override;
@@ -120,16 +125,18 @@ class BASE_EXPORT SequenceManagerImpl
   scoped_refptr<TaskQueue> CreateTaskQueue(
       const TaskQueue::Spec& spec) override;
   std::string DescribeAllPendingTasks() const override;
+  std::unique_ptr<NativeWorkHandle> OnNativeWorkPending(
+      TaskQueue::QueuePriority priority) override;
+  void AddTaskObserver(TaskObserver* task_observer) override;
+  void RemoveTaskObserver(TaskObserver* task_observer) override;
 
   // SequencedTaskSource implementation:
-  Optional<PendingTask> TakeTask() override;
+  Task* SelectNextTask() override;
   void DidRunTask() override;
   TimeDelta DelayTillNextTask(LazyNow* lazy_now) const override;
   bool HasPendingHighResolutionTasks() override;
   bool OnSystemIdle() override;
 
-  void AddTaskObserver(MessageLoop::TaskObserver* task_observer);
-  void RemoveTaskObserver(MessageLoop::TaskObserver* task_observer);
   void AddDestructionObserver(
       MessageLoopCurrent::DestructionObserver* destruction_observer);
   void RemoveDestructionObserver(
@@ -140,7 +147,7 @@ class BASE_EXPORT SequenceManagerImpl
   scoped_refptr<SingleThreadTaskRunner> GetTaskRunner();
   bool IsBoundToCurrentThread() const;
   MessagePump* GetMessagePump() const;
-  bool IsType(MessageLoop::Type type) const;
+  bool IsType(MessagePumpType type) const;
   void SetAddQueueTimeToTasks(bool enable);
   void SetTaskExecutionAllowed(bool allowed);
   bool IsTaskExecutionAllowed() const;
@@ -151,7 +158,7 @@ class BASE_EXPORT SequenceManagerImpl
   void BindToCurrentThread(std::unique_ptr<MessagePump> pump);
   void DeletePendingTasks();
   bool HasTasks();
-  MessageLoop::Type GetType() const;
+  MessagePumpType GetType() const;
 
   // Requests that a task to process work is scheduled.
   void ScheduleWork();
@@ -203,6 +210,8 @@ class BASE_EXPORT SequenceManagerImpl
   friend class ::base::sequence_manager::SequenceManagerForTest;
 
  private:
+  class NativeWorkHandleImpl;
+
   // Returns the SequenceManager running the
   // current thread. It must only be used on the thread it was obtained.
   // Only to be used by MessageLoopCurrent for the moment
@@ -222,7 +231,8 @@ class BASE_EXPORT SequenceManagerImpl
 
   // We have to track rentrancy because we support nested runloops but the
   // selector interface is unaware of those.  This struct keeps track off all
-  // task related state needed to make pairs of TakeTask() / DidRunTask() work.
+  // task related state needed to make pairs of SelectNextTask() / DidRunTask()
+  // work.
   struct ExecutingTask {
     ExecutingTask(Task&& task,
                   internal::TaskQueueImpl* task_queue,
@@ -266,7 +276,7 @@ class BASE_EXPORT SequenceManagerImpl
     std::uniform_real_distribution<double> uniform_distribution;
 
     internal::TaskQueueSelector selector;
-    ObserverList<MessageLoop::TaskObserver>::Unchecked task_observers;
+    ObserverList<TaskObserver>::Unchecked task_observers;
     ObserverList<TaskTimeObserver>::Unchecked task_time_observers;
     std::set<TimeDomain*> time_domains;
     std::unique_ptr<internal::RealTimeDomain> real_time_domain;
@@ -304,6 +314,10 @@ class BASE_EXPORT SequenceManagerImpl
 
     ObserverList<MessageLoopCurrent::DestructionObserver>::Unchecked
         destruction_observers;
+
+    // By default native work is not prioritized at all.
+    std::multiset<TaskQueue::QueuePriority> pending_native_work{
+        TaskQueue::kBestEffortPriority};
   };
 
   void CompleteInitializationOnBoundThread();
@@ -327,7 +341,7 @@ class BASE_EXPORT SequenceManagerImpl
   void NotifyWillProcessTask(ExecutingTask* task, LazyNow* time_before_task);
   void NotifyDidProcessTask(ExecutingTask* task, LazyNow* time_after_task);
 
-  internal::EnqueueOrder GetNextSequenceNumber();
+  EnqueueOrder GetNextSequenceNumber();
 
   bool GetAddQueueTimeToTasks();
 
@@ -365,11 +379,18 @@ class BASE_EXPORT SequenceManagerImpl
   void RecordCrashKeys(const PendingTask&);
 
   // Helper to terminate all scoped trace events to allow starting new ones
-  // in TakeTask().
-  Optional<PendingTask> TakeTaskImpl();
+  // in SelectNextTask().
+  Task* SelectNextTaskImpl();
+
+  // Check if a task of priority |priority| should run given the pending set of
+  // native work.
+  bool ShouldRunTaskOfPriority(TaskQueue::QueuePriority priority) const;
+
+  // Ignores any immediate work.
+  TimeDelta GetDelayTillNextDelayedTask(LazyNow* lazy_now) const;
 
 #if DCHECK_IS_ON()
-  void LogTaskDebugInfo(const ExecutingTask& executing_task);
+  void LogTaskDebugInfo(const internal::WorkQueue* work_queue) const;
 #endif
 
   // Determines if wall time or thread time should be recorded for the next
@@ -379,7 +400,7 @@ class BASE_EXPORT SequenceManagerImpl
 
   scoped_refptr<AssociatedThreadId> associated_thread_;
 
-  internal::EnqueueOrder::Generator enqueue_order_generator_;
+  EnqueueOrderGenerator enqueue_order_generator_;
 
   const std::unique_ptr<internal::ThreadController> controller_;
   const Settings settings_;
@@ -407,7 +428,7 @@ class BASE_EXPORT SequenceManagerImpl
     return main_thread_only_;
   }
 
-  WeakPtrFactory<SequenceManagerImpl> weak_factory_;
+  WeakPtrFactory<SequenceManagerImpl> weak_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(SequenceManagerImpl);
 };

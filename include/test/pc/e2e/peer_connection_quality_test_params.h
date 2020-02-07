@@ -14,16 +14,16 @@
 #include <string>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "api/async_resolver_factory.h"
 #include "api/call/call_factory_interface.h"
 #include "api/fec_controller.h"
-#include "api/media_transport_interface.h"
+#include "api/rtc_event_log/rtc_event_log_factory_interface.h"
+#include "api/task_queue/task_queue_factory.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
+#include "api/transport/media/media_transport_interface.h"
 #include "api/transport/network_control.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
-#include "logging/rtc_event_log/rtc_event_log_factory_interface.h"
 #include "rtc_base/network.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_certificate.h"
@@ -42,6 +42,7 @@ namespace webrtc_pc_e2e {
 // can override only some parts of media engine like video encoder/decoder
 // factories.
 struct PeerConnectionFactoryComponents {
+  std::unique_ptr<TaskQueueFactory> task_queue_factory;
   std::unique_ptr<CallFactoryInterface> call_factory;
   std::unique_ptr<RtcEventLogFactoryInterface> event_log_factory;
   std::unique_ptr<FecControllerFactoryInterface> fec_controller_factory;
@@ -81,9 +82,9 @@ struct InjectableComponents {
   explicit InjectableComponents(rtc::Thread* network_thread,
                                 rtc::NetworkManager* network_manager)
       : network_thread(network_thread),
-        pcf_dependencies(absl::make_unique<PeerConnectionFactoryComponents>()),
+        pcf_dependencies(std::make_unique<PeerConnectionFactoryComponents>()),
         pc_dependencies(
-            absl::make_unique<PeerConnectionComponents>(network_manager)) {
+            std::make_unique<PeerConnectionComponents>(network_manager)) {
     RTC_CHECK(network_thread);
   }
 

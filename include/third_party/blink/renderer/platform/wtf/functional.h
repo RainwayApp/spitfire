@@ -31,7 +31,7 @@
 #include "base/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_checker.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
@@ -62,8 +62,8 @@ namespace WTF {
 // WTF::Bind(), WTF::BindRepeating and base::{Once,Repeating}Callback should
 // be used for same-thread closures only, i.e. the closures must be created,
 // executed and destructed on the same thread.
-// Use CrossThreadBind() and CrossThreadBindOnce() if the function/task is
-// called or destructed on a (potentially) different thread from the current
+// Use CrossThreadBindOnce() and CrossThreadBindRepeating() if the function/task
+// is called or destructed on a (potentially) different thread from the current
 // thread.
 
 // WTF::Bind() / WTF::BindRepeating() and move semantics
@@ -209,6 +209,9 @@ struct CheckGCedTypeRestriction {
                 "GCed types are forbidden as bound parameters.");
   static_assert(!WTF::IsStackAllocatedType<T>::value,
                 "Stack allocated types are forbidden as bound parameters.");
+  static_assert(
+      !(WTF::IsDisallowNew<T>::value && WTF::IsTraceable<T>::value),
+      "Traceable disallow new types are forbidden as bound parameters.");
 };
 
 template <typename Index, typename... Args>
@@ -311,7 +314,7 @@ class CrossThreadFunction<R(Args...)> {
 
  public:
   CrossThreadFunction() = default;
-  explicit CrossThreadFunction(base::Callback<R(Args...)> callback)
+  explicit CrossThreadFunction(base::RepeatingCallback<R(Args...)> callback)
       : callback_(std::move(callback)) {}
   ~CrossThreadFunction() = default;
 
@@ -329,13 +332,13 @@ class CrossThreadFunction<R(Args...)> {
   void Reset() { callback_.Reset(); }
   explicit operator bool() const { return static_cast<bool>(callback_); }
 
-  friend base::Callback<R(Args...)> ConvertToBaseCallback(
+  friend base::RepeatingCallback<R(Args...)> ConvertToBaseRepeatingCallback(
       CrossThreadFunction function) {
     return std::move(function.callback_);
   }
 
  private:
-  base::Callback<R(Args...)> callback_;
+  base::RepeatingCallback<R(Args...)> callback_;
 };
 
 template <typename Signature>

@@ -18,7 +18,6 @@
 #include <string>
 
 #include "api/crypto/crypto_options.h"
-#include "api/datagram_transport_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/scoped_refptr.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -65,14 +64,6 @@ class DtlsTransportInternal : public rtc::PacketTransportInternal {
 
   virtual const webrtc::CryptoOptions& crypto_options() const = 0;
 
-  // Returns datagram transport or nullptr if not using datagram transport.
-  // TODO(sukhanov): Make pure virtual.
-  // TODO(sukhanov): Consider moving ownership of datagram transport and ICE
-  // to JsepTransport.
-  virtual webrtc::DatagramTransportInterface* datagram_transport() {
-    return nullptr;
-  }
-
   virtual DtlsTransportState dtls_state() const = 0;
 
   virtual int component() const = 0;
@@ -83,6 +74,8 @@ class DtlsTransportInternal : public rtc::PacketTransportInternal {
 
   virtual bool SetDtlsRole(rtc::SSLRole role) = 0;
 
+  // Finds out which TLS/DTLS version is running.
+  virtual bool GetSslVersionBytes(int* version) const = 0;
   // Finds out which DTLS-SRTP cipher was negotiated.
   // TODO(zhihuang): Remove this once all dependencies implement this.
   virtual bool GetSrtpCryptoSuite(int* cipher) = 0;

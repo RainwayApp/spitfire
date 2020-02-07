@@ -37,12 +37,17 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
 #include "third_party/blink/renderer/platform/loader/fetch/text_resource_decoder_options.h"
 
+namespace mojo {
+class SimpleWatcher;
+}
+
 namespace blink {
 
 class FetchParameters;
 class KURL;
 class ResourceFetcher;
 class ResponseBodyLoaderClient;
+class SingleCachedMetadataHandler;
 
 // ScriptResource is a resource representing a JavaScript script. It is only
 // used for "classic" scripts, i.e. not modules.
@@ -77,16 +82,7 @@ class CORE_EXPORT ScriptResource final : public TextResource {
 
   // Public for testing
   static ScriptResource* CreateForTest(const KURL& url,
-                                       const WTF::TextEncoding& encoding) {
-    ResourceRequest request(url);
-    request.SetFetchCredentialsMode(
-        network::mojom::FetchCredentialsMode::kOmit);
-    ResourceLoaderOptions options;
-    TextResourceDecoderOptions decoder_options(
-        TextResourceDecoderOptions::kPlainTextContent, encoding);
-    return MakeGarbageCollected<ScriptResource>(request, options,
-                                                decoder_options);
-  }
+                                       const WTF::TextEncoding& encoding);
 
   ScriptResource(const ResourceRequest&,
                  const ResourceLoaderOptions&,
@@ -102,7 +98,7 @@ class CORE_EXPORT ScriptResource final : public TextResource {
   void OnMemoryDump(WebMemoryDumpLevelOfDetail,
                     WebProcessMemoryDump*) const override;
 
-  void SetSerializedCachedMetadata(const uint8_t*, size_t) override;
+  void SetSerializedCachedMetadata(mojo_base::BigBuffer data) override;
 
   void StartStreaming(
       scoped_refptr<base::SingleThreadTaskRunner> loading_task_runner);

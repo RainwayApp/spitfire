@@ -7,9 +7,11 @@
 
 #include "base/base_export.h"
 #include "base/logging.h"
+#include "base/message_loop/message_pump_type.h"
 #include "base/message_loop/timer_slack.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -17,6 +19,17 @@ class TimeTicks;
 
 class BASE_EXPORT MessagePump {
  public:
+  using MessagePumpFactory = std::unique_ptr<MessagePump>();
+  // Uses the given base::MessagePumpFactory to override the default MessagePump
+  // implementation for 'MessagePumpType::UI'. May only be called once.
+  static void OverrideMessagePumpForUIFactory(MessagePumpFactory* factory);
+
+  // Returns true if the MessagePumpForUI has been overidden.
+  static bool IsMessagePumpForUIFactoryOveridden();
+
+  // Creates the default MessagePump based on |type|. Caller owns return value.
+  static std::unique_ptr<MessagePump> Create(MessagePumpType type);
+
   // Please see the comments above the Run method for an illustration of how
   // these delegate methods are used.
   class BASE_EXPORT Delegate {

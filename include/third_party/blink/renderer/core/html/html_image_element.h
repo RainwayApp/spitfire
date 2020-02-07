@@ -58,14 +58,24 @@ class CORE_EXPORT HTMLImageElement final
  public:
   class ViewportChangeListener;
 
-  // Returns attributes that should be checked against Trusted Types
-  const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
-
   static HTMLImageElement* CreateForJSConstructor(Document&);
   static HTMLImageElement* CreateForJSConstructor(Document&, unsigned width);
   static HTMLImageElement* CreateForJSConstructor(Document&,
                                                   unsigned width,
                                                   unsigned height);
+
+  // Returns dimension type of the attribute value or inline dimensions usable
+  // for LazyLoad, whether the dimension is absolute or not and if the absolute
+  // value is small enough to be skipped for lazyloading.
+  enum class LazyLoadDimensionType {
+    kNotAbsolute,
+    kAbsoluteNotSmall,
+    kAbsoluteSmall,
+  };
+  static LazyLoadDimensionType GetAttributeLazyLoadDimensionType(
+      const String& attribute_value);
+  static LazyLoadDimensionType GetInlineStyleDimensionsType(
+      const CSSPropertyValueSet* property_set);
 
   HTMLImageElement(Document&, const CreateElementFlags);
   explicit HTMLImageElement(Document&, bool created_by_parser = false);
@@ -159,10 +169,6 @@ class CORE_EXPORT HTMLImageElement final
     return *visible_load_time_metrics_;
   }
 
-  static bool IsDimensionSmallAndAbsoluteForLazyLoad(
-      const String& attribute_value);
-  static bool IsInlineStyleDimensionsSmall(const CSSPropertyValueSet*);
-
   // Updates if any optimized image policy is violated. When any policy is
   // violated, the image should be rendered as a placeholder image.
   void SetImagePolicyViolated() {
@@ -242,7 +248,6 @@ class CORE_EXPORT HTMLImageElement final
   unsigned form_was_set_by_parser_ : 1;
   unsigned element_created_by_parser_ : 1;
   unsigned is_fallback_image_ : 1;
-  bool sizes_set_width_;
   bool is_default_overridden_intrinsic_size_;
   // This flag indicates if the image violates one or more optimized image
   // policies. When any policy is violated, the image should be rendered as a

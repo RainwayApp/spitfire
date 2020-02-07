@@ -10,7 +10,7 @@
 #include "third_party/blink/renderer/core/style/style_image.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect_outsets.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
 
 namespace blink {
@@ -113,7 +113,8 @@ class BoxPainterBase {
                   const FillLayer&,
                   BackgroundBleedAvoidance,
                   bool include_left_edge,
-                  bool include_right_edge);
+                  bool include_right_edge,
+                  bool is_inline);
 
     // FillLayerInfo is a temporary, stack-allocated container which cannot
     // outlive the StyleImage.  This would normally be a raw pointer, if not for

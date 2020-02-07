@@ -8,7 +8,6 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace base {
 class TickClock;
@@ -28,7 +27,7 @@ class CORE_EXPORT IdleDeadline : public ScriptWrappable {
     kMaxValue = kCalledByTimeout
   };
 
-  IdleDeadline(TimeTicks deadline, CallbackType);
+  IdleDeadline(base::TimeTicks deadline, CallbackType);
 
   double timeRemaining() const;
 
@@ -41,7 +40,7 @@ class CORE_EXPORT IdleDeadline : public ScriptWrappable {
   void SetTickClockForTesting(const base::TickClock* clock) { clock_ = clock; }
 
  private:
-  TimeTicks deadline_;
+  base::TimeTicks deadline_;
   CallbackType callback_type_;
   const base::TickClock* clock_;
 };

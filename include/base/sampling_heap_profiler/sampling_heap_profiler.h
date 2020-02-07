@@ -14,6 +14,8 @@
 #include "base/macros.h"
 #include "base/sampling_heap_profiler/poisson_allocation_sampler.h"
 #include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
+#include "base/threading/thread_id_name_manager.h"
 
 namespace base {
 
@@ -25,7 +27,8 @@ class NoDestructor;
 // record samples.
 // The recorded samples can then be retrieved using GetSamples method.
 class BASE_EXPORT SamplingHeapProfiler
-    : private PoissonAllocationSampler::SamplesObserver {
+    : private PoissonAllocationSampler::SamplesObserver,
+      public base::ThreadIdNameManager::Observer {
  public:
   class BASE_EXPORT Sample {
    public:
@@ -95,6 +98,9 @@ class BASE_EXPORT SamplingHeapProfiler
   static void Init();
   static SamplingHeapProfiler* Get();
 
+  // ThreadIdNameManager::Observer implementation:
+  void OnThreadNameChanged(const char* name) override;
+
  private:
   SamplingHeapProfiler();
   ~SamplingHeapProfiler() override;
@@ -109,13 +115,13 @@ class BASE_EXPORT SamplingHeapProfiler
 
   void CaptureMixedStack(const char* context, Sample* sample);
   void CaptureNativeStack(const char* context, Sample* sample);
-  const char* RecordString(const char* string);
+  const char* RecordString(const char* string) EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Mutex to access |samples_| and |strings_|.
   Lock mutex_;
 
   // Samples of the currently live allocations.
-  std::unordered_map<void*, Sample> samples_;
+  std::unordered_map<void*, Sample> samples_ GUARDED_BY(mutex_);
 
   // When CaptureMode::PSEUDO_STACK or CaptureMode::MIXED_STACK is enabled
   // the call stack contents of samples may contain strings besides
@@ -123,7 +129,7 @@ class BASE_EXPORT SamplingHeapProfiler
   // In this case each string pointer is also added to the |strings_| set.
   // The set does only contain pointers to static strings that are never
   // deleted.
-  std::unordered_set<const char*> strings_;
+  std::unordered_set<const char*> strings_ GUARDED_BY(mutex_);
 
   // Mutex to make |running_sessions_| and Add/Remove samples observer access
   // atomic.

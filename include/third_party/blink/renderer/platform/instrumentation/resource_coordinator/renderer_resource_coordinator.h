@@ -6,13 +6,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_INSTRUMENTATION_RESOURCE_COORDINATOR_RENDERER_RESOURCE_COORDINATOR_H_
 
 #include "base/macros.h"
-#include "services/resource_coordinator/public/mojom/coordination_unit.mojom-blink.h"
+#include "components/performance_manager/public/mojom/coordination_unit.mojom-blink.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
-
-namespace service_manager {
-class Connector;
-}  // namespace service_manager
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -37,9 +34,12 @@ class PLATFORM_EXPORT RendererResourceCoordinator {
   RendererResourceCoordinator();
 
  private:
-  RendererResourceCoordinator(service_manager::Connector*, const std::string&);
+  explicit RendererResourceCoordinator(
+      mojo::PendingRemote<
+          performance_manager::mojom::blink::ProcessCoordinationUnit> remote);
 
-  resource_coordinator::mojom::blink::ProcessCoordinationUnitPtr service_;
+  mojo::Remote<performance_manager::mojom::blink::ProcessCoordinationUnit>
+      service_;
 
   DISALLOW_COPY_AND_ASSIGN(RendererResourceCoordinator);
 };

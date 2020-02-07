@@ -26,13 +26,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_IMAGE_GENERATOR_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_IMAGE_GENERATOR_VALUE_H_
 
-#include <map>
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_value.h"
 #include "third_party/blink/renderer/platform/geometry/float_size.h"
 #include "third_party/blink/renderer/platform/heap/self_keep_alive.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
@@ -103,7 +102,11 @@ class CORE_EXPORT CSSImageGeneratorValue : public CSSValue {
 
   void LoadSubimages(const Document&);
 
-  CSSImageGeneratorValue* ValueWithURLsMadeAbsolute();
+  CSSImageGeneratorValue* ComputedCSSValue(const ComputedStyle&,
+                                           bool allow_visited_style);
+
+  bool IsUsingCustomProperty(const AtomicString& custom_property_name,
+                             const Document&) const;
 
   void TraceAfterDispatch(blink::Visitor* visitor) {
     CSSValue::TraceAfterDispatch(visitor);

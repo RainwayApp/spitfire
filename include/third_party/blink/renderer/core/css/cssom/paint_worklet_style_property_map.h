@@ -10,9 +10,13 @@
 #include "base/macros.h"
 #include "third_party/blink/renderer/core/css/cssom/cross_thread_style_value.h"
 #include "third_party/blink/renderer/core/css/cssom/style_property_map_read_only.h"
+#include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
+#include "third_party/blink/renderer/platform/graphics/platform_paint_worklet_layer_painter.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
+
+class ComputedStyle;
 
 // This class is designed for CSS Paint such that it can be safely passed cross
 // threads.
@@ -31,12 +35,16 @@ class CORE_EXPORT PaintWorkletStylePropertyMap
       HashMap<String, std::unique_ptr<CrossThreadStyleValue>>;
   // Build the data that will be passed to the worklet thread to construct a
   // style map. Should be called on the main thread only.
-  static CrossThreadData BuildCrossThreadData(
+  // TODO(xidachen): consider making the input_property_ids as part of the
+  // return value. Or make both CrossThreadData and input_property_ids as
+  // params and return a bool.
+  static base::Optional<CrossThreadData> BuildCrossThreadData(
       const Document&,
+      UniqueObjectId unique_object_id,
       const ComputedStyle&,
-      Node* styled_node,
       const Vector<CSSPropertyID>& native_properties,
-      const Vector<AtomicString>& custom_properties);
+      const Vector<AtomicString>& custom_properties,
+      CompositorPaintWorkletInput::PropertyKeys& input_property_keys);
 
   static CrossThreadData CopyCrossThreadData(const CrossThreadData& data);
 
@@ -60,6 +68,8 @@ class CORE_EXPORT PaintWorkletStylePropertyMap
   void Trace(blink::Visitor*) override;
 
   const CrossThreadData& StyleMapDataForTest() const { return data_; }
+
+  CrossThreadData& StyleMapData() { return data_; }
 
  private:
   IterationSource* StartIteration(ScriptState*, ExceptionState&) override;

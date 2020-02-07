@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -106,9 +107,9 @@ class MODULES_EXPORT ManifestParser {
 
   // Parses the 'display' field of the manifest, as defined in:
   // https://w3c.github.io/manifest/#dfn-steps-for-processing-the-display-member
-  // Returns the parsed DisplayMode if any, WebDisplayModeUndefined if the
+  // Returns the parsed DisplayMode if any, DisplayMode::kUndefined if the
   // parsing failed.
-  WebDisplayMode ParseDisplay(const JSONObject* object);
+  blink::mojom::DisplayMode ParseDisplay(const JSONObject* object);
 
   // Parses the 'orientation' field of the manifest, as defined in:
   // https://w3c.github.io/manifest/#dfn-steps-for-processing-the-orientation-member
@@ -148,7 +149,7 @@ class MODULES_EXPORT ManifestParser {
       const JSONObject* object);
 
   // Parses the name field of a share target file, as defined in:
-  // https://github.com/WICG/web-share-target/blob/master/docs/interface.md
+  // https://wicg.github.io/web-share-target/level-2/#sharetargetfiles-and-its-members
   // Returns the parsed string if any, an empty string if the parsing failed.
   String ParseFileFilterName(const JSONObject* file);
 
@@ -171,37 +172,58 @@ class MODULES_EXPORT ManifestParser {
                        Vector<mojom::blink::ManifestFileFilterPtr>* files);
 
   // Parses the method field of a Share Target, as defined in:
-  // https://github.com/WICG/web-share-target/blob/master/docs/interface.md
+  // https://wicg.github.io/web-share-target/#sharetarget-and-its-members
   // Returns an optional share target method enum object.
   base::Optional<mojom::blink::ManifestShareTarget::Method>
   ParseShareTargetMethod(const JSONObject* share_target_dict);
 
   // Parses the enctype field of a Share Target, as defined in:
-  // https://github.com/WICG/web-share-target/blob/master/docs/interface.md
+  // https://wicg.github.io/web-share-target/#sharetarget-and-its-members
   // Returns an optional share target enctype enum object.
   base::Optional<mojom::blink::ManifestShareTarget::Enctype>
   ParseShareTargetEnctype(const JSONObject* share_target_dict);
 
   // Parses the 'params' field of a Share Target, as defined in:
-  // https://wicg.github.io/web-share-target/level-2/#sharetargetparams-and-its-members
+  // https://wicg.github.io/web-share-target/#sharetarget-and-its-members
   // Returns a parsed mojom::blink:ManifestShareTargetParamsPtr, not all fields
   // need to be populated.
   mojom::blink::ManifestShareTargetParamsPtr ParseShareTargetParams(
       const JSONObject* share_target_params);
 
   // Parses the 'share_target' field of a Manifest, as defined in:
-  // https://github.com/WICG/web-share-target/blob/master/docs/interface.md
+  // https://wicg.github.io/web-share-target/#share_target-member
   // Returns the parsed Web Share target. The returned Share Target is null if
   // the field didn't exist, parsing failed, or it was empty.
   base::Optional<mojom::blink::ManifestShareTargetPtr> ParseShareTarget(
       const JSONObject* object);
 
-  // Parses the 'file_handler' field of a Manifest, as defined in:
+  // Parses the 'file_handlers' field of a Manifest, as defined in:
   // https://github.com/WICG/file-handling/blob/master/explainer.md
-  // Returns the parsed file handler information. The returned FileHandler is
-  // null if the field didn't exist, parsing failed, or it was empty.
-  base::Optional<mojom::blink::ManifestFileHandlerPtr> ParseFileHandler(
+  // Returns the parsed list of FileHandlers. The returned FileHandlers are
+  // empty if the field didn't exist, parsing failed, or the input list was
+  // empty.
+  Vector<mojom::blink::ManifestFileHandlerPtr> ParseFileHandlers(
       const JSONObject* object);
+
+  // Parses a FileHandler from an entry in the 'file_handlers' list, as
+  // defined in: https://github.com/WICG/file-handling/blob/master/explainer.md.
+  // Returns |base::nullopt| if the FileHandler was invalid, or a
+  // FileHandler, if parsing succeeded.
+  base::Optional<mojom::blink::ManifestFileHandlerPtr> ParseFileHandler(
+      const JSONObject* file_handler_entry);
+
+  // Parses the 'accept' field of a FileHandler, as defined in:
+  // https://github.com/WICG/file-handling/blob/master/explainer.md.
+  // Returns the parsed accept map. Invalid accept entries are ignored.
+  HashMap<String, Vector<String>> ParseFileHandlerAccept(
+      const JSONObject* accept);
+
+  // Parses an extension in the 'accept' field of a FileHandler, as defined in:
+  // https://github.com/WICG/file-handling/blob/master/explainer.md. Returns
+  // whether the parsing was successful and, if so, populates |output| with the
+  // parsed extension.
+  bool ParseFileHandlerAcceptExtension(const JSONValue* extension,
+                                       String* ouput);
 
   // Parses the 'platform' field of a related application, as defined in:
   // https://w3c.github.io/manifest/#dfn-steps-for-processing-the-platform-member-of-an-application
@@ -242,10 +264,6 @@ class MODULES_EXPORT ManifestParser {
   // https://w3c.github.io/manifest/#dfn-steps-for-processing-the-background_color-member
   // Returns the parsed background color if any, or a null optional otherwise.
   base::Optional<RGBA32> ParseBackgroundColor(const JSONObject* object);
-
-  // Parses the 'splash_screen_url' field of the manifest.
-  // Returns the parsed KURL if any, an empty KURL if the parsing failed.
-  KURL ParseSplashScreenURL(const JSONObject* object);
 
   // Parses the 'gcm_sender_id' field of the manifest.
   // This is a proprietary extension of the Web Manifest specification.

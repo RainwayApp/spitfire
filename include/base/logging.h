@@ -18,7 +18,6 @@
 #include "base/base_export.h"
 #include "base/callback_forward.h"
 #include "base/compiler_specific.h"
-#include "base/debug/debugger.h"
 #include "base/immediate_crash.h"
 #include "base/logging_buildflags.h"
 #include "base/macros.h"
@@ -26,6 +25,10 @@
 #include "base/strings/string_piece_forward.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
+
+#if defined(OS_CHROMEOS)
+#include <cstdio>
+#endif
 
 //
 // Optional message capabilities
@@ -165,7 +168,7 @@ namespace logging {
 
 // TODO(avi): do we want to do a unification of character types here?
 #if defined(OS_WIN)
-typedef base::char16 PathChar;
+typedef wchar_t PathChar;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 typedef char PathChar;
 #endif
@@ -215,11 +218,18 @@ struct BASE_EXPORT LoggingSettings {
   // destinations.
   uint32_t logging_dest = LOG_DEFAULT;
 
-  // The three settings below have an effect only when LOG_TO_FILE is
+  // The four settings below have an effect only when LOG_TO_FILE is
   // set in |logging_dest|.
-  const PathChar* log_file = nullptr;
+  const PathChar* log_file_path = nullptr;
   LogLockingState lock_log = LOCK_LOG_FILE;
   OldFileDeletionState delete_old = APPEND_TO_OLD_LOG_FILE;
+#if defined(OS_CHROMEOS)
+  // Contains an optional file that logs should be written to. If present,
+  // |log_file_path| will be ignored, and the logging system will take ownership
+  // of the FILE. If there's an error writing to this file, no fallback paths
+  // will be opened.
+  FILE* log_file = nullptr;
+#endif
 };
 
 // Define different names for the BaseInitLoggingImpl() function depending on
@@ -520,9 +530,9 @@ BASE_EXPORT extern std::ostream* g_swallow_stream;
 class CheckOpResult {
  public:
   // |message| must be non-null if and only if the check failed.
-  CheckOpResult(std::string* message) : message_(message) {}
+  constexpr CheckOpResult(std::string* message) : message_(message) {}
   // Returns true if the check succeeded.
-  operator bool() const { return !message_; }
+  constexpr operator bool() const { return !message_; }
   // Returns the message.
   std::string* message() { return message_; }
 
@@ -597,6 +607,16 @@ MakeCheckOpValueString(std::ostream* os, const T& v) {
   (*os) << v;
 }
 
+// Overload for types that no operator<< but do have .ToString() defined.
+template <typename T>
+inline typename std::enable_if<
+    !base::internal::SupportsOstreamOperator<const T&>::value &&
+        base::internal::SupportsToString<const T&>::value,
+    void>::type
+MakeCheckOpValueString(std::ostream* os, const T& v) {
+  (*os) << v.ToString();
+}
+
 // Provide an overload for functions and function pointers. Function pointers
 // don't implicitly convert to void* but do implicitly convert to bool, so
 // without this function pointers are always printed as 1 or 0. (MSVC isn't
@@ -665,20 +685,21 @@ std::string* MakeCheckOpString<std::string, std::string>(
 // The checked condition is wrapped with ANALYZER_ASSUME_TRUE, which under
 // static analysis builds, blocks analysis of the current path if the
 // condition is false.
-#define DEFINE_CHECK_OP_IMPL(name, op)                                       \
-  template <class t1, class t2>                                              \
-  inline std::string* Check##name##Impl(const t1& v1, const t2& v2,          \
-                                        const char* names) {                 \
-    if (ANALYZER_ASSUME_TRUE(v1 op v2))                                      \
-      return NULL;                                                           \
-    else                                                                     \
-      return ::logging::MakeCheckOpString(v1, v2, names);                    \
-  }                                                                          \
-  inline std::string* Check##name##Impl(int v1, int v2, const char* names) { \
-    if (ANALYZER_ASSUME_TRUE(v1 op v2))                                      \
-      return NULL;                                                           \
-    else                                                                     \
-      return ::logging::MakeCheckOpString(v1, v2, names);                    \
+#define DEFINE_CHECK_OP_IMPL(name, op)                                 \
+  template <class t1, class t2>                                        \
+  constexpr std::string* Check##name##Impl(const t1& v1, const t2& v2, \
+                                           const char* names) {        \
+    if (ANALYZER_ASSUME_TRUE(v1 op v2))                                \
+      return nullptr;                                                  \
+    else                                                               \
+      return ::logging::MakeCheckOpString(v1, v2, names);              \
+  }                                                                    \
+  constexpr std::string* Check##name##Impl(int v1, int v2,             \
+                                           const char* names) {        \
+    if (ANALYZER_ASSUME_TRUE(v1 op v2))                                \
+      return nullptr;                                                  \
+    else                                                               \
+      return ::logging::MakeCheckOpString(v1, v2, names);              \
   }
 DEFINE_CHECK_OP_IMPL(EQ, ==)
 DEFINE_CHECK_OP_IMPL(NE, !=)
@@ -696,9 +717,9 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
 
 #if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-#define DCHECK_IS_ON() 0
+#define DCHECK_IS_ON() false
 #else
-#define DCHECK_IS_ON() 1
+#define DCHECK_IS_ON() true
 #endif
 
 // Definitions for DLOG et al.
@@ -900,6 +921,7 @@ class BASE_EXPORT LogMessage {
   // The file and line information passed in to the constructor.
   const char* file_;
   const int line_;
+  const char* file_basename_;
 
   // This is useful since the LogMessage class uses a lot of Win32 calls
   // that will lose the value of GLE and the code that called the log function
@@ -979,6 +1001,14 @@ class BASE_EXPORT ErrnoLogMessage {
 //       after this call.
 BASE_EXPORT void CloseLogFile();
 
+#if defined(OS_CHROMEOS)
+// Returns a new file handle that will write to the same destination as the
+// currently open log file. Returns nullptr if logging to a file is disabled,
+// or if opening the file failed. This is intended to be used to initialize
+// logging in child processes that are unable to open files.
+BASE_EXPORT FILE* DuplicateLogFILE();
+#endif
+
 // Async signal safe logging mechanism.
 BASE_EXPORT void RawLog(int level, const char* message);
 
@@ -997,7 +1027,7 @@ BASE_EXPORT void RawLog(int level, const char* message);
 BASE_EXPORT bool IsLoggingToFileEnabled();
 
 // Returns the default log file path.
-BASE_EXPORT base::string16 GetLogFileFullPath();
+BASE_EXPORT std::wstring GetLogFileFullPath();
 #endif
 
 }  // namespace logging

@@ -15,6 +15,8 @@
 #include <vector>
 
 #include "api/transport/field_trial_based_config.h"
+#include "api/transport/network_control.h"
+#include "modules/include/module.h"
 #include "modules/remote_bitrate_estimator/remote_estimator_proxy.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/critical_section.h"
@@ -32,6 +34,10 @@ class ReceiveSideCongestionController : public CallStatsObserver,
                                         public Module {
  public:
   ReceiveSideCongestionController(Clock* clock, PacketRouter* packet_router);
+  ReceiveSideCongestionController(
+      Clock* clock,
+      PacketRouter* packet_router,
+      NetworkStateEstimator* network_state_estimator);
 
   ~ReceiveSideCongestionController() override {}
 

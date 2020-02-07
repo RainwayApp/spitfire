@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/network/network_state_notifier.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -41,8 +40,8 @@ class NetworkInformation final
   void ConnectionChange(WebConnectionType,
                         double downlink_max_mbps,
                         WebEffectiveConnectionType effective_type,
-                        const base::Optional<TimeDelta>& http_rtt,
-                        const base::Optional<TimeDelta>& transport_rtt,
+                        const base::Optional<base::TimeDelta>& http_rtt,
+                        const base::Optional<base::TimeDelta>& transport_rtt,
                         const base::Optional<double>& downlink_mbps,
                         bool save_data) override;
 

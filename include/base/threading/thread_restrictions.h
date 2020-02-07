@@ -105,17 +105,24 @@ namespace android_webview {
 class AwFormDatabaseService;
 class CookieManager;
 class ScopedAllowInitGLBindings;
+class VizCompositorThreadRunnerWebView;
 }
 namespace audio {
 class OutputDevice;
 }
 namespace blink {
+class RTCVideoDecoderAdapter;
+class RTCVideoEncoder;
 class SourceStream;
 class VideoFrameResourceProvider;
+class WorkerThread;
+namespace scheduler {
+class WorkerThread;
+}
 }
 namespace cc {
 class CompletionEvent;
-class SingleThreadTaskGraphRunner;
+class TileTaskManagerImpl;
 }
 namespace chromeos {
 class BlockingMethodCaller;
@@ -137,13 +144,11 @@ class BrowserShutdownProfileDumper;
 class BrowserTestBase;
 class CategorizedWorkerPool;
 class DesktopCaptureDevice;
-class DWriteFontLookupTableBuilder;
 class GpuProcessTransportFactory;
+class InProcessUtilityThread;
 class NestedMessagePumpAndroid;
 class RenderWidgetHostViewMac;
 class RTCVideoDecoder;
-class RTCVideoDecoderAdapter;
-class RTCVideoEncoder;
 class SandboxHostLinux;
 class ScopedAllowWaitForDebugURL;
 class ServiceWorkerContextClient;
@@ -175,9 +180,6 @@ class HistoryReportJniBridge;
 namespace gpu {
 class GpuChannelHost;
 }
-namespace leveldb {
-class LevelDBMojoProxy;
-}
 namespace leveldb_env {
 class DBTracker;
 }
@@ -185,12 +187,16 @@ namespace media {
 class AudioInputDevice;
 class AudioOutputDevice;
 class BlockingUrlProtocol;
+class PaintCanvasVideoRenderer;
 }
 namespace memory_instrumentation {
 class OSMetrics;
 }
 namespace midi {
 class TaskService;  // https://crbug.com/796830
+}
+namespace module_installer {
+class ScopedAllowModulePakLoad;
 }
 namespace mojo {
 class CoreLibraryInitializer;
@@ -200,10 +206,16 @@ class ScopedIPCSupport;
 }
 }
 namespace printing {
+class PrintJobWorker;
 class PrinterQuery;
 }
 namespace rlz_lib {
 class FinancialPing;
+}
+namespace syncer {
+class GetLocalChangesRequest;
+class HttpBridge;
+class ModelSafeWorker;
 }
 namespace ui {
 class CommandBufferClientImpl;
@@ -216,10 +228,13 @@ class MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
 class MultiThreadedProxyResolverScopedAllowJoinOnIO;
 class NetworkChangeNotifierMac;
 class NetworkConfigWatcherMacThread;
-class ScopedAllowThreadJoinForProxyResolverV8Tracing;
 namespace internal {
 class AddressTrackerLinux;
 }
+}
+
+namespace proxy_resolver {
+class ScopedAllowThreadJoinForProxyResolverV8Tracing;
 }
 
 namespace remoting {
@@ -258,6 +273,10 @@ class WebMainLoop;
 class WebSubThread;
 }
 
+namespace weblayer {
+class ProfileImpl;
+}
+
 namespace webrtc {
 class DesktopConfigurationMonitor;
 }
@@ -275,6 +294,7 @@ class JavaHandlerThread;
 }
 
 namespace internal {
+class JobTaskSource;
 class TaskTracker;
 }
 
@@ -344,11 +364,14 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class cronet::CronetPrefsManager;
   friend class cronet::CronetURLRequestContext;
   friend class memory_instrumentation::OSMetrics;
+  friend class module_installer::ScopedAllowModulePakLoad;
   friend class mojo::CoreLibraryInitializer;
+  friend class printing::PrintJobWorker;
   friend class resource_coordinator::TabManagerDelegate;  // crbug.com/778703
   friend class ui::MaterialDesignController;
   friend class web::WebSubThread;
   friend class StackSamplingProfiler;
+  friend class weblayer::ProfileImpl;
 
   ScopedAllowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
   ~ScopedAllowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
@@ -392,16 +415,16 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class SimpleThread;
   friend class base::GetAppOutputScopedAllowBaseSyncPrimitives;
   friend class blink::SourceStream;
+  friend class blink::WorkerThread;
+  friend class blink::scheduler::WorkerThread;
   friend class chrome_cleaner::SystemReportComponent;
   friend class content::BrowserMainLoop;
   friend class content::BrowserProcessSubThread;
-  friend class content::DWriteFontLookupTableBuilder;
   friend class content::ServiceWorkerContextClient;
   friend class content::SessionStorageDatabase;
   friend class functions::ExecScriptScopedAllowBaseSyncPrimitives;
   friend class history_report::HistoryReportJniBridge;
   friend class internal::TaskTracker;
-  friend class leveldb::LevelDBMojoProxy;
   friend class leveldb_env::DBTracker;
   friend class media::BlockingUrlProtocol;
   friend class mojo::core::ScopedIPCSupport;
@@ -409,6 +432,9 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class rlz_lib::FinancialPing;
   friend class shell_integration_linux::
       LaunchXdgUtilityScopedAllowBaseSyncPrimitives;
+  friend class syncer::HttpBridge;
+  friend class syncer::GetLocalChangesRequest;
+  friend class syncer::ModelSafeWorker;
   friend class webrtc::DesktopConfigurationMonitor;
 
   // Usage that should be fixed:
@@ -448,16 +474,21 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class android_webview::
       AwFormDatabaseService;  // http://crbug.com/904431
   friend class android_webview::CookieManager;
+  friend class android_webview::VizCompositorThreadRunnerWebView;
   friend class audio::OutputDevice;
   friend class base::sequence_manager::internal::TaskQueueImpl;
   friend class base::FileDescriptorWatcher;
+  friend class base::internal::JobTaskSource;
   friend class base::MessageLoopImpl;
   friend class base::ScopedAllowThreadRecallForStackSamplingProfiler;
   friend class base::StackSamplingProfiler;
+  friend class blink::RTCVideoDecoderAdapter;
+  friend class blink::RTCVideoEncoder;
+  friend class cc::TileTaskManagerImpl;
+  friend class content::CategorizedWorkerPool;
   friend class content::DesktopCaptureDevice;
+  friend class content::InProcessUtilityThread;
   friend class content::RTCVideoDecoder;
-  friend class content::RTCVideoDecoderAdapter;
-  friend class content::RTCVideoEncoder;
   friend class content::SandboxHostLinux;
   friend class content::ScopedAllowWaitForDebugURL;
   friend class content::SynchronousCompositor;
@@ -465,6 +496,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class content::SynchronousCompositorSyncCallBridge;
   friend class media::AudioInputDevice;
   friend class media::AudioOutputDevice;
+  friend class media::PaintCanvasVideoRenderer;
   friend class mojo::SyncCallRestrictions;
   friend class net::NetworkConfigWatcherMacThread;
   friend class viz::HostGpuMemoryBufferManager;
@@ -474,10 +506,8 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
   friend class base::Thread;                      // http://crbug.com/918039
   friend class cc::CompletionEvent;               // http://crbug.com/902653
-  friend class cc::SingleThreadTaskGraphRunner;   // http://crbug.com/902823
   friend class content::
       BrowserGpuChannelHostFactory;                 // http://crbug.com/125248
-  friend class content::CategorizedWorkerPool;      // http://crbug.com/902823
   friend class dbus::Bus;                           // http://crbug.com/125222
   friend class disk_cache::BackendImpl;             // http://crbug.com/74623
   friend class disk_cache::InFlightIO;              // http://crbug.com/74623
@@ -489,9 +519,9 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class net::
       MultiThreadedProxyResolverScopedAllowJoinOnIO;  // http://crbug.com/69710
   friend class net::NetworkChangeNotifierMac;         // http://crbug.com/125097
-  friend class net::
-      ScopedAllowThreadJoinForProxyResolverV8Tracing;  // http://crbug.com/69710
   friend class printing::PrinterQuery;                 // http://crbug.com/66082
+  friend class proxy_resolver::
+      ScopedAllowThreadJoinForProxyResolverV8Tracing;  // http://crbug.com/69710
   friend class remoting::AutoThread;  // https://crbug.com/944316
   // Not used in production yet, https://crbug.com/844078.
   friend class service_manager::ServiceProcessLauncher;
@@ -520,6 +550,23 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesForTesting {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(ScopedAllowBaseSyncPrimitivesForTesting);
+};
+
+// Counterpart to base::DisallowUnresponsiveTasks() for tests to allow them to
+// block their thread after it was banned.
+class BASE_EXPORT ScopedAllowUnresponsiveTasksForTesting {
+ public:
+  ScopedAllowUnresponsiveTasksForTesting() EMPTY_BODY_IF_DCHECK_IS_OFF;
+  ~ScopedAllowUnresponsiveTasksForTesting() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+ private:
+#if DCHECK_IS_ON()
+  const bool was_disallowed_base_sync_;
+  const bool was_disallowed_blocking_;
+  const bool was_disallowed_cpu_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedAllowUnresponsiveTasksForTesting);
 };
 
 namespace internal {

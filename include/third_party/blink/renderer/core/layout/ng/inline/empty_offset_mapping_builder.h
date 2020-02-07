@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef EmptyOffsetMappingBuilder_h
-#define EmptyOffsetMappingBuilder_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_EMPTY_OFFSET_MAPPING_BUILDER_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_EMPTY_OFFSET_MAPPING_BUILDER_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
+
+class LayoutText;
 
 // A mock class providing all APIs of an offset mapping builder, but not doing
 // anything. For templates functions/classes that can optionally create an
@@ -29,6 +31,7 @@ class EmptyOffsetMappingBuilder {
   void CollapseTrailingSpace(unsigned) {}
   void Composite(const EmptyOffsetMappingBuilder&) {}
   void Concatenate(const EmptyOffsetMappingBuilder&) {}
+  void RestoreTrailingCollapsibleSpace(const LayoutText&, unsigned) {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyOffsetMappingBuilder);
@@ -36,4 +39,4 @@ class EmptyOffsetMappingBuilder {
 
 }  // namespace blink
 
-#endif  // EmptyOffsetMappingBuilder_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_EMPTY_OFFSET_MAPPING_BUILDER_H_

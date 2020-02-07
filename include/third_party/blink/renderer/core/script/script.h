@@ -19,9 +19,9 @@ class SecurityOrigin;
 class WorkerGlobalScope;
 
 // https://html.spec.whatwg.org/C/#concept-script
-class CORE_EXPORT Script : public GarbageCollectedFinalized<Script> {
+class CORE_EXPORT Script : public GarbageCollected<Script> {
  public:
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) {}
 
   virtual ~Script() {}
 
@@ -34,9 +34,6 @@ class CORE_EXPORT Script : public GarbageCollectedFinalized<Script> {
   // on Window or on WorkerGlobalScope, respectively.
   virtual void RunScript(LocalFrame*, const SecurityOrigin*) = 0;
   virtual void RunScriptOnWorker(WorkerGlobalScope&) = 0;
-
-  // For CSP check for inline scripts.
-  virtual String InlineSourceTextForCSP() const = 0;
 
   const ScriptFetchOptions& FetchOptions() const { return fetch_options_; }
   const KURL& BaseURL() const { return base_url_; }

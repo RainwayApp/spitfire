@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 
+#include "cc/layers/layer.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -20,9 +21,8 @@
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/paint/ng/ng_paint_fragment.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
-#include "third_party/blink/renderer/core/testing/use_mock_scrollbar_settings.h"
 #include "third_party/blink/renderer/platform/testing/layer_tree_host_embedder.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -67,13 +67,14 @@ class LocalFrameClientWithParent final : public EmptyLocalFrameClient {
 };
 
 // RenderingTestChromeClient ensures that we have a LayerTreeHost which allows
-// testing BlinkGenPropertyTrees and CompositeAfterPaint property tree creation.
+// testing property tree creation.
 class RenderingTestChromeClient : public EmptyChromeClient {
  public:
   void SetUp() {
     // Runtime flags can affect LayerTreeHost's settings so this needs to be
     // recreated for each test.
     layer_tree_.reset(new LayerTreeHostEmbedder());
+    device_emulation_transform_ = TransformationMatrix();
   }
 
   bool HasLayer(const cc::Layer& layer) {
@@ -89,11 +90,19 @@ class RenderingTestChromeClient : public EmptyChromeClient {
     return layer_tree_->layer_tree_host();
   }
 
+  void SetDeviceEmulationTransform(const TransformationMatrix& t) {
+    device_emulation_transform_ = t;
+  }
+  TransformationMatrix GetDeviceEmulationTransform() const override {
+    return device_emulation_transform_;
+  }
+
  private:
   std::unique_ptr<LayerTreeHostEmbedder> layer_tree_;
+  TransformationMatrix device_emulation_transform_;
 };
 
-class RenderingTest : public PageTestBase, public UseMockScrollbarSettings {
+class RenderingTest : public PageTestBase {
   USING_FAST_MALLOC(RenderingTest);
 
  public:
@@ -105,7 +114,7 @@ class RenderingTest : public PageTestBase, public UseMockScrollbarSettings {
   explicit RenderingTest(LocalFrameClient* = nullptr);
 
   const Node* HitTest(int x, int y);
-  HitTestResult::NodeSet RectBasedHitTest(LayoutRect rect);
+  HitTestResult::NodeSet RectBasedHitTest(const PhysicalRect& rect);
 
  protected:
   void SetUp() override;
@@ -122,11 +131,7 @@ class RenderingTest : public PageTestBase, public UseMockScrollbarSettings {
 
   void SetChildFrameHTML(const String&);
 
-  // Both enables compositing and runs the document lifecycle.
-  void EnableCompositing() {
-    // This Page is not actually being shown by a compositor, but we act like it
-    // will in order to test behaviour.
-    GetPage().GetSettings().SetAcceleratedCompositingEnabled(true);
+  void RunDocumentLifecycle() {
     GetDocument().View()->SetParentVisible(true);
     GetDocument().View()->SetSelfVisible(true);
     UpdateAllLifecyclePhasesForTest();

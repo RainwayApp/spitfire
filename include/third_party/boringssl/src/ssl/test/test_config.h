@@ -89,7 +89,6 @@ struct TestConfig {
   bool fail_cert_callback = false;
   std::string cipher;
   bool handshake_never_done = false;
-  int export_early_keying_material = 0;
   int export_keying_material = 0;
   std::string export_label;
   std::string export_context;
@@ -120,6 +119,7 @@ struct TestConfig {
   bool renegotiate_once = false;
   bool renegotiate_freely = false;
   bool renegotiate_ignore = false;
+  bool renegotiate_explicit = false;
   bool forbid_renegotiation_after_handshake = false;
   int expect_peer_signature_algorithm = 0;
   bool enable_all_curves = false;
@@ -173,8 +173,11 @@ struct TestConfig {
   bool server_preference = false;
   bool export_traffic_secrets = false;
   bool key_update = false;
+  bool expect_delegated_credential_used = false;
   std::string delegated_credential;
   std::string expect_early_data_reason;
+  bool expect_hrr = false;
+  bool expect_no_hrr = false;
 
   int argc;
   char **argv;

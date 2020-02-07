@@ -50,6 +50,7 @@ class WebView;
 enum class WebSandboxFlags;
 struct WebRect;
 struct WebSize;
+struct WebTextAutosizerPageInfo;
 struct WebWindowFeatures;
 
 class WebViewClient {
@@ -155,10 +156,6 @@ class WebViewClient {
   // Called when the View acquires focus.
   virtual void DidFocus(WebLocalFrame* calling_frame) {}
 
-  // Returns information about the screen where this view's widgets are being
-  // displayed.
-  virtual WebScreenInfo GetScreenInfo() = 0;
-
   // Session history -----------------------------------------------------
 
   // Returns the number of history items before/after the current
@@ -177,13 +174,16 @@ class WebViewClient {
 
   // Zoom ----------------------------------------------------------------
 
-  // Informs the browser that the zoom levels for this frame have changed from
-  // the default values.
-  virtual void ZoomLimitsChanged(double minimum_level, double maximum_level) {}
-
   // Informs the browser that the page scale has changed and/or a pinch gesture
   // has started or ended.
   virtual void PageScaleFactorChanged(float page_scale_factor) {}
+
+  // Informs the browser that page metrics relevant to Blink's TextAutosizer
+  // have changed, so that they can be shared with other renderers. Only called
+  // in the renderer hosting the local main frame. The browser will share this
+  // information with other renderers that have frames in the page.
+  virtual void DidUpdateTextAutosizerPageInfo(const WebTextAutosizerPageInfo&) {
+  }
 
   // Gestures -------------------------------------------------------------
 

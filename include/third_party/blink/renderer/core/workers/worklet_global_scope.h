@@ -61,7 +61,7 @@ class CORE_EXPORT WorkletGlobalScope
   const SecurityContext& GetSecurityContext() const final { return *this; }
   bool IsSecureContext(String& error_message) const final;
   bool IsContextThread() const final;
-  void AddConsoleMessage(ConsoleMessage*) final;
+  void AddConsoleMessageImpl(ConsoleMessage*, bool discard_duplicates) final;
   void ExceptionThrown(ErrorEvent*) final;
   CoreProbeSink* GetProbeSink() final;
   scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner(TaskType) final;
@@ -85,12 +85,6 @@ class CORE_EXPORT WorkletGlobalScope
     return agent_cluster_id_;
   }
 
-  DOMTimerCoordinator* Timers() final {
-    // WorkletGlobalScopes don't have timers.
-    NOTREACHED();
-    return nullptr;
-  }
-
   // Implementation of the "fetch and invoke a worklet script" algorithm:
   // https://drafts.css-houdini.org/worklets/#fetch-and-invoke-a-worklet-script
   // When script evaluation is done or any exception happens, it's notified to
@@ -98,7 +92,7 @@ class CORE_EXPORT WorkletGlobalScope
   // parent frame's task runner).
   void FetchAndInvokeScript(
       const KURL& module_url_record,
-      network::mojom::FetchCredentialsMode,
+      network::mojom::CredentialsMode,
       const FetchClientSettingsObjectSnapshot& outside_settings_object,
       WorkerResourceTimingNotifier& outside_resource_timing_notifier,
       scoped_refptr<base::SingleThreadTaskRunner> outside_settings_task_runner,
@@ -129,12 +123,15 @@ class CORE_EXPORT WorkletGlobalScope
   // thread.
   WorkletGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
                      WorkerReportingProxy&,
-                     LocalFrame*);
+                     LocalFrame*,
+                     Agent* = nullptr);
   // Constructs an instance as a threaded worklet. Must be called on a worker
   // thread.
   WorkletGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
                      WorkerReportingProxy&,
                      WorkerThread*);
+
+  BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() override;
 
  private:
   enum class ThreadType {
@@ -153,7 +150,8 @@ class CORE_EXPORT WorkletGlobalScope
                      v8::Isolate*,
                      ThreadType,
                      LocalFrame*,
-                     WorkerThread*);
+                     WorkerThread*,
+                     Agent*);
 
   EventTarget* ErrorEventTarget() final { return nullptr; }
 

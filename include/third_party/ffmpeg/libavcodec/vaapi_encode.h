@@ -69,6 +69,13 @@ typedef struct VAAPIEncodePicture {
     int64_t         pts;
     int             force_idr;
 
+#if VA_CHECK_VERSION(1, 0, 0)
+    // ROI regions.
+    VAEncROI       *roi;
+#else
+    void           *roi;
+#endif
+
     int             type;
     int             b_depth;
     int             encode_issued;
@@ -244,28 +251,17 @@ typedef struct VAAPIEncodeContext {
 
     // Global parameters which will be applied at the start of the
     // sequence (includes rate control parameters below).
-    VAEncMiscParameterBuffer *global_params[MAX_GLOBAL_PARAMS];
+    int             global_params_type[MAX_GLOBAL_PARAMS];
+    const void     *global_params     [MAX_GLOBAL_PARAMS];
     size_t          global_params_size[MAX_GLOBAL_PARAMS];
     int          nb_global_params;
 
     // Rate control parameters.
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterRateControl rc;
-    } rc_params;
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterHRD hrd;
-    } hrd_params;
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterFrameRate fr;
-    } fr_params;
+    VAEncMiscParameterRateControl rc_params;
+    VAEncMiscParameterHRD        hrd_params;
+    VAEncMiscParameterFrameRate   fr_params;
 #if VA_CHECK_VERSION(0, 36, 0)
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterBufferQualityLevel quality;
-    } quality_params;
+    VAEncMiscParameterBufferQualityLevel quality_params;
 #endif
 
     // Per-sequence parameter structure (VAEncSequenceParameterBuffer*).
@@ -314,6 +310,21 @@ typedef struct VAAPIEncodeContext {
     int idr_counter;
     int gop_counter;
     int end_of_stream;
+
+    // Whether the driver supports ROI at all.
+    int             roi_allowed;
+    // Maximum number of regions supported by the driver.
+    int             roi_max_regions;
+    // Quantisation range for offset calculations.  Set by codec-specific
+    // code, as it may change based on parameters.
+    int             roi_quant_range;
+
+    // The encoder does not support cropping information, so warn about
+    // it the first time we encounter any nonzero crop fields.
+    int             crop_warned;
+    // If the driver does not support ROI then warn the first time we
+    // encounter a frame with ROI side data.
+    int             roi_warned;
 } VAAPIEncodeContext;
 
 enum {
@@ -404,9 +415,6 @@ typedef struct VAAPIEncodeType {
                                  char *data, size_t *data_len);
 } VAAPIEncodeType;
 
-
-int ff_vaapi_encode2(AVCodecContext *avctx, AVPacket *pkt,
-                     const AVFrame *input_image, int *got_packet);
 
 int ff_vaapi_encode_send_frame(AVCodecContext *avctx, const AVFrame *frame);
 int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);

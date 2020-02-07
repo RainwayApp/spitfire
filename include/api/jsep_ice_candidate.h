@@ -15,6 +15,8 @@
 #define API_JSEP_ICE_CANDIDATE_H_
 
 #include <stddef.h>
+
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -62,7 +64,6 @@ class JsepCandidateCollection : public IceCandidateCollection {
   // Move constructor is defined so that a vector of JsepCandidateCollections
   // can be resized.
   JsepCandidateCollection(JsepCandidateCollection&& o);
-  ~JsepCandidateCollection() override;
   size_t count() const override;
   bool HasCandidate(const IceCandidateInterface* candidate) const override;
   // Adds and takes ownership of the JsepIceCandidate.
@@ -76,7 +77,7 @@ class JsepCandidateCollection : public IceCandidateCollection {
   size_t remove(const cricket::Candidate& candidate);
 
  private:
-  std::vector<JsepIceCandidate*> candidates_;
+  std::vector<std::unique_ptr<JsepIceCandidate>> candidates_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(JsepCandidateCollection);
 };

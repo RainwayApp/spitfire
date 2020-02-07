@@ -58,6 +58,9 @@ class PLATFORM_EXPORT EffectPaintPropertyNode
     // === End of effects ===
     CompositingReasons direct_compositing_reasons = CompositingReason::kNone;
     CompositorElementId compositor_element_id;
+    // The compositor element id for any masks that are applied to elements that
+    // also have backdrop-filters applied.
+    CompositorElementId backdrop_mask_element_id;
     // TODO(crbug.com/900241): Use direct_compositing_reasons to check for
     // active animations when we can track animations for each property type.
     bool has_active_opacity_animation = false;
@@ -190,6 +193,10 @@ class PLATFORM_EXPORT EffectPaintPropertyNode
     return state_.backdrop_filter_bounds;
   }
 
+  const CompositorElementId& BackdropMaskElementId() const {
+    return state_.backdrop_mask_element_id;
+  }
+
   bool HasFilterThatMovesPixels() const {
     DCHECK(!Parent() || !IsParentAlias());
     return state_.filter.HasFilterThatMovesPixels();
@@ -198,6 +205,12 @@ class PLATFORM_EXPORT EffectPaintPropertyNode
   FloatPoint FiltersOrigin() const {
     DCHECK(!Parent() || !IsParentAlias());
     return state_.filters_origin;
+  }
+
+  bool HasRealEffects() const {
+    return Opacity() != 1.0f || GetColorFilter() != kColorFilterNone ||
+           BlendMode() != SkBlendMode::kSrcOver || !Filter().IsEmpty() ||
+           !BackdropFilter().IsEmpty();
   }
 
   // Returns a rect covering the pixels that can be affected by pixels in
@@ -234,6 +247,10 @@ class PLATFORM_EXPORT EffectPaintPropertyNode
     // animations for each property type.
     // return DirectCompositingReasons() &
     //        CompositingReason::kActiveBackdropFilterAnimation;
+  }
+
+  CompositingReasons DirectCompositingReasonsForDebugging() const {
+    return DirectCompositingReasons();
   }
 
   const CompositorElementId& GetCompositorElementId() const {

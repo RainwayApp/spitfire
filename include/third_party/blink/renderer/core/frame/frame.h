@@ -29,7 +29,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_FRAME_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_FRAME_H_
 
-#include "base/debug/stack_trace.h"
 #include "base/optional.h"
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/common/feature_policy/feature_policy.h"
@@ -37,7 +36,6 @@
 #include "third_party/blink/public/common/frame/user_activation_update_source.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
 #include "third_party/blink/renderer/core/frame/frame_lifecycle.h"
 #include "third_party/blink/renderer/core/frame/frame_view.h"
 #include "third_party/blink/renderer/core/frame/navigation_rate_limiter.h"
@@ -65,6 +63,7 @@ class Settings;
 class WindowProxy;
 class WindowProxyManager;
 struct FrameLoadRequest;
+class WindowAgentFactory;
 
 enum class FrameDetachType { kRemove, kSwap };
 
@@ -74,7 +73,7 @@ enum class UserGestureStatus { kActive, kNone };
 // Frame is the base class of LocalFrame and RemoteFrame and should only contain
 // functionality shared between both. In particular, any method related to
 // input, layout, or painting probably belongs on LocalFrame.
-class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
+class CORE_EXPORT Frame : public GarbageCollected<Frame> {
  public:
   virtual ~Frame();
 
@@ -88,8 +87,8 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
   void Detach(FrameDetachType);
   void DisconnectOwnerElement();
   virtual bool ShouldClose() = 0;
-  virtual void DidFreeze() = 0;
-  virtual void DidResume() = 0;
+  virtual void HookBackForwardCacheEviction() = 0;
+  virtual void RemoveBackForwardCacheEviction() = 0;
 
   FrameClient* Client() const;
 
@@ -129,7 +128,7 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
   // dispatch unload events, abort XHR requests and detach the document.
   // Returns true if the frame is ready to receive the next commit, or false
   // otherwise.
-  virtual bool PrepareForCommit() = 0;
+  virtual bool DetachDocument() = 0;
 
   // LayoutObject for the element that contains this frame.
   LayoutEmbeddedContent* OwnerLayoutObject() const;
@@ -205,15 +204,7 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
   const base::UnguessableToken& GetDevToolsFrameToken() const {
     return devtools_frame_token_;
   }
-  const CString& ToTraceValue();
-
-  // TODO(dcheng): temporary for debugging https://crbug.com/838348.
-  const base::debug::StackTrace& CreateStackForDebugging() {
-    return create_stack_;
-  }
-  const base::debug::StackTrace& DetachStackForDebugging() {
-    return detach_stack_;
-  }
+  const std::string& ToTraceValue();
 
   NavigationRateLimiter& navigation_rate_limiter() {
     return navigation_rate_limiter_;
@@ -238,8 +229,27 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
     opener_feature_state_ = state;
   }
 
+  WindowAgentFactory& window_agent_factory() const {
+    return *window_agent_factory_;
+  }
+
+  bool GetVisibleToHitTesting() const { return visible_to_hit_testing_; }
+  void UpdateVisibleToHitTesting();
+
+  // Called when the focus controller changes the focus to this frame.
+  virtual void DidFocus() = 0;
+
  protected:
-  Frame(FrameClient*, Page&, FrameOwner*, WindowProxyManager*);
+  // |inheriting_agent_factory| should basically be set to the parent frame or
+  // opener's WindowAgentFactory. Pass nullptr if the frame is isolated from
+  // other frames (i.e. if it and its child frames shall never be script
+  // accessible from other frames), and a new WindowAgentFactory will be
+  // created.
+  Frame(FrameClient*,
+        Page&,
+        FrameOwner*,
+        WindowProxyManager*,
+        WindowAgentFactory* inheriting_agent_factory);
 
   // Perform initialization that must happen after the constructor has run so
   // that vtables are initialized.
@@ -254,6 +264,10 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
   bool IsDetached() const {
     return lifecycle_.GetState() == FrameLifecycle::kDetached;
   }
+
+  virtual void DidChangeVisibleToHitTesting() = 0;
+
+  void FocusImpl();
 
   mutable FrameTree tree_node_;
 
@@ -274,6 +288,8 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
 
   TouchAction inherited_effective_touch_action_ = TouchAction::kTouchActionAuto;
 
+  bool visible_to_hit_testing_ = true;
+
  private:
   Member<FrameClient> client_;
   const Member<WindowProxyManager> window_proxy_manager_;
@@ -285,13 +301,12 @@ class CORE_EXPORT Frame : public GarbageCollectedFinalized<Frame> {
   // frames.
   FeaturePolicy::FeatureState opener_feature_state_;
 
+  Member<WindowAgentFactory> window_agent_factory_;
+
   // TODO(sashab): Investigate if this can be represented with m_lifecycle.
   bool is_loading_;
   base::UnguessableToken devtools_frame_token_;
-  base::Optional<CString> trace_value_;
-
-  base::debug::StackTrace create_stack_;
-  base::debug::StackTrace detach_stack_;
+  base::Optional<std::string> trace_value_;
 };
 
 inline FrameClient* Frame::Client() const {
@@ -314,8 +329,8 @@ DEFINE_COMPARISON_OPERATORS_WITH_REFERENCES(Frame)
 // in a TRACE_EVENT_XXX macro. Example:
 //
 // TRACE_EVENT1("category", "event_name", "frame", ToTraceValue(GetFrame()));
-static inline CString ToTraceValue(Frame* frame) {
-  return frame ? frame->ToTraceValue() : CString();
+static inline std::string ToTraceValue(Frame* frame) {
+  return frame ? frame->ToTraceValue() : std::string();
 }
 
 }  // namespace blink

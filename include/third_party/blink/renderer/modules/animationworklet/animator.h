@@ -13,7 +13,7 @@
 #include "third_party/blink/renderer/platform/bindings/trace_wrapper_v8_reference.h"
 #include "third_party/blink/renderer/platform/graphics/animation_worklet_mutators_state.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
+
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -23,15 +23,14 @@ class AnimatorDefinition;
 // Represents an animator instance. It owns the underlying |v8::Object| for the
 // instance and knows how to invoke the |animate| function on it.
 // See also |AnimationWorkletGlobalScope::CreateInstance|.
-class Animator final : public GarbageCollectedFinalized<Animator>,
-                       public NameClient {
+class Animator final : public GarbageCollected<Animator>, public NameClient {
  public:
   Animator(v8::Isolate*,
            AnimatorDefinition*,
            v8::Local<v8::Value> instance,
            const String& name,
            WorkletAnimationOptions options,
-           const std::vector<base::Optional<TimeDelta>>& local_times,
+           const Vector<base::Optional<base::TimeDelta>>& local_times,
            const Vector<Timing>& timings);
   ~Animator();
   void Trace(blink::Visitor*);
@@ -44,7 +43,19 @@ class Animator final : public GarbageCollectedFinalized<Animator>,
                double current_time,
                AnimationWorkletDispatcherOutput::AnimationState* output);
   v8::Local<v8::Value> State(v8::Isolate*, ExceptionState&);
-  std::vector<base::Optional<TimeDelta>> GetLocalTimes() const;
+
+  template <typename T>
+  void GetLocalTimes(T& local_times) const {
+    local_times.clear();
+
+    const auto& children = group_effect_->getChildren();
+    local_times.resize(children.size());
+
+    for (wtf_size_t i = 0; i < children.size(); i++) {
+      local_times[i] = children[i]->local_time();
+    }
+  }
+
   Vector<Timing> GetTimings() const;
   bool IsStateful() const;
 

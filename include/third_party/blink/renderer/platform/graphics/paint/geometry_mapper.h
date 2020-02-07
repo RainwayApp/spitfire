@@ -10,7 +10,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/property_tree_state.h"
 #include "third_party/blink/renderer/platform/graphics/scroll_types.h"
 #include "third_party/blink/renderer/platform/transforms/transformation_matrix.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
@@ -66,6 +66,13 @@ class PLATFORM_EXPORT GeometryMapper {
         MoveRect(rect, Translation2D());
       else
         rect = Matrix().MapRect(rect);
+    }
+
+    void MapQuad(FloatQuad& quad) const {
+      if (LIKELY(IsIdentityOr2DTranslation()))
+        quad.Move(Translation2D());
+      else
+        quad = Matrix().MapQuad(quad);
     }
 
     void MapFloatClipRect(FloatClipRect& rect) const {
@@ -209,17 +216,6 @@ class PLATFORM_EXPORT GeometryMapper {
       FloatClipRect& mapping_rect,
       OverlayScrollbarClipBehavior = kIgnorePlatformOverlayScrollbarSize,
       InclusiveIntersectOrNot = kNonInclusiveIntersect);
-
-  // Returns true if |local_rect| is *not* clipped out by any clips
-  // between |local_state| and |ancestor_state|. This includes not just
-  // rectangular clips but rounded clips, and any clip paths stored on the
-  // ClipPaintPropertyNodes. It does *not* include any "complex" clips (see
-  // LayoutSVGResourceClipper::AsPath for the implementation of the heuristic
-  // which differentiates "simple" from "complex".
-  static bool PointVisibleInAncestorSpace(
-      const PropertyTreeState& local_state,
-      const PropertyTreeState& ancestor_state,
-      const FloatPoint& local_point);
 
   static void ClearCache();
 

@@ -10,8 +10,8 @@
 
 namespace blink {
 
-class XRLayer;
-class XRPresentationContext;
+class HTMLCanvasElement;
+class XRWebGLLayer;
 class XRRenderStateInit;
 
 class XRRenderState : public ScriptWrappable {
@@ -26,8 +26,9 @@ class XRRenderState : public ScriptWrappable {
   double depthNear() const { return depth_near_; }
   double depthFar() const { return depth_far_; }
   double inlineVerticalFieldOfView(bool& is_null) const;
-  XRLayer* baseLayer() const { return base_layer_; }
-  XRPresentationContext* outputContext() const { return output_context_; }
+  XRWebGLLayer* baseLayer() const { return base_layer_; }
+
+  HTMLCanvasElement* output_canvas() const;
 
   void Update(const XRRenderStateInit* init);
 
@@ -41,8 +42,7 @@ class XRRenderState : public ScriptWrappable {
   bool immersive_;
   double depth_near_ = 0.1;
   double depth_far_ = 1000.0;
-  Member<XRLayer> base_layer_;
-  Member<XRPresentationContext> output_context_;
+  Member<XRWebGLLayer> base_layer_;
   base::Optional<double> inline_vertical_fov_;
 };
 

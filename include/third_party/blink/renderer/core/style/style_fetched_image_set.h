@@ -54,7 +54,8 @@ class StyleFetchedImageSet final : public StyleImage,
   ~StyleFetchedImageSet() override;
 
   CSSValue* CssValue() const override;
-  CSSValue* ComputedCSSValue() const override;
+  CSSValue* ComputedCSSValue(const ComputedStyle&,
+                             bool allow_visited_style) const override;
 
   // FIXME: This is used by StyleImage for equals comparison, but this
   // implementation only looks at the image from the set that we have loaded.
@@ -84,6 +85,7 @@ class StyleFetchedImageSet final : public StyleImage,
   bool IsEqual(const StyleImage& other) const override;
   void Dispose();
 
+  // ImageResourceObserver overrides
   String DebugName() const override { return "StyleFetchedImageSet"; }
 
   Member<ImageResourceContent> best_fit_image_;

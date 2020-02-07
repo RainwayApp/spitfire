@@ -5,11 +5,14 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_MAIN_THREAD_MAIN_THREAD_TASK_QUEUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_MAIN_THREAD_MAIN_THREAD_TASK_QUEUE_H_
 
+#include <memory>
+
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequence_manager/task_queue.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "net/base/request_priority.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
+#include "third_party/blink/renderer/platform/scheduler/public/web_scheduling_priority.h"
 
 namespace base {
 namespace sequence_manager {
@@ -22,6 +25,10 @@ namespace scheduler {
 
 namespace main_thread_scheduler_impl_unittest {
 class MainThreadSchedulerImplTest;
+}
+
+namespace agent_interference_recorder_test {
+class AgentInterferenceRecorderTest;
 }
 
 class FrameSchedulerImpl;
@@ -65,17 +72,24 @@ class PLATFORM_EXPORT MainThreadTaskQueue
 
     kCleanup = 20,
 
-    kWebSchedulingUserInteraction = 21,
-    kWebSchedulingBestEffort = 22,
+    // 21 : kWebSchedulingUserInteraction, obsolete.
+    // 22 : kWebSchedulingBestEffort, obsolete.
+
+    kWebScheduling = 24,
 
     // Used to group multiple types when calculating Expected Queueing Time.
     kOther = 23,
-    kCount = 24
+    kCount = 25
   };
 
   // Returns name of the given queue type. Returned string has application
   // lifetime.
   static const char* NameForQueueType(QueueType queue_type);
+
+  // Returns true if task queues of the given queue type can be created on a
+  // per-frame basis, and false if they are only created on a shared basis for
+  // the entire main thread.
+  static bool IsPerFrameTaskQueue(QueueType);
 
   // High-level category used by MainThreadScheduler to make scheduling
   // decisions.
@@ -104,7 +118,30 @@ class PLATFORM_EXPORT MainThreadTaskQueue
           can_be_paused(false),
           can_be_frozen(false),
           can_run_in_background(true),
-          should_use_virtual_time(true) {}
+          can_run_when_virtual_time_paused(true) {}
+
+    // Separate enum class for handling prioritisation decisions in task queues.
+    enum class PrioritisationType {
+      kVeryHigh = 0,
+      kHigh = 1,
+      kBestEffort = 2,
+      kRegular = 3,
+      kLoading = 4,
+      kLoadingControl = 5,
+
+      kCount = 6
+    };
+
+    // kPrioritisationTypeWidthBits is the number of bits required
+    // for PrioritisationType::kCount - 1, which is the number of bits needed
+    // to represent |prioritisation_type| in QueueTraitKeyType.
+    // We need to update it whenever there is a change in
+    // PrioritisationType::kCount.
+    // TODO(sreejakshetty) make the number of bits calculation automated.
+    static constexpr int kPrioritisationTypeWidthBits = 3;
+    static_assert(static_cast<int>(PrioritisationType::kCount) <=
+                    (1 << kPrioritisationTypeWidthBits),
+                    "Wrong Instanstiation for kPrioritisationTypeWidthBits");
 
     QueueTraits(const QueueTraits&) = default;
 
@@ -133,8 +170,13 @@ class PLATFORM_EXPORT MainThreadTaskQueue
       return *this;
     }
 
-    QueueTraits SetShouldUseVirtualTime(bool value) {
-      should_use_virtual_time = value;
+    QueueTraits SetCanRunWhenVirtualTimePaused(bool value) {
+      can_run_when_virtual_time_paused = value;
+      return *this;
+    }
+
+    QueueTraits SetPrioritisationType(PrioritisationType type) {
+      prioritisation_type = type;
       return *this;
     }
 
@@ -144,19 +186,24 @@ class PLATFORM_EXPORT MainThreadTaskQueue
              can_be_paused == other.can_be_paused &&
              can_be_frozen == other.can_be_frozen &&
              can_run_in_background == other.can_run_in_background &&
-             should_use_virtual_time == other.should_use_virtual_time;
+             can_run_when_virtual_time_paused == other.can_run_when_virtual_time_paused &&
+             prioritisation_type == other.prioritisation_type;
     }
 
     // Return a key suitable for WTF::HashMap.
     QueueTraitsKeyType Key() const {
-      // Start at 1; 0 and -1 are used for empty/deleted values.
-      int key = 1 << 0;
-      key |= can_be_deferred << 1;
-      key |= can_be_throttled << 2;
-      key |= can_be_paused << 3;
-      key |= can_be_frozen << 4;
-      key |= can_run_in_background << 5;
-      key |= should_use_virtual_time << 6;
+      // offset for shifting bits to compute |key|.
+      // |key| starts at 1 since 0 and -1 are used for empty/deleted values.
+      int offset = 0;
+      int key = 1 << (offset++);
+      key |= can_be_deferred << (offset++);
+      key |= can_be_throttled << (offset++);
+      key |= can_be_paused << (offset++);
+      key |= can_be_frozen << (offset++);
+      key |= can_run_in_background << (offset++);
+      key |= can_run_when_virtual_time_paused << (offset++);
+      key |= static_cast<int>(prioritisation_type) << offset;
+      offset += kPrioritisationTypeWidthBits;
       return key;
     }
 
@@ -165,7 +212,8 @@ class PLATFORM_EXPORT MainThreadTaskQueue
     bool can_be_paused : 1;
     bool can_be_frozen : 1;
     bool can_run_in_background : 1;
-    bool should_use_virtual_time : 1;
+    bool can_run_when_virtual_time_paused : 1;
+    PrioritisationType prioritisation_type = PrioritisationType::kRegular;
   };
 
   struct QueueCreationParams {
@@ -184,6 +232,12 @@ class PLATFORM_EXPORT MainThreadTaskQueue
 
     QueueCreationParams SetFreezeWhenKeepActive(bool value) {
       freeze_when_keep_active = value;
+      return *this;
+    }
+
+    QueueCreationParams SetWebSchedulingPriority(
+        base::Optional<WebSchedulingPriority> priority) {
+      web_scheduling_priority = priority;
       return *this;
     }
 
@@ -219,8 +273,8 @@ class PLATFORM_EXPORT MainThreadTaskQueue
       return *this;
     }
 
-    QueueCreationParams SetShouldUseVirtualTime(bool value) {
-      queue_traits = queue_traits.SetShouldUseVirtualTime(value);
+    QueueCreationParams SetCanRunWhenVirtualTimePaused(bool value) {
+      queue_traits = queue_traits.SetCanRunWhenVirtualTimePaused(value);
       ApplyQueueTraitsToSpec();
       return *this;
     }
@@ -260,6 +314,7 @@ class PLATFORM_EXPORT MainThreadTaskQueue
     FrameSchedulerImpl* frame_scheduler;
     QueueTraits queue_traits;
     bool freeze_when_keep_active;
+    base::Optional<WebSchedulingPriority> web_scheduling_priority;
 
    private:
     void ApplyQueueTraitsToSpec() {
@@ -290,13 +345,20 @@ class PLATFORM_EXPORT MainThreadTaskQueue
     return queue_traits_.can_run_in_background;
   }
 
-  bool ShouldUseVirtualTime() const {
-    return queue_traits_.should_use_virtual_time;
+  bool CanRunWhenVirtualTimePaused() const {
+    return queue_traits_.can_run_when_virtual_time_paused;
   }
 
   bool FreezeWhenKeepActive() const { return freeze_when_keep_active_; }
 
   QueueTraits GetQueueTraits() const { return queue_traits_; }
+
+  QueueTraits::PrioritisationType GetPrioritisationType() const {
+      return queue_traits_.prioritisation_type;}
+
+  void OnTaskReady(const void* frame_scheduler,
+                   const base::sequence_manager::Task& task,
+                   base::sequence_manager::LazyNow* lazy_now);
 
   void OnTaskStarted(
       const base::sequence_manager::Task& task,
@@ -313,7 +375,6 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   void ShutdownTaskQueue() override;
 
   FrameSchedulerImpl* GetFrameScheduler() const;
-  void DetachFromFrameScheduler();
 
   scoped_refptr<base::SingleThreadTaskRunner> CreateTaskRunner(
       TaskType task_type) {
@@ -322,6 +383,13 @@ class PLATFORM_EXPORT MainThreadTaskQueue
 
   void SetNetRequestPriority(net::RequestPriority net_request_priority);
   base::Optional<net::RequestPriority> net_request_priority() const;
+
+  void SetWebSchedulingPriority(WebSchedulingPriority priority);
+  base::Optional<WebSchedulingPriority> web_scheduling_priority() const;
+
+  base::WeakPtr<MainThreadTaskQueue> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
  protected:
   void SetFrameSchedulerForTest(FrameSchedulerImpl* frame_scheduler);
@@ -337,6 +405,7 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   friend class base::sequence_manager::SequenceManager;
   friend class blink::scheduler::main_thread_scheduler_impl_unittest::
       MainThreadSchedulerImplTest;
+  friend class agent_interference_recorder_test::AgentInterferenceRecorderTest;
 
   // Clear references to main thread scheduler and frame scheduler and dispatch
   // appropriate notifications. This is the common part of ShutdownTaskQueue and
@@ -357,12 +426,19 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   // Used to track UMA metrics for resource loading tasks split by net priority.
   base::Optional<net::RequestPriority> net_request_priority_;
 
+  // |web_scheduling_priority_| is the priority of the task queue within the web
+  // scheduling API. This priority is used in conjunction with the frame
+  // scheduling policy to determine the task queue priority.
+  base::Optional<WebSchedulingPriority> web_scheduling_priority_;
+
   // Needed to notify renderer scheduler about completed tasks.
   MainThreadSchedulerImpl* main_thread_scheduler_;  // NOT OWNED
 
+  // Set in the constructor. Cleared in ClearReferencesToSchedulers(). Can never
+  // be set to a different value afterwards (except in tests).
   FrameSchedulerImpl* frame_scheduler_;  // NOT OWNED
 
-  base::WeakPtrFactory<MainThreadTaskQueue> weak_ptr_factory_;
+  base::WeakPtrFactory<MainThreadTaskQueue> weak_ptr_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(MainThreadTaskQueue);
 };

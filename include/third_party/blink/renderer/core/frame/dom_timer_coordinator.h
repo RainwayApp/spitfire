@@ -10,7 +10,6 @@
 #include "base/macros.h"
 #include "base/single_thread_task_runner.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -27,12 +26,12 @@ class DOMTimerCoordinator {
   DISALLOW_NEW();
 
  public:
-  explicit DOMTimerCoordinator(scoped_refptr<base::SingleThreadTaskRunner>);
+  DOMTimerCoordinator() = default;
 
   // Creates and installs a new timer. Returns the assigned ID.
   int InstallNewTimeout(ExecutionContext*,
                         ScheduledAction*,
-                        TimeDelta timeout,
+                        base::TimeDelta timeout,
                         bool single_shot);
 
   // Removes and disposes the timer with the specified ID, if any. This may
@@ -50,10 +49,6 @@ class DOMTimerCoordinator {
   // deeper timer nesting level, see DOMTimer::DOMTimer.
   void SetTimerNestingLevel(int level) { timer_nesting_level_ = level; }
 
-  scoped_refptr<base::SingleThreadTaskRunner> TimerTaskRunner() const {
-    return timer_task_runner_;
-  }
-
   void Trace(blink::Visitor*);  // Oilpan.
 
  private:
@@ -62,9 +57,8 @@ class DOMTimerCoordinator {
   using TimeoutMap = HeapHashMap<int, Member<DOMTimer>>;
   TimeoutMap timers_;
 
-  int circular_sequential_id_;
-  int timer_nesting_level_;
-  scoped_refptr<base::SingleThreadTaskRunner> timer_task_runner_;
+  int circular_sequential_id_ = 0;
+  int timer_nesting_level_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(DOMTimerCoordinator);
 };

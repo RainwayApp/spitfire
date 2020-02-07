@@ -73,6 +73,13 @@ enum WebAXRestriction {
   kWebAXRestrictionDisabled,
 };
 
+// Autofill state.
+enum WebAXAutofillState {
+  kNoSuggestions = 0,
+  kAutofillAvailable,
+  kAutocompleteAvailable,
+};
+
 //
 // Sparse accessibility attributes
 //
@@ -90,6 +97,18 @@ enum WebAXRestriction {
 // must be false.
 enum class WebAXBoolAttribute {
   kAriaBusy,
+};
+
+enum class WebAXIntAttribute {
+  kAriaColumnCount,
+  kAriaRowCount,
+};
+
+enum class WebAXUIntAttribute {
+  kAriaColumnIndex,
+  kAriaColumnSpan,
+  kAriaRowIndex,
+  kAriaRowSpan,
 };
 
 // Sparse attributes of a WebAXObject whose value is a string.

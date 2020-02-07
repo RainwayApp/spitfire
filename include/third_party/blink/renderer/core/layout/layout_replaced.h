@@ -99,12 +99,37 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
   // intrinsic size in LayoutNG.
   virtual void ComputeIntrinsicSizingInfo(IntrinsicSizingInfo&) const;
 
+  // This callback must be invoked whenever the underlying intrinsic size has
+  // changed.
+  //
+  // The intrinsic size can change due to the network (from the default
+  // intrinsic size [see above] to the actual intrinsic size) or to some
+  // CSS properties like 'zoom' or 'image-orientation'.
+  virtual void IntrinsicSizeChanged();
+
  protected:
   void WillBeDestroyed() override;
 
   void UpdateLayout() override;
 
-  LayoutSize IntrinsicSize() const final { return intrinsic_size_; }
+  LayoutSize IntrinsicSize() const final {
+    return LayoutSize(IntrinsicWidth(), IntrinsicHeight());
+  }
+
+  LayoutUnit IntrinsicWidth() const {
+    if (HasOverrideIntrinsicContentWidth())
+      return OverrideIntrinsicContentWidth();
+    else if (ShouldApplySizeContainment())
+      return LayoutUnit();
+    return intrinsic_size_.Width();
+  }
+  LayoutUnit IntrinsicHeight() const {
+    if (HasOverrideIntrinsicContentHeight())
+      return OverrideIntrinsicContentHeight();
+    else if (ShouldApplySizeContainment())
+      return LayoutUnit();
+    return intrinsic_size_.Height();
+  }
 
   void ComputePositionedLogicalWidth(
       LogicalExtentComputedValues&) const override;
@@ -132,14 +157,7 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
     intrinsic_size_ = intrinsic_size;
   }
 
-  // This callback is invoked whenever the intrinsic size changed.
-  //
-  // The intrinsic size can change due to the network (from the default
-  // intrinsic size [see above] to the actual intrinsic size) or to some
-  // CSS properties like 'zoom' or 'image-orientation'.
-  virtual void IntrinsicSizeChanged();
-
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
   bool IsOfType(LayoutObjectType type) const override {
     return type == kLayoutObjectLayoutReplaced || LayoutBox::IsOfType(type);

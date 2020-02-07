@@ -12,7 +12,10 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "mojo/public/cpp/system/message_pipe.h"
+#include "services/network/public/mojom/ip_address_space.mojom-shared.h"
 #include "services/network/public/mojom/referrer_policy.mojom-shared.h"
+#include "third_party/blink/public/common/frame/frame_policy.h"
+#include "third_party/blink/public/common/navigation/triggering_event_info.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-shared.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_network_provider.h"
 #include "third_party/blink/public/platform/web_common.h"
@@ -33,16 +36,19 @@
 #include "third_party/blink/public/web/web_navigation_policy.h"
 #include "third_party/blink/public/web/web_navigation_timings.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
-#include "third_party/blink/public/web/web_triggering_event_info.h"
+#include "third_party/blink/public/web/web_origin_policy.h"
 
 #if INSIDE_BLINK
 #include "base/memory/scoped_refptr.h"
 #endif
 
+namespace base {
+class TickClock;
+}
+
 namespace blink {
 
 class KURL;
-class SharedBuffer;
 class WebDocumentLoader;
 
 // This structure holds all information collected by Blink when
@@ -90,13 +96,11 @@ struct BLINK_EXPORT WebNavigationInfo {
   // by the window.open'd frame.
   bool is_opener_navigation = false;
 
-  // Whether the runtime feature
-  // |BlockingDownloadsInSandboxWithoutUserActivation| is enabled.
-  bool blocking_downloads_in_sandbox_without_user_activation_enabled = false;
+  // Whether the runtime feature |BlockingDownloadsInSandbox| is enabled.
+  bool blocking_downloads_in_sandbox_enabled = false;
 
-  // Event information. See WebTriggeringEventInfo.
-  WebTriggeringEventInfo triggering_event_info =
-      WebTriggeringEventInfo::kUnknown;
+  // Event information. See TriggeringEventInfo.
+  TriggeringEventInfo triggering_event_info = TriggeringEventInfo::kUnknown;
 
   // If the navigation is a result of form submit, the form element is provided.
   WebFormElement form;
@@ -133,9 +137,21 @@ struct BLINK_EXPORT WebNavigationInfo {
   enum class ArchiveStatus { Absent, Present };
   ArchiveStatus archive_status = ArchiveStatus::Absent;
 
+  // The origin trial features activated in the document initiating this
+  // navigation that should be applied in the document being navigated to.
+  WebVector<int> initiator_origin_trial_features;
+
   // The value of hrefTranslate attribute of a link, if this navigation was
   // inititated by clicking a link.
   WebString href_translate;
+
+  // The navigation initiator's address space.
+  network::mojom::IPAddressSpace initiator_address_space =
+      network::mojom::IPAddressSpace::kUnknown;
+
+  // The frame policy specified by the frame owner element.
+  // Should be base::nullopt for top level navigations
+  base::Optional<FramePolicy> frame_policy;
 };
 
 // This structure holds all information provided by the embedder that is
@@ -202,8 +218,6 @@ struct BLINK_EXPORT WebNavigationParams {
   // The http content type of the request used to load the main resource, if
   // any.
   WebString http_content_type;
-  // The origin policy for this navigation.
-  WebString origin_policy;
   // The origin of the request used to load the main resource, specified at
   // https://fetch.spec.whatwg.org/#concept-request-origin. Can be null.
   // TODO(dgozman,nasko): we shouldn't need both this and |origin_to_commit|.
@@ -212,6 +226,11 @@ struct BLINK_EXPORT WebNavigationParams {
   // history item will contain this URL instead of request's URL.
   // This URL can be retrieved through WebDocumentLoader::UnreachableURL.
   WebURL unreachable_url;
+
+  // The IP address space from which this document was loaded.
+  // https://wicg.github.io/cors-rfc1918/#address-space
+  network::mojom::IPAddressSpace ip_address_space =
+      network::mojom::IPAddressSpace::kUnknown;
 
   // The net error code for failed navigation. Must be non-zero when
   // |unreachable_url| is non-null.
@@ -266,6 +285,9 @@ struct BLINK_EXPORT WebNavigationParams {
   WebHistoryItem history_item;
   // Whether this navigation is a result of client redirect.
   bool is_client_redirect = false;
+  // Cache mode to be used for subresources, instead of the one determined
+  // by |frame_load_type|.
+  base::Optional<blink::mojom::FetchCacheMode> force_fetch_cache_mode;
 
   // Miscellaneous parameters.
 
@@ -288,6 +310,10 @@ struct BLINK_EXPORT WebNavigationParams {
   bool had_transient_activation = false;
   // Whether this navigation has a sticky user activation flag.
   bool is_user_activated = false;
+  // Whether this navigation was browser initiated.
+  bool is_browser_initiated = false;
+  // Whether the document should be able to access local file:// resources.
+  bool grant_load_local_resources = false;
   // The previews state which should be used for this navigation.
   WebURLRequest::PreviewsState previews_state =
       WebURLRequest::kPreviewsUnspecified;
@@ -295,6 +321,8 @@ struct BLINK_EXPORT WebNavigationParams {
   // document.
   std::unique_ptr<blink::WebServiceWorkerNetworkProvider>
       service_worker_network_provider;
+  // The AppCache host id for this navigation.
+  base::UnguessableToken appcache_host_id;
 
   // Used for SignedExchangeSubresourcePrefetch.
   // This struct keeps the information about a prefetched signed exchange.
@@ -316,6 +344,26 @@ struct BLINK_EXPORT WebNavigationParams {
   };
   WebVector<std::unique_ptr<PrefetchedSignedExchange>>
       prefetched_signed_exchanges;
+  // An optional tick clock to be used for document loader timing. This is used
+  // for testing.
+  const base::TickClock* tick_clock = nullptr;
+  // The origin trial features activated in the document initiating this
+  // navigation that should be applied in the document being navigated to.
+  WebVector<int> initiator_origin_trial_features;
+
+  base::Optional<WebOriginPolicy> origin_policy;
+
+  // The physical URL of Web Bundle from which the document is loaded.
+  // Used as an additional identifier for MemoryCache.
+  WebURL web_bundle_physical_url;
+
+  // The base URL which will be set for the document to support relative path
+  // subresource loading in an unsigned Web Bundle file.
+  WebURL base_url_override_for_web_bundle;
+
+  // The frame policy specified by the frame owner element.
+  // Should be base::nullopt for top level navigations
+  base::Optional<FramePolicy> frame_policy;
 };
 
 }  // namespace blink

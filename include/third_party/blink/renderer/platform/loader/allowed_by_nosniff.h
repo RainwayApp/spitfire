@@ -10,14 +10,14 @@
 namespace blink {
 
 class ConsoleLogger;
-class FetchContext;
+class UseCounter;
 class ResourceResponse;
 
 class PLATFORM_EXPORT AllowedByNosniff final {
  public:
-  enum class MimeTypeCheck { kStrict, kLax };
+  enum class MimeTypeCheck { kStrict, kLaxForElement, kLaxForWorker };
 
-  static bool MimeTypeAsScript(FetchContext&,
+  static bool MimeTypeAsScript(UseCounter&,
                                ConsoleLogger*,
                                const ResourceResponse&,
                                MimeTypeCheck mime_type_check_mode);

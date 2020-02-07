@@ -14,6 +14,7 @@
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/atomic_flag.h"
@@ -28,7 +29,7 @@
 #include "base/task/thread_pool/task_tracker.h"
 #include "base/task/thread_pool/thread_group.h"
 #include "base/task/thread_pool/thread_group_impl.h"
-#include "base/task/thread_pool/thread_pool.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/updateable_sequenced_task_runner.h"
 #include "build/build_config.h"
 
@@ -59,8 +60,8 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
       TaskTracker;
 #endif
 
-  // Creates a ThreadPoolImpl with a production TaskTracker.
-  //|histogram_label| is used to label histograms, it must not be empty.
+  // Creates a ThreadPoolImpl with a production TaskTracker. |histogram_label|
+  // is used to label histograms. No histograms are recorded if it is empty.
   explicit ThreadPoolImpl(StringPiece histogram_label);
 
   // For testing only. Creates a ThreadPoolImpl with a custom TaskTracker.
@@ -78,33 +79,51 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   void FlushForTesting() override;
   void FlushAsyncForTesting(OnceClosure flush_callback) override;
   void JoinForTesting() override;
-  void SetHasFence(bool has_fence) override;
-  void SetHasBestEffortFence(bool has_best_effort_fence) override;
+  void BeginFence() override;
+  void EndFence() override;
+  void BeginBestEffortFence() override;
+  void EndBestEffortFence() override;
 
   // TaskExecutor:
-  bool PostDelayedTaskWithTraits(const Location& from_here,
-                                 const TaskTraits& traits,
-                                 OnceClosure task,
-                                 TimeDelta delay) override;
-  scoped_refptr<TaskRunner> CreateTaskRunnerWithTraits(
+  bool PostDelayedTask(const Location& from_here,
+                       const TaskTraits& traits,
+                       OnceClosure task,
+                       TimeDelta delay) override;
+  scoped_refptr<TaskRunner> CreateTaskRunner(const TaskTraits& traits) override;
+  scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunner(
       const TaskTraits& traits) override;
-  scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunnerWithTraits(
-      const TaskTraits& traits) override;
-  scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunnerWithTraits(
+  scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunner(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode) override;
 #if defined(OS_WIN)
-  scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunnerWithTraits(
+  scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunner(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode) override;
 #endif  // defined(OS_WIN)
+  const scoped_refptr<SequencedTaskRunner>& GetContinuationTaskRunner()
+      override;
   scoped_refptr<UpdateableSequencedTaskRunner>
-  CreateUpdateableSequencedTaskRunnerWithTraitsForTesting(
-      const TaskTraits& traits);
+  CreateUpdateableSequencedTaskRunner(const TaskTraits& traits);
+
+  // PooledTaskRunnerDelegate:
+  bool EnqueueJobTaskSource(scoped_refptr<JobTaskSource> task_source) override;
+  void RemoveJobTaskSource(scoped_refptr<JobTaskSource> task_source) override;
+  void UpdatePriority(scoped_refptr<TaskSource> task_source,
+                      TaskPriority priority) override;
+
+  // Returns the TimeTicks of the next task scheduled on ThreadPool (Now() if
+  // immediate, nullopt if none). This is thread-safe, i.e., it's safe if tasks
+  // are being posted in parallel with this call but such a situation obviously
+  // results in a race as to whether this call will see the new tasks in time.
+  Optional<TimeTicks> NextScheduledRunTimeForTesting() const;
+
+  // Forces ripe delayed tasks to be posted (e.g. when time is mocked and
+  // advances faster than the real-time delay on ServiceThread).
+  void ProcessRipeDelayedTasksForTesting();
 
  private:
-  // Invoked after |has_fence_| or |has_best_effort_fence_| is updated. Sets the
-  // CanRunPolicy in TaskTracker and wakes up workers as appropriate.
+  // Invoked after |num_fences_| or |num_best_effort_fences_| is updated. Sets
+  // the CanRunPolicy in TaskTracker and wakes up workers as appropriate.
   void UpdateCanRunPolicy();
 
   // Returns |traits|, with priority set to TaskPriority::USER_BLOCKING if
@@ -127,8 +146,7 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   bool PostTaskWithSequence(Task task,
                             scoped_refptr<Sequence> sequence) override;
   bool IsRunningPoolWithTraits(const TaskTraits& traits) const override;
-  void UpdatePriority(scoped_refptr<TaskSource> task_source,
-                      TaskPriority priority) override;
+  bool ShouldYield(const TaskSource* task_source) const override;
 
   const std::unique_ptr<TaskTrackerImpl> task_tracker_;
   std::unique_ptr<Thread> service_thread_;
@@ -154,10 +172,10 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   // BEST_EFFORT tasks until shutdown.
   const bool has_disable_best_effort_switch_;
 
-  // Whether a fence is preventing execution of tasks of any/BEST_EFFORT
-  // priority. Access controlled by |sequence_checker_|.
-  bool has_fence_ = false;
-  bool has_best_effort_fence_ = false;
+  // Number of fences preventing execution of tasks of any/BEST_EFFORT priority.
+  // Access controlled by |sequence_checker_|.
+  int num_fences_ = 0;
+  int num_best_effort_fences_ = 0;
 
 #if DCHECK_IS_ON()
   // Set once JoinForTesting() has returned.

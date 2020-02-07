@@ -38,14 +38,15 @@ class VideoFrameMatcher {
   void RegisterLayer(int layer_id);
   void OnCapturedFrame(const VideoFrame& frame, Timestamp at_time);
   void OnDecodedFrame(const VideoFrame& frame,
+                      int layer_id,
                       Timestamp render_time,
-                      int layer_id);
+                      Timestamp at_time);
   bool Active() const;
-  Clock* clock();
 
  private:
   struct DecodedFrameBase {
     int id;
+    Timestamp decoded_time = Timestamp::PlusInfinity();
     Timestamp render_time = Timestamp::PlusInfinity();
     rtc::scoped_refptr<VideoFrameBuffer> frame;
     rtc::scoped_refptr<VideoFrameBuffer> thumb;
@@ -75,6 +76,21 @@ class VideoFrameMatcher {
   TaskQueueForTest task_queue_;
 };
 
+class CapturedFrameTap : public rtc::VideoSinkInterface<VideoFrame> {
+ public:
+  CapturedFrameTap(Clock* clock, VideoFrameMatcher* matcher);
+  CapturedFrameTap(CapturedFrameTap&) = delete;
+  CapturedFrameTap& operator=(CapturedFrameTap&) = delete;
+
+  void OnFrame(const VideoFrame& frame) override;
+  void OnDiscardedFrame() override;
+
+ private:
+  Clock* const clock_;
+  VideoFrameMatcher* const matcher_;
+  int discarded_count_ = 0;
+};
+
 class ForwardingCapturedFrameTap
     : public rtc::VideoSinkInterface<VideoFrame>,
       public rtc::VideoSourceInterface<VideoFrame> {
@@ -84,7 +100,6 @@ class ForwardingCapturedFrameTap
                              rtc::VideoSourceInterface<VideoFrame>* source);
   ForwardingCapturedFrameTap(ForwardingCapturedFrameTap&) = delete;
   ForwardingCapturedFrameTap& operator=(ForwardingCapturedFrameTap&) = delete;
-  ~ForwardingCapturedFrameTap();
 
   // VideoSinkInterface interface
   void OnFrame(const VideoFrame& frame) override;
@@ -94,23 +109,23 @@ class ForwardingCapturedFrameTap
   void AddOrUpdateSink(VideoSinkInterface<VideoFrame>* sink,
                        const rtc::VideoSinkWants& wants) override;
   void RemoveSink(VideoSinkInterface<VideoFrame>* sink) override;
-  VideoFrame PopFrame();
 
  private:
   Clock* const clock_;
   VideoFrameMatcher* const matcher_;
   rtc::VideoSourceInterface<VideoFrame>* const source_;
-  VideoSinkInterface<VideoFrame>* sink_;
+  VideoSinkInterface<VideoFrame>* sink_ = nullptr;
   int discarded_count_ = 0;
 };
 
 class DecodedFrameTap : public rtc::VideoSinkInterface<VideoFrame> {
  public:
-  explicit DecodedFrameTap(VideoFrameMatcher* matcher, int layer_id);
+  DecodedFrameTap(Clock* clock, VideoFrameMatcher* matcher, int layer_id);
   // VideoSinkInterface interface
   void OnFrame(const VideoFrame& frame) override;
 
  private:
+  Clock* const clock_;
   VideoFrameMatcher* const matcher_;
   int layer_id_;
 };

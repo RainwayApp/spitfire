@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGOffsetMappingBuilder_h
-#define NGOffsetMappingBuilder_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_BUILDER_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_BUILDER_H_
 
 #include <memory>
 #include "base/auto_reset.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 class LayoutObject;
+class LayoutText;
 
 // This is the helper class for constructing the DOM-to-TextContent offset
 // mapping. It holds an offset mapping, and provides APIs to modify the mapping
@@ -106,6 +107,11 @@ class CORE_EXPORT NGOffsetMappingBuilder {
   // TODO(xiaochengh): Implement when adding support for 'text-transform'
   // void Composite(const NGOffsetMappingBuilder&);
 
+  // Restore a trailing collapsible space at |offset| of text content. The space
+  // is associated with |layout_text|.
+  void RestoreTrailingCollapsibleSpace(const LayoutText& layout_text,
+                                       unsigned offset);
+
   // Set the destination string of the offset mapping.
   void SetDestinationString(String);
 
@@ -140,4 +146,4 @@ class CORE_EXPORT NGOffsetMappingBuilder {
 
 }  // namespace blink
 
-#endif  // OffsetMappingBuilder_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_BUILDER_H_

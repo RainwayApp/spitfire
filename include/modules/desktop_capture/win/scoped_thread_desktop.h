@@ -11,17 +11,18 @@
 #ifndef MODULES_DESKTOP_CAPTURE_WIN_SCOPED_THREAD_DESKTOP_H_
 #define MODULES_DESKTOP_CAPTURE_WIN_SCOPED_THREAD_DESKTOP_H_
 
-#include <memory>
-
 #include <windows.h>
 
+#include <memory>
+
 #include "rtc_base/constructor_magic.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 class Desktop;
 
-class ScopedThreadDesktop {
+class RTC_EXPORT ScopedThreadDesktop {
  public:
   ScopedThreadDesktop();
   ~ScopedThreadDesktop();

@@ -2078,7 +2078,8 @@ FT_BEGIN_HEADER
    *     The size in bytes of the file in memory.
    *
    *   pathname ::
-   *     A pointer to an 8-bit file pathname.
+   *     A pointer to an 8-bit file pathname.  The pointer is not owned by
+   *     FreeType.
    *
    *   stream ::
    *     A handle to a source stream object.
@@ -4781,7 +4782,7 @@ FT_BEGIN_HEADER
    */
 #define FREETYPE_MAJOR  2
 #define FREETYPE_MINOR  10
-#define FREETYPE_PATCH  0
+#define FREETYPE_PATCH  1
 
 
   /**************************************************************************

@@ -43,15 +43,22 @@ class LayoutThemeMac final : public LayoutTheme {
                          const ComputedStyle&,
                          IntRect& border_box) override;
 
-  bool IsControlStyled(const ComputedStyle&) const override;
+  bool IsControlStyled(ControlPart part, const ComputedStyle&) const override;
 
-  Color PlatformActiveSelectionBackgroundColor() const override;
-  Color PlatformInactiveSelectionBackgroundColor() const override;
-  Color PlatformActiveSelectionForegroundColor() const override;
-  Color PlatformActiveListBoxSelectionBackgroundColor() const override;
-  Color PlatformActiveListBoxSelectionForegroundColor() const override;
-  Color PlatformInactiveListBoxSelectionBackgroundColor() const override;
-  Color PlatformInactiveListBoxSelectionForegroundColor() const override;
+  Color PlatformActiveSelectionBackgroundColor(
+      WebColorScheme color_scheme) const override;
+  Color PlatformInactiveSelectionBackgroundColor(
+      WebColorScheme color_scheme) const override;
+  Color PlatformActiveSelectionForegroundColor(
+      WebColorScheme color_scheme) const override;
+  Color PlatformActiveListBoxSelectionBackgroundColor(
+      WebColorScheme color_scheme) const override;
+  Color PlatformActiveListBoxSelectionForegroundColor(
+      WebColorScheme color_scheme) const override;
+  Color PlatformInactiveListBoxSelectionBackgroundColor(
+      WebColorScheme color_scheme) const override;
+  Color PlatformInactiveListBoxSelectionForegroundColor(
+      WebColorScheme color_scheme) const override;
   Color PlatformSpellingMarkerUnderlineColor() const override;
   Color PlatformGrammarMarkerUnderlineColor() const override;
   Color PlatformFocusRingColor() const override;
@@ -77,8 +84,7 @@ class LayoutThemeMac final : public LayoutTheme {
   int SliderTickOffsetFromTrackCenter() const override;
 
   int PopupInternalPaddingStart(const ComputedStyle&) const override;
-  int PopupInternalPaddingEnd(const ChromeClient*,
-                              const ComputedStyle&) const override;
+  int PopupInternalPaddingEnd(LocalFrame*, const ComputedStyle&) const override;
   int PopupInternalPaddingTop(const ComputedStyle&) const override;
   int PopupInternalPaddingBottom(const ComputedStyle&) const override;
 
@@ -86,11 +92,11 @@ class LayoutThemeMac final : public LayoutTheme {
   bool PopsMenuBySpaceKey() const final { return true; }
 
   // Returns the repeat interval of the animation for the progress bar.
-  TimeDelta AnimationRepeatIntervalForProgressBar() const override;
+  base::TimeDelta AnimationRepeatIntervalForProgressBar() const override;
   // Returns the duration of the animation for the progress bar.
-  TimeDelta AnimationDurationForProgressBar() const override;
+  base::TimeDelta AnimationDurationForProgressBar() const override;
 
-  Color SystemColor(CSSValueID) const override;
+  Color SystemColor(CSSValueID, WebColorScheme color_scheme) const override;
 
   bool SupportsSelectionForegroundColors() const override { return false; }
 
@@ -153,8 +159,8 @@ class LayoutThemeMac final : public LayoutTheme {
 
   // We estimate the animation rate of a Mac OS X progress bar is 33 fps.
   // Hard code the value here because we haven't found API for it.
-  static constexpr TimeDelta kProgressAnimationFrameRate =
-      TimeDelta::FromMilliseconds(33);
+  static constexpr base::TimeDelta kProgressAnimationFrameRate =
+      base::TimeDelta::FromMilliseconds(33);
   // Mac OS X progress bar animation seems to have 256 frames.
   static constexpr double kProgressAnimationNumFrames = 256;
 

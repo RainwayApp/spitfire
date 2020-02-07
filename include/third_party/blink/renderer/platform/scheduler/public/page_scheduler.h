@@ -7,6 +7,7 @@
 
 #include <memory>
 #include "third_party/blink/public/platform/blame_context.h"
+#include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_lifecycle_state.h"
@@ -62,8 +63,8 @@ class PLATFORM_EXPORT PageScheduler {
 
   // Instructs this PageScheduler to use virtual time. When virtual time is
   // enabled the system doesn't actually sleep for the delays between tasks
-  // before executing them. Returns the TimeTicks that virtual time offsets will
-  // be relative to.
+  // before executing them. Returns the base::TimeTicks that virtual time
+  // offsets will be relative to.
   //
   // E.g: A-E are delayed tasks
   //
@@ -140,6 +141,16 @@ class PLATFORM_EXPORT PageScheduler {
   // Returns true if the request has been succcessfully relayed to the
   // compositor.
   virtual bool RequestBeginMainFrameNotExpected(bool new_state) = 0;
+
+  // Returns a WebScopedVirtualTimePauser which can be used to vote for pausing
+  // virtual time. Virtual time will be paused if any WebScopedVirtualTimePauser
+  // votes to pause it, and only unpaused only if all
+  // WebScopedVirtualTimePausers are either destroyed or vote to unpause.  Note
+  // the WebScopedVirtualTimePauser returned by this method is initially
+  // unpaused.
+  virtual WebScopedVirtualTimePauser CreateWebScopedVirtualTimePauser(
+      const String& name,
+      WebScopedVirtualTimePauser::VirtualTaskDuration) = 0;
 };
 
 }  // namespace blink

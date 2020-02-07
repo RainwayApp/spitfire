@@ -39,10 +39,6 @@ class CORE_EXPORT ProcessingInstruction final : public CharacterData,
   USING_GARBAGE_COLLECTED_MIXIN(ProcessingInstruction);
 
  public:
-  static ProcessingInstruction* Create(Document&,
-                                       const String& target,
-                                       const String& data);
-
   ProcessingInstruction(Document&, const String& target, const String& data);
   ~ProcessingInstruction() override;
   void Trace(Visitor*) override;
@@ -81,7 +77,7 @@ class CORE_EXPORT ProcessingInstruction final : public CharacterData,
 
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
-  void DetachLayoutTree(const AttachContext&) final {}
+  void DetachLayoutTree(bool performing_reattach) final {}
 
   bool CheckStyleSheet(String& href, String& charset);
   void Process(const String& href, const String& charset);

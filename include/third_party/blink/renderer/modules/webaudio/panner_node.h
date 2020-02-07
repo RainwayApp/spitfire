@@ -71,6 +71,7 @@ class PannerHandler final : public AudioHandler {
   ~PannerHandler() override;
 
   // AudioHandler
+  void ProcessIfNecessary(uint32_t frames_to_process) override;
   void Process(uint32_t frames_to_process) override;
   void ProcessSampleAccurateValues(AudioBus* destination,
                                    const AudioBus* source,
@@ -244,6 +245,10 @@ class PannerNode final : public AudioNode {
   void setConeOuterAngle(double);
   double coneOuterGain() const;
   void setConeOuterGain(double, ExceptionState&);
+
+  // InspectorHelperMixin
+  void ReportDidCreate() final;
+  void ReportWillBeDestroyed() final;
 
  private:
   Member<AudioParam> position_x_;

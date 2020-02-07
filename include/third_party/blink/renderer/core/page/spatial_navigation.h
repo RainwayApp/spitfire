@@ -24,7 +24,7 @@
 #include "third_party/blink/public/platform/web_focus_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
+#include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 
 #include <limits>
 
@@ -60,11 +60,12 @@ struct FocusCandidate {
   // visibleNode and focusableNode are one and the same.
   Member<Node> visible_node;
   Member<Node> focusable_node;
-  LayoutRect rect_in_root_frame;
+  PhysicalRect rect_in_root_frame;
   bool is_offscreen;
 };
 
 CORE_EXPORT bool HasRemoteFrame(const Node*);
+CORE_EXPORT bool IsFragmentedInline(Node& node);
 CORE_EXPORT FloatRect RectInViewport(const Node&);
 CORE_EXPORT bool IsOffscreen(const Node*);
 CORE_EXPORT bool IsUnobscured(const FocusCandidate&);
@@ -78,17 +79,21 @@ bool CanScrollInDirection(const LocalFrame*, SpatialNavigationDirection);
 double ComputeDistanceDataForNode(SpatialNavigationDirection,
                                   const FocusCandidate& current_interest,
                                   const FocusCandidate& candidate);
-CORE_EXPORT LayoutRect NodeRectInRootFrame(const Node*);
-CORE_EXPORT LayoutRect OppositeEdge(SpatialNavigationDirection side,
-                                    const LayoutRect& box,
-                                    LayoutUnit thickness = LayoutUnit());
-CORE_EXPORT LayoutRect RootViewport(const LocalFrame*);
-LayoutRect StartEdgeForAreaElement(const HTMLAreaElement&,
-                                   SpatialNavigationDirection);
+CORE_EXPORT PhysicalRect NodeRectInRootFrame(const Node*);
+CORE_EXPORT PhysicalRect OppositeEdge(SpatialNavigationDirection side,
+                                      const PhysicalRect& box,
+                                      LayoutUnit thickness = LayoutUnit());
+CORE_EXPORT PhysicalRect RootViewport(const LocalFrame*);
+PhysicalRect StartEdgeForAreaElement(const HTMLAreaElement&,
+                                     SpatialNavigationDirection);
 HTMLFrameOwnerElement* FrameOwnerElement(const FocusCandidate&);
-CORE_EXPORT LayoutRect SearchOrigin(const LayoutRect,
-                                    Node*,
-                                    const SpatialNavigationDirection);
+CORE_EXPORT PhysicalRect
+SearchOriginFragment(const PhysicalRect& visible_part,
+                     const LayoutObject& fragmented,
+                     const SpatialNavigationDirection direction);
+CORE_EXPORT PhysicalRect SearchOrigin(const PhysicalRect&,
+                                      Node*,
+                                      const SpatialNavigationDirection);
 
 }  // namespace blink
 

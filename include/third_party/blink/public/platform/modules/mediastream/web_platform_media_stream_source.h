@@ -6,7 +6,9 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_MODULES_MEDIASTREAM_WEB_PLATFORM_MEDIA_STREAM_SOURCE_H_
 
 #include "base/callback.h"
+#include "third_party/blink/public/common/mediastream/media_stream_controls.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_media_stream_source.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
@@ -16,27 +18,18 @@ namespace blink {
 class MediaStreamSource;
 class WebMediaStreamSource;
 
-// Names for media stream source capture types.
-// These are values set via the "chromeMediaSource" constraint.
-BLINK_PLATFORM_EXPORT extern const char kMediaStreamSourceTab[];
-BLINK_PLATFORM_EXPORT extern const char
-    kMediaStreamSourceScreen[]; /* video only */
-BLINK_PLATFORM_EXPORT extern const char kMediaStreamSourceDesktop[];
-BLINK_PLATFORM_EXPORT extern const char
-    kMediaStreamSourceSystem[]; /* audio only */
-
 class BLINK_PLATFORM_EXPORT WebPlatformMediaStreamSource {
  public:
   using SourceStoppedCallback =
-      base::Callback<void(const WebMediaStreamSource& source)>;
+      base::OnceCallback<void(const WebMediaStreamSource& source)>;
 
-  using ConstraintsCallback =
-      base::Callback<void(WebPlatformMediaStreamSource* source,
-                          MediaStreamRequestResult result,
-                          const WebString& result_name)>;
+  using ConstraintsRepeatingCallback =
+      base::RepeatingCallback<void(WebPlatformMediaStreamSource* source,
+                                   mojom::MediaStreamRequestResult result,
+                                   const WebString& result_name)>;
   using ConstraintsOnceCallback =
       base::OnceCallback<void(WebPlatformMediaStreamSource* source,
-                              MediaStreamRequestResult result,
+                              mojom::MediaStreamRequestResult result,
                               const WebString& result_name)>;
 
   // Source constraints key for
@@ -61,7 +54,7 @@ class BLINK_PLATFORM_EXPORT WebPlatformMediaStreamSource {
   void SetDevice(const MediaStreamDevice& device);
 
   // Sets a callback that will be triggered when StopSource is called.
-  void SetStopCallback(const SourceStoppedCallback& stop_callback);
+  void SetStopCallback(SourceStoppedCallback stop_callback);
 
   // Clears the previously-set SourceStoppedCallback so that it will not be run
   // in the future.

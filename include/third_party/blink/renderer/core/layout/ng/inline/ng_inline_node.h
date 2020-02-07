@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGInlineNode_h
-#define NGInlineNode_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_NODE_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_NODE_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
@@ -72,11 +72,25 @@ class CORE_EXPORT NGInlineNode : public NGLayoutInputNode {
     return Data().ItemsData(is_first_line);
   }
 
+  // Returns the text content to use for content sizing. This is normally the
+  // same as |items_data.text_content|, except when sticky images quirk is
+  // needed.
+  String TextContentForContentSize(const NGInlineItemsData& items_data) const;
+
   // Clear associated fragments for LayoutObjects.
   // They are associated when NGPaintFragment is constructed, but when clearing,
   // NGInlineItem provides easier and faster logic.
   static void ClearAssociatedFragments(const NGPhysicalFragment& fragment,
                                        const NGBlockBreakToken* break_token);
+
+  // Returns true if we don't need to collect inline items after replacing
+  // |layout_text| after deleting replacing subtext from |offset| to |length|
+  // |new_text| is new text of |layout_text|.
+  // This is optimized version of |PrepareLayout()|.
+  static bool SetTextWithOffset(LayoutText* layout_text,
+                                scoped_refptr<StringImpl> new_text,
+                                unsigned offset,
+                                unsigned length);
 
   // Returns the DOM to text content offset mapping of this block. If it is not
   // computed before, compute and store it in NGInlineNodeData.
@@ -92,6 +106,8 @@ class CORE_EXPORT NGInlineNode : public NGLayoutInputNode {
   TextDirection BaseDirection() const { return Data().BaseDirection(); }
 
   bool IsEmptyInline() { return EnsureData().is_empty_inline_; }
+
+  bool IsBlockLevel() { return EnsureData().is_block_level_; }
 
   // @return if this node can contain the "first formatted line".
   // https://www.w3.org/TR/CSS22/selector.html#first-formatted-line
@@ -122,7 +138,8 @@ class CORE_EXPORT NGInlineNode : public NGLayoutInputNode {
   void SegmentFontOrientation(NGInlineNodeData*);
   void SegmentBidiRuns(NGInlineNodeData*);
   void ShapeText(NGInlineItemsData*,
-                 NGInlineItemsData* previous_data = nullptr);
+                 const String* previous_text = nullptr,
+                 const Vector<NGInlineItem>* previous_items = nullptr);
   void ShapeTextForFirstLineIfNeeded(NGInlineNodeData*);
   void AssociateItemsWithInlines(NGInlineNodeData*);
 
@@ -143,12 +160,38 @@ class CORE_EXPORT NGInlineNode : public NGLayoutInputNode {
   }
   const NGInlineNodeData& EnsureData();
 
+  static String TextContentForStickyImagesQuirk(const NGInlineItemsData&);
+
   static void ComputeOffsetMapping(LayoutBlockFlow* layout_block_flow,
                                    NGInlineNodeData* data);
 
   friend class NGLineBreakerTest;
   friend class NGInlineNodeLegacy;
 };
+
+inline String NGInlineNode::TextContentForContentSize(
+    const NGInlineItemsData& items_data) const {
+  const String& text_content = items_data.text_content;
+  if (UNLIKELY(text_content.IsEmpty()))
+    return text_content;
+
+  // There's a special intrinsic size measure quirk for images that are direct
+  // children of table cells that have auto inline-size: When measuring
+  // intrinsic min/max inline sizes, we pretend that it's not possible to break
+  // between images, or between text and images. Note that this only applies
+  // when measuring. During actual layout, on the other hand, standard breaking
+  // rules are to be followed.
+  // See https://quirks.spec.whatwg.org/#the-table-cell-width-calculation-quirk
+  if (UNLIKELY(GetDocument().InQuirksMode())) {
+    const ComputedStyle& style = Style();
+    if (UNLIKELY(style.Display() == EDisplay::kTableCell &&
+                 style.LogicalWidth().IsIntrinsicOrAuto())) {
+      return TextContentForStickyImagesQuirk(items_data);
+    }
+  }
+
+  return text_content;
+}
 
 template <>
 struct DowncastTraits<NGInlineNode> {
@@ -159,4 +202,4 @@ struct DowncastTraits<NGInlineNode> {
 
 }  // namespace blink
 
-#endif  // NGInlineNode_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_NODE_H_

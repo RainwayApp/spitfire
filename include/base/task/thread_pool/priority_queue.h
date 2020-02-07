@@ -28,13 +28,18 @@ class BASE_EXPORT PriorityQueue {
   PriorityQueue& operator=(PriorityQueue&& other);
 
   // Inserts |task_source| in the PriorityQueue with |sequence_sort_key|.
-  void Push(RegisteredTaskSourceAndTransaction task_source_and_transaction);
+  void Push(TransactionWithRegisteredTaskSource transaction_with_task_source);
 
   // Returns a reference to the SequenceSortKey representing the priority of
   // the highest pending task in this PriorityQueue. The reference becomes
   // invalid the next time that this PriorityQueue is modified.
   // Cannot be called on an empty PriorityQueue.
   const SequenceSortKey& PeekSortKey() const;
+
+  // Returns a reference to the highest priority TaskSource in this
+  // PriorityQueue. Cannot be called on an empty PriorityQueue. The returned
+  // task source may be modified as long as its sort key isn't affected.
+  RegisteredTaskSource& PeekTaskSource() const;
 
   // Removes and returns the highest priority TaskSource in this PriorityQueue.
   // Cannot be called on an empty PriorityQueue.
@@ -44,12 +49,12 @@ class BASE_EXPORT PriorityQueue {
   // RegisteredTaskSource which evaluates to true if successful, or false if
   // |task_source| is not currently in the PriorityQueue or the PriorityQueue is
   // empty.
-  RegisteredTaskSource RemoveTaskSource(scoped_refptr<TaskSource> task_source);
+  RegisteredTaskSource RemoveTaskSource(const TaskSource& task_source);
 
-  // Updates the sort key of the TaskSource in |task_source_and_transaction| to
+  // Updates the sort key of the TaskSource in |transaction| to
   // match its current traits. No-ops if the TaskSource is not in the
   // PriorityQueue or the PriorityQueue is empty.
-  void UpdateSortKey(TaskSourceAndTransaction task_source_and_transaction);
+  void UpdateSortKey(TaskSource::Transaction transaction);
 
   // Returns true if the PriorityQueue is empty.
   bool IsEmpty() const;

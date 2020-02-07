@@ -32,7 +32,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_cache_key.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/linked_hash_set.h"
 
@@ -42,7 +42,7 @@ class FontDescription;
 class SimpleFontData;
 
 class CORE_EXPORT CSSFontFaceSource
-    : public GarbageCollectedFinalized<CSSFontFaceSource> {
+    : public GarbageCollected<CSSFontFaceSource> {
  public:
   virtual ~CSSFontFaceSource();
 

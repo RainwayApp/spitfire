@@ -14,6 +14,7 @@
 #if defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
 
 #include <stdint.h>
+
 #include <memory>
 
 #include "api/task_queue/task_queue_factory.h"
@@ -135,6 +136,9 @@ class AudioDeviceModuleImpl : public AudioDeviceModuleForTest {
   int32_t EnableBuiltInAGC(bool enable) override;
   bool BuiltInNSIsAvailable() const override;
   int32_t EnableBuiltInNS(bool enable) override;
+
+  // Play underrun count.
+  int32_t GetPlayoutUnderrunCount() const override;
 
 #if defined(WEBRTC_IOS)
   int GetPlayoutAudioParameters(AudioParameters* params) const override;

@@ -167,10 +167,10 @@ class PLATFORM_EXPORT PaintController {
   void FinishCycle();
 
   // |FinishCycle| clears the property tree changed state but only does this for
-  // non-transient controllers. The root paint controller is transient with
-  // BlinkGenPropertyTrees and this function provides a hook for clearing
+  // non-transient controllers. Until CompositeAfterPaint, the root paint
+  // controller is transient with and this function provides a hook for clearing
   // the property tree changed state after paint.
-  // TODO(pdr): Remove this when BlinkGenPropertyTrees ships.
+  // TODO(pdr): Remove this when CompositeAfterPaint ships.
   void ClearPropertyTreeChangedStateTo(const PropertyTreeState&);
 
   // Returns the approximate memory usage, excluding memory likely to be
@@ -387,8 +387,8 @@ class PLATFORM_EXPORT PaintController {
   // requests.
   size_t next_item_to_index_ = 0;
 
-  size_t num_indexed_items_ = 0;
 #if DCHECK_IS_ON()
+  size_t num_indexed_items_ = 0;
   size_t num_sequential_matches_ = 0;
   size_t num_out_of_order_matches_ = 0;
 
@@ -424,10 +424,8 @@ class PLATFORM_EXPORT PaintController {
   // document life cycle update.
   static size_t sum_num_items_;
   static size_t sum_num_cached_items_;
-  static size_t sum_num_indexed_items_;
   static size_t sum_num_subsequences_;
   static size_t sum_num_cached_subsequences_;
-  static size_t sum_num_paint_chunks_;
 
   class DisplayItemListAsJSON;
 

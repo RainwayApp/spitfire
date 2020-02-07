@@ -11,12 +11,12 @@
 #include "base/task/sequence_manager/sequence_manager.h"
 #include "base/task/sequence_manager/task_queue.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
-#include "third_party/blink/public/platform/web_thread_type.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/common/single_thread_idle_task_runner.h"
 #include "third_party/blink/renderer/platform/scheduler/common/thread_scheduler_impl.h"
 #include "third_party/blink/renderer/platform/scheduler/common/tracing_helper.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_type.h"
 #include "third_party/blink/renderer/platform/scheduler/worker/non_main_thread_scheduler_helper.h"
 #include "third_party/blink/renderer/platform/scheduler/worker/non_main_thread_task_queue.h"
 
@@ -32,7 +32,7 @@ class PLATFORM_EXPORT NonMainThreadSchedulerImpl : public ThreadSchedulerImpl {
   // |sequence_manager| and |proxy| must remain valid for the entire lifetime of
   // this object.
   static std::unique_ptr<NonMainThreadSchedulerImpl> Create(
-      WebThreadType thread_type,
+      ThreadType thread_type,
       base::sequence_manager::SequenceManager* sequence_manager,
       WorkerSchedulerProxy* proxy);
 
@@ -66,12 +66,16 @@ class PLATFORM_EXPORT NonMainThreadSchedulerImpl : public ThreadSchedulerImpl {
                     Thread::IdleTask task) override;
   void PostNonNestableIdleTask(const base::Location& location,
                                Thread::IdleTask task) override;
+  void PostDelayedIdleTask(const base::Location& location,
+                           base::TimeDelta delay,
+                           Thread::IdleTask task) override;
+
   std::unique_ptr<PageScheduler> CreatePageScheduler(
       PageScheduler::Delegate*) override;
   std::unique_ptr<RendererPauseHandle> PauseScheduler() override
       WARN_UNUSED_RESULT;
 
-  // Returns TimeTicks::Now() by default.
+  // Returns base::TimeTicks::Now() by default.
   base::TimeTicks MonotonicallyIncreasingVirtualTime() override;
 
   NonMainThreadSchedulerImpl* AsNonMainThreadScheduler() override {

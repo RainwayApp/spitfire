@@ -41,7 +41,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -53,7 +53,7 @@ class WorkerThreadDebugger;
 struct WorkerDevToolsParams;
 
 class WorkerInspectorController final
-    : public GarbageCollectedFinalized<WorkerInspectorController>,
+    : public GarbageCollected<WorkerInspectorController>,
       public trace_event::EnabledStateObserver,
       public DevToolsAgent::Client,
       private Thread::TaskObserver {
@@ -80,7 +80,7 @@ class WorkerInspectorController final
 
  private:
   // Thread::TaskObserver implementation.
-  void WillProcessTask(const base::PendingTask&) override;
+  void WillProcessTask(const base::PendingTask&, bool) override;
   void DidProcessTask(const base::PendingTask&) override;
 
   // blink::trace_event::EnabledStateObserver implementation:

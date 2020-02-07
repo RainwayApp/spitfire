@@ -7,8 +7,9 @@
 
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
-#include "components/payments/mojom/payment_request_data.mojom-blink.h"
-#include "mojo/public/cpp/bindings/binding.h"
+#include "components/payments/mojom/payment_request_data.mojom-blink-forward.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/payments/payment_request.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -111,6 +112,9 @@ class MODULES_EXPORT PaymentRequest final
   };
 
  private:
+  // Called when the renderer loses the IPC connection to the browser.
+  void OnConnectionError();
+
   // LifecycleObserver:
   void ContextDestroyed(ExecutionContext*) override;
 
@@ -122,7 +126,8 @@ class MODULES_EXPORT PaymentRequest final
   void OnShippingOptionChange(const String& shipping_option_id) override;
   void OnPayerDetailChange(payments::mojom::blink::PayerDetailPtr) override;
   void OnPaymentResponse(payments::mojom::blink::PaymentResponsePtr) override;
-  void OnError(payments::mojom::blink::PaymentErrorReason) override;
+  void OnError(payments::mojom::blink::PaymentErrorReason,
+               const String& error_message) override;
   void OnComplete() override;
   void OnAbort(bool aborted_successfully) override;
   void OnCanMakePayment(
@@ -161,11 +166,13 @@ class MODULES_EXPORT PaymentRequest final
   Member<ScriptPromiseResolver> abort_resolver_;
   Member<ScriptPromiseResolver> can_make_payment_resolver_;
   Member<ScriptPromiseResolver> has_enrolled_instrument_resolver_;
-  payments::mojom::blink::PaymentRequestPtr payment_provider_;
-  mojo::Binding<payments::mojom::blink::PaymentRequestClient> client_binding_;
+  mojo::Remote<payments::mojom::blink::PaymentRequest> payment_provider_;
+  mojo::Receiver<payments::mojom::blink::PaymentRequestClient> client_receiver_{
+      this};
   TaskRunnerTimer<PaymentRequest> complete_timer_;
   TaskRunnerTimer<PaymentRequest> update_payment_details_timer_;
   bool is_waiting_for_show_promise_to_resolve_;
+  bool basic_card_has_supported_card_types_;
 
   DISALLOW_COPY_AND_ASSIGN(PaymentRequest);
 };

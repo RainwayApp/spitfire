@@ -44,6 +44,7 @@ class HTMLOptGroupElement;
 class HTMLOptionElement;
 class HTMLOptionElementOrHTMLOptGroupElement;
 class HTMLElementOrLong;
+class LayoutUnit;
 class PopupMenu;
 
 class CORE_EXPORT HTMLSelectElement final
@@ -193,7 +194,6 @@ class CORE_EXPORT HTMLSelectElement final
 
   bool IsEnumeratable() const override { return true; }
   bool IsInteractiveContent() const override;
-  bool SupportsAutofocus() const override;
   bool IsLabelable() const override { return true; }
 
   FormControlState SaveFormControlState() const override;
@@ -205,7 +205,7 @@ class CORE_EXPORT HTMLSelectElement final
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
   void DidRecalcStyle(const StyleRecalcChange) override;
   void AttachLayoutTree(AttachContext&) override;
-  void DetachLayoutTree(const AttachContext& = AttachContext()) override;
+  void DetachLayoutTree(bool performing_reattach = false) override;
   void AppendToFormData(FormData&) override;
   void DidAddUserAgentShadowRoot(ShadowRoot&) override;
 
@@ -252,8 +252,10 @@ class CORE_EXPORT HTMLSelectElement final
                                    wtf_size_t list_index_start,
                                    wtf_size_t list_index_end) const;
   void UpdateListBoxSelection(bool deselect_other_options, bool scroll = true);
+  void UpdateMultiSelectListBoxFocus();
   void SetIndexToSelectOnCancel(int list_index);
   void SetSuggestedOption(HTMLOptionElement*);
+  void ToggleSelection(HTMLOptionElement&);
 
   // Returns nullptr if listIndex is out of bounds, or it doesn't point an
   // HTMLOptionElement.
@@ -300,6 +302,7 @@ class CORE_EXPORT HTMLSelectElement final
   Member<HTMLOptionElement> option_to_scroll_to_;
   Member<HTMLOptionElement> suggested_option_;
   bool is_multiple_;
+  bool is_in_non_contiguous_selection_;
   bool active_selection_state_;
   mutable bool should_recalc_list_items_;
   bool is_autofilled_by_preview_;

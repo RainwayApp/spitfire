@@ -36,7 +36,6 @@
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/scroll/scroll_customization.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 
 // This needs to be here because element.cc also depends on it.
 #define DUMP_NODE_STATISTICS 0
@@ -59,11 +58,12 @@ class KURL;
 class LayoutBox;
 class LayoutBoxModelObject;
 class LayoutObject;
+class MathMLQualifiedName;
 class MutationObserver;
 class MutationObserverRegistration;
 class NodeList;
 class NodeListsNodeData;
-class NodeOrString;
+class NodeOrStringOrTrustedScript;
 class NodeRareData;
 class QualifiedName;
 class RegisteredEventListener;
@@ -78,9 +78,10 @@ class StringOrTrustedScript;
 class StyleChangeReasonForTracing;
 class V8ScrollStateCallback;
 class WebPluginContainerImpl;
+struct PhysicalRect;
 
-const int kNodeStyleChangeShift = 18;
-const int kNodeCustomElementShift = 20;
+const int kNodeStyleChangeShift = 19;
+const int kNodeCustomElementShift = 21;
 
 // Values for kChildNeedsStyleRecalcFlag, controlling whether a node gets its
 // style recalculated.
@@ -163,16 +164,14 @@ class CORE_EXPORT Node : public EventTarget {
     kDocumentPositionImplementationSpecific = 0x20,
   };
 
-  // Override operator new to allocate Node subtype objects onto
-  // a dedicated heap.
-  static void* AllocateObject(size_t size, bool is_eager) {
+  template <typename T>
+  static void* AllocateObject(size_t size) {
     ThreadState* state =
         ThreadStateFor<ThreadingTrait<Node>::kAffinity>::GetState();
     const char* type_name = "blink::Node";
     return state->Heap().AllocateOnArenaIndex(
-        state, size,
-        is_eager ? BlinkGC::kEagerSweepArenaIndex : BlinkGC::kNodeArenaIndex,
-        GCInfoTrait<EventTarget>::Index(), type_name);
+        state, size, BlinkGC::kNodeArenaIndex,
+        GCInfoTrait<GCInfoFoldedType<T>>::Index(), type_name);
   }
 
   static void DumpStatistics();
@@ -182,6 +181,7 @@ class CORE_EXPORT Node : public EventTarget {
   // DOM methods & attributes for Node
 
   bool HasTagName(const HTMLQualifiedName&) const;
+  bool HasTagName(const MathMLQualifiedName&) const;
   bool HasTagName(const SVGQualifiedName&) const;
   virtual String nodeName() const = 0;
   virtual String nodeValue() const;
@@ -220,11 +220,12 @@ class CORE_EXPORT Node : public EventTarget {
   // https://dom.spec.whatwg.org/#concept-closed-shadow-hidden
   bool IsClosedShadowHiddenFrom(const Node&) const;
 
-  void Prepend(const HeapVector<NodeOrString>&, ExceptionState&);
-  void Append(const HeapVector<NodeOrString>&, ExceptionState&);
-  void Before(const HeapVector<NodeOrString>&, ExceptionState&);
-  void After(const HeapVector<NodeOrString>&, ExceptionState&);
-  void ReplaceWith(const HeapVector<NodeOrString>&, ExceptionState&);
+  void Prepend(const HeapVector<NodeOrStringOrTrustedScript>&, ExceptionState&);
+  void Append(const HeapVector<NodeOrStringOrTrustedScript>&, ExceptionState&);
+  void Before(const HeapVector<NodeOrStringOrTrustedScript>&, ExceptionState&);
+  void After(const HeapVector<NodeOrStringOrTrustedScript>&, ExceptionState&);
+  void ReplaceWith(const HeapVector<NodeOrStringOrTrustedScript>&,
+                   ExceptionState&);
   void remove(ExceptionState&);
   void remove();
 
@@ -265,7 +266,7 @@ class CORE_EXPORT Node : public EventTarget {
 
   bool SupportsAltText();
 
-  void SetComputedStyle(scoped_refptr<ComputedStyle> computed_style);
+  void SetComputedStyle(scoped_refptr<const ComputedStyle> computed_style);
 
   // Other methods (not part of DOM)
 
@@ -273,6 +274,7 @@ class CORE_EXPORT Node : public EventTarget {
   bool IsContainerNode() const { return GetFlag(kIsContainerFlag); }
   bool IsTextNode() const { return GetFlag(kIsTextFlag); }
   bool IsHTMLElement() const { return GetFlag(kIsHTMLFlag); }
+  bool IsMathMLElement() const { return GetFlag(kIsMathMLFlag); }
   bool IsSVGElement() const { return GetFlag(kIsSVGFlag); }
 
   DISABLE_CFI_PERF bool IsPseudoElement() const {
@@ -283,6 +285,9 @@ class CORE_EXPORT Node : public EventTarget {
   }
   DISABLE_CFI_PERF bool IsAfterPseudoElement() const {
     return GetPseudoId() == kPseudoIdAfter;
+  }
+  DISABLE_CFI_PERF bool IsMarkerPseudoElement() const {
+    return GetPseudoId() == kPseudoIdMarker;
   }
   DISABLE_CFI_PERF bool IsFirstLetterPseudoElement() const {
     return GetPseudoId() == kPseudoIdFirstLetter;
@@ -464,6 +469,8 @@ class CORE_EXPORT Node : public EventTarget {
   // a micro-benchmark regression (https://crbug.com/926343).
   void SetStyleChangeOnInsertion() {
     DCHECK(isConnected());
+    if (ShouldSkipMarkingStyleDirty())
+      return;
     if (!NeedsStyleRecalc())
       SetStyleChange(kLocalStyleChange);
     MarkAncestorsWithChildNeedsStyleRecalc();
@@ -495,6 +502,10 @@ class CORE_EXPORT Node : public EventTarget {
   void SetForceReattachLayoutTree();
   bool GetForceReattachLayoutTree() const {
     return GetFlag(kForceReattachLayoutTree);
+  }
+
+  bool IsDirtyForStyleRecalc() const {
+    return NeedsStyleRecalc() || GetForceReattachLayoutTree();
   }
 
   bool NeedsDistributionRecalc() const;
@@ -564,12 +575,8 @@ class CORE_EXPORT Node : public EventTarget {
   }
 
   virtual void SetFocused(bool flag, WebFocusType);
-  virtual void SetHasFocusWithin(bool flag);
-  virtual void SetActive(bool flag = true);
+  void SetHasFocusWithin(bool flag);
   virtual void SetDragged(bool flag);
-  virtual void SetHovered(bool flag = true);
-
-  virtual int tabIndex() const;
 
   virtual const Node* FocusDelegate() const;
   // This is called only when the node is focused.
@@ -582,15 +589,13 @@ class CORE_EXPORT Node : public EventTarget {
   // inert to prevent text selection.
   bool IsInert() const;
 
-  virtual LayoutRect BoundingBox() const;
-  IntRect PixelSnappedBoundingBox() const {
-    return PixelSnappedIntRect(BoundingBox());
-  }
+  virtual PhysicalRect BoundingBox() const;
+  IntRect PixelSnappedBoundingBox() const;
 
   // BoundingBoxForScrollIntoView() is the node's scroll snap area.
   // It is expanded from the BoundingBox() by scroll-margin.
   // https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-area
-  LayoutRect BoundingBoxForScrollIntoView() const;
+  PhysicalRect BoundingBoxForScrollIntoView() const;
 
   unsigned NodeIndex() const;
 
@@ -631,7 +636,9 @@ class CORE_EXPORT Node : public EventTarget {
   bool IsChildOfV1ShadowHost() const;
   bool IsChildOfV0ShadowHost() const;
   ShadowRoot* V1ShadowRootOfParent() const;
-  ContainerNode* GetReattachParent() const;
+  Element* FlatTreeParentForChildDirty() const;
+  ContainerNode* GetStyleRecalcParent() const;
+  Element* GetReattachParent() const { return FlatTreeParentForChildDirty(); }
 
   bool IsDocumentTypeNode() const { return getNodeType() == kDocumentTypeNode; }
   virtual bool ChildTypeAllowed(NodeType) const { return false; }
@@ -675,11 +682,19 @@ class CORE_EXPORT Node : public EventTarget {
     // we don't need to backtrack past display:none/contents and out of flow
     // objects when we need to do whitespace re-attachment.
     LayoutObject* previous_in_flow = nullptr;
-    // Set to true if the Attach/DetachLayoutTree is done as part of the
+    // The parent LayoutObject to use when inserting a new child into the layout
+    // tree in LayoutTreeBuilder::CreateLayoutObject.
+    LayoutObject* parent = nullptr;
+    // LayoutObject to be used as the next pointer when inserting a LayoutObject
+    // into the tree.
+    LayoutObject* next_sibling = nullptr;
+    // Set to true if the AttachLayoutTree is done as part of the
     // RebuildLayoutTree pass.
     bool performing_reattach = false;
     // True if the previous_in_flow member is up-to-date, even if it is nullptr.
     bool use_previous_in_flow = false;
+    // True if the next_sibling member is up-to-date, even if it is nullptr.
+    bool next_sibling_valid = false;
     // True if we need to force legacy layout objects for the entire subtree.
     bool force_legacy_layout = false;
 
@@ -695,12 +710,8 @@ class CORE_EXPORT Node : public EventTarget {
   // Detaches the node from the layout tree, making it invisible in the rendered
   // view. This method will remove the node's layout object from the layout tree
   // and delete it.
-  virtual void DetachLayoutTree(const AttachContext& = AttachContext());
+  virtual void DetachLayoutTree(bool performing_reattach = false);
 
-  void ReattachLayoutTree() {
-    AttachContext context;
-    ReattachLayoutTree(context);
-  }
   void ReattachLayoutTree(AttachContext&);
 
   // ---------------------------------------------------------------------------
@@ -709,10 +720,11 @@ class CORE_EXPORT Node : public EventTarget {
   // Note that the following 'inline' functions are not defined in this header,
   // but in node_computed_style.h. Please include that file if you want to use
   // these functions.
-  ComputedStyle* MutableComputedStyle() const;
+  ComputedStyle* MutableComputedStyleForEditingDeprecated() const;
   const ComputedStyle* GetComputedStyle() const;
   const ComputedStyle* ParentComputedStyle() const;
   const ComputedStyle& ComputedStyleRef() const;
+  bool ShouldSkipMarkingStyleDirty() const;
 
   const ComputedStyle* EnsureComputedStyle(
       PseudoId pseudo_element_specifier = kPseudoIdNone) {
@@ -786,6 +798,7 @@ class CORE_EXPORT Node : public EventTarget {
   FlatTreeNodeData* GetFlatTreeNodeData() const;
   FlatTreeNodeData& EnsureFlatTreeNodeData();
   void ClearFlatTreeNodeData();
+  void ClearFlatTreeNodeDataIfHostChanged(const ContainerNode& parent);
 
   virtual bool WillRespondToMouseMoveEvents();
   virtual bool WillRespondToMouseClickEvents();
@@ -813,6 +826,10 @@ class CORE_EXPORT Node : public EventTarget {
   }
   virtual void PostDispatchEventHandler(Event&, EventDispatchHandlingState*) {}
 
+  // TODO(crbug.com/1013385): Remove DidPreventDefault. It is here as a
+  //   temporary fix for form double-submit.
+  virtual void DidPreventDefault(const Event&) {}
+
   void DispatchScopedEvent(Event&);
 
   virtual void HandleLocalEvents(Event&);
@@ -830,7 +847,7 @@ class CORE_EXPORT Node : public EventTarget {
 
   // Perform the default action for an event.
   virtual void DefaultEventHandler(Event&);
-  virtual void WillCallDefaultEventHandler(const Event&);
+  void UpdateHadKeyboardEvent(const Event&);
   // Should return true if this Node has activation behavior.
   // https://dom.spec.whatwg.org/#eventtarget-activation-behavior
   virtual bool HasActivationBehavior() const;
@@ -871,11 +888,7 @@ class CORE_EXPORT Node : public EventTarget {
   }
 
   void FlatTreeParentChanged();
-  void RemovedFromFlatTree() {
-    // This node was previously part of the flat tree, but due to slot re-
-    // assignment it no longer is. We need to detach the layout tree.
-    DetachLayoutTree();
-  }
+  void RemovedFromFlatTree();
 
   void SetHasDuplicateAttributes() { SetFlag(kHasDuplicateAttributes); }
   bool HasDuplicateAttribute() const {
@@ -905,56 +918,57 @@ class CORE_EXPORT Node : public EventTarget {
     kIsContainerFlag = 1 << 2,
     kIsElementFlag = 1 << 3,
     kIsHTMLFlag = 1 << 4,
-    kIsSVGFlag = 1 << 5,
-    kIsDocumentFragmentFlag = 1 << 6,
-    kIsV0InsertionPointFlag = 1 << 7,
+    kIsMathMLFlag = 1 << 5,
+    kIsSVGFlag = 1 << 6,
+    kIsDocumentFragmentFlag = 1 << 7,
+    kIsV0InsertionPointFlag = 1 << 8,
 
     // Changes based on if the element should be treated like a link,
     // ex. When setting the href attribute on an <a>.
-    kIsLinkFlag = 1 << 8,
+    kIsLinkFlag = 1 << 9,
 
     // Changes based on :hover, :active and :focus state.
-    kIsUserActionElementFlag = 1 << 9,
+    kIsUserActionElementFlag = 1 << 10,
 
     // Tree state flags. These change when the element is added/removed
     // from a DOM tree.
-    kIsConnectedFlag = 1 << 10,
-    kIsInShadowTreeFlag = 1 << 11,
+    kIsConnectedFlag = 1 << 11,
+    kIsInShadowTreeFlag = 1 << 12,
 
     // Set by the parser when the children are done parsing.
-    kIsFinishedParsingChildrenFlag = 1 << 12,
+    kIsFinishedParsingChildrenFlag = 1 << 13,
 
     // Flags related to recalcStyle.
-    kHasCustomStyleCallbacksFlag = 1 << 13,
-    kChildNeedsStyleInvalidationFlag = 1 << 14,
-    kNeedsStyleInvalidationFlag = 1 << 15,
-    kChildNeedsDistributionRecalcFlag = 1 << 16,
-    kChildNeedsStyleRecalcFlag = 1 << 17,
+    kHasCustomStyleCallbacksFlag = 1 << 14,
+    kChildNeedsStyleInvalidationFlag = 1 << 15,
+    kNeedsStyleInvalidationFlag = 1 << 16,
+    kChildNeedsDistributionRecalcFlag = 1 << 17,
+    kChildNeedsStyleRecalcFlag = 1 << 18,
     kStyleChangeMask =
         1 << kNodeStyleChangeShift | 1 << (kNodeStyleChangeShift + 1),
 
     kCustomElementStateMask = 0x3 << kNodeCustomElementShift,
 
-    kHasNameOrIsEditingTextFlag = 1 << 22,
-    kHasEventTargetDataFlag = 1 << 23,
+    kHasNameOrIsEditingTextFlag = 1 << 23,
+    kHasEventTargetDataFlag = 1 << 24,
 
-    kV0CustomElementFlag = 1 << 24,
-    kV0CustomElementUpgradedFlag = 1 << 25,
+    kV0CustomElementFlag = 1 << 25,
+    kV0CustomElementUpgradedFlag = 1 << 26,
 
-    kNeedsReattachLayoutTree = 1 << 26,
-    kChildNeedsReattachLayoutTree = 1 << 27,
+    kNeedsReattachLayoutTree = 1 << 27,
+    kChildNeedsReattachLayoutTree = 1 << 28,
 
-    kHasDuplicateAttributes = 1 << 28,
+    kHasDuplicateAttributes = 1 << 29,
 
     // Temporary flag for some UseCounter items. crbug.com/859391.
-    kInDOMNodeRemovedHandler = 1 << 29,
+    kInDOMNodeRemovedHandler = 1 << 30,
 
-    kForceReattachLayoutTree = 1 << 30,
+    kForceReattachLayoutTree = 1 << 31,
 
     kDefaultNodeFlags = kIsFinishedParsingChildrenFlag,
   };
 
-  // 1 bit remaining.
+  // 0 bits remaining.
 
   bool GetFlag(NodeFlags mask) const { return node_flags_ & mask; }
   void SetFlag(bool f, NodeFlags mask) {
@@ -973,6 +987,7 @@ class CORE_EXPORT Node : public EventTarget {
         kCreateContainer | kIsDocumentFragmentFlag | kIsInShadowTreeFlag,
     kCreateDocumentFragment = kCreateContainer | kIsDocumentFragmentFlag,
     kCreateHTMLElement = kCreateElement | kIsHTMLFlag,
+    kCreateMathMLElement = kCreateElement | kIsMathMLFlag,
     kCreateSVGElement = kCreateElement | kIsSVGFlag,
     kCreateDocument = kCreateContainer | kIsConnectedFlag,
     kCreateV0InsertionPoint = kCreateHTMLElement | kIsV0InsertionPointFlag,
@@ -981,8 +996,7 @@ class CORE_EXPORT Node : public EventTarget {
 
   Node(TreeScope*, ConstructionType);
 
-  virtual void WillMoveToNewDocument(Document& old_document,
-                                     Document& new_document);
+  void WillMoveToNewDocument(Document& old_document, Document& new_document);
   virtual void DidMoveToNewDocument(Document& old_document);
 
   void AddedEventListener(const AtomicString& event_type,
@@ -1048,6 +1062,9 @@ class CORE_EXPORT Node : public EventTarget {
   MutationObserverRegistry();
   const HeapHashSet<Member<MutationObserverRegistration>>*
   TransientMutationObserverRegistry();
+
+  inline Node* TrustedTypesCheckForScriptNode(Node* child,
+                                              ExceptionState&) const;
 
   uint32_t node_flags_;
   Member<Node> parent_or_shadow_host_node_;

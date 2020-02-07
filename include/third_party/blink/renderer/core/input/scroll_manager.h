@@ -5,9 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_INPUT_SCROLL_MANAGER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_INPUT_SCROLL_MANAGER_H_
 
-#include <deque>
 #include <memory>
 
+#include "base/callback_helpers.h"
 #include "base/macros.h"
 #include "cc/input/snap_fling_controller.h"
 #include "third_party/blink/public/platform/web_input_event_result.h"
@@ -19,7 +19,8 @@
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/deque.h"
 
 namespace blink {
 
@@ -37,9 +38,8 @@ class WebGestureEvent;
 // This class takes care of scrolling and resizing and the related states. The
 // user action that causes scrolling or resizing is determined in other *Manager
 // classes and they call into this class for doing the work.
-class CORE_EXPORT ScrollManager
-    : public GarbageCollectedFinalized<ScrollManager>,
-      public cc::SnapFlingClient {
+class CORE_EXPORT ScrollManager : public GarbageCollected<ScrollManager>,
+                                  public cc::SnapFlingClient {
  public:
   explicit ScrollManager(LocalFrame&);
   virtual ~ScrollManager() = default;
@@ -97,9 +97,10 @@ class CORE_EXPORT ScrollManager
   void SetResizeScrollableArea(PaintLayer*, IntPoint);
 
   // SnapFlingClient implementation.
-  bool GetSnapFlingInfo(const gfx::Vector2dF& natural_displacement,
-                        gfx::Vector2dF* out_initial_position,
-                        gfx::Vector2dF* out_target_position) const override;
+  bool GetSnapFlingInfoAndSetSnapTarget(
+      const gfx::Vector2dF& natural_displacement,
+      gfx::Vector2dF* out_initial_position,
+      gfx::Vector2dF* out_target_position) const override;
   gfx::Vector2dF ScrollByForSnapFling(const gfx::Vector2dF& delta) override;
   void ScrollEndForSnapFling() override;
   void RequestAnimationForSnapFling() override;
@@ -112,8 +113,14 @@ class CORE_EXPORT ScrollManager
   WebInputEventResult HandleGestureScrollUpdate(const WebGestureEvent&);
   WebInputEventResult HandleGestureScrollBegin(const WebGestureEvent&);
 
+  // Handling of GestureScrollEnd may be deferred if there's an outstanding
+  // scroll animation. This is the callback that invokes the deferred operation.
+  void HandleDeferredGestureScrollEnd(const WebGestureEvent& gesture_event);
+
   WebInputEventResult PassScrollGestureEvent(const WebGestureEvent&,
                                              LayoutObject*);
+
+  Node* GetScrollEventTarget();
 
   void ClearGestureScrollState();
 
@@ -125,7 +132,7 @@ class CORE_EXPORT ScrollManager
 
   void RecomputeScrollChain(const Node& start_node,
                             const ScrollState&,
-                            std::deque<DOMNodeId>& scroll_chain);
+                            Deque<DOMNodeId>& scroll_chain);
   bool CanScroll(const ScrollState&, const Node& current_node);
 
   // scroller_size is set only when scrolling non root scroller.
@@ -136,7 +143,8 @@ class CORE_EXPORT ScrollManager
   WebGestureEvent SynthesizeGestureScrollBegin(
       const WebGestureEvent& update_event);
 
-  void SnapAtGestureScrollEnd();
+  bool SnapAtGestureScrollEnd(const WebGestureEvent& end_event,
+                              base::ScopedClosureRunner callback);
 
   void NotifyScrollPhaseBeginForCustomizedScroll(const ScrollState&);
   void NotifyScrollPhaseEndForCustomizedScroll();
@@ -149,7 +157,7 @@ class CORE_EXPORT ScrollManager
   const Member<LocalFrame> frame_;
 
   // Only used with the ScrollCustomization runtime enabled feature.
-  std::deque<DOMNodeId> current_scroll_chain_;
+  Deque<DOMNodeId> current_scroll_chain_;
 
   Member<Node> scroll_gesture_handling_node_;
 
@@ -160,6 +168,8 @@ class CORE_EXPORT ScrollManager
   // sequence, or if the most recent element to scroll used scroll
   // customization.
   Member<Node> previous_gesture_scrolled_node_;
+
+  FloatSize last_scroll_delta_for_scroll_gesture_;
 
   // True iff some of the delta has been consumed for the current
   // scroll sequence in this frame, or any child frames. Only used

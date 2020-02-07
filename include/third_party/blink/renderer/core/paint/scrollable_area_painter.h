@@ -15,8 +15,10 @@ class DisplayItemClient;
 class GraphicsContext;
 class IntPoint;
 class IntRect;
+class Scrollbar;
 struct PaintInfo;
 class PaintLayerScrollableArea;
+struct PhysicalOffset;
 
 class ScrollableAreaPainter {
   STACK_ALLOCATED();
@@ -26,10 +28,7 @@ class ScrollableAreaPainter {
       PaintLayerScrollableArea& paint_layer_scrollable_area)
       : scrollable_area_(&paint_layer_scrollable_area) {}
 
-  void PaintOverflowControls(const PaintInfo&,
-                             const IntPoint& paint_offset,
-                             bool painting_overlay_controls);
-
+  void PaintOverflowControls(const PaintInfo&, const IntPoint& paint_offset);
   void PaintResizer(GraphicsContext&,
                     const IntPoint& paint_offset,
                     const CullRect&);
@@ -37,9 +36,20 @@ class ScrollableAreaPainter {
                          const IntPoint& paint_offset,
                          const CullRect&);
 
+  // Records a scroll hit test data to force main thread handling of events
+  // in the expanded resizer touch area.
+  void RecordResizerScrollHitTestData(
+      GraphicsContext&,
+      const PhysicalOffset& paint_offset,
+      const DisplayItemClient& background_client);
+
  private:
-  void DrawPlatformResizerImage(GraphicsContext&, IntRect resizer_corner_rect);
-  bool OverflowControlsIntersectRect(const CullRect&) const;
+  void DrawPlatformResizerImage(GraphicsContext&,
+                                const IntRect& resizer_corner_rect);
+  void PaintScrollbar(GraphicsContext&,
+                      Scrollbar&,
+                      const CullRect&,
+                      const IntPoint& paint_offset);
 
   PaintLayerScrollableArea& GetScrollableArea() const;
   const DisplayItemClient& DisplayItemClientForCorner() const;

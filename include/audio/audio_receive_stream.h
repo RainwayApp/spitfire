@@ -15,10 +15,12 @@
 #include <vector>
 
 #include "api/audio/audio_mixer.h"
+#include "api/neteq/neteq_factory.h"
 #include "api/rtp_headers.h"
 #include "audio/audio_state.h"
 #include "call/audio_receive_stream.h"
 #include "call/syncable.h"
+#include "modules/rtp_rtcp/source/source_tracker.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/thread_checker.h"
 #include "system_wrappers/include/clock.h"
@@ -46,6 +48,7 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
                      RtpStreamReceiverControllerInterface* receiver_controller,
                      PacketRouter* packet_router,
                      ProcessThread* module_process_thread,
+                     NetEqFactory* neteq_factory,
                      const webrtc::AudioReceiveStream::Config& config,
                      const rtc::scoped_refptr<webrtc::AudioState>& audio_state,
                      webrtc::RtcEventLog* event_log);
@@ -86,11 +89,13 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
   // Syncable
   int id() const override;
   absl::optional<Syncable::Info> GetInfo() const override;
-  uint32_t GetPlayoutTimestamp() const override;
+  bool GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
+                              int64_t* time_ms) const override;
+  void SetEstimatedPlayoutNtpTimestampMs(int64_t ntp_timestamp_ms,
+                                         int64_t time_ms) override;
   void SetMinimumPlayoutDelay(int delay_ms) override;
 
   void AssociateSendStream(AudioSendStream* send_stream);
-  void SignalNetworkState(NetworkState state);
   void DeliverRtcp(const uint8_t* packet, size_t length);
   const webrtc::AudioReceiveStream::Config& config() const;
   const AudioSendStream* GetAssociatedSendStreamForTesting() const;
@@ -107,6 +112,7 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
   webrtc::AudioReceiveStream::Config config_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
   const std::unique_ptr<voe::ChannelReceiveInterface> channel_receive_;
+  SourceTracker source_tracker_;
   AudioSendStream* associated_send_stream_ = nullptr;
 
   bool playing_ RTC_GUARDED_BY(worker_thread_checker_) = false;

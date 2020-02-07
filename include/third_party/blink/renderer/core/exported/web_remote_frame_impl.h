@@ -25,22 +25,31 @@ enum class WebFrameLoadType;
 class WebView;
 struct WebRect;
 struct WebScrollIntoViewParams;
+class WindowAgentFactory;
 
 class CORE_EXPORT WebRemoteFrameImpl final
-    : public GarbageCollectedFinalized<WebRemoteFrameImpl>,
+    : public GarbageCollected<WebRemoteFrameImpl>,
       public WebRemoteFrame {
  public:
-  static WebRemoteFrameImpl* Create(WebTreeScopeType, WebRemoteFrameClient*);
   static WebRemoteFrameImpl* CreateMainFrame(WebView*,
                                              WebRemoteFrameClient*,
-                                             WebFrame* opener = nullptr);
+                                             InterfaceRegistry*,
+                                             AssociatedInterfaceProvider*,
+                                             WebFrame* opener);
+  static WebRemoteFrameImpl* CreateForPortal(WebTreeScopeType,
+                                             WebRemoteFrameClient*,
+                                             InterfaceRegistry*,
+                                             AssociatedInterfaceProvider*,
+                                             const WebElement& portal_element);
 
-  WebRemoteFrameImpl(WebTreeScopeType, WebRemoteFrameClient*);
+  WebRemoteFrameImpl(WebTreeScopeType,
+                     WebRemoteFrameClient*,
+                     InterfaceRegistry*,
+                     AssociatedInterfaceProvider*);
   ~WebRemoteFrameImpl() override;
 
   // WebFrame methods:
   void Close() override;
-  WebRect VisibleContentRect() const override;
   WebView* View() const override;
   void StopLoading() override;
 
@@ -50,7 +59,6 @@ class CORE_EXPORT WebRemoteFrameImpl final
                                   const FramePolicy&,
                                   WebLocalFrameClient*,
                                   blink::InterfaceRegistry*,
-                                  mojo::ScopedMessagePipeHandle,
                                   WebFrame* previous_sibling,
                                   const WebFrameOwnerProperties&,
                                   FrameOwnerElementType,
@@ -60,6 +68,8 @@ class CORE_EXPORT WebRemoteFrameImpl final
                                     const FramePolicy&,
                                     FrameOwnerElementType,
                                     WebRemoteFrameClient*,
+                                    blink::InterfaceRegistry*,
+                                    AssociatedInterfaceProvider*,
                                     WebFrame* opener) override;
   void SetCcLayer(cc::Layer*,
                   bool prevent_contents_opaque_changes,
@@ -74,19 +84,16 @@ class CORE_EXPORT WebRemoteFrameImpl final
       const FeaturePolicy::FeatureState&) override;
   void AddReplicatedContentSecurityPolicyHeader(
       const WebString& header_value,
-      mojom::ContentSecurityPolicyType,
-      WebContentSecurityPolicySource) override;
+      network::mojom::ContentSecurityPolicyType,
+      network::mojom::ContentSecurityPolicySource) override;
   void ResetReplicatedContentSecurityPolicy() override;
   void SetReplicatedInsecureRequestPolicy(WebInsecureRequestPolicy) override;
-  void SetReplicatedInsecureNavigationsSet(
-      const std::vector<unsigned>&) override;
+  void SetReplicatedInsecureNavigationsSet(const WebVector<unsigned>&) override;
   void ForwardResourceTimingToParent(const WebResourceTimingInfo&) override;
-  void DispatchLoadEventForFrameOwner() override;
   void SetNeedsOcclusionTracking(bool) override;
   void DidStartLoading() override;
   void DidStopLoading() override;
   bool IsIgnoredForHitTest() const override;
-  void WillEnterFullscreen() override;
   void UpdateUserActivationState(UserActivationUpdateType) override;
   void TransferUserActivationFrom(blink::WebRemoteFrame* source_frame) override;
   void ScrollRectToVisible(const WebRect&,
@@ -99,7 +106,10 @@ class CORE_EXPORT WebRemoteFrameImpl final
   WebRect GetCompositingRect() override;
   void RenderFallbackContent() const override;
 
-  void InitializeCoreFrame(Page&, FrameOwner*, const AtomicString& name);
+  void InitializeCoreFrame(Page&,
+                           FrameOwner*,
+                           const AtomicString& name,
+                           WindowAgentFactory*);
   RemoteFrame* GetFrame() const { return frame_.Get(); }
 
   WebRemoteFrameClient* Client() const { return client_; }
@@ -112,7 +122,6 @@ class CORE_EXPORT WebRemoteFrameImpl final
   friend class RemoteFrameClientImpl;
 
   void SetCoreFrame(RemoteFrame*);
-  void ApplyReplicatedFeaturePolicyHeader();
 
   // Inherited from WebFrame, but intentionally hidden: it never makes sense
   // to call these on a WebRemoteFrameImpl.
@@ -126,7 +135,8 @@ class CORE_EXPORT WebRemoteFrameImpl final
   Member<RemoteFrameClientImpl> frame_client_;
   Member<RemoteFrame> frame_;
 
-  ParsedFeaturePolicy feature_policy_header_;
+  InterfaceRegistry* const interface_registry_;
+  AssociatedInterfaceProvider* const associated_interface_provider_;
 
   // Oilpan: WebRemoteFrameImpl must remain alive until close() is called.
   // Accomplish that by keeping a self-referential Persistent<>. It is

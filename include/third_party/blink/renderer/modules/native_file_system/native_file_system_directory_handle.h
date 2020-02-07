@@ -5,12 +5,15 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_NATIVE_FILE_SYSTEM_NATIVE_FILE_SYSTEM_DIRECTORY_HANDLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_NATIVE_FILE_SYSTEM_NATIVE_FILE_SYSTEM_DIRECTORY_HANDLE_H_
 
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/native_file_system/native_file_system_directory_handle.mojom-blink.h"
 #include "third_party/blink/renderer/modules/native_file_system/native_file_system_handle.h"
 
 namespace blink {
 class FileSystemGetDirectoryOptions;
 class FileSystemGetFileOptions;
+class FileSystemRemoveOptions;
 class GetSystemDirectoryOptions;
 
 class NativeFileSystemDirectoryHandle final : public NativeFileSystemHandle {
@@ -18,8 +21,9 @@ class NativeFileSystemDirectoryHandle final : public NativeFileSystemHandle {
 
  public:
   NativeFileSystemDirectoryHandle(
+      ExecutionContext* context,
       const String& name,
-      mojom::blink::NativeFileSystemDirectoryHandlePtr);
+      mojo::PendingRemote<mojom::blink::NativeFileSystemDirectoryHandle>);
 
   bool isDirectory() const override { return true; }
 
@@ -30,23 +34,32 @@ class NativeFileSystemDirectoryHandle final : public NativeFileSystemHandle {
                              const String& name,
                              const FileSystemGetDirectoryOptions*);
   ScriptValue getEntries(ScriptState*);
-  ScriptPromise removeRecursively(ScriptState*);
+  ScriptPromise removeEntry(ScriptState*,
+                            const String& name,
+                            const FileSystemRemoveOptions*);
 
   static ScriptPromise getSystemDirectory(ScriptState*,
                                           const GetSystemDirectoryOptions*);
 
-  mojom::blink::NativeFileSystemTransferTokenPtr Transfer() override;
+  mojo::PendingRemote<mojom::blink::NativeFileSystemTransferToken> Transfer()
+      override;
 
   mojom::blink::NativeFileSystemDirectoryHandle* MojoHandle() {
     return mojo_ptr_.get();
   }
 
- private:
-  void RemoveImpl(
-      base::OnceCallback<void(mojom::blink::NativeFileSystemErrorPtr)>)
-      override;
+  void ContextDestroyed(ExecutionContext*) override;
 
-  mojom::blink::NativeFileSystemDirectoryHandlePtr mojo_ptr_;
+ private:
+  void QueryPermissionImpl(
+      bool writable,
+      base::OnceCallback<void(mojom::blink::PermissionStatus)>) override;
+  void RequestPermissionImpl(
+      bool writable,
+      base::OnceCallback<void(mojom::blink::NativeFileSystemErrorPtr,
+                              mojom::blink::PermissionStatus)>) override;
+
+  mojo::Remote<mojom::blink::NativeFileSystemDirectoryHandle> mojo_ptr_;
 };
 
 }  // namespace blink

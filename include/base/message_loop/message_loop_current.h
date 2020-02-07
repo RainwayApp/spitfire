@@ -18,7 +18,7 @@
 #include "build/build_config.h"
 
 namespace web {
-class TestWebThreadBundle;
+class WebTaskEnvironment;
 }
 
 namespace base {
@@ -105,19 +105,10 @@ class BASE_EXPORT MessageLoopCurrent {
   // DestructionObserver is receiving a notification callback.
   void RemoveDestructionObserver(DestructionObserver* destruction_observer);
 
-  // Forwards to MessageLoop::task_runner().
-  // DEPRECATED(https://crbug.com/616447): Use ThreadTaskRunnerHandle::Get()
-  // instead of MessageLoopCurrent::Get()->task_runner().
-  scoped_refptr<SingleThreadTaskRunner> task_runner() const;
-
   // Forwards to MessageLoop::SetTaskRunner().
   // DEPRECATED(https://crbug.com/825327): only owners of the MessageLoop
   // instance should replace its TaskRunner.
   void SetTaskRunner(scoped_refptr<SingleThreadTaskRunner> task_runner);
-
-  // This alias is deprecated. Use base::TaskObserver instead.
-  // TODO(yutak): Replace all the use sites with base::TaskObserver.
-  using TaskObserver = base::TaskObserver;
 
   // Forwards to MessageLoop::(Add|Remove)TaskObserver.
   // DEPRECATED(https://crbug.com/825327): only owners of the MessageLoop
@@ -196,7 +187,7 @@ class BASE_EXPORT MessageLoopCurrent {
   friend class Thread;
   friend class sequence_manager::internal::SequenceManagerImpl;
   friend class MessageLoopTaskRunnerTest;
-  friend class web::TestWebThreadBundle;
+  friend class web::WebTaskEnvironment;
 
   sequence_manager::internal::SequenceManagerImpl* current_;
 };
@@ -216,10 +207,10 @@ class BASE_EXPORT MessageLoopCurrentForUI : public MessageLoopCurrent {
   MessageLoopCurrentForUI* operator->() { return this; }
 
 #if defined(USE_OZONE) && !defined(OS_FUCHSIA) && !defined(OS_WIN)
-  // Please see MessagePumpLibevent for definition.
-  static_assert(std::is_same<MessagePumpForUI, MessagePumpLibevent>::value,
-                "MessageLoopCurrentForUI::WatchFileDescriptor is not supported "
-                "when MessagePumpForUI is not a MessagePumpLibevent.");
+  static_assert(
+      std::is_base_of<WatchableIOMessagePumpPosix, MessagePumpForUI>::value,
+      "MessageLoopCurrentForUI::WatchFileDescriptor is supported only"
+      "by MessagePumpLibevent and MessagePumpGlib implementations.");
   bool WatchFileDescriptor(int fd,
                            bool persistent,
                            MessagePumpForUI::Mode mode,

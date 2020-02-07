@@ -49,6 +49,7 @@ enum class Version {
   WIN10_RS3 = 11,   // Redstone 3: Version 1709, Build 16299.
   WIN10_RS4 = 12,   // Redstone 4: Version 1803, Build 17134.
   WIN10_RS5 = 13,   // Redstone 5: Version 1809, Build 17763.
+  WIN10_19H1 = 14,  // 19H1: Version 1903, Build 18362.
   // On edit, update tools\metrics\histograms\enums.xml "WindowsVersion" and
   // "GpuBlacklistFeatureTestResultsWindows2".
   WIN_LAST,  // Indicates error condition.
@@ -120,6 +121,7 @@ class BASE_EXPORT OSInfo {
 
   const Version& version() const { return version_; }
   Version Kernel32Version() const;
+  Version UcrtVersion() const;
   base::Version Kernel32BaseVersion() const;
   // The next two functions return arrays of values, [major, minor(, build)].
   const VersionNumber& version_number() const { return version_number_; }

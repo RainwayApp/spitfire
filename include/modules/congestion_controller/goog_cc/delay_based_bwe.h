@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <memory>
 #include <vector>
 
@@ -25,12 +26,27 @@
 #include "modules/remote_bitrate_estimator/aimd_rate_control.h"
 #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
 #include "modules/remote_bitrate_estimator/inter_arrival.h"
-#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"  // For PacketFeedback
 #include "rtc_base/constructor_magic.h"
+#include "rtc_base/experiments/struct_parameters_parser.h"
 #include "rtc_base/race_checker.h"
 
 namespace webrtc {
 class RtcEventLog;
+
+struct BweIgnoreSmallPacketsSettings {
+  static constexpr char kKey[] = "WebRTC-BweIgnoreSmallPacketsFix";
+
+  BweIgnoreSmallPacketsSettings() = default;
+  explicit BweIgnoreSmallPacketsSettings(
+      const WebRtcKeyValueConfig* key_value_config);
+
+  double smoothing_factor = 0.1;
+  double fraction_large = 1.0;
+  DataSize large_threshold = DataSize::Zero();
+  DataSize small_threshold = DataSize::Zero();
+
+  std::unique_ptr<StructParametersParser> Parser();
+};
 
 class DelayBasedBwe {
  public:
@@ -51,25 +67,24 @@ class DelayBasedBwe {
   virtual ~DelayBasedBwe();
 
   Result IncomingPacketFeedbackVector(
-      const std::vector<PacketFeedback>& packet_feedback_vector,
+      const TransportPacketsFeedback& msg,
       absl::optional<DataRate> acked_bitrate,
       absl::optional<DataRate> probe_bitrate,
       absl::optional<NetworkStateEstimate> network_estimate,
-      bool in_alr,
-      Timestamp at_time);
+      bool in_alr);
   void OnRttUpdate(TimeDelta avg_rtt);
   bool LatestEstimate(std::vector<uint32_t>* ssrcs, DataRate* bitrate) const;
   void SetStartBitrate(DataRate start_bitrate);
   void SetMinBitrate(DataRate min_bitrate);
   TimeDelta GetExpectedBwePeriod() const;
   void SetAlrLimitedBackoffExperiment(bool enabled);
-
   DataRate TriggerOveruse(Timestamp at_time,
                           absl::optional<DataRate> link_capacity);
+  DataRate last_estimate() const { return prev_bitrate_; }
 
  private:
   friend class GoogCcStatePrinter;
-  void IncomingPacketFeedback(const PacketFeedback& packet_feedback,
+  void IncomingPacketFeedback(const PacketResult& packet_feedback,
                               Timestamp at_time);
   Result MaybeUpdateEstimate(
       absl::optional<DataRate> acked_bitrate,
@@ -87,6 +102,12 @@ class DelayBasedBwe {
   rtc::RaceChecker network_race_;
   RtcEventLog* const event_log_;
   const WebRtcKeyValueConfig* const key_value_config_;
+
+  // Filtering out small packets. Intention is to base the detection only
+  // on video packets even if we have TWCC sequence numbers for audio.
+  BweIgnoreSmallPacketsSettings ignore_small_;
+  double fraction_large_packets_;
+
   NetworkStatePredictor* network_state_predictor_;
   std::unique_ptr<InterArrival> inter_arrival_;
   std::unique_ptr<DelayIncreaseDetectorInterface> delay_detector_;
@@ -94,9 +115,9 @@ class DelayBasedBwe {
   bool uma_recorded_;
   AimdRateControl rate_control_;
   DataRate prev_bitrate_;
+  bool has_once_detected_overuse_;
   BandwidthUsage prev_state_;
   bool alr_limited_backoff_enabled_;
-
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(DelayBasedBwe);
 };
 

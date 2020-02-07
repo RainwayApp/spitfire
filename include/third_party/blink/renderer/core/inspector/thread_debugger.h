@@ -7,12 +7,11 @@
 
 #include <memory>
 #include "base/macros.h"
-#include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
+#include "third_party/blink/public/mojom/devtools/console_message.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
-#include "third_party/blink/renderer/platform/cross_thread_copier.h"
 #include "third_party/blink/renderer/platform/timer.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_copier.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "v8/include/v8-inspector.h"
@@ -114,9 +113,12 @@ class CORE_EXPORT ThreadDebugger : public v8_inspector::V8InspectorClient,
   Vector<std::unique_ptr<TaskRunnerTimer<ThreadDebugger>>> timers_;
   Vector<v8_inspector::V8InspectorClient::TimerCallback> timer_callbacks_;
   Vector<void*> timer_data_;
-  std::unique_ptr<UserGestureIndicator> user_gesture_indicator_;
   DISALLOW_COPY_AND_ASSIGN(ThreadDebugger);
 };
+
+}  // namespace blink
+
+namespace WTF {
 
 template <>
 struct CrossThreadCopier<v8_inspector::V8StackTraceId> {
@@ -124,6 +126,6 @@ struct CrossThreadCopier<v8_inspector::V8StackTraceId> {
   static Type Copy(const Type& id) { return id; }
 };
 
-}  // namespace blink
+}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_THREAD_DEBUGGER_H_

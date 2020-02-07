@@ -21,14 +21,15 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_PATH_QUERY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_PATH_QUERY_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class FloatPoint;
 class SVGPathByteStream;
 
-class SVGPathQuery {
+class CORE_EXPORT SVGPathQuery {
   STACK_ALLOCATED();
 
  public:

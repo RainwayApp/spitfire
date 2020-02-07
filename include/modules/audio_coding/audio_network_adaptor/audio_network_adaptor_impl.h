@@ -12,6 +12,7 @@
 #define MODULES_AUDIO_CODING_AUDIO_NETWORK_ADAPTOR_AUDIO_NETWORK_ADAPTOR_IMPL_H_
 
 #include <stdio.h>
+
 #include <memory>
 
 #include "absl/types/optional.h"
@@ -46,9 +47,6 @@ class AudioNetworkAdaptorImpl final : public AudioNetworkAdaptor {
   void SetUplinkBandwidth(int uplink_bandwidth_bps) override;
 
   void SetUplinkPacketLossFraction(float uplink_packet_loss_fraction) override;
-
-  void SetUplinkRecoverablePacketLossFraction(
-      float uplink_recoverable_packet_loss_fraction) override;
 
   void SetRtt(int rtt_ms) override;
 

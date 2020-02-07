@@ -13,10 +13,11 @@
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "base/sequence_checker.h"
+#include "base/threading/thread_checker.h"
 #include "media/base/video_frame.h"
 #include "media/capture/video_capture_types.h"
 #include "third_party/blink/public/common/media/video_capture.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/platform/modules/mediastream/media_stream_types.h"
 #include "third_party/blink/public/platform/modules/mediastream/secure_display_link_tracker.h"
 #include "third_party/blink/public/platform/modules/mediastream/web_platform_media_stream_source.h"
@@ -24,6 +25,7 @@
 #include "third_party/blink/public/platform/web_media_constraints.h"
 #include "third_party/blink/public/platform/web_media_stream_source.h"
 #include "third_party/blink/public/platform/web_media_stream_track.h"
+#include "third_party/blink/public/web/modules/mediastream/encoded_video_frame.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -42,7 +44,7 @@ class VideoTrackAdapterSettings;
 // MediaStreamVideoSources such as local video capture, video sources received
 // on a PeerConnection or a source created in NaCl.
 // All methods calls will be done from the main render thread.
-class BLINK_EXPORT MediaStreamVideoSource
+class BLINK_MODULES_EXPORT MediaStreamVideoSource
     : public WebPlatformMediaStreamSource {
  public:
   enum {
@@ -70,9 +72,10 @@ class BLINK_EXPORT MediaStreamVideoSource
   void AddTrack(MediaStreamVideoTrack* track,
                 const VideoTrackAdapterSettings& track_adapter_settings,
                 const VideoCaptureDeliverFrameCB& frame_callback,
+                const EncodedVideoFrameCB& encoded_frame_callback,
                 const VideoTrackSettingsCallback& settings_callback,
                 const VideoTrackFormatCallback& format_callback,
-                const ConstraintsCallback& callback);
+                ConstraintsOnceCallback callback);
   void RemoveTrack(MediaStreamVideoTrack* track, base::OnceClosure callback);
 
   // Reconfigures this MediaStreamVideoSource to use |adapter_settings| on
@@ -150,10 +153,18 @@ class BLINK_EXPORT MediaStreamVideoSource
   virtual base::Optional<media::VideoCaptureParams> GetCurrentCaptureParams()
       const;
 
+  // Returns true if encoded output can be enabled in the source.
+  virtual bool SupportsEncodedOutput() const;
+
+  // Notifies the source about that the number of encoded sinks have been
+  // updated. Note: Can only be called if the number of encoded sinks have
+  // actually changed!
+  void UpdateNumEncodedSinks();
+
   bool IsRunning() const { return state_ == STARTED; }
 
   size_t NumTracks() const {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return tracks_.size();
   }
 
@@ -175,10 +186,11 @@ class BLINK_EXPORT MediaStreamVideoSource
   // An implementation must start capturing frames after this method is called.
   // When the source has started or failed to start OnStartDone must be called.
   // An implementation must call |frame_callback| on the IO thread with the
-  // captured frames.
-  virtual void StartSourceImpl(
-      const VideoCaptureDeliverFrameCB& frame_callback) = 0;
-  void OnStartDone(MediaStreamRequestResult result);
+  // captured frames, and |encoded_frame_callback| with encoded frames if
+  // supported and enabled via OnEncodedSinkEnabled.
+  virtual void StartSourceImpl(VideoCaptureDeliverFrameCB frame_callback,
+                               EncodedVideoFrameCB encoded_frame_callback) = 0;
+  void OnStartDone(mojom::MediaStreamRequestResult result);
 
   // A subclass that supports restart must override this method such that it
   // immediately stop producing video frames after this method is called.
@@ -242,6 +254,14 @@ class BLINK_EXPORT MediaStreamVideoSource
   // Optionally overridden by subclasses to implement changing source.
   virtual void ChangeSourceImpl(const MediaStreamDevice& new_device) {}
 
+  // Optionally override by subclasses to implement encoded source control.
+  // The method is called when at least one encoded sink has been added.
+  virtual void OnEncodedSinkEnabled() {}
+
+  // Optionally override by subclasses to implement encoded source control.
+  // The method is called when the last encoded sink has been removed.
+  virtual void OnEncodedSinkDisabled() {}
+
   enum State {
     NEW,
     STARTING,
@@ -253,7 +273,7 @@ class BLINK_EXPORT MediaStreamVideoSource
   };
   State state() const { return state_; }
 
-  SEQUENCE_CHECKER(sequence_checker_);
+  THREAD_CHECKER(thread_checker_);
 
  private:
   // Trigger all cached callbacks from AddTrack. AddTrack is successful
@@ -272,7 +292,9 @@ class BLINK_EXPORT MediaStreamVideoSource
   void StartFrameMonitoring();
   void UpdateTrackSettings(MediaStreamVideoTrack* track,
                            const VideoTrackAdapterSettings& adapter_settings);
-  void DidStopSource(base::OnceClosure callback, RestartResult result);
+  void DidStopSource(RestartResult result);
+  void NotifyCapturingLinkSecured(size_t num_encoded_sinks);
+  size_t CountEncodedSinks() const;
 
   State state_;
 
@@ -280,22 +302,24 @@ class BLINK_EXPORT MediaStreamVideoSource
     PendingTrackInfo(
         MediaStreamVideoTrack* track,
         const VideoCaptureDeliverFrameCB& frame_callback,
+        const EncodedVideoFrameCB& encoded_frame_callback,
         const VideoTrackSettingsCallback& settings_callback,
         const VideoTrackFormatCallback& format_callback,
         std::unique_ptr<VideoTrackAdapterSettings> adapter_settings,
-        const ConstraintsCallback& callback);
+        ConstraintsOnceCallback callback);
     PendingTrackInfo(PendingTrackInfo&& other);
     PendingTrackInfo& operator=(PendingTrackInfo&& other);
     ~PendingTrackInfo();
 
     MediaStreamVideoTrack* track;
     VideoCaptureDeliverFrameCB frame_callback;
+    EncodedVideoFrameCB encoded_frame_callback;
     VideoTrackSettingsCallback settings_callback;
     VideoTrackFormatCallback format_callback;
     // TODO(guidou): Make |adapter_settings| a regular field instead of a
     // unique_ptr.
     std::unique_ptr<VideoTrackAdapterSettings> adapter_settings;
-    ConstraintsCallback callback;
+    ConstraintsOnceCallback callback;
   };
   std::vector<PendingTrackInfo> pending_tracks_;
 
@@ -321,8 +345,13 @@ class BLINK_EXPORT MediaStreamVideoSource
   // size.
   bool enable_device_rotation_detection_ = false;
 
+  // Callback that needs to trigger after removing the track. If this object
+  // died before this callback is resolved, we still need to trigger the
+  // callback to notify the caller that the request is canceled.
+  base::OnceClosure remove_last_track_callback_;
+
   // NOTE: Weak pointers must be invalidated before all other member variables.
-  base::WeakPtrFactory<MediaStreamVideoSource> weak_factory_;
+  base::WeakPtrFactory<MediaStreamVideoSource> weak_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(MediaStreamVideoSource);
 };

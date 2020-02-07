@@ -42,9 +42,10 @@
 #include "base/gtest_prod_util.h"
 #include "base/thread_annotations.h"
 #include "mojo/public/cpp/bindings/interface_ptr.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
@@ -54,7 +55,6 @@ namespace network {
 namespace mojom {
 namespace blink {
 class DataPipeGetter;
-using DataPipeGetterPtr = mojo::InterfacePtr<DataPipeGetter>;
 }  // namespace blink
 }  // namespace mojom
 }  // namespace network
@@ -63,11 +63,8 @@ namespace blink {
 namespace mojom {
 namespace blink {
 class Blob;
-using BlobPtr = mojo::InterfacePtr<Blob>;
-using BlobPtrInfo = mojo::InterfacePtrInfo<Blob>;
 
 class BlobReaderClient;
-using BlobReaderClientPtr = mojo::InterfacePtr<BlobReaderClient>;
 
 class BlobRegistry;
 
@@ -116,10 +113,10 @@ class PLATFORM_EXPORT BlobData {
       const String& path);
   static std::unique_ptr<BlobData> CreateForFileWithUnknownSize(
       const String& path,
-      double expected_modification_time);
+      const base::Optional<base::Time>& expected_modification_time);
   static std::unique_ptr<BlobData> CreateForFileSystemURLWithUnknownSize(
       const KURL& file_system_url,
-      double expected_modification_time);
+      const base::Optional<base::Time>& expected_modification_time);
 
   // Detaches from current thread so that it can be passed to another thread.
   void DetachFromCurrentThread();
@@ -137,17 +134,18 @@ class PLATFORM_EXPORT BlobData {
   void AppendFile(const String& path,
                   int64_t offset,
                   int64_t length,
-                  double expected_modification_time);
+                  const base::Optional<base::Time>& expected_modification_time);
 
   // The given blob must not be a file with unknown size. Please use the
   // File::appendTo instead.
   void AppendBlob(scoped_refptr<BlobDataHandle>,
                   int64_t offset,
                   int64_t length);
-  void AppendFileSystemURL(const KURL&,
-                           int64_t offset,
-                           int64_t length,
-                           double expected_modification_time);
+  void AppendFileSystemURL(
+      const KURL&,
+      int64_t offset,
+      int64_t length,
+      const base::Optional<base::Time>& expected_modification_time);
   void AppendText(const String&, bool normalize_line_endings_to_native);
 
   // The value of the size property for a Blob who has this data.
@@ -196,10 +194,11 @@ class PLATFORM_EXPORT BlobDataHandle
     return base::AdoptRef(new BlobDataHandle(uuid, type, size));
   }
 
-  static scoped_refptr<BlobDataHandle> Create(const String& uuid,
-                                              const String& type,
-                                              uint64_t size,
-                                              mojom::blink::BlobPtrInfo);
+  static scoped_refptr<BlobDataHandle> Create(
+      const String& uuid,
+      const String& type,
+      uint64_t size,
+      mojo::PendingRemote<mojom::blink::Blob>);
 
   String Uuid() const { return uuid_.IsolatedCopy(); }
   String GetType() const { return type_.IsolatedCopy(); }
@@ -209,15 +208,16 @@ class PLATFORM_EXPORT BlobDataHandle
 
   ~BlobDataHandle();
 
-  mojom::blink::BlobPtr CloneBlobPtr();
-  network::mojom::blink::DataPipeGetterPtr AsDataPipeGetter();
+  mojo::PendingRemote<mojom::blink::Blob> CloneBlobRemote();
+  void CloneBlobRemote(mojo::PendingReceiver<mojom::blink::Blob>);
+  mojo::PendingRemote<network::mojom::blink::DataPipeGetter> AsDataPipeGetter();
 
   void ReadAll(mojo::ScopedDataPipeProducerHandle,
-               mojom::blink::BlobReaderClientPtr);
+               mojo::PendingRemote<mojom::blink::BlobReaderClient>);
   void ReadRange(uint64_t offset,
                  uint64_t length,
                  mojo::ScopedDataPipeProducerHandle,
-                 mojom::blink::BlobReaderClientPtr);
+                 mojo::PendingRemote<mojom::blink::BlobReaderClient>);
 
   static mojom::blink::BlobRegistry* GetBlobRegistry();
   static void SetBlobRegistryForTesting(mojom::blink::BlobRegistry*);
@@ -229,18 +229,19 @@ class PLATFORM_EXPORT BlobDataHandle
   BlobDataHandle(const String& uuid,
                  const String& type,
                  uint64_t size,
-                 mojom::blink::BlobPtrInfo);
+                 mojo::PendingRemote<mojom::blink::Blob>);
 
   const String uuid_;
   const String type_;
   const uint64_t size_;
   const bool is_single_unknown_size_file_;
   // This class is supposed to be thread safe. So to be able to use the mojo
-  // Blob interface from multiple threads store a InterfacePtrInfo combined with
+  // Blob interface from multiple threads store a PendingRemote combined with
   // a mutex, and make sure any access to the mojo interface is done protected
   // by the mutex.
-  mojom::blink::BlobPtrInfo blob_info_ GUARDED_BY(blob_info_mutex_);
-  Mutex blob_info_mutex_;
+  mojo::PendingRemote<mojom::blink::Blob> blob_remote_
+      GUARDED_BY(blob_remote_mutex_);
+  Mutex blob_remote_mutex_;
 };
 
 }  // namespace blink

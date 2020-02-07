@@ -39,7 +39,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_dispatcher.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -114,7 +114,6 @@ class CORE_EXPORT InputTypeView : public GarbageCollectedMixin {
   virtual void AltAttributeChanged();
   virtual void SrcAttributeChanged();
   virtual void UpdateView();
-  virtual void AttributeChanged();
   virtual void MultipleAttributeChanged();
   virtual void DisabledAttributeChanged();
   virtual void ReadonlyAttributeChanged();

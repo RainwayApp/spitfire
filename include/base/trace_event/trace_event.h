@@ -22,6 +22,8 @@
 #include "base/trace_event/builtin_categories.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/heap_profiler.h"
+#include "base/trace_event/log_message.h"
+#include "base/trace_event/thread_instruction_count.h"
 #include "base/trace_event/trace_arguments.h"
 #include "base/trace_event/trace_category.h"
 #include "base/trace_event/trace_log.h"
@@ -172,8 +174,11 @@
 //     const unsigned char* category_group_enabled,
 //     const char* name,
 //     base::trace_event::TraceEventHandle id,
-//     const TimeTicks& now,
-//     const ThreadTicks* thread_now)
+//     int thread_id,
+//     bool explicit_timestamps,
+//     const base::TimeTicks& now,
+//     const base::ThreadTicks& thread_now,
+//     base::trace_event::ThreadInstructionCount thread_instruction_now)
 #define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION_EXPLICIT \
   trace_event_internal::UpdateTraceEventDurationExplicit
 
@@ -377,28 +382,29 @@
 
 // Implementation detail: internal macro to create static category and add
 // event if the category is enabled.
-#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMPS(                \
-    category_group, name, id, thread_id, begin_timestamp, end_timestamp,    \
-    thread_end_timestamp, flags, ...)                                       \
-  do {                                                                      \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                 \
-    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED()) {                    \
-      trace_event_internal::TraceID trace_event_trace_id((id));             \
-      unsigned int trace_event_flags =                                      \
-          flags | trace_event_trace_id.id_flags();                          \
-      const unsigned char* uid_category_group_enabled =                     \
-          INTERNAL_TRACE_EVENT_UID(category_group_enabled);                 \
-      auto handle =                                                         \
-          trace_event_internal::AddTraceEventWithThreadIdAndTimestamp(      \
-              TRACE_EVENT_PHASE_COMPLETE, uid_category_group_enabled, name, \
-              trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),  \
-              thread_id, begin_timestamp,                                   \
-              trace_event_flags | TRACE_EVENT_FLAG_EXPLICIT_TIMESTAMP,      \
-              trace_event_internal::kNoId, ##__VA_ARGS__);                  \
-      TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION_EXPLICIT(                 \
-          uid_category_group_enabled, name, handle, end_timestamp,          \
-          thread_end_timestamp);                                            \
-    }                                                                       \
+#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMPS(                 \
+    category_group, name, id, thread_id, begin_timestamp, end_timestamp,     \
+    thread_end_timestamp, flags, ...)                                        \
+  do {                                                                       \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                  \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED()) {                     \
+      trace_event_internal::TraceID trace_event_trace_id((id));              \
+      unsigned int trace_event_flags =                                       \
+          flags | trace_event_trace_id.id_flags();                           \
+      const unsigned char* uid_category_group_enabled =                      \
+          INTERNAL_TRACE_EVENT_UID(category_group_enabled);                  \
+      auto handle =                                                          \
+          trace_event_internal::AddTraceEventWithThreadIdAndTimestamp(       \
+              TRACE_EVENT_PHASE_COMPLETE, uid_category_group_enabled, name,  \
+              trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),   \
+              thread_id, begin_timestamp,                                    \
+              trace_event_flags | TRACE_EVENT_FLAG_EXPLICIT_TIMESTAMP,       \
+              trace_event_internal::kNoId, ##__VA_ARGS__);                   \
+      TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION_EXPLICIT(                  \
+          uid_category_group_enabled, name, handle, thread_id,               \
+          /*explicit_timestamps=*/true, end_timestamp, thread_end_timestamp, \
+          base::trace_event::ThreadInstructionCount());                      \
+    }                                                                        \
   } while (0)
 
 // The linked ID will not be mangled.
@@ -429,6 +435,12 @@
           ##__VA_ARGS__);                                            \
     }                                                                \
   } while (0)
+
+#define INTERNAL_TRACE_LOG_MESSAGE(file, message, line)                        \
+  TRACE_EVENT_INSTANT1(                                                        \
+      "log", "LogMessage",                                                     \
+      TRACE_EVENT_FLAG_TYPED_PROTO_ARGS | TRACE_EVENT_SCOPE_THREAD, "message", \
+      std::make_unique<base::trace_event::LogMessage>(file, message, line))
 
 #if BUILDFLAG(ENABLE_LOCATION_SOURCE)
 
@@ -705,12 +717,15 @@ UpdateTraceEventDuration(const unsigned char* category_group_enabled,
                          const char* name,
                          base::trace_event::TraceEventHandle handle);
 
-void BASE_EXPORT
-UpdateTraceEventDurationExplicit(const unsigned char* category_group_enabled,
-                                 const char* name,
-                                 base::trace_event::TraceEventHandle handle,
-                                 const base::TimeTicks& now,
-                                 const base::ThreadTicks& thread_now);
+void BASE_EXPORT UpdateTraceEventDurationExplicit(
+    const unsigned char* category_group_enabled,
+    const char* name,
+    base::trace_event::TraceEventHandle handle,
+    int thread_id,
+    bool explicit_timestamps,
+    const base::TimeTicks& now,
+    const base::ThreadTicks& thread_now,
+    base::trace_event::ThreadInstructionCount thread_instruction_now);
 
 // These AddTraceEvent and AddTraceEventWithThreadIdAndTimestamp template
 // functions are defined here instead of in the macro, because the arg_values

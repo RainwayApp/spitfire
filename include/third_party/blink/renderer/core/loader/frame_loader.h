@@ -33,14 +33,18 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_FRAME_LOADER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_FRAME_LOADER_H_
 
+#include <memory>
+
+#include "base/bind_helpers.h"
 #include "base/macros.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
-#include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-shared.h"
+#include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/web/web_document_loader.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/frame_types.h"
 #include "third_party/blink/renderer/core/frame/sandbox_flags.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_state_machine.h"
@@ -51,12 +55,9 @@
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
-#include <memory>
-
 namespace blink {
 
 class ContentSecurityPolicy;
-class Document;
 class DocumentLoader;
 class LocalFrame;
 class Frame;
@@ -100,7 +101,10 @@ class CORE_EXPORT FrameLoader final {
   // See WebNavigationParams for details.
   void CommitNavigation(
       std::unique_ptr<WebNavigationParams> navigation_params,
-      std::unique_ptr<WebDocumentLoader::ExtraData> extra_data);
+      std::unique_ptr<WebDocumentLoader::ExtraData> extra_data,
+      base::OnceClosure call_before_attaching_new_document =
+          base::DoNothing::Once(),
+      bool is_javascript_url = false);
 
   // Called before the browser process is asked to navigate this frame, to mark
   // the frame as loading and save some navigation information for later use.
@@ -117,9 +121,6 @@ class CORE_EXPORT FrameLoader final {
   // FrameLoader belongs. Callers need to be careful about checking the
   // existence of the frame after StopAllLoaders() returns.
   void StopAllLoaders();
-
-  void ReplaceDocumentWhileExecutingJavaScriptURL(const String& source,
-                                                  Document* owner_document);
 
   // Notifies the client that the initial empty document has been accessed, and
   // thus it is no longer safe to show a provisional URL above the document
@@ -159,6 +160,9 @@ class CORE_EXPORT FrameLoader final {
       const FetchClientSettingsObject* fetch_client_settings_object,
       Document* document_for_logging,
       network::mojom::RequestContextFrameType) const;
+  void ReportLegacyTLSVersion(const KURL& url,
+                              bool is_subresource,
+                              bool is_ad_resource);
 
   Frame* Opener();
   void SetOpener(LocalFrame*);
@@ -169,23 +173,33 @@ class CORE_EXPORT FrameLoader final {
   void Detach();
 
   void FinishedParsing();
-  void DidFinishNavigation();
+  enum class NavigationFinishState { kSuccess, kFailure };
+  void DidFinishNavigation(NavigationFinishState);
 
   void DidFinishSameDocumentNavigation(const KURL&,
                                        WebFrameLoadType,
                                        HistoryItem*);
 
-  // This prepares the FrameLoader for the next commit. It will dispatch unload
-  // events, abort XHR requests and detach the document. Returns true if the
-  // frame is ready to receive the next commit, or false otherwise.
-  bool PrepareForCommit();
-
-  void CommitProvisionalLoad();
+  // This will attempt to detach the current document. It will dispatch unload
+  // events and abort XHR requests. Returns true if the frame is ready to
+  // receive the next document commit, or false otherwise.
+  bool DetachDocument(SecurityOrigin* committing_origin,
+                      base::Optional<Document::UnloadEventTiming>*);
 
   FrameLoaderStateMachine* StateMachine() const { return &state_machine_; }
 
   bool ShouldClose(bool is_reload = false);
-  void DispatchUnloadEvent();
+
+  // Dispatches the Unload event for the current document. If this is due to the
+  // commit of a navigation, both |committing_origin| and the
+  // Optional<Document::UnloadEventTiming>* should be non null.
+  // |committing_origin| is the origin of the document that is being committed.
+  // If it is allowed to access the unload timings of the current document, the
+  // Document::UnloadEventTiming will be created and populated.
+  // If the dispatch of the unload event is not due to a commit, both parameters
+  // should be null.
+  void DispatchUnloadEvent(SecurityOrigin* committing_origin,
+                           base::Optional<Document::UnloadEventTiming>*);
 
   bool AllowPlugins(ReasonForCallingAllowPlugins);
 
@@ -194,7 +208,7 @@ class CORE_EXPORT FrameLoader final {
   void RestoreScrollPositionAndViewState();
 
   bool HasProvisionalNavigation() const {
-    return client_navigation_.get() || provisional_document_loader_.Get();
+    return committing_navigation_ || client_navigation_.get();
   }
 
   bool MaybeRenderFallbackContent();
@@ -232,8 +246,7 @@ class CORE_EXPORT FrameLoader final {
   void ProcessFragment(const KURL&, WebFrameLoadType, LoadStartType);
 
   // Returns whether we should continue with new navigation.
-  bool CancelProvisionalLoaderForNewNavigation(
-      bool is_form_submission);
+  bool CancelProvisionalLoaderForNewNavigation();
 
   // Clears any information about client navigation, see client_navigation_.
   void ClearClientNavigation();
@@ -248,6 +261,14 @@ class CORE_EXPORT FrameLoader final {
 
   std::unique_ptr<TracedValue> ToTracedValue() const;
   void TakeObjectSnapshot() const;
+
+  // Commits the given |document_loader|.
+  void CommitDocumentLoader(
+      DocumentLoader* document_loader,
+      const base::Optional<Document::UnloadEventTiming>&,
+      bool dispatch_did_start,
+      base::OnceClosure call_before_attaching_new_document,
+      bool dispatch_did_commit);
 
   LocalFrameClient* Client() const;
 
@@ -274,7 +295,6 @@ class CORE_EXPORT FrameLoader final {
   // is either committed or cancelled.
   struct ClientNavigationState {
     KURL url;
-    AtomicString http_method;
     bool is_history_navigation_in_new_frame = false;
   };
   std::unique_ptr<ClientNavigationState> client_navigation_;
@@ -285,10 +305,15 @@ class CORE_EXPORT FrameLoader final {
 
   bool dispatching_did_clear_window_object_in_main_world_;
   bool detached_;
+  bool committing_navigation_ = false;
 
   WebScopedVirtualTimePauser virtual_time_pauser_;
 
   Member<ContentSecurityPolicy> last_origin_document_csp_;
+
+  // The origins for which a legacy TLS version warning has been printed. The
+  // size of this set is capped, after which no more warnings are printed.
+  HashSet<String> tls_version_warning_origins_;
 
   DISALLOW_COPY_AND_ASSIGN(FrameLoader);
 };

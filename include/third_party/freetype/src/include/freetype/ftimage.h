@@ -869,7 +869,7 @@ FT_BEGIN_HEADER
    *
    * @input:
    *   y ::
-   *     The scanline's y~coordinate.
+   *     The scanline's upward y~coordinate.
    *
    *   count ::
    *     The number of spans to draw on this scanline.
@@ -975,7 +975,8 @@ FT_BEGIN_HEADER
    *   FT_Raster_Params
    *
    * @description:
-   *   A structure to hold the arguments used by a raster's render function.
+   *   A structure to hold the parameters used by a raster's render function,
+   *   passed as an argument to @FT_Outline_Render.
    *
    * @fields:
    *   target ::

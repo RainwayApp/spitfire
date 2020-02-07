@@ -59,6 +59,7 @@ CSSPrimitiveValue* ConsumeLength(CSSParserTokenRange&,
                                  ValueRange,
                                  UnitlessQuirk = UnitlessQuirk::kForbid);
 CSSPrimitiveValue* ConsumePercent(CSSParserTokenRange&, ValueRange);
+CSSPrimitiveValue* ConsumeAlphaValue(CSSParserTokenRange&);
 CSSPrimitiveValue* ConsumeLengthOrPercent(
     CSSParserTokenRange&,
     CSSParserMode,
@@ -93,7 +94,8 @@ CSSIdentifierValue* ConsumeIdent(CSSParserTokenRange&);
 CSSCustomIdentValue* ConsumeCustomIdent(CSSParserTokenRange&,
                                         const CSSParserContext&);
 CSSStringValue* ConsumeString(CSSParserTokenRange&);
-StringView ConsumeUrlAsStringView(CSSParserTokenRange&);
+StringView ConsumeUrlAsStringView(CSSParserTokenRange&,
+                                  const CSSParserContext*);
 cssvalue::CSSURIValue* ConsumeUrl(CSSParserTokenRange&,
                                   const CSSParserContext*);
 

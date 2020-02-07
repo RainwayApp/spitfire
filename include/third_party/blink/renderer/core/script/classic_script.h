@@ -24,7 +24,7 @@ class CORE_EXPORT ClassicScript final : public Script {
         script_source_code_(script_source_code),
         sanitize_script_errors_(sanitize_script_errors) {}
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
 
   const ScriptSourceCode& GetScriptSourceCode() const {
     return script_source_code_;
@@ -36,9 +36,6 @@ class CORE_EXPORT ClassicScript final : public Script {
   }
   void RunScript(LocalFrame*, const SecurityOrigin*) override;
   void RunScriptOnWorker(WorkerGlobalScope&) override;
-  String InlineSourceTextForCSP() const override {
-    return script_source_code_.Source().ToString();
-  }
 
   const ScriptSourceCode script_source_code_;
   const SanitizeScriptErrors sanitize_script_errors_;

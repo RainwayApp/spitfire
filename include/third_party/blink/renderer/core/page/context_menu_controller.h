@@ -44,7 +44,7 @@ class Page;
 struct WebContextMenuData;
 
 class CORE_EXPORT ContextMenuController final
-    : public GarbageCollectedFinalized<ContextMenuController> {
+    : public GarbageCollected<ContextMenuController> {
  public:
   explicit ContextMenuController(Page*);
   ~ContextMenuController();
@@ -68,7 +68,7 @@ class CORE_EXPORT ContextMenuController final
   friend class ContextMenuControllerTest;
 
   // Returns whether a Context Menu was actually shown.
-  bool ShowContextMenu(LocalFrame*, const LayoutPoint&, WebMenuSourceType);
+  bool ShowContextMenu(LocalFrame*, const PhysicalOffset&, WebMenuSourceType);
   bool ShouldShowContextMenuFromTouch(const WebContextMenuData&);
 
   Member<Page> page_;

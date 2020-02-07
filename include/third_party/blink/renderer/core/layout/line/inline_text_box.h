@@ -35,7 +35,7 @@ namespace blink {
 
 class DocumentMarker;
 class GraphicsContext;
-class TextMatchMarker;
+class TextMarkerBase;
 
 class CORE_EXPORT InlineTextBox : public InlineBox {
  public:
@@ -140,16 +140,16 @@ class CORE_EXPORT InlineTextBox : public InlineBox {
                                    const ComputedStyle&,
                                    const Font&,
                                    bool grammar) const;
-  virtual void PaintTextMatchMarkerForeground(const PaintInfo&,
-                                              const LayoutPoint& box_origin,
-                                              const TextMatchMarker&,
-                                              const ComputedStyle&,
-                                              const Font&) const;
-  virtual void PaintTextMatchMarkerBackground(const PaintInfo&,
-                                              const LayoutPoint& box_origin,
-                                              const TextMatchMarker&,
-                                              const ComputedStyle&,
-                                              const Font&) const;
+  virtual void PaintTextMarkerForeground(const PaintInfo&,
+                                         const LayoutPoint& box_origin,
+                                         const TextMarkerBase&,
+                                         const ComputedStyle&,
+                                         const Font&) const;
+  virtual void PaintTextMarkerBackground(const PaintInfo&,
+                                         const LayoutPoint& box_origin,
+                                         const TextMarkerBase&,
+                                         const ComputedStyle&,
+                                         const Font&) const;
 
   void Move(const LayoutSize&) final;
 
@@ -159,8 +159,8 @@ class CORE_EXPORT InlineTextBox : public InlineBox {
              LayoutUnit line_top,
              LayoutUnit line_bottom) const override;
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    LayoutUnit line_top,
                    LayoutUnit line_bottom) override;
 

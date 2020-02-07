@@ -204,15 +204,10 @@ using namespace WTF;
   virtual bool IsHeapObjectAlive(Visitor*) const override { return 0; } \
   typedef int HasUsingGarbageCollectedMixinMacro
 
-#define EAGERLY_FINALIZED() typedef int IsEagerlyFinalizedMarker
-
 template<typename T> class GarbageCollected { };
 
-template<typename T>
-class GarbageCollectedFinalized : public GarbageCollected<T> { };
-
-template<typename T>
-class RefCountedGarbageCollected : public GarbageCollectedFinalized<T> { };
+template <typename T>
+class RefCountedGarbageCollected : public GarbageCollected<T> {};
 
 template<typename T> class Member {
 public:

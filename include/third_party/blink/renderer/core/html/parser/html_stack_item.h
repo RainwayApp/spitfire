@@ -37,7 +37,7 @@ namespace blink {
 
 class ContainerNode;
 
-class HTMLStackItem : public GarbageCollectedFinalized<HTMLStackItem> {
+class HTMLStackItem final : public GarbageCollected<HTMLStackItem> {
  public:
   enum ItemType { kItemForContextElement, kItemForDocumentFragmentNode };
 
@@ -64,7 +64,7 @@ class HTMLStackItem : public GarbageCollectedFinalized<HTMLStackItem> {
         namespace_uri_(namespace_uri),
         is_document_fragment_node_(false) {}
 
-  Element* GetElement() const { return ToElement(node_.Get()); }
+  Element* GetElement() const { return To<Element>(node_.Get()); }
   ContainerNode* GetNode() const { return node_.Get(); }
 
   bool IsDocumentFragmentNode() const { return is_document_fragment_node_; }

@@ -108,12 +108,15 @@ class AimdRateControl {
   // limited region (alr) is not detected.
   const bool no_bitrate_increase_in_alr_;
   const bool smoothing_experiment_;
+  // Use estimated link capacity lower bound if it is higher than the
+  // acknowledged rate when backing off due to overuse.
+  const bool estimate_bounded_backoff_;
+  // Use estimated link capacity upper bound as upper limit for increasing
+  // bitrate over the acknowledged rate.
+  const bool estimate_bounded_increase_;
   absl::optional<DataRate> last_decrease_;
   FieldTrialOptional<TimeDelta> initial_backoff_interval_;
   FieldTrialParameter<DataRate> low_throughput_threshold_;
-  FieldTrialOptional<double> capacity_deviation_ratio_threshold_;
-  FieldTrialParameter<double> cross_traffic_factor_;
-  FieldTrialOptional<double> capacity_limit_deviation_factor_;
 };
 }  // namespace webrtc
 

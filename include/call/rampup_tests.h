@@ -12,15 +12,18 @@
 #define CALL_RAMPUP_TESTS_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "api/rtc_event_log/rtc_event_log.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/test/simulated_network.h"
 #include "call/call.h"
 #include "call/simulated_network.h"
-#include "logging/rtc_event_log/rtc_event_log.h"
 #include "rtc_base/event.h"
+#include "rtc_base/task_utils/repeating_task.h"
 #include "test/call_test.h"
 
 namespace webrtc {
@@ -42,7 +45,8 @@ class RampUpTester : public test::EndToEndTest {
                const std::string& extension_type,
                bool rtx,
                bool red,
-               bool report_perf_stats);
+               bool report_perf_stats,
+               TaskQueueBase* task_queue);
   ~RampUpTester() override;
 
   size_t GetNumVideoStreams() const override;
@@ -65,7 +69,6 @@ class RampUpTester : public test::EndToEndTest {
                     const std::string& units) const;
   void TriggerTestDone();
 
-  rtc::Event stop_event_;
   Clock* const clock_;
   BuiltInNetworkBehaviorConfig forward_transport_config_;
   const size_t num_video_streams_;
@@ -87,8 +90,8 @@ class RampUpTester : public test::EndToEndTest {
   void OnVideoStreamsCreated(
       VideoSendStream* send_stream,
       const std::vector<VideoReceiveStream*>& receive_streams) override;
-  test::PacketTransport* CreateSendTransport(
-      test::SingleThreadedTaskQueueForTesting* task_queue,
+  std::unique_ptr<test::PacketTransport> CreateSendTransport(
+      TaskQueueBase* task_queue,
       Call* sender_call) override;
   void ModifyVideoConfigs(
       VideoSendStream::Config* send_config,
@@ -101,8 +104,6 @@ class RampUpTester : public test::EndToEndTest {
       std::vector<FlexfecReceiveStream::Config>* receive_configs) override;
   void OnCallsCreated(Call* sender_call, Call* receiver_call) override;
 
-  static void BitrateStatsPollingThread(void* obj);
-
   const int start_bitrate_bps_;
   const int64_t min_run_time_ms_;
   int expected_bitrate_bps_;
@@ -114,7 +115,9 @@ class RampUpTester : public test::EndToEndTest {
   std::vector<uint32_t> video_rtx_ssrcs_;
   std::vector<uint32_t> audio_ssrcs_;
 
-  rtc::PlatformThread poller_thread_;
+ protected:
+  TaskQueueBase* const task_queue_;
+  RepeatingTaskHandle pending_task_;
 };
 
 class RampUpDownUpTester : public RampUpTester {
@@ -127,7 +130,8 @@ class RampUpDownUpTester : public RampUpTester {
                      bool rtx,
                      bool red,
                      const std::vector<int>& loss_rates,
-                     bool report_perf_stats);
+                     bool report_perf_stats,
+                     TaskQueueBase* task_queue);
   ~RampUpDownUpTester() override;
 
  protected:

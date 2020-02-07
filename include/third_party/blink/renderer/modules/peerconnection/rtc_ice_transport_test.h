@@ -13,6 +13,8 @@
 
 namespace blink {
 
+class V8TestingScope;
+
 class MockEventListener final : public NativeEventListener {
  public:
   MOCK_METHOD2(Invoke, void(ExecutionContext*, Event*));
@@ -54,7 +56,7 @@ class RTCIceTransportTest : public testing::Test {
  protected:
   scoped_refptr<base::TestSimpleTaskRunner> main_thread_;
   scoped_refptr<base::TestSimpleTaskRunner> worker_thread_;
-  std::vector<Persistent<MockEventListener>> mock_event_listeners_;
+  Vector<Persistent<MockEventListener>> mock_event_listeners_;
 };
 
 }  // namespace blink

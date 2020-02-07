@@ -12,6 +12,7 @@
 #define MEDIA_ENGINE_SIMULCAST_H_
 
 #include <stddef.h>
+
 #include <vector>
 
 #include "api/video_codecs/video_encoder_config.h"
@@ -30,16 +31,13 @@ void BoostMaxSimulcastLayer(int max_bitrate_bps,
 int NormalizeSimulcastSize(int size, size_t simulcast_layers);
 
 // Gets simulcast settings.
-// TODO(asapersson): Remove max_bitrate_bps and max_framerate.
 std::vector<webrtc::VideoStream> GetSimulcastConfig(
     size_t max_layers,
     int width,
     int height,
-    int /*max_bitrate_bps*/,
     double bitrate_priority,
     int max_qp,
-    int /*max_framerate*/,
-    bool is_screenshare,
+    bool is_screenshare_with_conference_mode,
     bool temporal_layers_supported = true);
 
 // Gets the simulcast config layers for a non-screensharing case.
@@ -49,7 +47,8 @@ std::vector<webrtc::VideoStream> GetNormalSimulcastLayers(
     int height,
     double bitrate_priority,
     int max_qp,
-    bool temporal_layers_supported = true);
+    bool temporal_layers_supported,
+    bool base_heavy_tl3_rate_alloc);
 
 // Gets simulcast config layers for screenshare settings.
 std::vector<webrtc::VideoStream> GetScreenshareLayers(
@@ -58,10 +57,8 @@ std::vector<webrtc::VideoStream> GetScreenshareLayers(
     int height,
     double bitrate_priority,
     int max_qp,
-    bool screenshare_simulcast_enabled,
-    bool temporal_layers_supported = true);
-
-bool ScreenshareSimulcastFieldTrialEnabled();
+    bool temporal_layers_supported,
+    bool base_heavy_tl3_rate_alloc);
 
 }  // namespace cricket
 

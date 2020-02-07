@@ -9,12 +9,16 @@
 #include <memory>
 
 #include "base/macros.h"
-#include "base/message_loop/message_loop.h"
 #include "base/task/sequence_manager/sequence_manager.h"
+#include "base/task/simple_task_executor.h"
 #include "base/time/tick_clock.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/common/ukm_task_sampler.h"
+
+namespace base {
+class TaskObserver;
+}
 
 namespace blink {
 namespace scheduler {
@@ -54,8 +58,8 @@ class PLATFORM_EXPORT SchedulerHelper
   // Adds or removes a task observer from the scheduler. The observer will be
   // notified before and after every executed task. These functions can only be
   // called on the thread this class was created on.
-  void AddTaskObserver(base::MessageLoop::TaskObserver* task_observer);
-  void RemoveTaskObserver(base::MessageLoop::TaskObserver* task_observer);
+  void AddTaskObserver(base::TaskObserver* task_observer);
+  void RemoveTaskObserver(base::TaskObserver* task_observer);
 
   void AddTaskTimeObserver(
       base::sequence_manager::TaskTimeObserver* task_time_observer);
@@ -126,11 +130,29 @@ class PLATFORM_EXPORT SchedulerHelper
  private:
   friend class SchedulerHelperTest;
 
+  // Like SimpleTaskExecutor except it knows how to get the current task runner
+  // from the SequenceManager to implement GetContinuationTaskRunner.
+  class BlinkTaskExecutor : public base::SimpleTaskExecutor {
+   public:
+    BlinkTaskExecutor(
+        scoped_refptr<base::SingleThreadTaskRunner> default_task_queue,
+        base::sequence_manager::SequenceManager* sequence_manager);
+
+    ~BlinkTaskExecutor() override;
+
+    // base::TaskExecutor implementation.
+    const scoped_refptr<base::SequencedTaskRunner>& GetContinuationTaskRunner()
+        override;
+
+   private:
+    base::sequence_manager::SequenceManager* sequence_manager_;  // NOT OWNED
+  };
   scoped_refptr<base::SingleThreadTaskRunner> default_task_runner_;
 
   Observer* observer_;  // NOT OWNED
 
   UkmTaskSampler ukm_task_sampler_;
+  base::Optional<BlinkTaskExecutor> blink_task_executor_;
 
   DISALLOW_COPY_AND_ASSIGN(SchedulerHelper);
 };

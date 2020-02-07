@@ -34,6 +34,7 @@
 #include <unicode/uchar.h>
 #include <memory>
 #include "base/macros.h"
+#include "third_party/blink/public/platform/web_text_autosizer_page_info.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -43,10 +44,11 @@
 namespace blink {
 
 class Document;
+class Frame;
 class IntSize;
 class LayoutBlock;
+class LayoutNGTableInterface;
 class LayoutObject;
-class LayoutTable;
 class LayoutText;
 class LocalFrame;
 class NGBlockNode;
@@ -56,8 +58,7 @@ class SubtreeLayoutScope;
 // Single-pass text autosizer. Documentation at:
 // http://tinyurl.com/TextAutosizer
 
-class CORE_EXPORT TextAutosizer final
-    : public GarbageCollectedFinalized<TextAutosizer> {
+class CORE_EXPORT TextAutosizer final : public GarbageCollected<TextAutosizer> {
  public:
   explicit TextAutosizer(const Document*);
   ~TextAutosizer();
@@ -66,8 +67,12 @@ class CORE_EXPORT TextAutosizer final
   static float ComputeAutosizedFontSize(float computed_size,
                                         float multiplier,
                                         float effective_zoom);
+  // Static to allow starting updates from the frame tree root when it's a
+  // remote frame, though this function is called for all main frames, local
+  // or remote.
+  static void UpdatePageInfoInAllFrames(Frame* root_frame);
 
-  void UpdatePageInfoInAllFrames();
+  bool HasLayoutInlineSizeChanged() const;
   void UpdatePageInfo();
   void Record(LayoutBlock*);
   void Record(LayoutText*);
@@ -93,7 +98,7 @@ class CORE_EXPORT TextAutosizer final
     STACK_ALLOCATED();
 
    public:
-    explicit TableLayoutScope(LayoutTable*);
+    explicit TableLayoutScope(LayoutNGTableInterface*);
   };
 
   class NGLayoutScope {
@@ -275,19 +280,10 @@ class CORE_EXPORT TextAutosizer final
 
   struct PageInfo {
     DISALLOW_NEW();
-    PageInfo()
-        : frame_width_(0),
-          layout_width_(0),
-          accessibility_font_scale_factor_(1),
-          device_scale_adjustment_(1),
-          page_needs_autosizing_(false),
-          has_autosized_(false),
-          setting_enabled_(false) {}
+    PageInfo() = default;
 
-    int frame_width_;  // LocalFrame width in density-independent pixels (DIPs).
-    int layout_width_;  // Layout width in CSS pixels.
+    WebTextAutosizerPageInfo shared_info_;
     float accessibility_font_scale_factor_;
-    float device_scale_adjustment_;
     bool page_needs_autosizing_;
     bool has_autosized_;
     bool setting_enabled_;
@@ -295,7 +291,7 @@ class CORE_EXPORT TextAutosizer final
 
   void BeginLayout(LayoutBlock*, SubtreeLayoutScope*);
   void EndLayout(LayoutBlock*);
-  void InflateAutoTable(LayoutTable*);
+  void InflateAutoTable(LayoutNGTableInterface*);
   float Inflate(LayoutObject*,
                 SubtreeLayoutScope*,
                 InflateBehavior = kThisBlockOnly,

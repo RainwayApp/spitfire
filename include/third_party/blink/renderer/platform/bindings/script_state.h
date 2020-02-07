@@ -10,7 +10,7 @@
 #include "gin/public/context_holder.h"
 #include "gin/public/gin_embedders.h"
 #include "third_party/blink/renderer/platform/bindings/scoped_persistent.h"
-#include "third_party/blink/renderer/platform/bindings/v8_cross_origin_setter_info.h"
+#include "third_party/blink/renderer/platform/bindings/v8_cross_origin_callback_info.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/heap/self_keep_alive.h"
@@ -73,8 +73,7 @@ class V8PerContextData;
 // ScriptState is created when v8::Context is created.
 // ScriptState is destroyed when v8::Context is garbage-collected and
 // all V8 proxy objects that have references to the ScriptState are destructed.
-class PLATFORM_EXPORT ScriptState final
-    : public GarbageCollectedFinalized<ScriptState> {
+class PLATFORM_EXPORT ScriptState final : public GarbageCollected<ScriptState> {
  public:
   class Scope {
     STACK_ALLOCATED();
@@ -120,7 +119,7 @@ class PLATFORM_EXPORT ScriptState final
     return From(info.Holder()->CreationContext());
   }
 
-  static ScriptState* ForRelevantRealm(const V8CrossOriginSetterInfo& info) {
+  static ScriptState* ForRelevantRealm(const V8CrossOriginCallbackInfo& info) {
     return From(info.Holder()->CreationContext());
   }
 
@@ -204,8 +203,8 @@ class PLATFORM_EXPORT ScriptState final
 // ScriptStateProtectingContext keeps the context associated with the
 // ScriptState alive.  You need to call Clear() once you no longer need the
 // context. Otherwise, the context will leak.
-class ScriptStateProtectingContext
-    : public GarbageCollectedFinalized<ScriptStateProtectingContext> {
+class ScriptStateProtectingContext final
+    : public GarbageCollected<ScriptStateProtectingContext> {
  public:
   explicit ScriptStateProtectingContext(ScriptState* script_state)
       : script_state_(script_state) {

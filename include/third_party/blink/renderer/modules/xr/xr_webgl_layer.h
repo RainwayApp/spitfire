@@ -8,9 +8,9 @@
 #include "third_party/blink/renderer/bindings/modules/v8/webgl_rendering_context_or_webgl2_rendering_context.h"
 #include "third_party/blink/renderer/modules/webgl/webgl2_rendering_context.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context.h"
-#include "third_party/blink/renderer/modules/xr/xr_layer.h"
 #include "third_party/blink/renderer/modules/xr/xr_view.h"
 #include "third_party/blink/renderer/modules/xr/xr_webgl_layer_init.h"
+#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/xr_webgl_drawing_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 
@@ -21,12 +21,13 @@ class SingleReleaseCallback;
 namespace blink {
 
 class ExceptionState;
+class HTMLCanvasElement;
 class WebGLFramebuffer;
 class WebGLRenderingContextBase;
 class XRSession;
 class XRViewport;
 
-class XRWebGLLayer final : public XRLayer {
+class XRWebGLLayer final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -44,17 +45,15 @@ class XRWebGLLayer final : public XRLayer {
       const XRWebGLLayerInit*,
       ExceptionState&);
 
+  XRSession* session() const { return session_; }
+
   WebGLRenderingContextBase* context() const { return webgl_context_; }
-  void getXRWebGLRenderingContext(
-      WebGLRenderingContextOrWebGL2RenderingContext&) const;
 
   WebGLFramebuffer* framebuffer() const { return framebuffer_; }
-  uint32_t framebufferWidth() const { return drawing_buffer_->size().Width(); }
-  uint32_t framebufferHeight() const {
-    return drawing_buffer_->size().Height();
-  }
+  uint32_t framebufferWidth() const;
+  uint32_t framebufferHeight() const;
 
-  bool antialias() const { return drawing_buffer_->antialias(); }
+  bool antialias() const;
   bool ignoreDepthValues() const { return ignore_depth_values_; }
 
   XRViewport* getViewport(XRView*);
@@ -65,11 +64,15 @@ class XRWebGLLayer final : public XRLayer {
 
   void UpdateViewports();
 
-  void OnFrameStart(const base::Optional<gpu::MailboxHolder>&) override;
-  void OnFrameEnd() override;
-  void OnResize() override;
+  HTMLCanvasElement* output_canvas() const;
 
-  void UpdateWebXRMirror();
+  void OnFrameStart(const base::Optional<gpu::MailboxHolder>&);
+  void OnFrameEnd();
+  void OnResize();
+
+  // Called from XRSession::OnFrame handler. Params are background texture
+  // mailbox holder and its size respectively.
+  void HandleBackgroundImage(const gpu::MailboxHolder&, const IntSize&) {}
 
   scoped_refptr<StaticBitmapImage> TransferToStaticBitmapImage(
       std::unique_ptr<viz::SingleReleaseCallback>* out_release_callback);
@@ -77,10 +80,10 @@ class XRWebGLLayer final : public XRLayer {
   void Trace(blink::Visitor*) override;
 
  private:
+  const Member<XRSession> session_;
+
   Member<XRViewport> left_viewport_;
   Member<XRViewport> right_viewport_;
-
-  scoped_refptr<XRWebGLDrawingBuffer::MirrorClient> mirror_client_;
 
   Member<WebGLRenderingContextBase> webgl_context_;
   scoped_refptr<XRWebGLDrawingBuffer> drawing_buffer_;
@@ -88,7 +91,6 @@ class XRWebGLLayer final : public XRLayer {
 
   double framebuffer_scale_ = 1.0;
   bool viewports_dirty_ = true;
-  bool can_mirror_ = false;
   bool is_direct_draw_frame = false;
   bool ignore_depth_values_ = false;
 };

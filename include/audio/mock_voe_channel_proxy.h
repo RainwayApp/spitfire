@@ -28,7 +28,6 @@ namespace test {
 
 class MockChannelReceive : public voe::ChannelReceiveInterface {
  public:
-  MOCK_METHOD1(SetLocalSSRC, void(uint32_t ssrc));
   MOCK_METHOD2(SetNACKStatus, void(bool enable, int max_packets));
   MOCK_METHOD1(RegisterReceiverCongestionControlObjects,
                void(PacketRouter* packet_router));
@@ -50,7 +49,12 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
   MOCK_CONST_METHOD0(PreferredSampleRate, int());
   MOCK_METHOD1(SetAssociatedSendChannel,
                void(const voe::ChannelSendInterface* send_channel));
-  MOCK_CONST_METHOD0(GetPlayoutTimestamp, uint32_t());
+  MOCK_CONST_METHOD2(GetPlayoutRtpTimestamp,
+                     bool(uint32_t* rtp_timestamp, int64_t* time_ms));
+  MOCK_METHOD2(SetEstimatedPlayoutNtpTimestampMs,
+               void(int64_t ntp_timestamp_ms, int64_t time_ms));
+  MOCK_CONST_METHOD1(GetCurrentEstimatedPlayoutNtpTimestampMs,
+                     absl::optional<int64_t>(int64_t now_ms));
   MOCK_CONST_METHOD0(GetSyncInfo, absl::optional<Syncable::Info>());
   MOCK_METHOD1(SetMinimumPlayoutDelay, void(int delay_ms));
   MOCK_METHOD1(SetBaseMinimumPlayoutDelayMs, bool(int delay_ms));
@@ -83,7 +87,6 @@ class MockChannelSend : public voe::ChannelSendInterface {
                     int extension_id,
                     int repaired_extension_id));
   MOCK_METHOD2(SetMid, void(const std::string& mid, int extension_id));
-  MOCK_METHOD1(SetLocalSSRC, void(uint32_t ssrc));
   MOCK_METHOD1(SetRTCP_CNAME, void(absl::string_view c_name));
   MOCK_METHOD1(SetExtmapAllowMixed, void(bool extmap_allow_mixed));
   MOCK_METHOD2(SetSendAudioLevelIndicationStatus, void(bool enable, int id));

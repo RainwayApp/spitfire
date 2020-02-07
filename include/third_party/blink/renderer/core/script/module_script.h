@@ -7,6 +7,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/module_record.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
+#include "third_party/blink/renderer/bindings/core/v8/world_safe_v8_reference.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/script/modulator.h"
 #include "third_party/blink/renderer/core/script/script.h"
@@ -27,7 +28,7 @@ namespace blink {
 // https://html.spec.whatwg.org/C/#module-script
 class CORE_EXPORT ModuleScript : public Script {
  public:
-  ModuleRecord Record() const;
+  v8::Local<v8::Module> V8Module() const;
   bool HasEmptyRecord() const;
 
   // Note: ParseError-related methods should only be used from ModuleTreeLinker
@@ -48,18 +49,18 @@ class CORE_EXPORT ModuleScript : public Script {
   KURL ResolveModuleSpecifier(const String& module_request,
                               String* failure_reason = nullptr) const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
 
   virtual void ProduceCache() {}
+  const KURL& SourceURL() const { return source_url_; }
 
  protected:
   ModuleScript(Modulator*,
-               ModuleRecord,
+               v8::Local<v8::Module>,
                const KURL& source_url,
                const KURL& base_url,
                const ScriptFetchOptions&);
 
-  const KURL& SourceURL() const { return source_url_; }
   Modulator* SettingsObject() const { return settings_object_; }
 
  private:
@@ -67,6 +68,7 @@ class CORE_EXPORT ModuleScript : public Script {
     return mojom::ScriptType::kModule;
   }
   void RunScript(LocalFrame*, const SecurityOrigin*) override;
+  void RunScriptOnWorker(WorkerGlobalScope&) override;
 
   friend class ModuleTreeLinkerTestModulator;
 
@@ -114,10 +116,10 @@ class CORE_EXPORT ModuleScript : public Script {
   //   https://github.com/whatwg/html/pull/2991. This shouldn't cause any
   //   observable functional changes, and updating the classic script handling
   //   will require moderate code changes (e.g. to move compilation timing).
-  TraceWrapperV8Reference<v8::Value> parse_error_;
+  WorldSafeV8Reference<v8::Value> parse_error_;
 
   // https://html.spec.whatwg.org/C/#concept-script-error-to-rethrow
-  TraceWrapperV8Reference<v8::Value> error_to_rethrow_;
+  WorldSafeV8Reference<v8::Value> error_to_rethrow_;
 
   mutable HashMap<String, KURL> specifier_to_url_cache_;
   KURL source_url_;

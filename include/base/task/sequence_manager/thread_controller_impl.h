@@ -67,6 +67,9 @@ class BASE_EXPORT ThreadControllerImpl : public ThreadController,
 #if defined(OS_IOS) || defined(OS_ANDROID)
   void AttachToMessagePump() override;
 #endif
+#if defined(OS_IOS)
+  void DetachFromMessagePump() override;
+#endif
   bool ShouldQuitRunLoopWhenIdle() override;
 
   // RunLoop::NestingObserver:
@@ -127,7 +130,7 @@ class BASE_EXPORT ThreadControllerImpl : public ThreadController,
   bool default_task_runner_set_ = false;
 #endif
 
-  WeakPtrFactory<ThreadControllerImpl> weak_factory_;
+  WeakPtrFactory<ThreadControllerImpl> weak_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(ThreadControllerImpl);
 };

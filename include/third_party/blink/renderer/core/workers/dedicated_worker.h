@@ -7,6 +7,8 @@
 
 #include <memory>
 #include "base/memory/scoped_refptr.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "third_party/blink/public/mojom/browser_interface_broker.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/web_dedicated_worker.h"
 #include "third_party/blink/public/platform/web_dedicated_worker_host_factory_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
@@ -18,6 +20,7 @@
 #include "third_party/blink/renderer/core/workers/global_scope_creation_params.h"
 #include "third_party/blink/renderer/core/workers/worker_options.h"
 #include "third_party/blink/renderer/platform/graphics/begin_frame_provider.h"
+#include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object_snapshot.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "v8/include/v8-inspector.h"
@@ -30,7 +33,6 @@ class ExecutionContext;
 class PostMessageOptions;
 class ScriptState;
 class WorkerClassicScriptLoader;
-class WorkerClients;
 
 // Implementation of the Worker interface defined in the WebWorker HTML spec:
 // https://html.spec.whatwg.org/C/#worker
@@ -39,39 +41,15 @@ class WorkerClients;
 // called DedicatedWorker. This lives on the thread that created the worker (the
 // thread that called `new Worker()`), i.e., the main thread if a document
 // created the worker or a worker thread in the case of nested workers.
-//
-// We have been rearchitecting the worker startup sequence, and now there are
-// 3 paths as follows. The path is chosen based on runtime flags:
-//
-//  A) Legacy on-the-main-thread worker script loading (default)
-//  - DedicatedWorker::Start()
-//    - (Async script loading on the main thread)
-//      - DedicatedWorker::OnFinished()
-//        - DedicatedWorker::ContinueStart()
-//
-//  B) Off-the-main-thread worker script loading
-//     (kOffMainThreadDedicatedWorkerScriptFetch)
-//  - DedicatedWorker::Start()
-//    - DedicatedWorker::ContinueStart()
-//      - (Async script loading on the worker thread)
-//
-//  C) Off-the-main-thread worker script loading w/ PlzDedicatedWorker
-//     (kOffMainThreadDedicatedWorkerScriptFetch + kPlzDedicatedWorker +
-//      kNetworkService)
-//  - DedicatedWorker::Start()
-//    - (Start script loading in the browser)
-//      - DedicatedWorker::OnScriptLoadStarted()
-//        - DedicatedWorker::ContinueStart()
-//          - (Async script loading on the worker thread)
 class CORE_EXPORT DedicatedWorker final
     : public AbstractWorker,
       public ActiveScriptWrappable<DedicatedWorker>,
       public WebDedicatedWorker {
   DEFINE_WRAPPERTYPEINFO();
   USING_GARBAGE_COLLECTED_MIXIN(DedicatedWorker);
-  // Eager finalization is needed to notify the parent object destruction of the
+  // Pre-finalization is needed to notify the parent object destruction of the
   // GC-managed messaging proxy and to initiate worker termination.
-  EAGERLY_FINALIZE();
+  USING_PRE_FINALIZER(DedicatedWorker, Dispose);
 
  public:
   static DedicatedWorker* Create(ExecutionContext*,
@@ -84,9 +62,11 @@ class CORE_EXPORT DedicatedWorker final
                   const WorkerOptions*);
   ~DedicatedWorker() override;
 
+  void Dispose();
+
   void postMessage(ScriptState*,
                    const ScriptValue& message,
-                   Vector<ScriptValue>& transfer,
+                   HeapVector<ScriptValue>& transfer,
                    ExceptionState&);
   void postMessage(ScriptState*,
                    const ScriptValue& message,
@@ -105,7 +85,7 @@ class CORE_EXPORT DedicatedWorker final
   // Implements WebDedicatedWorker.
   // Called only when PlzDedicatedWorker is enabled.
   void OnWorkerHostCreated(
-      mojo::ScopedMessagePipeHandle interface_provider) override;
+      mojo::ScopedMessagePipeHandle browser_interface_broker) override;
   void OnScriptLoadStarted() override;
   void OnScriptLoadStartFailed() override;
 
@@ -123,15 +103,16 @@ class CORE_EXPORT DedicatedWorker final
       const KURL& script_url,
       OffMainThreadWorkerScriptFetchOption,
       network::mojom::ReferrerPolicy,
-      base::Optional<mojom::IPAddressSpace> response_address_space,
+      base::Optional<network::mojom::IPAddressSpace> response_address_space,
       const String& source_code);
   std::unique_ptr<GlobalScopeCreationParams> CreateGlobalScopeCreationParams(
       const KURL& script_url,
       OffMainThreadWorkerScriptFetchOption,
       network::mojom::ReferrerPolicy,
-      base::Optional<mojom::IPAddressSpace> response_address_space);
+      base::Optional<network::mojom::IPAddressSpace> response_address_space);
   scoped_refptr<WebWorkerFetchContext> CreateWebWorkerFetchContext();
-  WorkerClients* CreateWorkerClients();
+  // May return nullptr.
+  std::unique_ptr<WebContentSettingsClient> CreateWebContentSettingsClient();
 
   // Callbacks for |classic_script_loader_|.
   void OnResponse();
@@ -142,6 +123,8 @@ class CORE_EXPORT DedicatedWorker final
 
   const KURL script_request_url_;
   Member<const WorkerOptions> options_;
+  Member<const FetchClientSettingsObjectSnapshot>
+      outside_fetch_client_settings_object_;
   const Member<DedicatedWorkerMessagingProxy> context_proxy_;
 
   Member<WorkerClassicScriptLoader> classic_script_loader_;
@@ -152,7 +135,8 @@ class CORE_EXPORT DedicatedWorker final
   // Used for tracking cross-debugger calls.
   v8_inspector::V8StackTraceId v8_stack_trace_id_;
 
-  service_manager::mojom::blink::InterfaceProviderPtrInfo interface_provider_;
+  mojo::PendingRemote<mojom::blink::BrowserInterfaceBroker>
+      browser_interface_broker_;
 
   // Whether the worker is frozen due to a call from this context.
   bool requested_frozen_ = false;

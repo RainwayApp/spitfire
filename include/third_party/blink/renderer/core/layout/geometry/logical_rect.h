@@ -13,6 +13,8 @@
 namespace blink {
 
 class LayoutRect;
+struct PhysicalRect;
+struct PhysicalSize;
 
 // LogicalRect is the position and size of a rect (typically a fragment)
 // relative to the parent in the logical coordinate system.
@@ -46,8 +48,15 @@ struct CORE_EXPORT LogicalRect {
   LogicalOffset offset;
   LogicalSize size;
 
-  LogicalOffset EndOffset() const { return offset + size; }
   constexpr bool IsEmpty() const { return size.IsEmpty(); }
+
+  LayoutUnit InlineEndOffset() const {
+    return offset.inline_offset + size.inline_size;
+  }
+  LayoutUnit BlockEndOffset() const {
+    return offset.block_offset + size.block_size;
+  }
+  LogicalOffset EndOffset() const { return offset + size; }
 
   constexpr bool operator==(const LogicalRect& other) const {
     return other.offset == offset && other.size == size;
@@ -58,6 +67,10 @@ struct CORE_EXPORT LogicalRect {
   }
 
   void Unite(const LogicalRect&);
+
+  // Convert logical coordinate to local physical coordinate.
+  PhysicalRect ConvertToPhysical(WritingMode writing_mode,
+                                 const PhysicalSize& outer_size) const;
 
   String ToString() const;
 };

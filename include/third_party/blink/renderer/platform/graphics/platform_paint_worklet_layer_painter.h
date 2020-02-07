@@ -8,12 +8,14 @@
 #include <memory>
 
 #include "cc/paint/paint_record.h"
+#include "cc/paint/paint_worklet_job.h"
 #include "cc/paint/paint_worklet_layer_painter.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
 namespace blink {
 
 using CompositorPaintWorkletInput = cc::PaintWorkletInput;
+using CompositorPaintWorkletJob = cc::PaintWorkletJob;
 
 class PaintWorkletPaintDispatcher;
 
@@ -25,14 +27,15 @@ class PLATFORM_EXPORT PlatformPaintWorkletLayerPainter
     : public cc::PaintWorkletLayerPainter {
  public:
   explicit PlatformPaintWorkletLayerPainter(
-      scoped_refptr<PaintWorkletPaintDispatcher>);
+      std::unique_ptr<PaintWorkletPaintDispatcher>);
   ~PlatformPaintWorkletLayerPainter() override;
 
   // cc::PaintWorkletLayerPainter
-  sk_sp<cc::PaintRecord> Paint(cc::PaintWorkletInput*) override;
+  void DispatchWorklets(cc::PaintWorkletJobMap, DoneCallback) override;
+  bool HasOngoingDispatch() const override;
 
  private:
-  scoped_refptr<PaintWorkletPaintDispatcher> dispatcher_;
+  std::unique_ptr<PaintWorkletPaintDispatcher> dispatcher_;
 };
 
 }  // namespace blink

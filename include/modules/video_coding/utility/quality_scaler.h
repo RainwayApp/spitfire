@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <memory>
 
 #include "absl/types/optional.h"
@@ -36,7 +37,9 @@ class AdaptationObserverInterface {
   // Called to signal that we can handle larger or more frequent frames.
   virtual void AdaptUp(AdaptReason reason) = 0;
   // Called to signal that the source should reduce the resolution or framerate.
-  virtual void AdaptDown(AdaptReason reason) = 0;
+  // Returns false if a downgrade was requested but the request did not result
+  // in a new limiting resolution or fps.
+  virtual bool AdaptDown(AdaptReason reason) = 0;
 
  protected:
   virtual ~AdaptationObserverInterface() {}
@@ -60,6 +63,9 @@ class QualityScaler {
   // Inform the QualityScaler of the last seen QP.
   void ReportQp(int qp, int64_t time_sent_us);
 
+  void SetQpThresholds(VideoEncoder::QpThresholds thresholds);
+  bool QpFastFilterLow() const;
+
   // The following members declared protected for testing purposes.
  protected:
   QualityScaler(rtc::TaskQueue* task_queue,
@@ -80,7 +86,7 @@ class QualityScaler {
   AdaptationObserverInterface* const observer_ RTC_GUARDED_BY(&task_checker_);
   SequenceChecker task_checker_;
 
-  const VideoEncoder::QpThresholds thresholds_;
+  VideoEncoder::QpThresholds thresholds_ RTC_GUARDED_BY(&task_checker_);
   const int64_t sampling_period_ms_;
   bool fast_rampup_ RTC_GUARDED_BY(&task_checker_);
   rtc::MovingAverage average_qp_ RTC_GUARDED_BY(&task_checker_);
@@ -98,7 +104,8 @@ class QualityScaler {
   const size_t min_frames_needed_;
   const double initial_scale_factor_;
   const absl::optional<double> scale_factor_;
-  bool last_adapted_ RTC_GUARDED_BY(&task_checker_);
+  bool adapt_called_ RTC_GUARDED_BY(&task_checker_);
+  bool adapt_failed_ RTC_GUARDED_BY(&task_checker_);
 };
 }  // namespace webrtc
 

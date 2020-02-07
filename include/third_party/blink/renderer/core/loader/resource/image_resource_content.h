@@ -42,7 +42,7 @@ class SecurityContext;
 // TODO(hiroshige): Rename local variables of type ImageResourceContent to
 // e.g. |imageContent|. Currently they have Resource-like names.
 class CORE_EXPORT ImageResourceContent final
-    : public GarbageCollectedFinalized<ImageResourceContent>,
+    : public GarbageCollected<ImageResourceContent>,
       public ImageObserver {
   USING_GARBAGE_COLLECTED_MIXIN(ImageResourceContent);
 
@@ -55,6 +55,8 @@ class CORE_EXPORT ImageResourceContent final
 
   // Creates ImageResourceContent from an already loaded image.
   static ImageResourceContent* CreateLoaded(scoped_refptr<blink::Image>);
+
+  static ImageResourceContent* CreateLazyImagePlaceholder();
 
   static ImageResourceContent* Fetch(FetchParameters&, ResourceFetcher*);
 
@@ -76,8 +78,6 @@ class CORE_EXPORT ImageResourceContent final
   // TODO(fs): Make SVGImages return proper intrinsic width/height.
   IntSize IntrinsicSize(
       RespectImageOrientationEnum should_respect_image_orientation) const;
-
-  void UpdateImageAnimationPolicy();
 
   void AddObserver(ImageResourceObserver*);
   void RemoveObserver(ImageResourceObserver*);
@@ -109,7 +109,7 @@ class CORE_EXPORT ImageResourceContent final
 
   // Redirecting methods to Resource.
   const KURL& Url() const;
-  TimeTicks LoadResponseEnd() const;
+  base::TimeTicks LoadResponseEnd() const;
   bool IsAccessAllowed();
   const ResourceResponse& GetResponse() const;
   base::Optional<ResourceError> GetResourceError() const;
@@ -200,10 +200,10 @@ class CORE_EXPORT ImageResourceContent final
 
   enum NotifyFinishOption { kShouldNotifyFinish, kDoNotNotifyFinish };
 
-  // If not null, changeRect is the changed part of the image.
   void NotifyObservers(NotifyFinishOption, CanDeferInvalidation);
-  void MarkObserverFinished(ImageResourceObserver*);
+  void HandleObserverFinished(ImageResourceObserver*);
   void UpdateToLoadedContentStatus(ResourceStatus);
+  void UpdateImageAnimationPolicy();
 
   class ProhibitAddRemoveObserverInScope : public base::AutoReset<bool> {
    public:

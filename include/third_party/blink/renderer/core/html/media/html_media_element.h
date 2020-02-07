@@ -30,8 +30,10 @@
 #include <memory>
 
 #include "base/optional.h"
+#include "base/timer/elapsed_timer.h"
 #include "third_party/blink/public/platform/web_audio_source_provider_client.h"
 #include "third_party/blink/public/platform/web_media_player_client.h"
+#include "third_party/blink/public/platform/webaudiosourceprovider_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -45,6 +47,7 @@
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/timer.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace cc {
 class Layer;
@@ -66,7 +69,6 @@ class HTMLMediaElementControlsList;
 class HTMLMediaSource;
 class HTMLSourceElement;
 class HTMLTrackElement;
-class KURL;
 class MediaError;
 class MediaStreamDescriptor;
 class ScriptPromiseResolver;
@@ -77,7 +79,6 @@ class TextTrackList;
 class TimeRanges;
 class VideoTrack;
 class VideoTrackList;
-class WebAudioSourceProvider;
 class WebInbandTextTrack;
 class WebRemotePlaybackClient;
 
@@ -92,9 +93,6 @@ class CORE_EXPORT HTMLMediaElement
   USING_PRE_FINALIZER(HTMLMediaElement, Dispose);
 
  public:
-  // Returns attributes that should be checked against Trusted Types
-  const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
-
   bool IsMediaElement() const override { return true; }
 
   static MIMETypeRegistry::SupportsType GetSupportsType(const ContentType&);
@@ -141,8 +139,18 @@ class CORE_EXPORT HTMLMediaElement
 
   // network state
   void SetSrc(const AtomicString&);
-  void SetSrc(const USVStringOrTrustedURL&, ExceptionState&);
   const KURL& currentSrc() const { return current_src_; }
+
+  // Return the URL to be used for downloading the media.
+  const KURL& downloadURL() const {
+    // If we didn't get a redirected URL from the player, then use the original.
+    if (current_src_after_redirects_.IsNull() ||
+        current_src_after_redirects_.IsEmpty()) {
+      return currentSrc();
+    }
+    return current_src_after_redirects_;
+  }
+
   void SetSrcObject(MediaStreamDescriptor*);
   MediaStreamDescriptor* GetSrcObject() const { return src_object_.Get(); }
 
@@ -160,6 +168,7 @@ class CORE_EXPORT HTMLMediaElement
   String EffectivePreload() const;
   WebMediaPlayer::Preload EffectivePreloadType() const;
 
+  WebTimeRanges BufferedInternal() const;
   TimeRanges* buffered() const;
   void load();
   String canPlayType(const String& mime_type) const;
@@ -186,6 +195,7 @@ class CORE_EXPORT HTMLMediaElement
   void setPlaybackRate(double, ExceptionState& = ASSERT_NO_EXCEPTION);
   void UpdatePlaybackRate();
   TimeRanges* played();
+  WebTimeRanges SeekableInternal() const;
   TimeRanges* seekable() const;
   bool ended() const;
   bool Autoplay() const;
@@ -195,6 +205,8 @@ class CORE_EXPORT HTMLMediaElement
   ScriptPromise playForBindings(ScriptState*);
   base::Optional<DOMExceptionCode> Play();
   void pause();
+  double latencyHint() const;
+  void setLatencyHint(double);
   void FlingingStarted();
   void FlingingStopped();
 
@@ -331,6 +343,9 @@ class CORE_EXPORT HTMLMediaElement
   void SetCcLayerForTesting(cc::Layer* layer) { SetCcLayer(layer); }
 
  protected:
+  // Assert the correct order of the children in shadow dom when DCHECK is on.
+  static void AssertShadowRootChildren(ShadowRoot&);
+
   HTMLMediaElement(const QualifiedName&, Document&);
   ~HTMLMediaElement() override;
   void Dispose();
@@ -358,8 +373,8 @@ class CORE_EXPORT HTMLMediaElement
   DisplayMode GetDisplayMode() const { return display_mode_; }
   virtual void SetDisplayMode(DisplayMode mode) { display_mode_ = mode; }
 
-  // Assert the correct order of the children in shadow dom when DCHECK is on.
-  static void AssertShadowRootChildren(ShadowRoot&);
+  // Called after the creation of |web_media_player_|.
+  virtual void OnWebMediaPlayerCreated() {}
 
  private:
   // Friend class for testing.
@@ -553,7 +568,7 @@ class CORE_EXPORT HTMLMediaElement
 
   void OnRemovedFromDocumentTimerFired(TimerBase*);
 
-  void DefaultEventHandler(Event&) override;
+  Features GetFeatures() override;
 
   TaskRunnerTimer<HTMLMediaElement> load_timer_;
   TaskRunnerTimer<HTMLMediaElement> progress_event_timer_;
@@ -570,6 +585,7 @@ class CORE_EXPORT HTMLMediaElement
   ReadyState ready_state_;
   ReadyState ready_state_maximum_;
   KURL current_src_;
+  KURL current_src_after_redirects_;
   Member<MediaStreamDescriptor> src_object_;
 
   Member<MediaError> error_;
@@ -577,7 +593,7 @@ class CORE_EXPORT HTMLMediaElement
   double volume_;
   double last_seek_time_;
 
-  double previous_progress_time_;
+  base::Optional<base::ElapsedTimer> previous_progress_time_;
 
   // Cached duration to suppress duplicate events if duration unchanged.
   double duration_;
@@ -683,9 +699,8 @@ class CORE_EXPORT HTMLMediaElement
 
   // AudioClientImpl wraps an AudioSourceProviderClient.
   // When the audio format is known, Chromium calls setFormat().
-  class AudioClientImpl final
-      : public GarbageCollectedFinalized<AudioClientImpl>,
-        public WebAudioSourceProviderClient {
+  class AudioClientImpl final : public GarbageCollected<AudioClientImpl>,
+                                public WebAudioSourceProviderClient {
    public:
     explicit AudioClientImpl(AudioSourceProviderClient* client)
         : client_(client) {}
@@ -707,12 +722,11 @@ class CORE_EXPORT HTMLMediaElement
     DISALLOW_NEW();
 
    public:
-    AudioSourceProviderImpl() : web_audio_source_provider_(nullptr) {}
-
+    AudioSourceProviderImpl() = default;
     ~AudioSourceProviderImpl() override = default;
 
     // Wraps the given WebAudioSourceProvider.
-    void Wrap(WebAudioSourceProvider*);
+    void Wrap(scoped_refptr<WebAudioSourceProviderImpl>);
 
     // AudioSourceProvider
     void SetClient(AudioSourceProviderClient*) override;
@@ -721,7 +735,7 @@ class CORE_EXPORT HTMLMediaElement
     void Trace(Visitor*);
 
    private:
-    WebAudioSourceProvider* web_audio_source_provider_;
+    scoped_refptr<WebAudioSourceProviderImpl> web_audio_source_provider_;
     Member<AudioClientImpl> client_;
     Mutex provide_input_lock;
   };
@@ -754,7 +768,7 @@ class CORE_EXPORT HTMLMediaElement
 };
 
 inline bool IsHTMLMediaElement(const HTMLElement& element) {
-  return IsHTMLAudioElement(element) || IsHTMLVideoElement(element);
+  return IsA<HTMLAudioElement>(element) || IsA<HTMLVideoElement>(element);
 }
 
 DEFINE_HTMLELEMENT_TYPE_CASTS_WITH_FUNCTION(HTMLMediaElement);

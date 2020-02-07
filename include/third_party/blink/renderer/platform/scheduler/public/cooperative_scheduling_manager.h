@@ -5,9 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_PUBLIC_COOPERATIVE_SCHEDULING_MANAGER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_PUBLIC_COOPERATIVE_SCHEDULING_MANAGER_H_
 
+#include "base/time/tick_clock.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 namespace scheduler {
@@ -46,6 +46,12 @@ class PLATFORM_EXPORT CooperativeSchedulingManager {
   // nested code could touch.
   void Safepoint();
 
+  // The caller is the owner of the |clock|. The |clock| must outlive the
+  // CooperativeSchedulingManager.
+  void SetTickClockForTesting(const base::TickClock* clock);
+
+  void set_feature_enabled(bool enabled) { feature_enabled_ = enabled; }
+
  protected:
   virtual void RunNestedLoop();
 
@@ -56,7 +62,9 @@ class PLATFORM_EXPORT CooperativeSchedulingManager {
 
   int allowed_stack_scope_depth_ = 0;
   bool running_nested_loop_ = false;
-  WTF::TimeTicks wait_until_;
+  base::TimeTicks wait_until_;
+  const base::TickClock* clock_;
+  bool feature_enabled_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(CooperativeSchedulingManager);
 };
@@ -65,7 +73,7 @@ inline void CooperativeSchedulingManager::Safepoint() {
   if (!InAllowedStackScope())
     return;
 
-  if (WTF::CurrentTimeTicks() < wait_until_)
+  if (clock_->NowTicks() < wait_until_)
     return;
 
   SafepointSlow();

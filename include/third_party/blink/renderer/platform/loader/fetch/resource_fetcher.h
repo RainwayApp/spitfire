@@ -31,9 +31,9 @@
 #include <utility>
 
 #include "base/single_thread_task_runner.h"
-#include "services/network/public/cpp/cors/preflight_timing_info.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/blob/blob_registry.mojom-blink.h"
-#include "third_party/blink/public/mojom/service_worker/controller_service_worker_mode.mojom-blink.h"
+#include "third_party/blink/public/mojom/service_worker/controller_service_worker_mode.mojom-blink-forward.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
 #include "third_party/blink/renderer/platform/loader/fetch/preload_key.h"
@@ -44,19 +44,18 @@
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
 enum class ResourceType : uint8_t;
 class CodeCacheLoader;
 class DetachableConsoleLogger;
+class DetachableUseCounter;
 class DetachableResourceFetcherProperties;
 class FetchContext;
 class FrameScheduler;
 class MHTMLArchive;
 class KURL;
-class PreflightTimingInfo;
 class Resource;
 class ResourceError;
 class ResourceLoadObserver;
@@ -78,12 +77,12 @@ struct ResourceLoaderOptions;
 // keep a ResourceFetcher alive past detach if scripts still reference the
 // Document.
 class PLATFORM_EXPORT ResourceFetcher
-    : public GarbageCollectedFinalized<ResourceFetcher> {
+    : public GarbageCollected<ResourceFetcher> {
   USING_PRE_FINALIZER(ResourceFetcher, ClearPreloads);
 
  public:
   // An abstract interface for creating loaders.
-  class LoaderFactory : public GarbageCollectedFinalized<LoaderFactory> {
+  class LoaderFactory : public GarbageCollected<LoaderFactory> {
    public:
     virtual ~LoaderFactory() = default;
 
@@ -115,6 +114,10 @@ class PLATFORM_EXPORT ResourceFetcher
   // Returns whether this fetcher is detached from the associated context.
   bool IsDetached() const;
 
+  // Returns whether RequestResource or EmulateLoadStartedForInspector are being
+  // called.
+  bool IsInRequestResource() const { return is_in_request_resource_; }
+
   // Returns the observer object associated with this fetcher.
   ResourceLoadObserver* GetResourceLoadObserver() {
     // When detached, we must have a null observer.
@@ -124,6 +127,7 @@ class PLATFORM_EXPORT ResourceFetcher
   // This must be called right after construction.
   void SetResourceLoadObserver(ResourceLoadObserver* observer) {
     DCHECK(!IsDetached());
+    DCHECK(!resource_load_observer_);
     resource_load_observer_ = observer;
   }
 
@@ -150,6 +154,8 @@ class PLATFORM_EXPORT ResourceFetcher
   std::unique_ptr<CodeCacheLoader> CreateCodeCacheLoader();
 
   Resource* CachedResource(const KURL&) const;
+  static void AddPriorityObserverForTesting(const KURL&,
+                                            base::OnceCallback<void(int)>);
 
   using DocumentResourceMap = HeapHashMap<String, WeakMember<Resource>>;
   const DocumentResourceMap& AllResources() const {
@@ -168,6 +174,7 @@ class PLATFORM_EXPORT ResourceFetcher
 
   FetchContext& Context() const;
   void ClearContext();
+  DetachableUseCounter& GetUseCounter() { return *use_counter_; }
   DetachableConsoleLogger& GetConsoleLogger() { return *console_logger_; }
 
   int BlockingRequestCount() const;
@@ -199,12 +206,10 @@ class PLATFORM_EXPORT ResourceFetcher
 
   enum LoaderFinishType { kDidFinishLoading, kDidFinishFirstPartInMultipart };
   void HandleLoaderFinish(Resource*,
-                          TimeTicks finish_time,
+                          base::TimeTicks finish_time,
                           LoaderFinishType,
                           uint32_t inflight_keepalive_bytes,
-                          bool should_report_corb_blocking,
-                          const std::vector<network::cors::PreflightTimingInfo>&
-                              cors_preflight_timing_info);
+                          bool should_report_corb_blocking);
   void HandleLoaderError(Resource*,
                          const ResourceError&,
                          uint32_t inflight_keepalive_bytes);
@@ -220,15 +225,12 @@ class PLATFORM_EXPORT ResourceFetcher
 
   void UpdateAllImageResourcePriorities();
 
-  void ReloadLoFiImages();
-
   // Returns whether the given resource is contained as a preloaded resource.
   bool ContainsAsPreload(Resource*) const;
 
   void RemovePreload(Resource*);
 
   void LoosenLoadThrottlingPolicy() { scheduler_->LoosenThrottlingPolicy(); }
-  void OnNetworkQuiet();
 
   // Workaround for https://crbug.com/666214.
   // TODO(hiroshige): Remove this hack.
@@ -241,8 +243,6 @@ class PLATFORM_EXPORT ResourceFetcher
   // leak detector) to clean up loaders after page navigation before instance
   // counting.
   void PrepareForLeakDetection();
-
-  void SetStaleWhileRevalidateEnabled(bool enabled);
 
   using ResourceFetcherSet = HeapHashSet<WeakMember<ResourceFetcher>>;
   static const ResourceFetcherSet& MainThreadFetchers();
@@ -257,11 +257,13 @@ class PLATFORM_EXPORT ResourceFetcher
       ResourcePriority::VisibilityStatus visibility_statue,
       FetchParameters::DeferOption defer_option,
       FetchParameters::SpeculativePreloadType speculative_preload_type,
-      bool is_link_preload,
-      bool is_stale_revalidation) {
+      bool is_link_preload) {
     return ComputeLoadPriority(type, request, visibility_statue, defer_option,
-                               speculative_preload_type, is_link_preload,
-                               is_stale_revalidation);
+                               speculative_preload_type, is_link_preload);
+  }
+
+  void SetShouldLogRequestAsInvalidInImportedDocument() {
+    should_log_request_as_invalid_in_imported_document_ = true;
   }
 
  private:
@@ -287,8 +289,7 @@ class PLATFORM_EXPORT ResourceFetcher
       FetchParameters::DeferOption = FetchParameters::kNoDefer,
       FetchParameters::SpeculativePreloadType =
           FetchParameters::SpeculativePreloadType::kNotSpeculative,
-      bool is_link_preload = false,
-      bool is_stale_revalidation = false);
+      bool is_link_preload = false);
 
   // |virtual_time_pauser| is an output parameter. PrepareRequest may
   // create a new WebScopedVirtualTimePauser and set it to
@@ -344,15 +345,10 @@ class PLATFORM_EXPORT ResourceFetcher
   void MoveResourceLoaderToNonBlocking(ResourceLoader*);
   void RemoveResourceLoader(ResourceLoader*);
 
-  void RequestLoadStarted(uint64_t identifier,
-                          Resource*,
-                          const FetchParameters&,
-                          RevalidationPolicy,
-                          bool is_static_data = false);
-
   void DidLoadResourceFromMemoryCache(uint64_t identifier,
                                       Resource*,
-                                      const ResourceRequest&);
+                                      const ResourceRequest&,
+                                      bool is_static_data);
 
   bool ResourceNeedsLoad(Resource*, const FetchParameters&, RevalidationPolicy);
 
@@ -373,12 +369,20 @@ class PLATFORM_EXPORT ResourceFetcher
   Member<ResourceLoadObserver> resource_load_observer_;
   Member<FetchContext> context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  const Member<DetachableUseCounter> use_counter_;
   const Member<DetachableConsoleLogger> console_logger_;
   Member<LoaderFactory> loader_factory_;
   const Member<ResourceLoadScheduler> scheduler_;
 
   DocumentResourceMap cached_resources_map_;
-  HeapHashSet<WeakMember<Resource>> document_resources_;
+
+  // |image_resources_| is the subset of all image resources for the document.
+  HeapHashSet<WeakMember<Resource>> image_resources_;
+
+  // |not_loaded_image_resources_| is a subset of |image_resources_| where
+  // |Resource::IsLoaded| might be false. The is used for performance
+  // optimizations and might still contain images which are actually loaded.
+  HeapHashSet<WeakMember<Resource>> not_loaded_image_resources_;
 
   HeapHashMap<PreloadKey, Member<Resource>> preloads_;
   HeapVector<Member<Resource>> matched_preloads_;
@@ -405,14 +409,19 @@ class PLATFORM_EXPORT ResourceFetcher
 
   uint32_t inflight_keepalive_bytes_ = 0;
 
-  mojom::blink::BlobRegistryPtr blob_registry_ptr_;
+  mojo::Remote<mojom::blink::BlobRegistry> blob_registry_remote_;
 
-  // 27 bits left
+  // This is not in the bit field below because we want to use AutoReset.
+  bool is_in_request_resource_ = false;
+
+  // 26 bits left
   bool auto_load_images_ : 1;
   bool images_enabled_ : 1;
   bool allow_stale_resources_ : 1;
   bool image_fetched_ : 1;
   bool stale_while_revalidate_enabled_ : 1;
+  // for https://crbug.com/961614
+  bool should_log_request_as_invalid_in_imported_document_ : 1;
 
   static constexpr uint32_t kKeepaliveInflightBytesQuota = 64 * 1024;
 
@@ -460,6 +469,7 @@ struct PLATFORM_EXPORT ResourceFetcherInit final {
   const Member<FetchContext> context;
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner;
   const Member<ResourceFetcher::LoaderFactory> loader_factory;
+  Member<DetachableUseCounter> use_counter;
   Member<DetachableConsoleLogger> console_logger;
   ResourceLoadScheduler::ThrottlingPolicy initial_throttling_policy =
       ResourceLoadScheduler::ThrottlingPolicy::kNormal;

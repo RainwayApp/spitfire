@@ -45,6 +45,7 @@ class CORE_EXPORT LayoutNGListItem final : public LayoutNGBlockFlow {
 
   // Find the LayoutNGListItem from a marker.
   static LayoutNGListItem* FromMarker(const LayoutObject& marker);
+  static LayoutNGListItem* FromMarkerOrMarkerContent(const LayoutObject&);
 
   const char* GetName() const override { return "LayoutNGListItem"; }
 
@@ -66,6 +67,8 @@ class CORE_EXPORT LayoutNGListItem final : public LayoutNGBlockFlow {
   void UpdateMarkerText(LayoutText*);
   void UpdateMarker();
   void DestroyMarker();
+
+  void ListStyleTypeChanged();
 
   ListItemOrdinal ordinal_;
   LayoutObject* marker_ = nullptr;

@@ -5,7 +5,11 @@
 #ifndef BASE_TASK_THREAD_POOL_TEST_UTILS_H_
 #define BASE_TASK_THREAD_POOL_TEST_UTILS_H_
 
+#include <atomic>
+
+#include "base/callback.h"
 #include "base/task/common/checked_lock.h"
+#include "base/task/post_job.h"
 #include "base/task/task_features.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool/delayed_task_manager.h"
@@ -57,6 +61,9 @@ class MockPooledTaskRunnerDelegate : public PooledTaskRunnerDelegate {
   // PooledTaskRunnerDelegate:
   bool PostTaskWithSequence(Task task,
                             scoped_refptr<Sequence> sequence) override;
+  bool EnqueueJobTaskSource(scoped_refptr<JobTaskSource> task_source) override;
+  void RemoveJobTaskSource(scoped_refptr<JobTaskSource> task_source) override;
+  bool ShouldYield(const TaskSource* task_source) const override;
   bool IsRunningPoolWithTraits(const TaskTraits& traits) const override;
   void UpdatePriority(scoped_refptr<TaskSource> task_source,
                       TaskPriority priority) override;
@@ -69,6 +76,43 @@ class MockPooledTaskRunnerDelegate : public PooledTaskRunnerDelegate {
   const TrackedRef<TaskTracker> task_tracker_;
   DelayedTaskManager* const delayed_task_manager_;
   ThreadGroup* thread_group_ = nullptr;
+};
+
+// A simple MockJobTask that will give |worker_task| a fixed number of times,
+// possibly in parallel.
+class MockJobTask : public base::RefCountedThreadSafe<MockJobTask> {
+ public:
+  // Gives |worker_task| to requesting workers |num_tasks_to_run| times.
+  MockJobTask(
+      base::RepeatingCallback<void(experimental::JobDelegate*)> worker_task,
+      size_t num_tasks_to_run);
+
+  // Gives |worker_task| to a single requesting worker.
+  MockJobTask(base::OnceClosure worker_task);
+
+  // Updates the remaining number of time |worker_task| runs to
+  // |num_tasks_to_run|.
+  void SetNumTasksToRun(size_t num_tasks_to_run) {
+    remaining_num_tasks_to_run_ = num_tasks_to_run;
+  }
+
+  size_t GetMaxConcurrency() const;
+  void Run(experimental::JobDelegate* delegate);
+
+  scoped_refptr<JobTaskSource> GetJobTaskSource(
+      const Location& from_here,
+      const TaskTraits& traits,
+      PooledTaskRunnerDelegate* delegate);
+
+ private:
+  friend class base::RefCountedThreadSafe<MockJobTask>;
+
+  ~MockJobTask();
+
+  base::RepeatingCallback<void(experimental::JobDelegate*)> worker_task_;
+  std::atomic_size_t remaining_num_tasks_to_run_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockJobTask);
 };
 
 // An enumeration of possible thread pool types. Used to parametrize relevant
@@ -96,13 +140,13 @@ scoped_refptr<Sequence> CreateSequenceWithTask(
 scoped_refptr<TaskRunner> CreateTaskRunnerWithExecutionMode(
     TaskSourceExecutionMode execution_mode,
     MockPooledTaskRunnerDelegate* mock_pooled_task_runner_delegate,
-    const TaskTraits& traits = TaskTraits());
+    const TaskTraits& traits = {ThreadPool()});
 
-scoped_refptr<TaskRunner> CreateTaskRunnerWithTraits(
+scoped_refptr<TaskRunner> CreateTaskRunner(
     const TaskTraits& traits,
     MockPooledTaskRunnerDelegate* mock_pooled_task_runner_delegate);
 
-scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunnerWithTraits(
+scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunner(
     const TaskTraits& traits,
     MockPooledTaskRunnerDelegate* mock_pooled_task_runner_delegate);
 

@@ -77,6 +77,7 @@ class CoreAudioBase : public IAudioSessionEvents {
 
  protected:
   explicit CoreAudioBase(Direction direction,
+                         bool automatic_restart,
                          OnDataCallback data_callback,
                          OnErrorCallback error_callback);
   ~CoreAudioBase();
@@ -97,6 +98,7 @@ class CoreAudioBase : public IAudioSessionEvents {
   bool Restart();
 
   Direction direction() const { return direction_; }
+  bool automatic_restart() const { return automatic_restart_; }
 
   // Releases all allocated COM resources in the base class.
   void ReleaseCOMObjects();
@@ -115,8 +117,8 @@ class CoreAudioBase : public IAudioSessionEvents {
   bool IsOutput() const;
   bool IsDefaultDevice(int index) const;
   bool IsDefaultCommunicationsDevice(int index) const;
-  bool IsDefaultDevice(const std::string& device_id) const;
-  bool IsDefaultCommunicationsDevice(const std::string& device_id) const;
+  bool IsDefaultDeviceId(const std::string& device_id) const;
+  bool IsDefaultCommunicationsDeviceId(const std::string& device_id) const;
   EDataFlow GetDataFlow() const;
   bool IsRestarting() const;
   int64_t TimeSinceStart() const;
@@ -141,6 +143,7 @@ class CoreAudioBase : public IAudioSessionEvents {
 
  private:
   const Direction direction_;
+  const bool automatic_restart_;
   const OnDataCallback on_data_callback_;
   const OnErrorCallback on_error_callback_;
   ScopedHandle audio_samples_event_;
@@ -148,7 +151,7 @@ class CoreAudioBase : public IAudioSessionEvents {
   ScopedHandle restart_event_;
   int64_t start_time_ = 0;
   std::string device_id_;
-  int device_index_;
+  int device_index_ = -1;
   // Used by the IAudioSessionEvents implementations. Currently only utilized
   // for debugging purposes.
   LONG ref_count_ = 1;

@@ -41,7 +41,6 @@ class AudioState : public webrtc::AudioState {
   void SetPlayout(bool enabled) override;
   void SetRecording(bool enabled) override;
 
-  Stats GetAudioInputStats() const override;
   void SetStereoChannelSwapping(bool enable) override;
 
   AudioDeviceModule* audio_device_module() {
@@ -61,6 +60,7 @@ class AudioState : public webrtc::AudioState {
 
  private:
   void UpdateAudioTransportWithSendingStreams();
+  void UpdateNullAudioPollerState();
 
   rtc::ThreadChecker thread_checker_;
   rtc::ThreadChecker process_thread_checker_;

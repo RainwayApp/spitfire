@@ -63,6 +63,7 @@
 #include <limits.h>
 #include <string.h>
 
+#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/allocator/partition_allocator/partition_bucket.h"
@@ -121,7 +122,7 @@ struct BASE_EXPORT PartitionRoot : public internal::PartitionRootBase {
     return reinterpret_cast<const internal::PartitionBucket*>(this + 1);
   }
 
-  void Init(size_t num_buckets, size_t max_allocation);
+  void Init(size_t bucket_count, size_t maximum_allocation);
 
   ALWAYS_INLINE void* Alloc(size_t size, const char* type_name);
   ALWAYS_INLINE void* AllocFlags(int flags, size_t size, const char* type_name);
@@ -317,11 +318,11 @@ ALWAYS_INLINE void* PartitionRoot::AllocFlags(int flags,
   }
   size_t requested_size = size;
   size = internal::PartitionCookieSizeAdjustAdd(size);
-  DCHECK(this->initialized);
+  DCHECK(initialized);
   size_t index = size >> kBucketShift;
-  DCHECK(index < this->num_buckets);
+  DCHECK(index < num_buckets);
   DCHECK(size == index << kBucketShift);
-  internal::PartitionBucket* bucket = &this->buckets()[index];
+  internal::PartitionBucket* bucket = &buckets()[index];
   result = AllocFromBucket(bucket, flags, size);
   if (UNLIKELY(hooks_enabled)) {
     PartitionAllocHooks::AllocationObserverHookIfEnabled(result, requested_size,
@@ -446,7 +447,7 @@ ALWAYS_INLINE void PartitionRootGeneric::Free(void* ptr) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   free(ptr);
 #else
-  DCHECK(this->initialized);
+  DCHECK(initialized);
 
   if (UNLIKELY(!ptr))
     return;
@@ -462,7 +463,7 @@ ALWAYS_INLINE void PartitionRootGeneric::Free(void* ptr) {
   // TODO(palmer): See if we can afford to make this a CHECK.
   DCHECK(IsValidPage(page));
   {
-    subtle::SpinLock::Guard guard(this->lock);
+    subtle::SpinLock::Guard guard(lock);
     page->Free(ptr);
   }
 #endif
@@ -478,7 +479,7 @@ ALWAYS_INLINE size_t PartitionRootGeneric::ActualSize(size_t size) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   return size;
 #else
-  DCHECK(this->initialized);
+  DCHECK(initialized);
   size = internal::PartitionCookieSizeAdjustAdd(size);
   internal::PartitionBucket* bucket = PartitionGenericSizeToBucket(this, size);
   if (LIKELY(!bucket->is_direct_mapped())) {
@@ -499,10 +500,17 @@ class SizeSpecificPartitionAllocator {
     memset(actual_buckets_, 0,
            sizeof(internal::PartitionBucket) * base::size(actual_buckets_));
   }
-  ~SizeSpecificPartitionAllocator() = default;
+  ~SizeSpecificPartitionAllocator() {
+    PartitionAllocMemoryReclaimer::Instance()->UnregisterPartition(
+        &partition_root_);
+  }
   static const size_t kMaxAllocation = N - kAllocationGranularity;
   static const size_t kNumBuckets = N / kAllocationGranularity;
-  void init() { partition_root_.Init(kNumBuckets, kMaxAllocation); }
+  void init() {
+    partition_root_.Init(kNumBuckets, kMaxAllocation);
+    PartitionAllocMemoryReclaimer::Instance()->RegisterPartition(
+        &partition_root_);
+  }
   ALWAYS_INLINE PartitionRoot* root() { return &partition_root_; }
 
  private:
@@ -513,9 +521,16 @@ class SizeSpecificPartitionAllocator {
 class BASE_EXPORT PartitionAllocatorGeneric {
  public:
   PartitionAllocatorGeneric();
-  ~PartitionAllocatorGeneric();
+  ~PartitionAllocatorGeneric() {
+    PartitionAllocMemoryReclaimer::Instance()->UnregisterPartition(
+        &partition_root_);
+  }
 
-  void init() { partition_root_.Init(); }
+  void init() {
+    partition_root_.Init();
+    PartitionAllocMemoryReclaimer::Instance()->RegisterPartition(
+        &partition_root_);
+  }
   ALWAYS_INLINE PartitionRootGeneric* root() { return &partition_root_; }
 
  private:

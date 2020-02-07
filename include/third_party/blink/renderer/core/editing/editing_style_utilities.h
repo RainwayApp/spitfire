@@ -36,7 +36,7 @@
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -63,6 +63,8 @@ class EditingStyleUtilities {
            unicode_bidi == CSSValueID::kWebkitIsolate ||
            unicode_bidi == CSSValueID::kEmbed;
   }
+
+  static void StripUAStyleRulesForMarkupSanitization(EditingStyle* style);
 
   static bool IsTransparentColorValue(const CSSValue*);
   static bool HasTransparentBackgroundColor(CSSStyleDeclaration*);

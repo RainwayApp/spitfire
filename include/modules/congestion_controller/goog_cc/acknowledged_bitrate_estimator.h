@@ -15,15 +15,16 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/transport/network_types.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/units/data_rate.h"
+#include "modules/congestion_controller/goog_cc/acknowledged_bitrate_estimator_interface.h"
 #include "modules/congestion_controller/goog_cc/bitrate_estimator.h"
 
 namespace webrtc {
 
-struct PacketFeedback;
-
-class AcknowledgedBitrateEstimator {
+class AcknowledgedBitrateEstimator
+    : public AcknowledgedBitrateEstimatorInterface {
  public:
   AcknowledgedBitrateEstimator(
       const WebRtcKeyValueConfig* key_value_config,
@@ -31,20 +32,17 @@ class AcknowledgedBitrateEstimator {
 
   explicit AcknowledgedBitrateEstimator(
       const WebRtcKeyValueConfig* key_value_config);
-  ~AcknowledgedBitrateEstimator();
+  ~AcknowledgedBitrateEstimator() override;
 
   void IncomingPacketFeedbackVector(
-      const std::vector<PacketFeedback>& packet_feedback_vector);
-  absl::optional<uint32_t> bitrate_bps() const;
-  absl::optional<uint32_t> PeekBps() const;
-  absl::optional<DataRate> bitrate() const;
-  absl::optional<DataRate> PeekRate() const;
-  void SetAlr(bool in_alr);
-  void SetAlrEndedTimeMs(int64_t alr_ended_time_ms);
+      const std::vector<PacketResult>& packet_feedback_vector) override;
+  absl::optional<DataRate> bitrate() const override;
+  absl::optional<DataRate> PeekRate() const override;
+  void SetAlr(bool in_alr) override;
+  void SetAlrEndedTime(Timestamp alr_ended_time) override;
 
  private:
-  void MaybeExpectFastRateChange(int64_t packet_arrival_time_ms);
-  absl::optional<int64_t> alr_ended_time_ms_;
+  absl::optional<Timestamp> alr_ended_time_;
   bool in_alr_;
   std::unique_ptr<BitrateEstimator> bitrate_estimator_;
 };

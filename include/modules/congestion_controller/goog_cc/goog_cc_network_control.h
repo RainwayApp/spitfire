@@ -12,12 +12,14 @@
 #define MODULES_CONGESTION_CONTROLLER_GOOG_CC_GOOG_CC_NETWORK_CONTROL_H_
 
 #include <stdint.h>
+
 #include <deque>
 #include <memory>
 #include <vector>
 
 #include "absl/types/optional.h"
 #include "api/network_state_predictor.h"
+#include "api/rtc_event_log/rtc_event_log.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
@@ -25,14 +27,12 @@
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/timestamp.h"
-#include "logging/rtc_event_log/rtc_event_log.h"
-#include "modules/bitrate_controller/send_side_bandwidth_estimation.h"
-#include "modules/congestion_controller/goog_cc/acknowledged_bitrate_estimator.h"
+#include "modules/congestion_controller/goog_cc/acknowledged_bitrate_estimator_interface.h"
 #include "modules/congestion_controller/goog_cc/alr_detector.h"
 #include "modules/congestion_controller/goog_cc/congestion_window_pushback_controller.h"
 #include "modules/congestion_controller/goog_cc/delay_based_bwe.h"
-#include "modules/congestion_controller/goog_cc/overuse_predictor.h"
 #include "modules/congestion_controller/goog_cc/probe_controller.h"
+#include "modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/experiments/rate_control_settings.h"
@@ -64,6 +64,8 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   NetworkControlUpdate OnTransportLossReport(TransportLossReport msg) override;
   NetworkControlUpdate OnTransportPacketsFeedback(
       TransportPacketsFeedback msg) override;
+  NetworkControlUpdate OnNetworkStateEstimate(
+      NetworkStateEstimate msg) override;
 
   NetworkControlUpdate GetNetworkState(Timestamp at_time) const;
 
@@ -74,7 +76,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   void ClampConstraints();
   void MaybeTriggerOnNetworkChanged(NetworkControlUpdate* update,
                                     Timestamp at_time);
-  void UpdateCongestionWindowSize(TimeDelta time_since_last_packet);
+  void UpdateCongestionWindowSize();
   PacerConfig GetPacingRates(Timestamp at_time) const;
   const FieldTrialBasedConfig trial_based_config_;
 
@@ -83,10 +85,8 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   const bool packet_feedback_only_;
   FieldTrialFlag safe_reset_on_route_change_;
   FieldTrialFlag safe_reset_acknowledged_rate_;
-  const bool use_stable_bandwidth_estimate_;
-  const bool use_downlink_delay_for_congestion_window_;
-  const bool fall_back_to_probe_rate_;
   const bool use_min_allocatable_as_lower_bound_;
+  const bool ignore_probes_lower_than_network_estimate_;
   const RateControlSettings rate_control_settings_;
 
   const std::unique_ptr<ProbeController> probe_controller_;
@@ -99,16 +99,19 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   std::unique_ptr<NetworkStateEstimator> network_estimator_;
   std::unique_ptr<NetworkStatePredictor> network_state_predictor_;
   std::unique_ptr<DelayBasedBwe> delay_based_bwe_;
-  std::unique_ptr<AcknowledgedBitrateEstimator> acknowledged_bitrate_estimator_;
-  OverusePredictor overuse_predictor_;
+  std::unique_ptr<AcknowledgedBitrateEstimatorInterface>
+      acknowledged_bitrate_estimator_;
 
   absl::optional<NetworkControllerConfig> initial_config_;
 
+  DataRate min_target_rate_ = DataRate::Zero();
   DataRate min_data_rate_ = DataRate::Zero();
   DataRate max_data_rate_ = DataRate::PlusInfinity();
   absl::optional<DataRate> starting_rate_;
 
   bool first_packet_sent_ = false;
+
+  absl::optional<NetworkStateEstimate> estimate_;
 
   Timestamp next_loss_update_ = Timestamp::MinusInfinity();
   int lost_packets_since_last_loss_update_ = 0;
@@ -116,12 +119,11 @@ class GoogCcNetworkController : public NetworkControllerInterface {
 
   std::deque<int64_t> feedback_max_rtts_;
 
-  DataRate last_raw_target_rate_;
+  DataRate last_loss_based_target_rate_;
   DataRate last_pushback_target_rate_;
 
-  int32_t last_estimated_bitrate_bps_ = 0;
-  uint8_t last_estimated_fraction_loss_ = 0;
-  int64_t last_estimated_rtt_ms_ = 0;
+  absl::optional<uint8_t> last_estimated_fraction_loss_ = 0;
+  TimeDelta last_estimated_round_trip_time_ = TimeDelta::PlusInfinity();
   Timestamp last_packet_received_time_ = Timestamp::MinusInfinity();
 
   double pacing_factor_;
@@ -132,7 +134,6 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   bool previously_in_alr_ = false;
 
   absl::optional<DataSize> current_data_window_;
-
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(GoogCcNetworkController);
 };

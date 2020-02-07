@@ -7,9 +7,9 @@
 
 #include "base/callback.h"
 #include "base/macros.h"
-#include "mojo/public/cpp/bindings/binding_set.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
-#include "third_party/blink/public/mojom/manifest/manifest.mojom-blink.h"
+#include "third_party/blink/public/mojom/manifest/manifest.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/manifest/manifest_manager.mojom-blink.h"
 #include "third_party/blink/public/web/web_manifest_manager.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
@@ -30,13 +30,12 @@ class ResourceResponse;
 // the ManifestParser in order to do so.
 //
 // Consumers should use the mojo ManifestManager interface to use this class.
-class MODULES_EXPORT ManifestManager
-    : public GarbageCollectedFinalized<ManifestManager>,
-      public WebManifestManager,
-      public Supplement<LocalFrame>,
-      public mojom::blink::ManifestManager,
-      public ContextLifecycleObserver {
+class MODULES_EXPORT ManifestManager : public GarbageCollected<ManifestManager>,
+                                       public Supplement<LocalFrame>,
+                                       public mojom::blink::ManifestManager,
+                                       public ContextLifecycleObserver {
   USING_GARBAGE_COLLECTED_MIXIN(ManifestManager);
+  USING_PRE_FINALIZER(ManifestManager, Prefinalize);
 
  public:
   static const char kSupplementName[];
@@ -55,8 +54,7 @@ class MODULES_EXPORT ManifestManager
   KURL ManifestURL() const;
   bool ManifestUseCredentials() const;
 
-  // WebManifestManager
-  void RequestManifest(WebCallback callback) override;
+  void RequestManifestForTesting(WebManifestManager::Callback callback);
 
   // mojom::blink::ManifestManager implementation.
   void RequestManifest(RequestManifestCallback callback) override;
@@ -84,9 +82,10 @@ class MODULES_EXPORT ManifestManager
                                const String& data);
   void ResolveCallbacks(ResolveState state);
 
-  void BindToRequest(mojom::blink::ManifestManagerRequest request);
+  void BindReceiver(
+      mojo::PendingReceiver<mojom::blink::ManifestManager> receiver);
 
-  void Dispose();
+  void Prefinalize();
 
   friend class ManifestManagerTest;
 
@@ -113,7 +112,7 @@ class MODULES_EXPORT ManifestManager
 
   Vector<InternalRequestManifestCallback> pending_callbacks_;
 
-  mojo::BindingSet<mojom::blink::ManifestManager> bindings_;
+  mojo::ReceiverSet<mojom::blink::ManifestManager> receivers_;
 
   DISALLOW_COPY_AND_ASSIGN(ManifestManager);
 };

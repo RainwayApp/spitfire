@@ -10,8 +10,8 @@
 #include "third_party/blink/renderer/core/loader/resource/script_resource.h"
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/script/pending_script.h"
+#include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
-#include "third_party/blink/renderer/platform/memory_pressure_listener.h"
 
 namespace blink {
 
@@ -44,11 +44,15 @@ class CORE_EXPORT ClassicPendingScript final : public PendingScript,
   // For an inline script.
   static ClassicPendingScript* CreateInline(ScriptElementBase*,
                                             const TextPosition&,
+                                            const KURL& base_url,
+                                            const String& source_text,
                                             ScriptSourceLocationType,
                                             const ScriptFetchOptions&);
 
   ClassicPendingScript(ScriptElementBase*,
                        const TextPosition&,
+                       const KURL& base_url_for_inline_script,
+                       const String& source_text_for_inline_script,
                        ScriptSourceLocationType,
                        const ScriptFetchOptions&,
                        bool is_external);
@@ -58,7 +62,7 @@ class CORE_EXPORT ClassicPendingScript final : public PendingScript,
   void SetStreamer(ScriptStreamer*);
   void StreamingFinished();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
 
   mojom::ScriptType GetScriptType() const override {
     return mojom::ScriptType::kClassic;
@@ -114,10 +118,12 @@ class CORE_EXPORT ClassicPendingScript final : public PendingScript,
   // https://html.spec.whatwg.org/C/#prepare-a-script
   // which will eventually be used as #concept-script-base-url.
   // https://html.spec.whatwg.org/C/#concept-script-base-url
+  // This is a null URL for external scripts and is not used.
   const KURL base_url_for_inline_script_;
 
   // "element's child text content" snapshot taken at
   // #prepare-a-script (Step 4).
+  // This is a null string for external scripts and is not used.
   const String source_text_for_inline_script_;
 
   const ScriptSourceLocationType source_location_type_;

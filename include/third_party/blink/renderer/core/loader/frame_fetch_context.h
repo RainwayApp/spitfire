@@ -33,7 +33,8 @@ n * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
-#include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-blink.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/base_fetch_context.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -87,10 +88,6 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext {
                       WebScopedVirtualTimePauser&,
                       ResourceType) override;
 
-  void RecordLoadingActivity(const ResourceRequest&,
-                             ResourceType,
-                             const AtomicString& fetch_initiator_name) override;
-
   void AddResourceTiming(const ResourceTimingInfo&) override;
   bool AllowImage(bool images_enabled, const KURL&) const override;
 
@@ -111,6 +108,9 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext {
 
   bool CalculateIfAdSubresource(const ResourceRequest& resource_request,
                                 ResourceType type) override;
+
+  mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+  TakePendingWorkerTimingReceiver(int request_id) override;
 
  private:
   class FrameConsoleLogger;
@@ -133,6 +133,7 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext {
   SubresourceFilter* GetSubresourceFilter() const override;
   PreviewsResourceLoadingHints* GetPreviewsResourceLoadingHints()
       const override;
+  WebURLRequest::PreviewsState previews_state() const override;
   bool AllowScriptFromSource(const KURL&) const override;
   bool ShouldBlockRequestByInspector(const KURL&) const override;
   void DispatchDidBlockRequest(const ResourceRequest&,

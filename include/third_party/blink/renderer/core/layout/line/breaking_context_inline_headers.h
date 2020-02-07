@@ -39,13 +39,12 @@
 #include "third_party/blink/renderer/core/layout/line/line_width.h"
 #include "third_party/blink/renderer/core/layout/line/trailing_objects.h"
 #include "third_party/blink/renderer/core/layout/line/word_measurement.h"
-#include "third_party/blink/renderer/core/layout/logical_values.h"
 #include "third_party/blink/renderer/core/layout/text_run_constructor.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/platform/fonts/character_range.h"
 #include "third_party/blink/renderer/platform/text/hyphenation.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -312,6 +311,7 @@ inline void SetStaticPositions(LineLayoutBlockFlow block,
     // determine our position as though we were an inline.
     // Set |staticInlinePosition| and |staticBlockPosition| on the relative
     // positioned inline so that we can obtain the value later.
+    DCHECK(LineLayoutInline(container_block).Layer());
     LineLayoutInline(container_block)
         .Layer()
         ->SetStaticInlinePosition(
@@ -421,11 +421,11 @@ inline void BreakingContext::HandleBR(EClear& clear) {
     // A <br> with clearance always needs a linebox in case the lines below it
     // get dirtied later and need to check for floats to clear - so if we're
     // ignoring spaces, stop ignoring them and add a run for this object.
-    if (ignoring_spaces_ && current_style_->Clear() != EClear::kNone)
+    if (ignoring_spaces_ && current_style_->HasClear())
       EnsureLineBoxInsideIgnoredSpaces(&line_midpoint_state_, br);
 
     if (!line_info_.IsEmpty())
-      clear = ResolvedClear(*current_style_, block_.StyleRef());
+      clear = current_style_->Clear(block_.StyleRef());
   }
   at_end_ = true;
 }
@@ -533,8 +533,14 @@ inline void BreakingContext::HandleFloat() {
     // early by skipTrailingWhitespace(), and later on they all get placed by
     // the first float here in handleFloat(). Their position may then be wrong,
     // but it's too late to do anything about that now. See crbug.com/671577
-    if (!floating_object->IsPlaced())
-      block_.PositionAndLayoutFloat(*floating_object, block_.LogicalHeight());
+    if (!floating_object->IsPlaced()) {
+      LayoutUnit logical_top = block_.LogicalHeight();
+      if (const FloatingObject* last_placed_float = block_.LastPlacedFloat()) {
+        logical_top = std::max(logical_top,
+                               block_.LogicalTopForFloat(*last_placed_float));
+      }
+      block_.PositionAndLayoutFloat(*floating_object, logical_top);
+    }
 
     // Check if it fits in the current line; if it does, place it now,
     // otherwise, place it after moving to next line (in newLine() func).

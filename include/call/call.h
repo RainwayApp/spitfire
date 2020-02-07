@@ -25,7 +25,6 @@
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"
 #include "modules/utility/include/process_thread.h"
-#include "rtc_base/bitrate_allocation_strategy.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -57,10 +56,6 @@ class Call {
 
   virtual AudioSendStream* CreateAudioSendStream(
       const AudioSendStream::Config& config) = 0;
-
-  // Gets called when media transport is created or removed.
-  virtual void MediaTransportChange(
-      MediaTransportInterface* media_transport_interface) = 0;
 
   virtual void DestroyAudioSendStream(AudioSendStream* send_stream) = 0;
 
@@ -106,10 +101,6 @@ class Call {
   // Returns the call statistics, such as estimated send and receive bandwidth,
   // pacing delay, etc.
   virtual Stats GetStats() const = 0;
-
-  virtual void SetBitrateAllocationStrategy(
-      std::unique_ptr<rtc::BitrateAllocationStrategy>
-          bitrate_allocation_strategy) = 0;
 
   // TODO(skvlad): When the unbundled case with multiple streams for the same
   // media type going over different networks is supported, track the state

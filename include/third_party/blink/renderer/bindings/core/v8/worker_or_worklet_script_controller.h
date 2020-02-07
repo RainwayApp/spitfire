@@ -38,7 +38,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_cache_options.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_position.h"
 #include "v8/include/v8.h"
 
@@ -50,7 +50,7 @@ class ScriptSourceCode;
 class WorkerOrWorkletGlobalScope;
 
 class CORE_EXPORT WorkerOrWorkletScriptController final
-    : public GarbageCollectedFinalized<WorkerOrWorkletScriptController> {
+    : public GarbageCollected<WorkerOrWorkletScriptController> {
  public:
   WorkerOrWorkletScriptController(WorkerOrWorkletGlobalScope*, v8::Isolate*);
   virtual ~WorkerOrWorkletScriptController();

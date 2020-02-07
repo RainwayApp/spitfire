@@ -56,12 +56,6 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
 
   virtual ~WebWorkerFetchContext() = default;
 
-  // Used to copy a worker fetch context between worker threads.
-  virtual scoped_refptr<WebWorkerFetchContext> CloneForNestedWorker(
-      scoped_refptr<base::SingleThreadTaskRunner>) {
-    return nullptr;
-  }
-
   // Set a raw pointer of a WaitableEvent which will be signaled from the main
   // thread when the worker's GlobalScope is terminated, which will terminate
   // sync loading requests on the worker thread. It is guaranteed that the
@@ -96,9 +90,10 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
   // worker)
   virtual void WillSendRequest(WebURLRequest&) = 0;
 
-  // Whether the fetch context is controlled by a service worker.
+  // Returns whether a controller service worker exists and if it has fetch
+  // handler.
   virtual blink::mojom::ControllerServiceWorkerMode
-  IsControlledByServiceWorker() const = 0;
+  GetControllerServiceWorkerMode() const = 0;
 
   // This flag is used to block all mixed content in subframes.
   virtual void SetIsOnSubframe(bool) {}
@@ -123,8 +118,6 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
   // source.
   virtual void DidRunInsecureContent(const WebSecurityOrigin&,
                                      const WebURL& insecure_url) {}
-
-  virtual void SetApplicationCacheHostID(const base::UnguessableToken& id) {}
 
   // Sets the builder object of WebDocumentSubresourceFilter on the main thread
   // which will be used in TakeSubresourceFilter() to create a
@@ -151,6 +144,12 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
 
   // Returns the current list of user prefered languages.
   virtual blink::WebString GetAcceptLanguages() const = 0;
+
+  // Returns mojo::PendingReceiver<blink::mojom::blink::WorkerTimingContainer>
+  // for the blink::ResourceResponse with the given |request_id|. Null if the
+  // request has not been intercepted by a service worker.
+  virtual mojo::ScopedMessagePipeHandle TakePendingWorkerTimingReceiver(
+      int request_id) = 0;
 };
 
 }  // namespace blink

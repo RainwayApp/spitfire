@@ -73,7 +73,7 @@ class BASE_EXPORT WorkerThread : public RefCountedThreadSafe<WorkerThread>,
     // Called by the WorkerThread after it ran a Task. If the Task's
     // TaskSource should be reenqueued, it is passed to |task_source|.
     // Otherwise, |task_source| is nullptr.
-    virtual void DidRunTask(RegisteredTaskSource task_source) = 0;
+    virtual void DidProcessTask(RegisteredTaskSource task_source) = 0;
 
     // Called to determine how long to sleep before the next call to GetWork().
     // GetWork() may be called before this timeout expires if the worker's

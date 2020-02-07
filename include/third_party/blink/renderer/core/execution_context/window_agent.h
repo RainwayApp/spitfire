@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EXECUTION_CONTEXT_WINDOW_AGENT_H_
 
 #include "third_party/blink/renderer/core/execution_context/agent.h"
-#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace v8 {
 class Isolate;
@@ -22,15 +21,22 @@ namespace blink {
 // shared by associated Documents.
 class WindowAgent final : public Agent {
  public:
-  // Do not create the instance directly. Use
-  // WindowAgentFactory::GetAgentForOrigin() instead.
+  // Normally you don't want to call this constructor; instead, use
+  // WindowAgentFactory::GetAgentForOrigin() so you can get the agent shared
+  // on the same-site frames.
+  //
+  // This constructor creates a unique agent that won't be shared with any
+  // other frames. Use this constructor only if:
+  //   - An appropriate instance of WindowAgentFactory is not available
+  //     (this should only happen in tests).
   explicit WindowAgent(v8::Isolate* isolate);
+
   ~WindowAgent() override;
 
   void Trace(blink::Visitor*) override;
 
  private:
-  // TODO(tzik): Move per-agent data here with the correct granularity.
+  // TODO(keishi): Move per-agent data here with the correct granularity.
   // E.g. ActiveMutationObservers and CustomElementReactionStack should move
   // here.
 };

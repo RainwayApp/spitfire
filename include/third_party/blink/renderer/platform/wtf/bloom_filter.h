@@ -26,8 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_BLOOM_FILTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_BLOOM_FILTER_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace WTF {
 
@@ -59,20 +58,6 @@ class BloomFilter {
   // The filter must be cleared before reuse even if all keys are removed.
   // Otherwise overflowed keys will stick around.
   void Clear();
-
-  void Add(const AtomicString& string) { Add(string.Impl()->ExistingHash()); }
-  void Add(const String& string) { Add(string.Impl()->GetHash()); }
-  void Remove(const AtomicString& string) {
-    Remove(string.Impl()->ExistingHash());
-  }
-  void Remove(const String& string) { Remove(string.Impl()->GetHash()); }
-
-  bool MayContain(const AtomicString& string) const {
-    return MayContain(string.Impl()->ExistingHash());
-  }
-  bool MayContain(const String& string) const {
-    return MayContain(string.Impl()->GetHash());
-  }
 
 #if DCHECK_IS_ON()
   // Slow.

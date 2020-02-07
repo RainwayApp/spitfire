@@ -31,17 +31,16 @@ namespace blink {
 class Document;
 class Length;
 
-class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
+class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
  public:
-  static void* AllocateObject(size_t size, bool is_eager) {
+  template <typename T>
+  static void* AllocateObject(size_t size) {
     ThreadState* state =
         ThreadStateFor<ThreadingTrait<CSSValue>::kAffinity>::GetState();
     const char* type_name = "blink::CSSValue";
     return state->Heap().AllocateOnArenaIndex(
-        state, size,
-        is_eager ? BlinkGC::kEagerSweepArenaIndex
-                 : BlinkGC::kCSSValueArenaIndex,
-        GCInfoTrait<CSSValue>::Index(), type_name);
+        state, size, BlinkGC::kCSSValueArenaIndex,
+        GCInfoTrait<GCInfoFoldedType<CSSValue>>::Index(), type_name);
   }
 
   // TODO(sashab): Remove this method and move logic to the caller.
@@ -49,7 +48,13 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
 
   String CssText() const;
 
-  bool IsPrimitiveValue() const { return class_type_ == kPrimitiveClass; }
+  bool IsNumericLiteralValue() const {
+    return class_type_ == kNumericLiteralClass;
+  }
+  bool IsMathFunctionValue() const { return class_type_ == kMathFunctionClass; }
+  bool IsPrimitiveValue() const {
+    return IsNumericLiteralValue() || IsMathFunctionValue();
+  }
   bool IsIdentifierValue() const { return class_type_ == kIdentifierClass; }
   bool IsValuePair() const { return class_type_ == kValuePairClass; }
   bool IsValueList() const { return class_type_ >= kValueListClass; }
@@ -138,6 +143,9 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
   bool IsContentDistributionValue() const {
     return class_type_ == kCSSContentDistributionClass;
   }
+  bool IsPendingInterpolationValue() const {
+    return class_type_ == kPendingInterpolationClass;
+  }
   bool IsUnicodeRangeValue() const { return class_type_ == kUnicodeRangeClass; }
   bool IsGridLineNamesValue() const {
     return class_type_ == kGridLineNamesClass;
@@ -161,6 +169,12 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
     return class_type_ == kInvalidVariableValueClass;
   }
   bool IsAxisValue() const { return class_type_ == kAxisClass; }
+  bool IsShorthandWrapperValue() const {
+    return class_type_ == kKeyframeShorthandClass;
+  }
+  bool IsLightDarkColorPair() const {
+    return class_type_ == kLightDarkColorPairClass;
+  }
 
   bool HasFailedOrCanceledSubresources() const;
   bool MayContainUrl() const;
@@ -181,7 +195,8 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
  protected:
   static const size_t kClassTypeBits = 6;
   enum ClassType {
-    kPrimitiveClass,
+    kNumericLiteralClass,
+    kMathFunctionClass,
     kIdentifierClass,
     kColorClass,
     kCounterClass,
@@ -190,6 +205,7 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
     kStringClass,
     kURIClass,
     kValuePairClass,
+    kLightDarkColorPairClass,
 
     // Basic shape classes.
     // TODO(sashab): Represent these as a single subclass, BasicShapeClass.
@@ -239,6 +255,9 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
 
     kCSSContentDistributionClass,
 
+    kPendingInterpolationClass,
+    kKeyframeShorthandClass,
+
     // List class types must appear after ValueListClass.
     kValueListClass,
     kFunctionClass,
@@ -256,8 +275,10 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
   ClassType GetClassType() const { return static_cast<ClassType>(class_type_); }
 
   explicit CSSValue(ClassType class_type)
-      : primitive_unit_type_(0),
+      : numeric_literal_unit_type_(0),
         value_list_separator_(kSpaceSeparator),
+        is_non_negative_math_function_(false),
+        allows_negative_percentage_reference_(false),
         class_type_(class_type) {}
 
   // NOTE: This class is non-virtual for memory and performance reasons.
@@ -267,10 +288,14 @@ class CORE_EXPORT CSSValue : public GarbageCollectedFinalized<CSSValue> {
   // The bits in this section are only used by specific subclasses but kept here
   // to maximize struct packing.
 
-  // CSSPrimitiveValue bits:
-  unsigned primitive_unit_type_ : 7;  // CSSPrimitiveValue::UnitType
+  // CSSNumericLiteralValue bits:
+  unsigned numeric_literal_unit_type_ : 7;  // CSSPrimitiveValue::UnitType
 
   unsigned value_list_separator_ : kValueListSeparatorBits;
+
+  // CSSMathFunctionValue
+  unsigned is_non_negative_math_function_ : 1;
+  unsigned allows_negative_percentage_reference_ : 1;
 
  private:
   unsigned class_type_ : kClassTypeBits;  // ClassType

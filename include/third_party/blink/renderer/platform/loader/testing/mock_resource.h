@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_TESTING_MOCK_RESOURCE_H_
 
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/loader/fetch/cached_metadata_handler.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 
@@ -51,7 +52,7 @@ class MockResource final : public Resource {
 
   CachedMetadataHandler* CreateCachedMetadataHandler(
       std::unique_ptr<CachedMetadataSender> send_callback) override;
-  void SetSerializedCachedMetadata(const uint8_t*, size_t) override;
+  void SetSerializedCachedMetadata(mojo_base::BigBuffer data) override;
 
   MockCacheHandler* CacheHandler();
 

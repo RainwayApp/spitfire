@@ -26,15 +26,12 @@
 namespace webrtc {
 
 class ReceiveStatisticsProxy;
-
-namespace vcm {
-class VideoReceiver;
-}  // namespace vcm
+class VideoReceiver2;
 
 class VideoStreamDecoder : public VCMReceiveCallback {
  public:
   VideoStreamDecoder(
-      vcm::VideoReceiver* video_receiver,
+      VideoReceiver2* video_receiver,
       ReceiveStatisticsProxy* receive_statistics_proxy,
       rtc::VideoSinkInterface<VideoFrame>* incoming_video_stream);
   ~VideoStreamDecoder() override;
@@ -42,7 +39,9 @@ class VideoStreamDecoder : public VCMReceiveCallback {
   // Implements VCMReceiveCallback.
   int32_t FrameToRender(VideoFrame& video_frame,
                         absl::optional<uint8_t> qp,
+                        int32_t decode_time_ms,
                         VideoContentType content_type) override;
+  void OnDroppedFrames(uint32_t frames_dropped) override;
   void OnIncomingPayloadType(int payload_type) override;
   void OnDecoderImplementationName(const char* implementation_name) override;
 
@@ -53,7 +52,7 @@ class VideoStreamDecoder : public VCMReceiveCallback {
   // Used for all registered callbacks except rendering.
   rtc::CriticalSection crit_;
 
-  vcm::VideoReceiver* const video_receiver_;
+  VideoReceiver2* const video_receiver_;
 
   ReceiveStatisticsProxy* const receive_stats_callback_;
   rtc::VideoSinkInterface<VideoFrame>* const incoming_video_stream_;

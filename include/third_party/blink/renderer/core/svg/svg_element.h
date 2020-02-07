@@ -29,7 +29,7 @@
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
@@ -37,6 +37,7 @@ namespace blink {
 
 class AffineTransform;
 class Document;
+class ElementSMILAnimations;
 class SVGAnimatedPropertyBase;
 class SubtreeLayoutScope;
 class SVGAnimatedString;
@@ -54,10 +55,7 @@ class CORE_EXPORT SVGElement : public Element {
 
  public:
   ~SVGElement() override;
-  void AttachLayoutTree(AttachContext&) override;
-  void DetachLayoutTree(const AttachContext&) override;
 
-  int tabIndex() const override;
   bool SupportsFocus() const override { return false; }
 
   // The TreeScope this element should resolve id's against. This differs from
@@ -104,8 +102,10 @@ class CORE_EXPORT SVGElement : public Element {
                                SVGPropertyBase*);
   void ClearWebAnimatedAttributes();
 
+  ElementSMILAnimations* GetSMILAnimations();
+  ElementSMILAnimations& EnsureSMILAnimations();
+
   void SetAnimatedAttribute(const QualifiedName&, SVGPropertyBase*);
-  void InvalidateAnimatedAttribute(const QualifiedName&);
   void ClearAnimatedAttribute(const QualifiedName&);
 
   SVGSVGElement* ownerSVGElement() const;
@@ -215,7 +215,6 @@ class CORE_EXPORT SVGElement : public Element {
   static const AtomicString& EventParameterName();
 
   bool IsPresentationAttribute(const QualifiedName&) const override;
-  virtual bool IsPresentationAttributeWithSVGDOM(const QualifiedName&) const;
 
   bool HasSVGParent() const;
 
@@ -235,6 +234,8 @@ class CORE_EXPORT SVGElement : public Element {
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
   void ChildrenChanged(const ChildrenChange&) override;
+
+  void DetachLayoutTree(bool performing_reattach) override;
 
   static CSSPropertyID CssPropertyIdForSVGAttributeName(const QualifiedName&);
   void UpdateRelativeLengthsInformation() {
@@ -263,6 +264,8 @@ class CORE_EXPORT SVGElement : public Element {
                           RegisteredEventListener&) final;
   void RemovedEventListener(const AtomicString& event_type,
                             const RegisteredEventListener&) final;
+
+  void AccessKeyAction(bool send_mouse_events) override;
 
  private:
   bool IsSVGElement() const =
@@ -330,8 +333,6 @@ struct SVGAttributeHashTranslator {
     return a.Matches(b);
   }
 };
-
-FloatRect ComputeSVGTransformReferenceBox(const LayoutObject&);
 
 DEFINE_ELEMENT_TYPE_CASTS(SVGElement, IsSVGElement());
 

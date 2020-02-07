@@ -27,7 +27,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_RENDERING_CONTEXT_BASE_H_
 
 #include <memory>
-#include <set>
 
 #include "base/containers/mru_cache.h"
 #include "base/macros.h"
@@ -57,6 +56,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/khronos/GLES2/gl2.h"
 #include "third_party/khronos/GLES3/gl31.h"
+#include "third_party/skia/include/core/SkData.h"
 
 namespace cc {
 class Layer;
@@ -105,6 +105,10 @@ class WebGLUniformLocation;
 class WebGLVertexArrayObjectBase;
 
 class WebGLRenderingContextErrorMessageCallback;
+
+using GLenumHashSet = HashSet<GLenum,
+                              WTF::AlreadyHashed,
+                              WTF::UnsignedWithZeroKeyHashTraits<GLenum>>;
 
 // This class uses the color mask to prevent drawing to the alpha channel, if
 // the DrawingBuffer requires RGB emulation.
@@ -563,9 +567,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
 
   void MarkLayerComposited() override;
 
-  scoped_refptr<Uint8Array> PaintRenderingResultsToDataArray(
-      SourceDrawingBuffer) override;
-  void ProvideBackBufferToResourceProvider() const override;
+  sk_sp<SkData> PaintRenderingResultsToDataArray(SourceDrawingBuffer) override;
 
   unsigned MaxVertexAttribs() const { return max_vertex_attribs_; }
 
@@ -593,7 +595,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   };
 
   scoped_refptr<StaticBitmapImage> GetImage(
-      AccelerationHint = kPreferAcceleration) const override;
+      AccelerationHint = kPreferAcceleration) override;
   void SetFilterQuality(SkFilterQuality) override;
   bool IsWebGL2OrHigher() {
     return context_type_ == Platform::kWebGL2ContextType ||
@@ -604,17 +606,10 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
 
   void commit();
 
-  // For use by WebVR which doesn't use the normal compositing path.
-  // This clears the backbuffer if preserveDrawingBuffer is false.
-  void MarkCompositedAndClearBackbufferIfNeeded();
-
-  // For use by WebVR, commits the current canvas content similar
-  // to the "commit" JS API.
-  scoped_refptr<StaticBitmapImage> GetStaticBitmapImage(
-      std::unique_ptr<viz::SingleReleaseCallback>* out_release_callback);
-
   ScriptPromise makeXRCompatible(ScriptState*);
   bool IsXRCompatible();
+
+  void UpdateNumberOfUserAllocatedMultisampledRenderbuffers(int delta);
 
  protected:
   friend class EXTDisjointTimerQuery;
@@ -634,7 +629,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   friend class WebGLCompressedTextureS3TCsRGB;
   friend class WebGLMultiDraw;
   friend class WebGLMultiDrawCommon;
-  friend class WebGLMultiDrawInstanced;
+  friend class WebGLDrawInstancedBaseVertexBaseInstance;
+  friend class WebGLMultiDrawInstancedBaseVertexBaseInstance;
   friend class WebGLRenderingContextErrorMessageCallback;
   friend class WebGLVertexArrayObjectBase;
   friend class WebGLVideoTexture;
@@ -657,6 +653,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   bool Is3d() const override { return true; }
   bool IsComposited() const override { return true; }
   bool IsAccelerated() const override { return true; }
+  bool UsingSwapChain() const override;
   bool IsOriginTopLeft() const override;
   void SetIsHidden(bool) override;
   bool PaintRenderingResultsToCanvas(SourceDrawingBuffer) override;
@@ -665,7 +662,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   void DidDraw(const SkIRect&) override;
   void DidDraw() override;
   void FinalizeFrame() override;
-  void PushFrame() override;
+  bool PushFrame() override;
 
   // DrawingBuffer::Client implementation.
   bool DrawingBufferClientIsBoundForDraw() override;
@@ -677,6 +674,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   void DrawingBufferClientRestoreFramebufferBinding() override;
   void DrawingBufferClientRestorePixelUnpackBufferBinding() override;
   void DrawingBufferClientRestorePixelPackBufferBinding() override;
+  bool DrawingBufferClientUserAllocatedMultisampledRenderbuffers() override;
+  void DrawingBufferClientForceLostContextWithAutoRecovery() override;
 
   virtual void DestroyContext();
   void MarkContextChanged(ContentChangeType);
@@ -1001,13 +1000,13 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   bool is_ext_srgb_formats_types_added_ = false;
   bool is_ext_color_buffer_float_formats_added_ = false;
 
-  std::set<GLenum> supported_internal_formats_;
-  std::set<GLenum> supported_tex_image_source_internal_formats_;
-  std::set<GLenum> supported_internal_formats_copy_tex_image_;
-  std::set<GLenum> supported_formats_;
-  std::set<GLenum> supported_tex_image_source_formats_;
-  std::set<GLenum> supported_types_;
-  std::set<GLenum> supported_tex_image_source_types_;
+  GLenumHashSet supported_internal_formats_;
+  GLenumHashSet supported_tex_image_source_internal_formats_;
+  GLenumHashSet supported_internal_formats_copy_tex_image_;
+  GLenumHashSet supported_formats_;
+  GLenumHashSet supported_tex_image_source_formats_;
+  GLenumHashSet supported_types_;
+  GLenumHashSet supported_tex_image_source_types_;
 
   // Helpers for getParameter and others
   ScriptValue GetBooleanParameter(ScriptState*, GLenum);
@@ -1185,9 +1184,16 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   // true.
   bool ValidateSize(const char* function_name, GLint x, GLint y, GLint z = 0);
 
+  // Helper function to check if a character belongs to the ASCII subset as
+  // defined in GLSL ES 1.0 spec section 3.1.
+  bool ValidateCharacter(unsigned char c);
+
   // Helper function to check if all characters in the string belong to the
   // ASCII subset as defined in GLSL ES 1.0 spec section 3.1.
   bool ValidateString(const char* function_name, const String&);
+
+  // Helper function to check if an identifier starts with reserved prefixes.
+  bool IsPrefixReserved(const String& name);
 
   // Helper function to check if all characters in the shader source belong to
   // the ASCII subset as defined in GLSL ES 1.0 spec section 3.1 Character Set
@@ -1729,7 +1735,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   bool ContextCreatedOnXRCompatibleAdapter();
 
   bool CopyRenderingResultsFromDrawingBuffer(CanvasResourceProvider*,
-                                             SourceDrawingBuffer) const;
+                                             SourceDrawingBuffer);
   void HoldReferenceToDrawingBuffer(DrawingBuffer*);
 
   static void InitializeWebGLContextLimits(
@@ -1746,6 +1752,11 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
                                             bool* completed);
   static constexpr unsigned int kMaxProgramCompletionQueries = 128u;
   base::MRUCache<WebGLProgram*, GLuint> program_completion_queries_;
+
+  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
+
+  int number_of_user_allocated_multisampled_renderbuffers_;
 
   DISALLOW_COPY_AND_ASSIGN(WebGLRenderingContextBase);
 };

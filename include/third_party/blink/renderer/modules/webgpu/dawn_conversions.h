@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_DAWN_CONVERSIONS_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_DAWN_CONVERSIONS_H_
 
-#include <dawn/dawn.h>
+#include <dawn/webgpu.h>
 
 #include <memory>
 
@@ -19,10 +19,11 @@
 
 namespace blink {
 
-class GPUColor;
-class GPUExtent3D;
-class GPUOrigin3D;
-class GPUPipelineStageDescriptor;
+class DoubleSequenceOrGPUColorDict;
+class GPUColorDict;
+class GPUProgrammableStageDescriptor;
+class UnsignedLongSequenceOrGPUExtent3DDict;
+class UnsignedLongSequenceOrGPUOrigin3DDict;
 
 // Convert WebGPU bitfield values to Dawn enums. These have the same value.
 template <typename DawnEnum>
@@ -37,11 +38,16 @@ DawnEnum AsDawnEnum(const WTF::String& webgpu_enum);
 // These conversions are used multiple times and are declared here. Conversions
 // used only once, for example for object construction, are defined
 // individually.
-DawnColor AsDawnType(const GPUColor*);
-DawnExtent3D AsDawnType(const GPUExtent3D*);
-DawnOrigin3D AsDawnType(const GPUOrigin3D*);
-std::tuple<DawnPipelineStageDescriptor, CString> AsDawnType(
-    const GPUPipelineStageDescriptor*);
+WGPUColor AsDawnColor(const Vector<double>&);
+WGPUColor AsDawnType(const GPUColorDict*);
+WGPUColor AsDawnType(const DoubleSequenceOrGPUColorDict*);
+WGPUExtent3D AsDawnType(const UnsignedLongSequenceOrGPUExtent3DDict*);
+WGPUOrigin3D AsDawnType(const UnsignedLongSequenceOrGPUOrigin3DDict*);
+
+using OwnedProgrammableStageDescriptor =
+    std::tuple<WGPUProgrammableStageDescriptor, std::unique_ptr<char[]>>;
+OwnedProgrammableStageDescriptor AsDawnType(
+    const GPUProgrammableStageDescriptor*);
 
 // WebGPU objects are converted to Dawn objects by getting the opaque handle
 // which can be passed to Dawn.
@@ -68,6 +74,18 @@ std::unique_ptr<TypeOfDawnType<WebGPUType>[]> AsDawnType(
     dawn_objects[i] = AsDawnType(webgpu_objects[i].Get());
   }
   return dawn_objects;
+}
+
+template <typename DawnEnum, typename WebGPUEnum>
+std::unique_ptr<DawnEnum[]> AsDawnEnum(const Vector<WebGPUEnum>& webgpu_enums) {
+  wtf_size_t count = webgpu_enums.size();
+  // TODO(enga): Pass in temporary memory or an allocator so we don't make a
+  // separate memory allocation here.
+  std::unique_ptr<DawnEnum[]> dawn_enums(new DawnEnum[count]);
+  for (wtf_size_t i = 0; i < count; ++i) {
+    dawn_enums[i] = AsDawnEnum<DawnEnum>(webgpu_enums[i]);
+  }
+  return dawn_enums;
 }
 
 }  // namespace blink

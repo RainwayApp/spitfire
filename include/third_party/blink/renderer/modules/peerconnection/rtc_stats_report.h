@@ -5,10 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_RTC_STATS_REPORT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_RTC_STATS_REPORT_H_
 
-#include <map>
-#include <vector>
-
 #include "third_party/blink/public/platform/web_rtc_stats.h"
+#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/renderer/bindings/core/v8/maplike.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -19,7 +17,7 @@ namespace blink {
 
 // Returns the group ids for non-standardized members which should be exposed
 // based on what Origin Trials are running.
-std::vector<webrtc::NonStandardGroupId> GetExposedGroupIds(
+WebVector<webrtc::NonStandardGroupId> GetExposedGroupIds(
     const ScriptState* script_state);
 
 // https://w3c.github.io/webrtc-pc/#rtcstatsreport-object
@@ -28,7 +26,7 @@ class RTCStatsReport final : public ScriptWrappable,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  RTCStatsReport(std::unique_ptr<WebRTCStatsReport>);
+  RTCStatsReport(std::unique_ptr<RTCStatsReportPlatform>);
 
   uint32_t size() const;
 
@@ -42,7 +40,7 @@ class RTCStatsReport final : public ScriptWrappable,
                    ExceptionState&) override;
 
  private:
-  std::unique_ptr<WebRTCStatsReport> report_;
+  std::unique_ptr<RTCStatsReportPlatform> report_;
 };
 
 }  // namespace blink

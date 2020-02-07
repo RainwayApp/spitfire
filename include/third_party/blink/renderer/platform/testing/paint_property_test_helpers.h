@@ -155,12 +155,10 @@ CreateAnimatingBackdropFilterEffect(
 inline scoped_refptr<ClipPaintPropertyNode> CreateClip(
     const ClipPaintPropertyNode& parent,
     const TransformPaintPropertyNode& local_transform_space,
-    const FloatRoundedRect& clip_rect,
-    CompositingReasons compositing_reasons = CompositingReason::kNone) {
+    const FloatRoundedRect& clip_rect) {
   ClipPaintPropertyNode::State state;
   state.local_transform_space = &local_transform_space;
   state.clip_rect = clip_rect;
-  state.direct_compositing_reasons = compositing_reasons;
   return ClipPaintPropertyNode::Create(parent, std::move(state));
 }
 
@@ -217,6 +215,15 @@ inline scoped_refptr<TransformPaintPropertyNode> CreateScrollTranslation(
   state.direct_compositing_reasons = compositing_reasons;
   state.scroll = &scroll;
   return TransformPaintPropertyNode::Create(parent, std::move(state));
+}
+
+inline scoped_refptr<TransformPaintPropertyNode>
+CreateCompositedScrollTranslation(const TransformPaintPropertyNode& parent,
+                                  float offset_x,
+                                  float offset_y,
+                                  const ScrollPaintPropertyNode& scroll) {
+  return CreateScrollTranslation(parent, offset_x, offset_y, scroll,
+                                 CompositingReason::kOverflowScrolling);
 }
 
 inline PropertyTreeState DefaultPaintChunkProperties() {

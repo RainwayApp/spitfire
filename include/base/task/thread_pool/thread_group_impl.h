@@ -20,7 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/strings/string_piece.h"
-#include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool/task.h"
@@ -98,10 +97,6 @@ class BASE_EXPORT ThreadGroupImpl : public ThreadGroup {
     return num_tasks_before_detach_histogram_;
   }
 
-  const HistogramBase* num_tasks_between_waits_histogram() const {
-    return num_tasks_between_waits_histogram_;
-  }
-
   const HistogramBase* num_workers_histogram() const {
     return num_workers_histogram_;
   }
@@ -146,10 +141,10 @@ class BASE_EXPORT ThreadGroupImpl : public ThreadGroup {
                            ThreadBlockUnblockPremature);
 
   // ThreadGroup:
-  void UpdateSortKey(
-      TaskSourceAndTransaction task_source_and_transaction) override;
+  void UpdateSortKey(TaskSource::Transaction transaction) override;
   void PushTaskSourceAndWakeUpWorkers(
-      RegisteredTaskSourceAndTransaction task_source_and_transaction) override;
+      TransactionWithRegisteredTaskSource transaction_with_task_source)
+      override;
   void EnsureEnoughWorkersLockRequired(BaseScopedWorkersExecutor* executor)
       override EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -205,12 +200,24 @@ class BASE_EXPORT ThreadGroupImpl : public ThreadGroup {
   bool ShouldPeriodicallyAdjustMaxTasksLockRequired()
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  // Increments/decrements the number of tasks that can run in this thread
-  // group. |is_running_best_effort_task| indicates whether the worker causing
-  // the change is currently running a TaskPriority::BEST_EFFORT task.
-  void DecrementMaxTasksLockRequired(bool is_running_best_effort_task)
+  // Updates the minimum priority allowed to run below which tasks should yield.
+  // This should be called whenever |num_running_tasks_| or |max_tasks| changes,
+  // or when a new task is added to |priority_queue_|.
+  void UpdateMinAllowedPriorityLockRequired() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Increments/decrements the number of tasks of |priority| that are currently
+  // running in this thread group. Must be invoked before/after running a task.
+  void DecrementTasksRunningLockRequired(TaskPriority priority)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
-  void IncrementMaxTasksLockRequired(bool is_running_best_effort_task)
+  void IncrementTasksRunningLockRequired(TaskPriority priority)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Increments/decrements the number of tasks that can run in this thread
+  // group.  May only be called in a scope where a task is running with
+  // |priority|.
+  void DecrementMaxTasksLockRequired(TaskPriority priority)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  void IncrementMaxTasksLockRequired(TaskPriority priority)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Values set at Start() and never modified afterwards.
@@ -321,10 +328,8 @@ class BASE_EXPORT ThreadGroupImpl : public ThreadGroup {
   std::unique_ptr<ConditionVariable> num_workers_cleaned_up_for_testing_cv_
       GUARDED_BY(lock_);
 
-#if DCHECK_IS_ON()
   // Set at the start of JoinForTesting().
-  AtomicFlag join_for_testing_started_;
-#endif
+  bool join_for_testing_started_ GUARDED_BY(lock_) = false;
 
   // ThreadPool.DetachDuration.[thread group name] histogram. Intentionally
   // leaked.
@@ -333,10 +338,6 @@ class BASE_EXPORT ThreadGroupImpl : public ThreadGroup {
   // ThreadPool.NumTasksBeforeDetach.[thread group name] histogram.
   // Intentionally leaked.
   HistogramBase* const num_tasks_before_detach_histogram_;
-
-  // ThreadPool.NumTasksBetweenWaits.[thread group name] histogram.
-  // Intentionally leaked.
-  HistogramBase* const num_tasks_between_waits_histogram_;
 
   // ThreadPool.NumWorkers.[thread group name] histogram.
   // Intentionally leaked.

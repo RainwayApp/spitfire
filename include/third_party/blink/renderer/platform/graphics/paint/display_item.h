@@ -10,7 +10,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 
 #if DCHECK_IS_ON()
@@ -28,7 +28,7 @@ class PLATFORM_EXPORT DisplayItem {
  public:
   enum {
     // Must be kept in sync with core/paint/PaintPhase.h.
-    kPaintPhaseMax = 10,
+    kPaintPhaseMax = 12,
   };
 
   // A display item type uniquely identifies a display item of a client.
@@ -65,6 +65,7 @@ class PLATFORM_EXPORT DisplayItem {
     kDragImage,
     kDragCaret,
     kEmptyContentForFilters,
+    kForcedColorsModeBackplate,
     kSVGImage,
     kLinkHighlight,
     kImageAreaFocusRing,
@@ -80,18 +81,13 @@ class PLATFORM_EXPORT DisplayItem {
     kSVGClip,
     kSVGFilter,
     kSVGMask,
-    kScrollbarBackButtonEnd,
-    kScrollbarBackButtonStart,
-    kScrollbarBackground,
-    kScrollbarBackTrack,
-    kScrollbarCorner,
-    kScrollbarForwardButtonEnd,
-    kScrollbarForwardButtonStart,
-    kScrollbarForwardTrack,
+    kScrollCorner,
+    // The following 3 types are used during cc::Scrollbar::PaintPart() only.
+    // During Paint stage of document lifecycle update, we record
+    // ScrollbarDisplayItem instead of DrawingItems of these types.
+    kScrollbarTrackAndButtons,
     kScrollbarThumb,
     kScrollbarTickmarks,
-    kScrollbarTrackBackground,
-    kScrollbarCompositedScrollbar,
     kSelectionTint,
     kTableCollapsedBorders,
     kVideoBitmap,
@@ -107,7 +103,9 @@ class PLATFORM_EXPORT DisplayItem {
     kForeignLayerWrapper,
     kForeignLayerContentsWrapper,
     kForeignLayerLinkHighlight,
-    kForeignLayerLast = kForeignLayerLinkHighlight,
+    kForeignLayerViewportScroll,
+    kForeignLayerViewportScrollbar,
+    kForeignLayerLast = kForeignLayerViewportScrollbar,
 
     kClipPaintPhaseFirst,
     kClipPaintPhaseLast = kClipPaintPhaseFirst + kPaintPhaseMax,
@@ -127,7 +125,13 @@ class PLATFORM_EXPORT DisplayItem {
     // be painted.
     kHitTest,
 
+    // Used both for specifying the paint-order scroll location, and for non-
+    // composited scroll hit testing (see: scroll_hit_test_display_item.h).
     kScrollHitTest,
+    // Used to prevent composited scrolling on the resize handle.
+    kResizerScrollHitTest,
+    // Used to prevent composited scrolling on plugins with wheel handlers.
+    kPluginScrollHitTest,
 
     kLayerChunkBackground,
     kLayerChunkNegativeZOrderChildren,
@@ -135,6 +139,10 @@ class PLATFORM_EXPORT DisplayItem {
     kLayerChunkFloat,
     kLayerChunkForeground,
     kLayerChunkNormalFlowAndPositiveZOrderChildren,
+
+    // The following 2 types are For ScrollbarDisplayItem.
+    kScrollbarHorizontal,
+    kScrollbarVertical,
 
     kUninitializedType,
     kTypeLast = kUninitializedType
@@ -242,7 +250,16 @@ class PLATFORM_EXPORT DisplayItem {
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(SVGEffect)
 
   bool IsHitTest() const { return type_ == kHitTest; }
-  bool IsScrollHitTest() const { return type_ == kScrollHitTest; }
+  bool IsScrollHitTest() const {
+    return type_ == kScrollHitTest || IsResizerScrollHitTest() ||
+           IsPluginScrollHitTest();
+  }
+  bool IsResizerScrollHitTest() const { return type_ == kResizerScrollHitTest; }
+  bool IsPluginScrollHitTest() const { return type_ == kPluginScrollHitTest; }
+
+  bool IsScrollbar() const {
+    return type_ == kScrollbarHorizontal || type_ == kScrollbarVertical;
+  }
 
   bool IsCacheable() const { return is_cacheable_; }
   void SetUncacheable() { is_cacheable_ = false; }

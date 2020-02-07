@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FEATURE_POLICY_FEATURE_POLICY_HELPER_H_
 
 #include "third_party/blink/public/common/feature_policy/feature_policy.h"
-#include "third_party/blink/public/mojom/feature_policy/feature_policy.mojom-blink.h"
+#include "third_party/blink/public/mojom/feature_policy/feature_policy.mojom-blink-forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -14,7 +14,7 @@ namespace blink {
 
 using FeatureNameMap = HashMap<String, mojom::FeaturePolicyFeature>;
 
-class ExecutionContext;
+class FeatureContext;
 
 // This method defines the feature names which will be recognized by the parser
 // for the Feature-Policy HTTP header and the <iframe> "allow" attribute, as
@@ -24,7 +24,7 @@ const FeatureNameMap& GetDefaultFeatureNameMap();
 
 // Returns true if this feature is currently disabled by an origin trial (it is
 // origin trial controlled, and the origin trial is not enabled).
-bool DisabledByOriginTrial(const String&, ExecutionContext*);
+bool DisabledByOriginTrial(const String&, FeatureContext*);
 
 }  // namespace blink
 

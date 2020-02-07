@@ -30,6 +30,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
+#include "third_party/blink/renderer/modules/webaudio/inspector_helper_mixin.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -171,13 +173,14 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
   AudioNodeInput& Input(unsigned);
   // The argument must be less than numberOfOutputs().
   AudioNodeOutput& Output(unsigned);
+  const AudioNodeOutput& Output(unsigned) const;
 
   // processIfNecessary() is called by our output(s) when the rendering graph
   // needs this AudioNode to process.  This method ensures that the AudioNode
   // will only process once per rendering time quantum even if it's called
   // repeatedly.  This handles the case of "fanout" where an output is connected
   // to multiple AudioNode inputs.  Called from context's audio thread.
-  void ProcessIfNecessary(uint32_t frames_to_process);
+  virtual void ProcessIfNecessary(uint32_t frames_to_process);
 
   // Called when a new connection has been made to one of our inputs or the
   // connection number of channels has changed.  This potentially gives us
@@ -264,6 +267,14 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
   // Force all inputs to take any channel interpretation changes into account.
   void UpdateChannelsForInputs();
 
+  // The last time (context time) that his handler ran its Process() method.
+  // For each render quantum, we only want to process just once to handle fanout
+  // of this handler.
+  double last_processing_time_;
+
+  // The last time (context time) when this node did not have silent inputs.
+  double last_non_silent_time_;
+
  private:
   void SetNodeType(NodeType);
 
@@ -285,9 +296,6 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
 
   Vector<std::unique_ptr<AudioNodeInput>> inputs_;
   Vector<std::unique_ptr<AudioNodeOutput>> outputs_;
-
-  double last_processing_time_;
-  double last_non_silent_time_;
 
   int connection_ref_count_;
 
@@ -317,8 +325,10 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
   AudioBus::ChannelInterpretation new_channel_interpretation_;
 };
 
-class MODULES_EXPORT AudioNode : public EventTargetWithInlineData {
+class MODULES_EXPORT AudioNode : public EventTargetWithInlineData,
+                                 public InspectorHelperMixin {
   DEFINE_WRAPPERTYPEINFO();
+  USING_GARBAGE_COLLECTED_MIXIN(AudioNode);
   USING_PRE_FINALIZER(AudioNode, Dispose);
 
  public:
@@ -328,6 +338,7 @@ class MODULES_EXPORT AudioNode : public EventTargetWithInlineData {
   AudioHandler& Handler() const;
 
   void HandleChannelOptions(const AudioNodeOptions*, ExceptionState&);
+  String GetNodeName() const { return Handler().NodeTypeName(); }
 
   AudioNode* connect(AudioNode*,
                      unsigned output_index,

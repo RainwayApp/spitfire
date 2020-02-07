@@ -40,7 +40,7 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_hash.h"
@@ -132,13 +132,9 @@ class PLATFORM_EXPORT V8PerContextData final {
 
   // For each possible type of wrapper, we keep a boilerplate object.
   // The boilerplate is used to create additional wrappers of the same type.
-  typedef V8GlobalValueMap<const WrapperTypeInfo*, v8::Object, v8::kNotWeak>
-      WrapperBoilerplateMap;
-  WrapperBoilerplateMap wrapper_boilerplates_;
+  V8GlobalValueMap<const WrapperTypeInfo*, v8::Object> wrapper_boilerplates_;
 
-  typedef V8GlobalValueMap<const WrapperTypeInfo*, v8::Function, v8::kNotWeak>
-      ConstructorMap;
-  ConstructorMap constructor_map_;
+  V8GlobalValueMap<const WrapperTypeInfo*, v8::Function> constructor_map_;
 
   std::unique_ptr<gin::ContextHolder> context_holder_;
 

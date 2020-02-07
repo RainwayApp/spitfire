@@ -48,6 +48,8 @@ class AXInlineTextBox final : public AXObject {
   bool IsDetached() const override { return !inline_text_box_; }
   bool IsAXInlineTextBox() const override { return true; }
 
+  bool IsLineBreakingObject() const override;
+
  public:
   ax::mojom::Role RoleValue() const override {
     return ax::mojom::Role::kInlineTextBox;
@@ -57,6 +59,7 @@ class AXInlineTextBox final : public AXObject {
   void TextCharacterOffsets(Vector<int>&) const override;
   void GetWordBoundaries(Vector<int>& word_starts,
                          Vector<int>& word_ends) const override;
+  unsigned TextOffsetInContainer(unsigned offset) const override;
   void GetRelativeBounds(AXObject** out_container,
                          FloatRect& out_bounds_in_container,
                          SkMatrix44& out_container_transform,

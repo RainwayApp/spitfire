@@ -13,7 +13,6 @@
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
 #include "third_party/blink/renderer/core/timezone/timezone_controller.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -45,7 +44,10 @@ class CORE_EXPORT InspectorEmulationAgent final
   protocol::Response setTouchEmulationEnabled(
       bool enabled,
       protocol::Maybe<int> max_touch_points) override;
-  protocol::Response setEmulatedMedia(const String&) override;
+  protocol::Response setEmulatedMedia(
+      protocol::Maybe<String> media,
+      protocol::Maybe<protocol::Array<protocol::Emulation::MediaFeature>>
+          features) override;
   protocol::Response setCPUThrottlingRate(double) override;
   protocol::Response setFocusEmulationEnabled(bool) override;
   protocol::Response setVirtualTimePolicy(
@@ -107,7 +109,7 @@ class CORE_EXPORT InspectorEmulationAgent final
   void ApplyVirtualTimePolicy(const PendingVirtualTimePolicy& new_policy);
 
   Member<WebLocalFrameImpl> web_local_frame_;
-  WTF::TimeTicks virtual_time_base_ticks_;
+  base::TimeTicks virtual_time_base_ticks_;
 
   std::unique_ptr<TimeZoneController::TimeZoneOverride> timezone_override_;
 
@@ -116,13 +118,14 @@ class CORE_EXPORT InspectorEmulationAgent final
   base::Optional<PendingVirtualTimePolicy> pending_virtual_time_policy_;
   bool enabled_ = false;
 
-  InspectorAgentState::String default_background_color_override_rgba_;
+  InspectorAgentState::Bytes default_background_color_override_rgba_;
   InspectorAgentState::Boolean script_execution_disabled_;
   InspectorAgentState::Boolean scrollbars_hidden_;
   InspectorAgentState::Boolean document_cookie_disabled_;
   InspectorAgentState::Boolean touch_event_emulation_enabled_;
   InspectorAgentState::Integer max_touch_points_;
   InspectorAgentState::String emulated_media_;
+  InspectorAgentState::StringMap emulated_media_features_;
   InspectorAgentState::String navigator_platform_override_;
   InspectorAgentState::String user_agent_override_;
   InspectorAgentState::String accept_language_override_;

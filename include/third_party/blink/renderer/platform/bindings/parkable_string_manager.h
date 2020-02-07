@@ -12,7 +12,7 @@
 #include "base/trace_event/memory_dump_provider.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -22,10 +22,7 @@ namespace blink {
 
 class ParkableString;
 
-const base::Feature kCompressParkableStringsInBackground{
-    "CompressParkableStringsInBackground", base::FEATURE_DISABLED_BY_DEFAULT};
-const base::Feature kCompressParkableStringsInForeground{
-    "CompressParkableStringsInForeground", base::FEATURE_ENABLED_BY_DEFAULT};
+PLATFORM_EXPORT extern const base::Feature kCompressParkableStrings;
 
 class PLATFORM_EXPORT ParkableStringManagerDumpProvider
     : public base::trace_event::MemoryDumpProvider {
@@ -69,14 +66,11 @@ class PLATFORM_EXPORT ParkableStringManager {
 
   // Public for testing.
   constexpr static int kAgingIntervalInSeconds = 2;
-  constexpr static int kParkingDelayInSeconds = 10;
-  constexpr static int kStatisticsRecordingDelayInSeconds = 30;
 
  private:
   friend class ParkableString;
   friend class ParkableStringImpl;
-  struct ParkableStringImplHash;
-  struct ParkableStringImplTranslator;
+  struct SecureDigestHash;
 
   scoped_refptr<ParkableStringImpl> Add(scoped_refptr<StringImpl>&&);
   void Remove(ParkableStringImpl*);
@@ -85,8 +79,6 @@ class PLATFORM_EXPORT ParkableStringManager {
   void OnUnparked(ParkableStringImpl*);
 
   void ParkAll(ParkableStringImpl::ParkingMode mode);
-  void ParkAllIfRendererBackgrounded(ParkableStringImpl::ParkingMode mode);
-  void DropStringsWithCompressedDataAndRecordStatistics();
   void RecordStatisticsAfter5Minutes() const;
   void AgeStringsAndPark();
   void ScheduleAgingTaskIfNeeded();
@@ -102,17 +94,24 @@ class PLATFORM_EXPORT ParkableStringManager {
   ParkableStringManager();
 
   bool backgrounded_;
-  bool waiting_to_record_stats_;
   bool has_pending_aging_task_;
-  bool should_record_stats_;
   bool has_posted_unparking_time_accounting_task_;
   bool did_register_memory_pressure_listener_;
   base::TimeDelta total_unparking_time_;
   base::TimeDelta total_parking_thread_time_;
-  WTF::HashSet<ParkableStringImpl*, ParkableStringImplHash> unparked_strings_;
-  WTF::HashSet<ParkableStringImpl*, ParkableStringImplHash> parked_strings_;
 
-  friend class ParkableStringTestBase;
+  // Relies on secure hash equality for deduplication. If one day SHA256 becomes
+  // insecure, then this would need to be updated to a more robust hash.
+  WTF::HashMap<ParkableStringImpl::SecureDigest*,
+               ParkableStringImpl*,
+               SecureDigestHash>
+      unparked_strings_;
+  WTF::HashMap<ParkableStringImpl::SecureDigest*,
+               ParkableStringImpl*,
+               SecureDigestHash>
+      parked_strings_;
+
+  friend class ParkableStringTest;
   FRIEND_TEST_ALL_PREFIXES(ParkableStringTest, SynchronousCompression);
   DISALLOW_COPY_AND_ASSIGN(ParkableStringManager);
 };

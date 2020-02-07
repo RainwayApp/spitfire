@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGInlineItemsBuilder_h
-#define NGInlineItemsBuilder_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEMS_BUILDER_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEMS_BUILDER_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/empty_offset_mapping_builder.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_item.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_line_height_metrics.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping_builder.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -61,6 +61,8 @@ class NGInlineItemsBuilderTemplate {
   // Returns if the inline node has no content. For example:
   // <span></span> or <span><float></float></span>.
   bool IsEmptyInline() const { return is_empty_inline_; }
+
+  bool IsBlockLevel() const { return is_block_level_; }
 
   // True if changes to an item may affect different layout of earlier lines.
   // May not be able to use line caches even when the line or earlier lines are
@@ -178,6 +180,7 @@ class NGInlineItemsBuilderTemplate {
 
   bool has_bidi_controls_ = false;
   bool is_empty_inline_ = true;
+  bool is_block_level_ = true;
   bool changes_may_affect_earlier_lines_ = false;
 
   // Append a character.
@@ -220,7 +223,12 @@ class NGInlineItemsBuilderTemplate {
 
   bool ShouldInsertBreakOpportunityAfterLeadingPreservedSpaces(
       const String&,
-      const ComputedStyle&) const;
+      const ComputedStyle&,
+      unsigned index = 0) const;
+  void InsertBreakOpportunityAfterLeadingPreservedSpaces(const String&,
+                                                         const ComputedStyle&,
+                                                         LayoutText*,
+                                                         unsigned* start);
 };
 
 template <>
@@ -255,4 +263,4 @@ using NGInlineItemsBuilderForOffsetMapping =
 
 }  // namespace blink
 
-#endif  // NGInlineItemsBuilder_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEMS_BUILDER_H_

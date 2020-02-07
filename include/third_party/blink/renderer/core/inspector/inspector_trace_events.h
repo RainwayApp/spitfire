@@ -60,7 +60,6 @@ class LayoutObject;
 class LocalFrame;
 class LocalFrameView;
 class Node;
-class PaintLayer;
 struct PhysicalRect;
 class QualifiedName;
 class Resource;
@@ -105,13 +104,14 @@ class CORE_EXPORT InspectorTraceEvents
                       uint64_t data_length);
   void DidFinishLoading(uint64_t identifier,
                         DocumentLoader*,
-                        TimeTicks monotonic_finish_time,
+                        base::TimeTicks monotonic_finish_time,
                         int64_t encoded_data_length,
                         int64_t decoded_body_length,
                         bool should_report_corb_blocking);
   void DidFailLoading(uint64_t identifier,
                       DocumentLoader*,
                       const ResourceError&);
+  void MarkResourceAsCached(DocumentLoader* loader, uint64_t identifier);
 
   void Will(const probe::ExecuteScript&);
   void Did(const probe::ExecuteScript&);
@@ -228,6 +228,7 @@ extern const char kAnonymousBlockChange[];
 extern const char kFullscreen[];
 extern const char kChildChanged[];
 extern const char kListValueChange[];
+extern const char kListStyleTypeChange[];
 extern const char kImageChanged[];
 extern const char kLineBoxesChanged[];
 extern const char kSliderValueChanged[];
@@ -258,10 +259,6 @@ typedef const char LayoutInvalidationReasonForTracing[];
 namespace inspector_layout_invalidation_tracking_event {
 std::unique_ptr<TracedValue> CORE_EXPORT
 Data(const LayoutObject*, LayoutInvalidationReasonForTracing);
-}
-
-namespace inspector_paint_invalidation_tracking_event {
-std::unique_ptr<TracedValue> Data(const LayoutObject&);
 }
 
 namespace inspector_change_resource_priority_event {
@@ -302,16 +299,20 @@ std::unique_ptr<TracedValue> Data(DocumentLoader*,
 namespace inspector_resource_finish_event {
 std::unique_ptr<TracedValue> Data(DocumentLoader*,
                                   uint64_t identifier,
-                                  TimeTicks finish_time,
+                                  base::TimeTicks finish_time,
                                   bool did_fail,
                                   int64_t encoded_data_length,
                                   int64_t decoded_body_length);
 }
 
+namespace inspector_mark_resource_cached_event {
+std::unique_ptr<TracedValue> Data(DocumentLoader*, uint64_t identifier);
+}
+
 namespace inspector_timer_install_event {
 std::unique_ptr<TracedValue> Data(ExecutionContext*,
                                   int timer_id,
-                                  TimeDelta timeout,
+                                  base::TimeDelta timeout,
                                   bool single_shot);
 }
 
@@ -353,22 +354,6 @@ std::unique_ptr<TracedValue> Data(ExecutionContext*, XMLHttpRequest*);
 namespace inspector_xhr_load_event {
 std::unique_ptr<TracedValue> Data(ExecutionContext*, XMLHttpRequest*);
 }
-
-namespace inspector_layer_invalidation_tracking_event {
-extern const char kSquashingLayerGeometryWasUpdated[];
-extern const char kAddedToSquashingLayer[];
-extern const char kRemovedFromSquashingLayer[];
-extern const char kReflectionLayerChanged[];
-extern const char kNewCompositedLayer[];
-
-std::unique_ptr<TracedValue> Data(const PaintLayer*, const char* reason);
-}  // namespace inspector_layer_invalidation_tracking_event
-
-#define TRACE_LAYER_INVALIDATION(LAYER, REASON)                            \
-  TRACE_EVENT_INSTANT1(                                                    \
-      TRACE_DISABLED_BY_DEFAULT("devtools.timeline.invalidationTracking"), \
-      "LayerInvalidationTracking", TRACE_EVENT_SCOPE_THREAD, "data",       \
-      inspector_layer_invalidation_tracking_event::Data((LAYER), (REASON)));
 
 namespace inspector_paint_event {
 std::unique_ptr<TracedValue> Data(LayoutObject*,

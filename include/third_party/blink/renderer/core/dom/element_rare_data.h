@@ -91,15 +91,11 @@ class ElementRareData : public NodeRareData {
   }
 
   void SetPart(DOMTokenList* part) {
-    if (!RuntimeEnabledFeatures::CSSPartPseudoElementEnabled())
-      return;
     part_ = part;
   }
   DOMTokenList* GetPart() const { return part_.Get(); }
 
   void SetPartNamesMap(const AtomicString part_names) {
-    if (!RuntimeEnabledFeatures::CSSPartPseudoElementEnabled())
-      return;
     if (!part_names_map_) {
       part_names_map_.reset(new NamesMap());
     }
@@ -240,7 +236,7 @@ class ElementRareData : public NodeRareData {
 
   Member<AccessibleNode> accessible_node_;
 
-  WeakMember<DisplayLockContext> display_lock_context_;
+  Member<DisplayLockContext> display_lock_context_;
   bool did_attach_internals_ = false;
   bool should_force_legacy_layout_for_child_ = false;
   bool style_should_force_legacy_layout_ = false;

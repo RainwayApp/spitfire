@@ -31,20 +31,29 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_SERVICE_WORKER_SERVICE_WORKER_GLOBAL_SCOPE_H_
 
 #include <memory>
-#include "mojo/public/cpp/bindings/binding.h"
-#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "services/network/public/mojom/network_context.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker.mojom-blink.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/request_or_usv_string.h"
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/modules/service_worker/service_worker_event_queue.h"
+#include "third_party/blink/renderer/modules/service_worker/service_worker_installed_scripts_manager.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace blink {
 
-class ControllerServiceWorker;
 class ExceptionState;
 class FetchEvent;
 class RespondWithObserver;
@@ -53,12 +62,11 @@ class ScriptPromise;
 class ScriptState;
 class ServiceWorker;
 class ServiceWorkerClients;
+class ServiceWorkerInstalledScriptsManager;
 class ServiceWorkerRegistration;
 class ServiceWorkerThread;
-class ServiceWorkerTimeoutTimer;
 class StringOrTrustedScriptURL;
 class WaitUntilObserver;
-class WebServiceWorkerStreamHandle;
 class WebURLResponse;
 class WorkerClassicScriptLoader;
 struct GlobalScopeCreationParams;
@@ -69,6 +77,7 @@ typedef RequestOrUSVString RequestInfo;
 
 class MODULES_EXPORT ServiceWorkerGlobalScope final
     : public WorkerGlobalScope,
+      public mojom::blink::ControllerServiceWorker,
       public mojom::blink::ServiceWorker {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -78,13 +87,16 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   static ServiceWorkerGlobalScope* Create(
       ServiceWorkerThread*,
       std::unique_ptr<GlobalScopeCreationParams>,
-      mojom::blink::CacheStoragePtrInfo,
+      std::unique_ptr<ServiceWorkerInstalledScriptsManager>,
+      mojo::PendingRemote<mojom::blink::CacheStorage>,
       base::TimeTicks time_origin);
 
-  ServiceWorkerGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
-                           ServiceWorkerThread*,
-                           mojom::blink::CacheStoragePtrInfo,
-                           base::TimeTicks time_origin);
+  ServiceWorkerGlobalScope(
+      std::unique_ptr<GlobalScopeCreationParams>,
+      ServiceWorkerThread*,
+      std::unique_ptr<ServiceWorkerInstalledScriptsManager>,
+      mojo::PendingRemote<mojom::blink::CacheStorage>,
+      base::TimeTicks time_origin);
   ~ServiceWorkerGlobalScope() override;
 
   // ExecutionContext overrides:
@@ -94,36 +106,24 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // Implements WorkerGlobalScope:
   void Initialize(const KURL& response_url,
                   network::mojom::ReferrerPolicy response_referrer_policy,
-                  mojom::IPAddressSpace response_address_space,
+                  network::mojom::IPAddressSpace response_address_space,
                   const Vector<CSPHeaderAndType>& response_csp_headers,
-                  const Vector<String>* response_origin_trial_tokens) override;
-  // Fetches and runs the top-level classic worker script for the 'new' or
-  // 'update' service worker cases.
+                  const Vector<String>* response_origin_trial_tokens,
+                  int64_t appcache_id) override;
+  // Fetches and runs the top-level classic worker script.
   void FetchAndRunClassicScript(
       const KURL& script_url,
       const FetchClientSettingsObjectSnapshot& outside_settings_object,
       WorkerResourceTimingNotifier& outside_resource_timing_notifier,
       const v8_inspector::V8StackTraceId& stack_id) override;
-  // Fetches and runs the top-level module worker script for the 'new' or
-  // 'update' service worker cases.
+  // Fetches and runs the top-level module worker script.
   void FetchAndRunModuleScript(
       const KURL& module_url_record,
       const FetchClientSettingsObjectSnapshot& outside_settings_object,
       WorkerResourceTimingNotifier& outside_resource_timing_notifier,
-      network::mojom::FetchCredentialsMode) override;
+      network::mojom::CredentialsMode) override;
   void Dispose() override;
-
-  // Runs the installed top-level classic worker script for the 'installed'
-  // service worker case.
-  void RunInstalledClassicScript(const KURL& script_url,
-                                 const v8_inspector::V8StackTraceId& stack_id);
-
-  // Runs the installed top-level module worker script for the 'installed'
-  // service worker case.
-  void RunInstalledModuleScript(
-      const KURL& module_url_record,
-      const FetchClientSettingsObjectSnapshot& outside_settings_object,
-      network::mojom::FetchCredentialsMode);
+  InstalledScriptsManager* GetInstalledScriptsManager() override;
 
   // Counts an evaluated script and its size. Called for the main worker script.
   void CountWorkerScript(size_t script_size, size_t cached_metadata_size);
@@ -138,6 +138,7 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // ServiceWorkerGlobalScope.idl
   ServiceWorkerClients* clients();
   ServiceWorkerRegistration* registration();
+  ::blink::ServiceWorker* serviceWorker();
 
   ScriptPromise fetch(ScriptState*,
                       const RequestInfo&,
@@ -146,9 +147,9 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
 
   ScriptPromise skipWaiting(ScriptState*);
 
-  void BindServiceWorker(mojom::blink::ServiceWorkerRequest);
+  void BindServiceWorker(mojo::PendingReceiver<mojom::blink::ServiceWorker>);
   void BindControllerServiceWorker(
-      mojom::blink::ControllerServiceWorkerRequest);
+      mojo::PendingReceiver<mojom::blink::ControllerServiceWorker>);
   void OnNavigationPreloadResponse(
       int fetch_event_id,
       std::unique_ptr<WebURLResponse>,
@@ -156,23 +157,21 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   void OnNavigationPreloadError(int fetch_event_id,
                                 std::unique_ptr<WebServiceWorkerError>);
   void OnNavigationPreloadComplete(int fetch_event_id,
-                                   TimeTicks completion_time,
+                                   base::TimeTicks completion_time,
                                    int64_t encoded_data_length,
                                    int64_t encoded_body_length,
                                    int64_t decoded_body_length);
+  // Pauses the toplevel script evaluation until ResumeEvaluation is called.
+  // Must be called before InitializeGlobalScope().
+  void PauseEvaluation();
+  // Resumes the toplevel script evaluation. Must be called only after
+  // PauseEvaluation() is called.
+  void ResumeEvaluation();
 
-  // Dispatches the fetch event if the worker is running normally, and queues it
-  // instead if the worker has already requested to be terminated by the
-  // browser. If queued, the event will be dispatched once the worker resumes
-  // normal operation (if the browser decides not to terminate it, and instead
-  // starts another event), or else is dropped if the worker is terminated.
-  //
-  // This method needs to be used only if the event comes directly from a
-  // client, which means it is coming through the ControllerServiceWorker.
-  void DispatchOrQueueFetchEvent(
-      mojom::blink::DispatchFetchEventParamsPtr params,
-      mojom::blink::ServiceWorkerFetchResponseCallbackPtr response_callback,
-      DispatchFetchEventCallback callback);
+  // Creates a ServiceWorkerEventQueue::StayAwakeToken to ensure that the idle
+  // timer won't be triggered while any of these are alive.
+  std::unique_ptr<ServiceWorkerEventQueue::StayAwakeToken>
+  CreateStayAwakeToken();
 
   // Returns the ServiceWorker object described by the given info. Creates a new
   // object if needed, or else returns the existing one.
@@ -217,10 +216,12 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // native fetch.
   void RespondToFetchEventWithNoResponse(
       int fetch_event_id,
+      const KURL& request_url,
       base::TimeTicks event_dispatch_time,
       base::TimeTicks respond_with_settled_time);
   // Responds to the fetch event with |response|.
   void RespondToFetchEvent(int fetch_event_id,
+                           const KURL& request_url,
                            mojom::blink::FetchAPIResponsePtr,
                            base::TimeTicks event_dispatch_time,
                            base::TimeTicks respond_with_settled_time);
@@ -228,8 +229,9 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // |body_as_stream|.
   void RespondToFetchEventWithResponseStream(
       int fetch_event_id,
+      const KURL& request_url,
       mojom::blink::FetchAPIResponsePtr,
-      WebServiceWorkerStreamHandle*,
+      mojom::blink::ServiceWorkerStreamHandlePtr,
       base::TimeTicks event_dispatch_time,
       base::TimeTicks respond_with_settled_time);
 
@@ -258,6 +260,9 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   void DidHandleNotificationCloseEvent(int event_id,
                                        mojom::ServiceWorkerEventStatus);
   void DidHandlePushEvent(int push_event_id, mojom::ServiceWorkerEventStatus);
+  void DidHandlePushSubscriptionChangeEvent(
+      int event_id,
+      mojom::ServiceWorkerEventStatus status);
   void DidHandleSyncEvent(int sync_event_id, mojom::ServiceWorkerEventStatus);
   void DidHandlePeriodicSyncEvent(int event_id,
                                   mojom::ServiceWorkerEventStatus status);
@@ -269,17 +274,12 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
                                     mojom::ServiceWorkerEventStatus);
   void DidHandleCookieChangeEvent(int event_id,
                                   mojom::ServiceWorkerEventStatus);
+  void DidHandleContentDeleteEvent(int event_id,
+                                   mojom::ServiceWorkerEventStatus);
 
-  mojom::blink::CacheStoragePtrInfo TakeCacheStorage();
+  mojo::PendingRemote<mojom::blink::CacheStorage> TakeCacheStorage();
 
-  // Called when a task is going to be scheduled on the service worker.
-  // The service worker shouldn't request to be terminated until the task is
-  // finished. Returns an id for the task. The caller must call DidEndTask()
-  // with the returned id to notify that the task is finished.
-  int WillStartTask();
-  // Called when a task is finished. |task_id| must be a return value of
-  // WillStartTask().
-  void DidEndTask(int task_id);
+  mojom::blink::ServiceWorkerHost* GetServiceWorkerHost();
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(install, kInstall)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(activate, kActivate)
@@ -288,12 +288,23 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
 
   void Trace(blink::Visitor*) override;
 
+  // Returns true if a FetchEvent exists with the given request URL and
+  // is still waiting for a Response.
+  bool HasRelatedFetchEvent(const KURL& request_url) const;
+
  protected:
   // EventTarget
   bool AddEventListenerInternal(
       const AtomicString& event_type,
       EventListener*,
       const AddEventListenerOptionsResolved*) override;
+
+  // WorkerGlobalScope
+  bool FetchClassicImportedScript(
+      const KURL& script_url,
+      KURL* out_response_url,
+      String* out_source_code,
+      std::unique_ptr<Vector<uint8_t>>* out_cached_meta_data) override;
 
  private:
   void importScripts(const HeapVector<StringOrTrustedScriptURL>& urls,
@@ -308,10 +319,15 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   void DidFetchClassicScript(WorkerClassicScriptLoader* classic_script_loader,
                              const v8_inspector::V8StackTraceId& stack_id);
 
+  // Loads and runs the installed top-level classic worker script.
+  void LoadAndRunInstalledClassicScript(
+      const KURL& script_url,
+      const v8_inspector::V8StackTraceId& stack_id);
+
   // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
   void RunClassicScript(const KURL& response_url,
                         network::mojom::ReferrerPolicy response_referrer_policy,
-                        mojom::IPAddressSpace response_address_space,
+                        network::mojom::IPAddressSpace response_address_space,
                         const Vector<CSPHeaderAndType> response_csp_headers,
                         const Vector<String>* response_origin_trial_tokens,
                         const String& source_code,
@@ -322,7 +338,7 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // number of scripts and the total bytes of scripts.
   void CountScriptInternal(size_t script_size, size_t cached_metadata_size);
 
-  // Called by ServiceWorkerTimeoutTimer when a certain time has passed since
+  // Called by ServiceWorkerEventQueue when a certain time has passed since
   // the last task finished.
   void OnIdleTimeout();
 
@@ -336,12 +352,33 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
       int event_id,
       mojom::blink::ExtendableMessageEventPtr event);
 
+  using DispatchFetchEventInternalCallback =
+      base::OnceCallback<void(mojom::blink::ServiceWorkerEventStatus)>;
   void SetFetchHandlerExistence(FetchHandlerExistence fetch_handler_existence);
+
+  // Implements mojom::blink::ControllerServiceWorker.
+  //
+  // Dispatches the fetch event if the worker is running normally, and queues it
+  // instead if the worker has already requested to be terminated by the
+  // browser. If queued, the event will be dispatched once the worker resumes
+  // normal operation (if the browser decides not to terminate it, and instead
+  // starts another event), or else is dropped if the worker is terminated.
+  void DispatchFetchEventForSubresource(
+      mojom::blink::DispatchFetchEventParamsPtr params,
+      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
+          response_callback,
+      DispatchFetchEventForSubresourceCallback callback) override;
+  void Clone(
+      mojo::PendingReceiver<mojom::blink::ControllerServiceWorker> reciever,
+      network::mojom::blink::CrossOriginEmbedderPolicy
+          cross_origin_embedder_policy) override;
 
   // Implements mojom::blink::ServiceWorker.
   void InitializeGlobalScope(
-      mojom::blink::ServiceWorkerHostAssociatedPtrInfo service_worker_host,
+      mojo::PendingAssociatedRemote<mojom::blink::ServiceWorkerHost>
+          service_worker_host,
       mojom::blink::ServiceWorkerRegistrationObjectInfoPtr registration_info,
+      mojom::blink::ServiceWorkerObjectInfoPtr service_worker_info,
       mojom::blink::FetchHandlerExistence fetch_hander_existence) override;
   void DispatchInstallEvent(DispatchInstallEventCallback callback) override;
   void DispatchActivateEvent(DispatchActivateEventCallback callback) override;
@@ -360,14 +397,11 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   void DispatchExtendableMessageEvent(
       mojom::blink::ExtendableMessageEventPtr event,
       DispatchExtendableMessageEventCallback callback) override;
-  void DispatchExtendableMessageEventWithCustomTimeout(
-      mojom::blink::ExtendableMessageEventPtr event,
-      base::TimeDelta timeout,
-      DispatchExtendableMessageEventCallback callback) override;
-  void DispatchFetchEvent(
+  void DispatchFetchEventForMainResource(
       mojom::blink::DispatchFetchEventParamsPtr params,
-      mojom::blink::ServiceWorkerFetchResponseCallbackPtr response_callback,
-      DispatchFetchEventCallback callback) override;
+      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
+          response_callback,
+      DispatchFetchEventForMainResourceCallback callback) override;
   void DispatchNotificationClickEvent(
       const String& notification_id,
       mojom::blink::NotificationDataPtr notification_data,
@@ -380,6 +414,10 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
       DispatchNotificationCloseEventCallback callback) override;
   void DispatchPushEvent(const String& payload,
                          DispatchPushEventCallback callback) override;
+  void DispatchPushSubscriptionChangeEvent(
+      mojom::blink::PushSubscriptionPtr old_subscription,
+      mojom::blink::PushSubscriptionPtr new_subscription,
+      DispatchPushSubscriptionChangeEventCallback callback) override;
   void DispatchSyncEvent(const String& tag,
                          bool last_chance,
                          base::TimeDelta timeout,
@@ -389,28 +427,130 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
       base::TimeDelta timeout,
       DispatchPeriodicSyncEventCallback callback) override;
   void DispatchAbortPaymentEvent(
-      payments::mojom::blink::PaymentHandlerResponseCallbackPtr
+      mojo::PendingRemote<
+          payments::mojom::blink::PaymentHandlerResponseCallback>
           response_callback,
       DispatchAbortPaymentEventCallback callback) override;
   void DispatchCanMakePaymentEvent(
       payments::mojom::blink::CanMakePaymentEventDataPtr event_data,
-      payments::mojom::blink::PaymentHandlerResponseCallbackPtr
+      mojo::PendingRemote<
+          payments::mojom::blink::PaymentHandlerResponseCallback>
           response_callback,
       DispatchCanMakePaymentEventCallback callback) override;
   void DispatchPaymentRequestEvent(
       payments::mojom::blink::PaymentRequestEventDataPtr event_data,
-      payments::mojom::blink::PaymentHandlerResponseCallbackPtr
+      mojo::PendingRemote<
+          payments::mojom::blink::PaymentHandlerResponseCallback>
           response_callback,
       DispatchPaymentRequestEventCallback callback) override;
   void DispatchCookieChangeEvent(
-      const WebCanonicalCookie& cookie,
-      ::network::mojom::blink::CookieChangeCause cause,
+      network::mojom::blink::CookieChangeInfoPtr change,
       DispatchCookieChangeEventCallback callback) override;
+  void DispatchContentDeleteEvent(
+      const String& id,
+      DispatchContentDeleteEventCallback callback) override;
   void Ping(PingCallback callback) override;
   void SetIdleTimerDelayToZero() override;
+  void AddMessageToConsole(mojom::blink::ConsoleMessageLevel,
+                           const String& message) override;
+
+  void NoteNewFetchEvent(const KURL& request_url);
+  void NoteRespondedToFetchEvent(const KURL& request_url);
+
+  // Dispatches the event synchronously. Enqueued by Dispatch*Event methods to
+  // the event queue, and executed immediately or sometimes later.
+  void StartFetchEvent(
+      mojom::blink::DispatchFetchEventParamsPtr params,
+      network::mojom::blink::CrossOriginEmbedderPolicy requestor_coep,
+      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
+          response_callback,
+      DispatchFetchEventInternalCallback callback,
+      int event_id);
+  void StartInstallEvent(DispatchInstallEventCallback callback, int event_id);
+  void StartActivateEvent(DispatchActivateEventCallback callback, int event_id);
+  void StartBackgroundFetchAbortEvent(
+      mojom::blink::BackgroundFetchRegistrationPtr registration,
+      DispatchBackgroundFetchAbortEventCallback callback,
+      int event_id);
+  void StartBackgroundFetchClickEvent(
+      mojom::blink::BackgroundFetchRegistrationPtr registration,
+      DispatchBackgroundFetchClickEventCallback callback,
+      int event_id);
+  void StartBackgroundFetchFailEvent(
+      mojom::blink::BackgroundFetchRegistrationPtr registration,
+      DispatchBackgroundFetchFailEventCallback callback,
+      int event_id);
+  void StartBackgroundFetchSuccessEvent(
+      mojom::blink::BackgroundFetchRegistrationPtr registration,
+      DispatchBackgroundFetchSuccessEventCallback callback,
+      int event_id);
+  void StartExtendableMessageEvent(
+      mojom::blink::ExtendableMessageEventPtr event,
+      DispatchExtendableMessageEventCallback callback,
+      int event_id);
+  void StartFetchEventForMainResource(
+      mojom::blink::DispatchFetchEventParamsPtr params,
+      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
+          response_callback,
+      int event_id);
+  void StartNotificationClickEvent(
+      String notification_id,
+      mojom::blink::NotificationDataPtr notification_data,
+      int action_index,
+      String reply,
+      DispatchNotificationClickEventCallback callback,
+      int event_id);
+  void StartNotificationCloseEvent(
+      String notification_id,
+      mojom::blink::NotificationDataPtr notification_data,
+      DispatchNotificationCloseEventCallback callback,
+      int event_id);
+  void StartPushEvent(String payload,
+                      DispatchPushEventCallback callback,
+                      int event_id);
+  void StartPushSubscriptionChangeEvent(
+      mojom::blink::PushSubscriptionPtr old_subscription,
+      mojom::blink::PushSubscriptionPtr new_subscription,
+      DispatchPushSubscriptionChangeEventCallback callback,
+      int event_id);
+  void StartSyncEvent(String tag,
+                      bool last_chance,
+                      DispatchSyncEventCallback callback,
+                      int event_id);
+  void StartPeriodicSyncEvent(String tag,
+                              DispatchPeriodicSyncEventCallback callback,
+                              int event_id);
+  void StartAbortPaymentEvent(
+      mojo::PendingRemote<
+          payments::mojom::blink::PaymentHandlerResponseCallback>
+          response_callback,
+      DispatchAbortPaymentEventCallback callback,
+      int event_id);
+  void StartCanMakePaymentEvent(
+      payments::mojom::blink::CanMakePaymentEventDataPtr event_data,
+      mojo::PendingRemote<
+          payments::mojom::blink::PaymentHandlerResponseCallback>
+          response_callback,
+      DispatchCanMakePaymentEventCallback callback,
+      int event_id);
+  void StartPaymentRequestEvent(
+      payments::mojom::blink::PaymentRequestEventDataPtr event_data,
+      mojo::PendingRemote<
+          payments::mojom::blink::PaymentHandlerResponseCallback>
+          response_callback,
+      DispatchPaymentRequestEventCallback callback,
+      int event_id);
+  void StartCookieChangeEvent(network::mojom::blink::CookieChangeInfoPtr change,
+                              DispatchCookieChangeEventCallback callback,
+                              int event_id);
+  void StartContentDeleteEvent(String id,
+                               DispatchContentDeleteEventCallback callback,
+                               int event_id);
 
   Member<ServiceWorkerClients> clients_;
   Member<ServiceWorkerRegistration> registration_;
+  Member<::blink::ServiceWorker> service_worker_;
+
   // Map from service worker version id to JavaScript ServiceWorker object in
   // current execution context.
   HeapHashMap<int64_t,
@@ -427,15 +567,23 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   uint64_t cache_storage_installed_script_total_size_ = 0;
   uint64_t cache_storage_installed_script_metadata_total_size_ = 0;
 
+  // Non-null only when this service worker is already installed.
+  std::unique_ptr<ServiceWorkerInstalledScriptsManager>
+      installed_scripts_manager_;
+
   // May be provided in the constructor as an optimization so InterfaceProvider
   // doesn't need to be used. Taken at the initial call to
   // ServiceWorkerGlobalScope#caches.
-  mojom::blink::CacheStoragePtrInfo cache_storage_info_;
+  mojo::PendingRemote<mojom::blink::CacheStorage> cache_storage_remote_;
 
-  mojo::Binding<mojom::blink::ServiceWorker> binding_;
+  // Bound by the first Mojo call received on the service worker thread
+  // mojom::blink::ServiceWorker::InitializeGlobalScope().
+  mojo::AssociatedRemote<mojom::blink::ServiceWorkerHost> service_worker_host_;
+
+  mojo::Receiver<mojom::blink::ServiceWorker> receiver_{this};
 
   // Maps for inflight event callbacks.
-  // These are mapped from an event id issued from ServiceWorkerTimeoutTimer to
+  // These are mapped from an event id issued from ServiceWorkerEventQueue to
   // the Mojo callback to notify the end of the event.
   HashMap<int, DispatchInstallEventCallback> install_event_callbacks_;
   HashMap<int, DispatchActivateEventCallback> activate_event_callbacks_;
@@ -450,7 +598,8 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   HashMap<int, DispatchSyncEventCallback> sync_event_callbacks_;
   HashMap<int, DispatchPeriodicSyncEventCallback>
       periodic_sync_event_callbacks_;
-  HashMap<int, payments::mojom::blink::PaymentHandlerResponseCallbackPtr>
+  HashMap<int,
+          mojo::Remote<payments::mojom::blink::PaymentHandlerResponseCallback>>
       abort_payment_result_callbacks_;
   HashMap<int, DispatchCanMakePaymentEventCallback>
       abort_payment_event_callbacks_;
@@ -463,32 +612,57 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   HashMap<int, DispatchNotificationCloseEventCallback>
       notification_close_event_callbacks_;
   HashMap<int, DispatchPushEventCallback> push_event_callbacks_;
-  HashMap<int, DispatchFetchEventCallback> fetch_event_callbacks_;
+  HashMap<int, DispatchPushSubscriptionChangeEventCallback>
+      push_subscription_change_event_callbacks_;
+  HashMap<int, DispatchFetchEventInternalCallback> fetch_event_callbacks_;
   HashMap<int, DispatchCookieChangeEventCallback>
       cookie_change_event_callbacks_;
   HashMap<int, DispatchExtendableMessageEventCallback> message_event_callbacks_;
+  HashMap<int, DispatchContentDeleteEventCallback> content_delete_callbacks_;
 
   // Maps for response callbacks.
   // These are mapped from an event id to the Mojo interface pointer which is
   // passed from the relevant DispatchSomeEvent() method.
-  HashMap<int, payments::mojom::blink::PaymentHandlerResponseCallbackPtr>
+  HashMap<int,
+          mojo::Remote<payments::mojom::blink::PaymentHandlerResponseCallback>>
       can_make_payment_result_callbacks_;
-  HashMap<int, payments::mojom::blink::PaymentHandlerResponseCallbackPtr>
+  HashMap<int,
+          mojo::Remote<payments::mojom::blink::PaymentHandlerResponseCallback>>
       payment_response_callbacks_;
-  HashMap<int, mojom::blink::ServiceWorkerFetchResponseCallbackPtr>
+  HashMap<int, mojo::Remote<mojom::blink::ServiceWorkerFetchResponseCallback>>
       fetch_response_callbacks_;
 
   HeapHashMap<int, Member<FetchEvent>> pending_preload_fetch_events_;
 
-  // Timer triggered when the service worker considers it should be stopped or
-  // an event should be aborted.
-  std::unique_ptr<ServiceWorkerTimeoutTimer> timeout_timer_;
+  // Track outstanding FetchEvent objects still waiting for a response by
+  // request URL.  This information can be used as a hint that cache_storage
+  // or fetch requests to the same URL is likely to be used to satisfy a
+  // FetchEvent.  This in turn can allow us to use more aggressive
+  // optimizations in these cases.
+  HashMap<KURL, int> unresponded_fetch_event_counts_;
 
-  // |controller_| should be destroyed before |timeout_timer_| since the pipe
-  // needs to be disconnected before callbacks passed by DispatchSomeEvent() get
-  // destructed, which may be stored in |timeout_timer_| as parameters of
-  // pending tasks added after a termination request.
-  std::unique_ptr<ControllerServiceWorker> controller_;
+  // ServiceWorker event queue where all events are queued before
+  // they are dispatched.
+  std::unique_ptr<ServiceWorkerEventQueue> event_queue_;
+
+  // InitializeGlobalScope() pauses the top level script evaluation when this
+  // flag is true.
+  bool pause_evaluation_ = false;
+  // ResumeEvaluation() evaluates the top level script when this flag is true.
+  bool global_scope_initialized_ = false;
+
+  // Connected by the ServiceWorkerProviderHost in the browser process and by
+  // the controllees. |controller_bindings_| should be destroyed before
+  // |event_queue_| since the pipe needs to be disconnected before callbacks
+  // passed by DispatchSomeEvent() get destructed, which may be stored in
+  // |event_queue_|.
+  // network::mojom::blink::CrossOriginEmbedderPolicy set as the context of
+  // mojo::ReceiverSet is the policy for the client which dispatches FetchEvents
+  // to the ControllerServiceWorker. It should be referred to before sending the
+  // response back to the client.
+  mojo::ReceiverSet<mojom::blink::ControllerServiceWorker,
+                    network::mojom::blink::CrossOriginEmbedderPolicy>
+      controller_receivers_;
 };
 
 template <>

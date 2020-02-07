@@ -14,7 +14,7 @@
 #include "third_party/blink/renderer/core/input/boundary_event_dispatcher.h"
 #include "third_party/blink/renderer/core/input/touch_event_manager.h"
 #include "third_party/blink/renderer/core/page/touch_adjustment.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
@@ -24,8 +24,8 @@ class MouseEventManager;
 
 // This class takes care of dispatching all pointer events and keeps track of
 // properties of active pointer events.
-class CORE_EXPORT PointerEventManager
-    : public GarbageCollectedFinalized<PointerEventManager> {
+class CORE_EXPORT PointerEventManager final
+    : public GarbageCollected<PointerEventManager> {
  public:
   PointerEventManager(LocalFrame&, MouseEventManager&);
   void Trace(blink::Visitor*);
@@ -89,7 +89,7 @@ class CORE_EXPORT PointerEventManager
 
   // Returns whether pointerId is for an active touch pointerevent and whether
   // the last event was sent to the given frame.
-  bool IsTouchPointerIdActiveOnFrame(PointerId, LocalFrame*) const;
+  bool IsPointerIdActiveOnFrame(PointerId, LocalFrame*) const;
 
   // Returns true if the primary pointerdown corresponding to the given
   // |uniqueTouchEventId| was canceled. Also drops stale ids from
@@ -191,6 +191,13 @@ class CORE_EXPORT PointerEventManager
                           PointerEvent*);
   void SetElementUnderPointer(PointerEvent*, Element*);
 
+  // First movement after entering a new frame should be 0 as the new frame
+  // doesn't have the info for the previous events. This function sets the
+  // LastPosition to be same as current event position when target is in
+  // different frame, so that movement_x/y will be 0.
+  void SetLastPointerPositionForFrameBoundary(const WebPointerEvent& event,
+                                              Element* target);
+
   // Processes the assignment of |m_pointerCaptureTarget| from
   // |m_pendingPointerCaptureTarget| and sends the got/lostpointercapture
   // events, as per the spec:
@@ -261,14 +268,6 @@ class CORE_EXPORT PointerEventManager
   PointerEventFactory pointer_event_factory_;
   Member<TouchEventManager> touch_event_manager_;
   Member<MouseEventManager> mouse_event_manager_;
-
-  // TODO(crbug.com/789643): If we go with one token for pointerevent and one
-  // for touch events then we can remove this class field.
-  // It keeps the shared user gesture token between DOM touch events and
-  // pointerevents. It gets created at first when this class gets notified of
-  // the appropriate pointerevent and it must be cleared after the corresponding
-  // touch event is sent (i.e. after FlushEvents).
-  std::unique_ptr<UserGestureIndicator> user_gesture_holder_;
 
   // The pointerId of the PointerEvent currently being dispatched within this
   // frame or 0 if none.

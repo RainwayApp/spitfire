@@ -65,9 +65,11 @@ class WebAutofillClient {
   virtual void DidCompleteFocusChangeInFrame() {}
   virtual void DidReceiveLeftMouseDownOrGestureTapInNode(const WebNode&) {}
 
-  // Queries the client whether filling data is available for a given control
+  // Asks the client whether to suppess the keyboard for the given control
   // element.
-  virtual bool HasFillData(const WebFormControlElement&) const { return false; }
+  virtual bool ShouldSuppressKeyboard(const WebFormControlElement&) {
+    return false;
+  }
 
  protected:
   virtual ~WebAutofillClient() = default;

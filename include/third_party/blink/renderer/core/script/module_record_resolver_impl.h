@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SCRIPT_MODULE_RECORD_RESOLVER_IMPL_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SCRIPT_MODULE_RECORD_RESOLVER_IMPL_H_
 
+#include "third_party/blink/renderer/bindings/core/v8/boxed_v8_module.h"
 #include "third_party/blink/renderer/bindings/core/v8/module_record.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
@@ -30,7 +31,7 @@ class CORE_EXPORT ModuleRecordResolverImpl final
                                     ExecutionContext* execution_context)
       : ContextLifecycleObserver(execution_context), modulator_(modulator) {}
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
   USING_GARBAGE_COLLECTED_MIXIN(ModuleRecordResolverImpl);
 
  private:
@@ -38,13 +39,14 @@ class CORE_EXPORT ModuleRecordResolverImpl final
 
   void RegisterModuleScript(const ModuleScript*) final;
   void UnregisterModuleScript(const ModuleScript*) final;
-  const ModuleScript* GetHostDefined(const ModuleRecord&) const final;
+  const ModuleScript* GetModuleScriptFromModuleRecord(
+      v8::Local<v8::Module>) const final;
 
   // Implements "Runtime Semantics: HostResolveImportedModule" per HTML spec.
   // https://html.spec.whatwg.org/C/#hostresolveimportedmodule(referencingscriptormodule,-specifier))
-  ModuleRecord Resolve(const String& specifier,
-                       const ModuleRecord& referrer,
-                       ExceptionState&) final;
+  v8::Local<v8::Module> Resolve(const String& specifier,
+                                v8::Local<v8::Module> referrer,
+                                ExceptionState&) final;
 
   // Implements ContextLifecycleObserver:
   void ContextDestroyed(ExecutionContext*) final;
@@ -54,7 +56,7 @@ class CORE_EXPORT ModuleRecordResolverImpl final
   // should not use ModuleRecord as the map key. We currently rely on Detach()
   // to clear the refs, but we should implement a key type which keeps a
   // weak-ref to v8::Module.
-  HeapHashMap<ModuleRecord, Member<const ModuleScript>>
+  HeapHashMap<Member<BoxedV8Module>, Member<const ModuleScript>>
       record_to_module_script_map_;
   Member<Modulator> modulator_;
 };

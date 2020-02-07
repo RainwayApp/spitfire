@@ -55,6 +55,10 @@ class CORE_EXPORT LayoutFileUploadControl final : public LayoutBlockFlow {
   PhysicalRect OverflowClipRect(const PhysicalOffset&,
                                 OverlayScrollbarClipBehavior) const override;
 
+  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const override {
+    return false;
+  }
+
   static const int kAfterButtonSpacing = 4;
 
   const char* GetName() const override { return "LayoutFileUploadControl"; }
@@ -70,7 +74,7 @@ class CORE_EXPORT LayoutFileUploadControl final : public LayoutBlockFlow {
 
   int MaxFilenameWidth() const;
 
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
   bool can_receive_dropped_files_;
 };

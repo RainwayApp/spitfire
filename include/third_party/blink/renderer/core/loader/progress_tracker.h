@@ -33,7 +33,7 @@
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_priority.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
@@ -48,7 +48,7 @@ struct ProgressItem;
 // browser which shows a progress bar during loading.
 // We should find a better way for Android to get this data and remove this!
 class CORE_EXPORT ProgressTracker final
-    : public GarbageCollectedFinalized<ProgressTracker> {
+    : public GarbageCollected<ProgressTracker> {
  public:
   explicit ProgressTracker(LocalFrame*);
   ~ProgressTracker();

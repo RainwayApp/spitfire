@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <vector>
 
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
@@ -75,6 +76,9 @@ class VCMFrameBuffer : public VCMEncodedFrame {
   void SetState(VCMFrameBufferStateEnum state);  // Set state of frame
 
   VCMFrameBufferStateEnum _state;  // Current state of the frame
+  // Set with SetEncodedData, but keep pointer to the concrete class here, to
+  // enable reallocation and mutation.
+  rtc::scoped_refptr<EncodedImageBuffer> encoded_image_buffer_;
   VCMSessionInfo _sessionInfo;
   uint16_t _nackCount;
   int64_t _latestPacketTimeMs;

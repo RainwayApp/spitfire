@@ -60,7 +60,9 @@ class LayoutMultiColumnSpannerPlaceholder;
 class LayoutRubyRun;
 class MarginInfo;
 class NGBlockBreakToken;
+class NGFragmentItems;
 class NGOffsetMapping;
+class NGPhysicalContainerFragment;
 class NGPhysicalFragment;
 
 struct NGInlineNodeData;
@@ -392,6 +394,11 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
 
   FloatingObject* InsertFloatingObject(LayoutBox&);
 
+  // Return the last placed float. If |iterator| is non-null, it will be set to
+  // the float right after said float.
+  FloatingObject* LastPlacedFloat(
+      FloatingObjectSetIterator* iterator = nullptr) const;
+
   // Position and lay out all floats that have not yet been positioned.
   //
   // This will mark them as "placed", which means that they have found their
@@ -424,7 +431,9 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   bool RecalcInlineChildrenLayoutOverflow();
   void RecalcInlineChildrenVisualOverflow();
 
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
+  PositionWithAffinity PositionForPoint(const LayoutObject& offset_parent,
+                                        const PhysicalOffset& offset) const;
 
   LayoutUnit LowestFloatLogicalBottom(EClear = EClear::kBoth) const;
 
@@ -438,10 +447,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
 
   LayoutUnit LogicalHeightWithVisibleOverflow() const final;
 
-  // This function is only public so we can call it from NGBlockNode while we're
-  // still working on LayoutNG.
-  void UpdateIsSelfCollapsing() {
-    is_self_collapsing_ = CheckIfIsSelfCollapsingBlock();
+  void SetIsSelfCollapsingFromNG(bool is_self_collapsing) {
+    is_self_collapsing_ = is_self_collapsing;
   }
 
   // These functions are only public so we can call it from NGBlockNode while
@@ -460,6 +467,7 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   virtual const NGPhysicalBoxFragment* CurrentFragment() const {
     return nullptr;
   }
+  const NGFragmentItems* FragmentItems() const;
 
 #if DCHECK_IS_ON()
   void ShowLineTreeAndMark(const InlineBox* = nullptr,
@@ -527,8 +535,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
 
   Node* NodeForHitTest() const final;
   bool HitTestChildren(HitTestResult&,
-                       const HitTestLocation& location_in_container,
-                       const LayoutPoint& accumulated_offset,
+                       const HitTestLocation&,
+                       const PhysicalOffset& accumulated_offset,
                        HitTestAction) override;
 
   PhysicalOffset AccumulateInFlowPositionOffsets() const override;
@@ -576,8 +584,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
                             bool make_child_paint_other_floats);
 
   bool HitTestFloats(HitTestResult&,
-                     const HitTestLocation& location_in_container,
-                     const LayoutPoint& accumulated_offset);
+                     const HitTestLocation&,
+                     const PhysicalOffset& accumulated_offset);
 
   void ClearFloats(EClear);
 
@@ -881,6 +889,9 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
                               LayoutUnit bottom,
                               MarginInfo&);
   void SetCollapsedBottomMargin(const MarginInfo&);
+
+  static void RecalcFloatingDescendantsVisualOverflow(
+      const NGPhysicalContainerFragment& fragment);
 
   // Apply any forced fragmentainer break that's set on the current class A
   // break point.

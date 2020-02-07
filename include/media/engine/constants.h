@@ -17,10 +17,6 @@ extern const int kVideoMtu;
 extern const int kVideoRtpSendBufferSize;
 extern const int kVideoRtpRecvBufferSize;
 
-extern const char kH264CodecName[];
-
-extern const int kMinVideoBitrateBps;
-
 }  // namespace cricket
 
 #endif  // MEDIA_ENGINE_CONSTANTS_H_

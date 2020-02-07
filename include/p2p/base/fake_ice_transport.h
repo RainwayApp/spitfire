@@ -12,11 +12,13 @@
 #define P2P_BASE_FAKE_ICE_TRANSPORT_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
 #include "absl/algorithm/container.h"
 #include "absl/types/optional.h"
+#include "api/ice_transport_interface.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "rtc_base/async_invoker.h"
 #include "rtc_base/copy_on_write_buffer.h"
@@ -193,20 +195,23 @@ class FakeIceTransport : public IceTransportInternal {
 
   void RemoveAllRemoteCandidates() override { remote_candidates_.clear(); }
 
-  bool GetStats(ConnectionInfos* candidate_pair_stats_list,
-                CandidateStatsList* candidate_stats_list) override {
+  bool GetStats(IceTransportStats* ice_transport_stats) override {
     CandidateStats candidate_stats;
     ConnectionInfo candidate_pair_stats;
-    candidate_stats_list->clear();
-    candidate_stats_list->push_back(candidate_stats);
-    candidate_pair_stats_list->clear();
-    candidate_pair_stats_list->push_back(candidate_pair_stats);
+    ice_transport_stats->candidate_stats_list.clear();
+    ice_transport_stats->candidate_stats_list.push_back(candidate_stats);
+    ice_transport_stats->connection_infos.clear();
+    ice_transport_stats->connection_infos.push_back(candidate_pair_stats);
     return true;
   }
 
   absl::optional<int> GetRttEstimate() override { return absl::nullopt; }
 
   const Connection* selected_connection() const override { return nullptr; }
+  absl::optional<const CandidatePair> GetSelectedCandidatePair()
+      const override {
+    return absl::nullopt;
+  }
 
   // Fake PacketTransportInternal implementation.
   bool writable() const override { return writable_; }
@@ -325,6 +330,18 @@ class FakeIceTransport : public IceTransportInternal {
   std::map<rtc::Socket::Option, int> socket_options_;
   rtc::CopyOnWriteBuffer last_sent_packet_;
   rtc::Thread* const network_thread_;
+};
+
+class FakeIceTransportWrapper : public webrtc::IceTransportInterface {
+ public:
+  explicit FakeIceTransportWrapper(
+      std::unique_ptr<cricket::FakeIceTransport> internal)
+      : internal_(std::move(internal)) {}
+
+  cricket::IceTransportInternal* internal() override { return internal_.get(); }
+
+ private:
+  std::unique_ptr<cricket::FakeIceTransport> internal_;
 };
 
 }  // namespace cricket

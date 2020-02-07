@@ -31,8 +31,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_TRACK_VTT_VTT_CUE_H_
 
 #include "third_party/blink/renderer/core/html/track/text_track_cue.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -72,6 +73,26 @@ class VTTCueBox final : public HTMLDivElement {
   // non-snap-to-lines layout where no adjustment should take place.
   // This is set in applyCSSProperties and propagated to LayoutVTTCue.
   float snap_to_lines_position_;
+};
+
+class VTTCueBackgroundBox final : public HTMLDivElement {
+ public:
+  explicit VTTCueBackgroundBox(Document&);
+  bool IsVTTCueBackgroundBox() const override { return true; }
+  void SetTrack(TextTrack*);
+  void Trace(Visitor*) override;
+
+  const TextTrack* GetTrack() const { return track_; }
+
+ private:
+  Member<TextTrack> track_;
+};
+
+template <>
+struct DowncastTraits<VTTCueBackgroundBox> {
+  static bool AllowFrom(const Element& element) {
+    return element.IsVTTCueBackgroundBox();
+  }
 };
 
 class VTTCue final : public TextTrackCue {
@@ -191,7 +212,7 @@ class VTTCue final : public TextTrackCue {
 
   Member<VTTRegion> region_;
   Member<DocumentFragment> vtt_node_tree_;
-  Member<HTMLDivElement> cue_background_box_;
+  Member<VTTCueBackgroundBox> cue_background_box_;
   Member<VTTCueBox> display_tree_;
 
   bool snap_to_lines_ : 1;

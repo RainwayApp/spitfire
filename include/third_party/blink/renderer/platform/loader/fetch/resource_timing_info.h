@@ -34,12 +34,12 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "third_party/blink/public/mojom/timing/worker_timing_container.mojom-blink.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -48,16 +48,18 @@ class PLATFORM_EXPORT ResourceTimingInfo
   USING_FAST_MALLOC(ResourceTimingInfo);
 
  public:
-  static scoped_refptr<ResourceTimingInfo> Create(const AtomicString& type,
-                                                  const TimeTicks time) {
-    return base::AdoptRef(new ResourceTimingInfo(type, time));
+  static scoped_refptr<ResourceTimingInfo> Create(
+      const AtomicString& type,
+      const base::TimeTicks time,
+      mojom::RequestContextType context) {
+    return base::AdoptRef(new ResourceTimingInfo(type, time, context));
   }
-  TimeTicks InitialTime() const { return initial_time_; }
+  base::TimeTicks InitialTime() const { return initial_time_; }
 
   const AtomicString& InitiatorType() const { return type_; }
 
-  void SetLoadResponseEnd(TimeTicks time) { load_response_end_ = time; }
-  TimeTicks LoadResponseEnd() const { return load_response_end_; }
+  void SetLoadResponseEnd(base::TimeTicks time) { load_response_end_ = time; }
+  base::TimeTicks LoadResponseEnd() const { return load_response_end_; }
 
   void SetInitialURL(const KURL& url) { initial_url_ = url; }
   const KURL& InitialURL() const { return initial_url_; }
@@ -88,20 +90,45 @@ class PLATFORM_EXPORT ResourceTimingInfo
     negative_allowed_ = negative_allowed;
   }
   bool NegativeAllowed() const { return negative_allowed_; }
+  mojom::RequestContextType ContextType() const { return context_type_; }
+
+  void SetWorkerTimingReceiver(
+      mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+          worker_timing_receiver) {
+    worker_timing_receiver_ = std::move(worker_timing_receiver);
+  }
+
+  mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+  TakeWorkerTimingReceiver() const {
+    return std::move(worker_timing_receiver_);
+  }
 
  private:
-  ResourceTimingInfo(const AtomicString& type, const TimeTicks time)
-      : type_(type), initial_time_(time) {}
+  ResourceTimingInfo(const AtomicString& type,
+                     const base::TimeTicks time,
+                     mojom::RequestContextType context_type)
+      : type_(type), initial_time_(time), context_type_(context_type) {}
 
   AtomicString type_;
-  TimeTicks initial_time_;
-  TimeTicks load_response_end_;
+  base::TimeTicks initial_time_;
+  mojom::RequestContextType context_type_;
+  base::TimeTicks load_response_end_;
   KURL initial_url_;
   ResourceResponse final_response_;
   Vector<ResourceResponse> redirect_chain_;
   uint64_t transfer_size_ = 0;
   bool has_cross_origin_redirect_ = false;
   bool negative_allowed_ = false;
+
+  // Mutable since it must be passed to blink::PerformanceResourceTiming by move
+  // semantics but ResourceTimingInfo is passed only by const reference.
+  // ResourceTimingInfo can't be changed to pass by value because it can
+  // actually be a large object.
+  // It can be null when service worker doesn't serve a response for the
+  // resource. In that case, PerformanceResourceTiming#workerTiming is kept
+  // empty.
+  mutable mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+      worker_timing_receiver_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceTimingInfo);
 };

@@ -33,7 +33,7 @@
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -71,7 +71,7 @@ struct SecurityOriginHash {
     if (!a || !b)
       return a == b;
 
-    return a->IsSameSchemeHostPort(b);
+    return a->IsSameOriginWith(b);
   }
   static bool Equal(const SecurityOrigin* a,
                     const scoped_refptr<const SecurityOrigin>& b) {

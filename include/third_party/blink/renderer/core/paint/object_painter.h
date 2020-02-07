@@ -8,7 +8,7 @@
 #include "third_party/blink/renderer/core/paint/object_painter_base.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -25,8 +25,7 @@ class ObjectPainter : public ObjectPainterBase {
 
   void PaintOutline(const PaintInfo&, const PhysicalOffset& paint_offset);
   void PaintInlineChildrenOutlines(const PaintInfo&);
-  void AddPDFURLRectIfNeeded(const PaintInfo&,
-                             const PhysicalOffset& paint_offset);
+  void AddURLRectIfNeeded(const PaintInfo&, const PhysicalOffset& paint_offset);
 
   // Paints the object atomically as if it created a new stacking context, for:
   // - inline blocks, inline tables, inline-level replaced elements (Section

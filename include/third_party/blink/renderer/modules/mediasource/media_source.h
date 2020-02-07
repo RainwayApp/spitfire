@@ -99,8 +99,9 @@ class MediaSource final : public EventTargetWithInlineData,
   void Close() override;
   bool IsClosed() const override;
   double duration() const override;
+  WebTimeRanges BufferedInternal() const override;
+  WebTimeRanges SeekableInternal() const override;
   TimeRanges* Buffered() const override;
-  TimeRanges* Seekable() const override;
   void OnTrackChanged(TrackBase*) override;
 
   // EventTarget interface

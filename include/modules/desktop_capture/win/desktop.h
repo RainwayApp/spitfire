@@ -12,13 +12,15 @@
 #define MODULES_DESKTOP_CAPTURE_WIN_DESKTOP_H_
 
 #include <windows.h>
+
 #include <string>
 
 #include "rtc_base/constructor_magic.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
-class Desktop {
+class RTC_EXPORT Desktop {
  public:
   ~Desktop();
 

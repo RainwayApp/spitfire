@@ -14,7 +14,8 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/video_frame_buffer.h"
-#include "rtc_base/numerics/samples_stats_counter.h"
+#include "rtc_base/numerics/event_rate_counter.h"
+#include "rtc_base/numerics/sample_stats.h"
 
 namespace webrtc {
 namespace test {
@@ -23,6 +24,7 @@ struct VideoFramePair {
   rtc::scoped_refptr<VideoFrameBuffer> captured;
   rtc::scoped_refptr<VideoFrameBuffer> decoded;
   Timestamp capture_time = Timestamp::MinusInfinity();
+  Timestamp decoded_time = Timestamp::PlusInfinity();
   Timestamp render_time = Timestamp::PlusInfinity();
   // A unique identifier for the spatial/temporal layer the decoded frame
   // belongs to. Note that this does not reflect the id as defined by the
@@ -35,73 +37,6 @@ struct VideoFramePair {
   int repeated = 0;
 };
 
-template <typename T>
-class SampleStats;
-
-template <>
-class SampleStats<double> : public SamplesStatsCounter {
- public:
-  double Max();
-  double Mean();
-  double Median();
-  double Quantile(double quantile);
-  double Min();
-  double Variance();
-  double StandardDeviation();
-};
-
-template <>
-class SampleStats<TimeDelta> {
- public:
-  void AddSample(TimeDelta delta);
-  void AddSampleMs(double delta_ms);
-  void AddSamples(const SampleStats<TimeDelta>& other);
-  bool IsEmpty();
-  TimeDelta Max();
-  TimeDelta Mean();
-  TimeDelta Median();
-  TimeDelta Quantile(double quantile);
-  TimeDelta Min();
-  TimeDelta Variance();
-  TimeDelta StandardDeviation();
-
- private:
-  SampleStats<double> stats_;
-};
-
-template <>
-class SampleStats<DataRate> {
- public:
-  void AddSample(DataRate rate);
-  void AddSampleBps(double rate_bps);
-  void AddSamples(const SampleStats<DataRate>& other);
-  bool IsEmpty();
-  DataRate Max();
-  DataRate Mean();
-  DataRate Median();
-  DataRate Quantile(double quantile);
-  DataRate Min();
-  DataRate Variance();
-  DataRate StandardDeviation();
-
- private:
-  SampleStats<double> stats_;
-};
-
-class EventRateCounter {
- public:
-  void AddEvent(Timestamp event_time);
-  void AddEvents(EventRateCounter other);
-  bool IsEmpty() const;
-  double Rate() const;
-  SampleStats<TimeDelta>& interval() { return interval_; }
-
- private:
-  Timestamp first_time_ = Timestamp::PlusInfinity();
-  Timestamp last_time_ = Timestamp::MinusInfinity();
-  int64_t event_count_ = 0;
-  SampleStats<TimeDelta> interval_;
-};
 
 struct VideoFramesStats {
   int count = 0;
@@ -117,10 +52,18 @@ struct VideoQualityStats {
   int freeze_count = 0;
   VideoFramesStats capture;
   VideoFramesStats render;
+  // Time from frame was captured on device to time frame was delivered from
+  // decoder.
+  SampleStats<TimeDelta> capture_to_decoded_delay;
   // Time from frame was captured on device to time frame was displayed on
   // device.
   SampleStats<TimeDelta> end_to_end_delay;
+  // PSNR for delivered frames. Note that this might go up for a worse
+  // connection due to frame dropping.
   SampleStats<double> psnr;
+  // PSNR for all frames, dropped or lost frames are compared to the last
+  // successfully delivered frame
+  SampleStats<double> psnr_with_freeze;
   // Frames skipped between two nearest.
   SampleStats<double> skipped_between_rendered;
   // In the next 2 metrics freeze is a pause that is longer, than maximum:

@@ -9,6 +9,7 @@
 
 #include "base/macros.h"
 #include "base/sequence_checker.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
@@ -20,9 +21,8 @@ namespace blink {
 
 class ScriptPromiseResolver;
 
-class ClipboardPromise final
-    : public GarbageCollectedFinalized<ClipboardPromise>,
-      public ContextLifecycleObserver {
+class ClipboardPromise final : public GarbageCollected<ClipboardPromise>,
+                               public ContextLifecycleObserver {
   USING_GARBAGE_COLLECTED_MIXIN(ClipboardPromise);
 
  public:
@@ -36,14 +36,17 @@ class ClipboardPromise final
   explicit ClipboardPromise(ScriptState*);
   virtual ~ClipboardPromise();
 
-  // Called to begin writing a type, or after writing each type.
-  void WriteNextRepresentation();
+  // Completes current write and starts next write.
+  void CompleteWriteRepresentation();
   // For rejections originating from ClipboardWriter.
   void RejectFromReadOrDecodeFailure();
 
   void Trace(blink::Visitor*) override;
 
  private:
+  // Called to begin writing a type.
+  void StartWriteRepresentation();
+
   // Checks Read/Write permission (interacting with PermissionService).
   void HandleRead();
   void HandleReadText();
@@ -58,20 +61,18 @@ class ClipboardPromise final
 
   // Checks for permissions (interacting with PermissionService).
   mojom::blink::PermissionService* GetPermissionService();
-  void RequestReadPermission(
-      mojom::blink::PermissionService::RequestPermissionCallback);
-  void CheckWritePermission(
-      mojom::blink::PermissionService::HasPermissionCallback);
+  void RequestPermission(
+      mojom::blink::PermissionName permission,
+      base::OnceCallback<void(::blink::mojom::PermissionStatus)> callback);
 
   scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner();
-  bool IsFocusedDocument(ExecutionContext*);
 
   Member<ScriptState> script_state_;
   Member<ScriptPromiseResolver> script_promise_resolver_;
 
   std::unique_ptr<ClipboardWriter> clipboard_writer_;
   // Checks for Read and Write permission.
-  mojom::blink::PermissionServicePtr permission_service_;
+  mojo::Remote<mojom::blink::PermissionService> permission_service_;
 
   // Only for use in writeText().
   String plain_text_;

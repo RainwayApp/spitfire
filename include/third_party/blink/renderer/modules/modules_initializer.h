@@ -13,7 +13,7 @@ namespace blink {
 class MODULES_EXPORT ModulesInitializer : public CoreInitializer {
  public:
   void Initialize() override;
-  void RegisterInterfaces(service_manager::BinderRegistry&) override;
+  void RegisterInterfaces(mojo::BinderMap&) override;
 
  protected:
   void InitLocalFrame(LocalFrame&) const override;
@@ -22,8 +22,7 @@ class MODULES_EXPORT ModulesInitializer : public CoreInitializer {
 
  private:
   void InstallSupplements(LocalFrame&) const override;
-  void ProvideLocalFileSystemToWorker(WorkerClients&) const override;
-  void ProvideIndexedDBClientToWorker(WorkerClients&) const override;
+  void ProvideLocalFileSystemToWorker(WorkerGlobalScope&) const override;
   MediaControls* CreateMediaControls(HTMLMediaElement&,
                                      ShadowRoot&) const override;
   PictureInPictureController* CreatePictureInPictureController(
@@ -37,8 +36,7 @@ class MODULES_EXPORT ModulesInitializer : public CoreInitializer {
       WebLocalFrameClient*,
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
-      WebMediaPlayerClient*,
-      WebLayerTreeView*) const override;
+      WebMediaPlayerClient*) const override;
   WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) const override;
 

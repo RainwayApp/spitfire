@@ -79,7 +79,7 @@ enum LineDirectionMode { kHorizontalLine, kVerticalLine };
 //
 // In order to fully understand LayoutBoxModelObject and the inherited classes,
 // we need to introduce the concept of coordinate systems.
-// There is 3 main coordinate systems:
+// There are 4 coordinate systems:
 // - physical coordinates: it is the coordinate system used for painting and
 //   correspond to physical direction as seen on the physical display (screen,
 //   printed page). In CSS, 'top', 'right', 'bottom', 'left' are all in physical
@@ -119,6 +119,10 @@ enum LineDirectionMode { kHorizontalLine, kVerticalLine };
 //   (e.g. InlineStart, BlockEnd) or physical (e.g. Top, Left), or the return
 //   type is PhysicalRect.
 //
+// - logical coordinates without flipping inline direction: those are "logical
+//   block coordinates", without considering text direction. Examples are
+//   "LogicalLeft" and "LogicalRight".
+//
 // For more, see Source/core/layout/README.md ### Coordinate Spaces.
 class CORE_EXPORT LayoutBoxModelObject : public LayoutObject {
  public:
@@ -140,7 +144,7 @@ class CORE_EXPORT LayoutBoxModelObject : public LayoutObject {
   // Populates StickyPositionConstraints, setting the sticky box rect,
   // containing block rect and updating the constraint offsets according to the
   // available space.
-  FloatRect ComputeStickyConstrainingRect() const;
+  PhysicalRect ComputeStickyConstrainingRect() const;
   void UpdateStickyPositionConstraints() const;
   PhysicalOffset StickyPositionOffset() const;
   bool IsSlowRepaintConstrainedObject() const;
@@ -577,6 +581,13 @@ class CORE_EXPORT LayoutBoxModelObject : public LayoutObject {
 };
 
 DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutBoxModelObject, IsBoxModelObject());
+
+template <>
+struct DowncastTraits<LayoutBoxModelObject> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsBoxModelObject();
+  }
+};
 
 }  // namespace blink
 

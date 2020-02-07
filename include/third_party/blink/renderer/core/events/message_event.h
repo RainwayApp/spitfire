@@ -41,7 +41,8 @@
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/core/messaging/message_port.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/bindings/v8_private_property.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -79,10 +80,11 @@ class CORE_EXPORT MessageEvent final : public Event {
                               const String& last_event_id = String(),
                               EventTarget* source = nullptr,
                               UserActivation* user_activation = nullptr,
-                              bool transfer_user_activation = false) {
+                              bool transfer_user_activation = false,
+                              bool allow_autoplay = false) {
     return MakeGarbageCollected<MessageEvent>(
         std::move(data), origin, last_event_id, source, std::move(channels),
-        user_activation, transfer_user_activation);
+        user_activation, transfer_user_activation, allow_autoplay);
   }
   static MessageEvent* CreateError(const String& origin = String(),
                                    EventTarget* source = nullptr) {
@@ -121,7 +123,8 @@ class CORE_EXPORT MessageEvent final : public Event {
                EventTarget* source,
                Vector<MessagePortChannel>,
                UserActivation* user_activation,
-               bool transfer_user_activation);
+               bool transfer_user_activation,
+               bool allow_autoplay);
   // Creates a "messageerror" event.
   MessageEvent(const String& origin, EventTarget* source);
   MessageEvent(const String& data, const String& origin);
@@ -146,7 +149,8 @@ class CORE_EXPORT MessageEvent final : public Event {
                         EventTarget* source,
                         MessagePortArray*,
                         UserActivation* user_activation,
-                        bool transfer_user_activation = false);
+                        bool transfer_user_activation = false,
+                        bool allow_autoplay = false);
   void initMessageEvent(const AtomicString& type,
                         bool bubbles,
                         bool cancelable,
@@ -165,6 +169,7 @@ class CORE_EXPORT MessageEvent final : public Event {
   bool isPortsDirty() const { return is_ports_dirty_; }
   UserActivation* userActivation() const { return user_activation_; }
   bool transferUserActivation() const { return transfer_user_activation_; }
+  bool allowAutoplay() const { return allow_autoplay_; }
 
   Vector<MessagePortChannel> ReleaseChannels() { return std::move(channels_); }
 
@@ -176,6 +181,15 @@ class CORE_EXPORT MessageEvent final : public Event {
     DCHECK_EQ(data_type_, kDataTypeSerializedScriptValue);
     return data_as_serialized_script_value_->Value();
   }
+
+  // Returns true when |data_as_serialized_script_value_| contains values that
+  // remote origins cannot access. If true, remote origins must dispatch a
+  // messageerror event instead of message event.
+  bool IsOriginCheckRequiredToAccessData() const;
+
+  // Returns true when |data_as_serialized_script_value_| is locked to an
+  // agent cluster.
+  bool IsLockedToAgentCluster() const;
 
   void EntangleMessagePorts(ExecutionContext*);
 
@@ -231,7 +245,11 @@ class CORE_EXPORT MessageEvent final : public Event {
   Vector<MessagePortChannel> channels_;
   Member<UserActivation> user_activation_;
   bool transfer_user_activation_ = false;
+  bool allow_autoplay_ = false;
 };
+
+extern CORE_EXPORT const V8PrivateProperty::SymbolKey
+    kPrivatePropertyMessageEventCachedData;
 
 }  // namespace blink
 

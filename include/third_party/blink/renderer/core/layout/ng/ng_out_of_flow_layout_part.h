@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGOutOfFlowLayoutPart_h
-#define NGOutOfFlowLayoutPart_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_OUT_OF_FLOW_LAYOUT_PART_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_OUT_OF_FLOW_LAYOUT_PART_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
 
@@ -23,7 +23,7 @@ class NGBlockNode;
 class NGBoxFragmentBuilder;
 class NGConstraintSpace;
 class NGLayoutResult;
-struct NGOutOfFlowPositionedDescendant;
+struct NGLogicalOutOfFlowPositionedNode;
 
 // Helper class for positioning of out-of-flow blocks.
 // It should be used together with NGBoxFragmentBuilder.
@@ -45,8 +45,8 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   // (e.g. a relatively positioned inline instead), the containing block here is
   // the containing block of said non-block.
   NGOutOfFlowLayoutPart(
-      bool contains_absolute,
-      bool contains_fixed,
+      bool is_absolute_container,
+      bool is_fixed_container,
       const ComputedStyle& container_style,
       const NGConstraintSpace& container_space,
       const NGBoxStrut& border_scrollbar,
@@ -77,17 +77,15 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
     STACK_ALLOCATED();
 
    public:
-    // Containing block style.
-    const ComputedStyle* style;
+    // The direction of the container.
+    TextDirection direction;
     // Logical in containing block coordinates.
     LogicalSize content_size_for_absolute;
     // Content size for fixed is different for the ICB.
     LogicalSize content_size_for_fixed;
 
-    // Offsets (both logical and physical) of the container's padding-box, wrt.
-    // the default container's border-box.
+    // Offset of the container's padding-box.
     LogicalOffset container_offset;
-    PhysicalOffset physical_container_offset;
 
     LogicalSize ContentSize(EPosition position) const {
       return position == EPosition::kAbsolute ? content_size_for_absolute
@@ -95,39 +93,47 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
     }
   };
 
-  bool SweepLegacyDescendants(HashSet<const LayoutObject*>* placed_objects);
+  bool SweepLegacyCandidates(HashSet<const LayoutObject*>* placed_objects);
 
   const ContainingBlockInfo& GetContainingBlockInfo(
-      const NGOutOfFlowPositionedDescendant&) const;
+      const NGLogicalOutOfFlowPositionedNode&) const;
 
   void ComputeInlineContainingBlocks(
-      const Vector<NGOutOfFlowPositionedDescendant>&);
+      const Vector<NGLogicalOutOfFlowPositionedNode>&);
 
-  void LayoutDescendantCandidates(
-      Vector<NGOutOfFlowPositionedDescendant>* descendant_candidates,
-      const LayoutBox* only_layout,
-      HashSet<const LayoutObject*>* placed_objects);
+  void LayoutCandidates(Vector<NGLogicalOutOfFlowPositionedNode>* candidates,
+                        const LayoutBox* only_layout,
+                        HashSet<const LayoutObject*>* placed_objects);
 
-  scoped_refptr<const NGLayoutResult> LayoutDescendant(
-      const NGOutOfFlowPositionedDescendant&,
+  scoped_refptr<const NGLayoutResult> LayoutCandidate(
+      const NGLogicalOutOfFlowPositionedNode&,
       const LayoutBox* only_layout);
 
-  bool IsContainingBlockForDescendant(
-      const NGOutOfFlowPositionedDescendant& descendant);
+  scoped_refptr<const NGLayoutResult> Layout(NGBlockNode,
+                                             const NGConstraintSpace&,
+                                             const NGLogicalStaticPosition&,
+                                             LogicalSize container_content_size,
+                                             const ContainingBlockInfo&,
+                                             const LayoutBox* only_layout);
+
+  bool IsContainingBlockForCandidate(const NGLogicalOutOfFlowPositionedNode&);
 
   scoped_refptr<const NGLayoutResult> GenerateFragment(
       NGBlockNode node,
       const LogicalSize& container_content_size_in_child_writing_mode,
       const base::Optional<LayoutUnit>& block_estimate,
-      const NGAbsolutePhysicalPosition& node_position);
+      const NGLogicalOutOfFlowPosition& node_position);
 
+  const NGConstraintSpace& container_space_;
   NGBoxFragmentBuilder* container_builder_;
   ContainingBlockInfo default_containing_block_;
   HashMap<const LayoutObject*, ContainingBlockInfo> containing_blocks_map_;
-  bool contains_absolute_;
-  bool contains_fixed_;
+  const WritingMode writing_mode_;
+  bool is_absolute_container_;
+  bool is_fixed_container_;
+  bool allow_first_tier_oof_cache_;
 };
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_OUT_OF_FLOW_LAYOUT_PART_H_

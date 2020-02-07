@@ -33,7 +33,6 @@
 
 #include <memory>
 
-#include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_vector.h"
@@ -42,17 +41,25 @@ namespace blink {
 
 class WebServiceWorkerContextClient;
 class WebURL;
-struct WebConsoleMessage;
 struct WebEmbeddedWorkerStartData;
 
 // As we're on the border line between non-Blink and Blink variants, we need
 // to use mojo::ScopedMessagePipeHandle to pass Mojo types.
-struct WebServiceWorkerInstalledScriptsManagerParams {
+struct BLINK_EXPORT WebServiceWorkerInstalledScriptsManagerParams {
+  WebServiceWorkerInstalledScriptsManagerParams() = delete;
+  WebServiceWorkerInstalledScriptsManagerParams(
+      WebVector<WebURL> installed_scripts_urls,
+      mojo::ScopedMessagePipeHandle manager_receiver,
+      mojo::ScopedMessagePipeHandle manager_host_remote);
+  ~WebServiceWorkerInstalledScriptsManagerParams() = default;
+
   WebVector<WebURL> installed_scripts_urls;
-  // A handle for mojom::blink::ServiceWorkerInstalledScriptsManagerRequest.
-  mojo::ScopedMessagePipeHandle manager_request;
-  // A handle for mojom::blink::ServiceWorkerInstalledScriptsManagerHostPtrInfo.
-  mojo::ScopedMessagePipeHandle manager_host_ptr;
+  // A handle for
+  // mojo::PendingReceiver<mojom::blink::ServiceWorkerInstalledScriptsManager>.
+  mojo::ScopedMessagePipeHandle manager_receiver;
+  // A handle for
+  // mojo::PendingRemote<mojom::blink::ServiceWorkerInstalledScriptsManagerHost>.
+  mojo::ScopedMessagePipeHandle manager_host_remote;
 };
 
 // An interface to start and terminate an embedded worker.
@@ -63,27 +70,24 @@ class BLINK_EXPORT WebEmbeddedWorker {
   // WebServiceWorkerContextClient is owned by caller and must survive the
   // instance of WebEmbeddedWorker.
   static std::unique_ptr<WebEmbeddedWorker> Create(
-      WebServiceWorkerContextClient*,
-      std::unique_ptr<WebServiceWorkerInstalledScriptsManagerParams>,
-      mojo::ScopedMessagePipeHandle content_settings_handle,
-      mojo::ScopedMessagePipeHandle cache_storage,
-      mojo::ScopedMessagePipeHandle interface_provider);
+      WebServiceWorkerContextClient*);
 
   virtual ~WebEmbeddedWorker() = default;
 
   // Starts and terminates WorkerThread and WorkerGlobalScope.
-  virtual void StartWorkerContext(const WebEmbeddedWorkerStartData&) = 0;
+  virtual void StartWorkerContext(
+      std::unique_ptr<WebEmbeddedWorkerStartData>,
+      std::unique_ptr<WebServiceWorkerInstalledScriptsManagerParams>,
+      mojo::ScopedMessagePipeHandle content_settings_handle,
+      mojo::ScopedMessagePipeHandle cache_storage,
+      mojo::ScopedMessagePipeHandle browser_interface_broker,
+      scoped_refptr<base::SingleThreadTaskRunner>
+          initiator_thread_task_runner) = 0;
   virtual void TerminateWorkerContext() = 0;
 
   // Resumes starting a worker startup that was paused via
   // WebEmbeddedWorkerStartData.pauseAfterDownloadMode.
   virtual void ResumeAfterDownload() = 0;
-
-  // Inspector related methods.
-  virtual void AddMessageToConsole(const WebConsoleMessage&) = 0;
-  virtual void BindDevToolsAgent(
-      mojo::ScopedInterfaceEndpointHandle devtools_agent_host_ptr_info,
-      mojo::ScopedInterfaceEndpointHandle devtools_agent_request) = 0;
 };
 
 }  // namespace blink

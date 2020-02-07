@@ -33,15 +33,20 @@
 
 #include <memory>
 
+#include "base/optional.h"
 #include "base/time/time.h"
 #include "net/cert/ct_policy_status.h"
 #include "net/http/http_response_info.h"
-#include "services/network/public/mojom/fetch_api.mojom-shared.h"
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-shared.h"
+#include "third_party/blink/public/common/security/security_style.h"
 #include "third_party/blink/public/platform/web_common.h"
-#include "third_party/blink/public/platform/web_security_style.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_vector.h"
+
+namespace network {
+namespace mojom {
+enum class FetchResponseType : int32_t;
+}
+}  // namespace network
 
 namespace blink {
 
@@ -212,10 +217,11 @@ class WebURLResponse {
   BLINK_PLATFORM_EXPORT void SetCTPolicyCompliance(net::ct::CTPolicyCompliance);
   BLINK_PLATFORM_EXPORT void SetIsLegacyTLSVersion(bool);
 
-  BLINK_PLATFORM_EXPORT void SetSecurityStyle(WebSecurityStyle);
+  BLINK_PLATFORM_EXPORT void SetSecurityStyle(SecurityStyle);
 
   BLINK_PLATFORM_EXPORT void SetSecurityDetails(const WebSecurityDetails&);
-  BLINK_PLATFORM_EXPORT WebSecurityDetails SecurityDetailsForTesting();
+  BLINK_PLATFORM_EXPORT base::Optional<WebSecurityDetails>
+  SecurityDetailsForTesting();
 
   BLINK_PLATFORM_EXPORT void SetAsyncRevalidationRequested(bool);
   BLINK_PLATFORM_EXPORT void SetNetworkAccessed(bool);
@@ -229,6 +235,7 @@ class WebURLResponse {
 
   // Flag whether this request was loaded via the SPDY protocol or not.
   // SPDY is an experimental web protocol, see http://dev.chromium.org/spdy
+  BLINK_PLATFORM_EXPORT bool WasFetchedViaSPDY() const;
   BLINK_PLATFORM_EXPORT void SetWasFetchedViaSPDY(bool);
 
   // Flag whether this request was loaded via a ServiceWorker. See
@@ -274,8 +281,14 @@ class WebURLResponse {
   BLINK_PLATFORM_EXPORT void SetRemotePort(uint16_t);
 
   // ALPN negotiated protocol of the socket which fetched this resource.
+  BLINK_PLATFORM_EXPORT bool WasAlpnNegotiated() const;
+  BLINK_PLATFORM_EXPORT void SetWasAlpnNegotiated(bool);
   BLINK_PLATFORM_EXPORT WebString AlpnNegotiatedProtocol() const;
   BLINK_PLATFORM_EXPORT void SetAlpnNegotiatedProtocol(const WebString&);
+
+  // Whether the response could use alternate protocol.
+  BLINK_PLATFORM_EXPORT bool WasAlternateProtocolAvailable() const;
+  BLINK_PLATFORM_EXPORT void SetWasAlternateProtocolAvailable(bool);
 
   // Information about the type of connection used to fetch this resource.
   BLINK_PLATFORM_EXPORT net::HttpResponseInfo::ConnectionInfo ConnectionInfo()
@@ -286,8 +299,17 @@ class WebURLResponse {
   // Original size of the response before decompression.
   BLINK_PLATFORM_EXPORT void SetEncodedDataLength(int64_t);
 
+  // Original size of the response body before decompression.
+  BLINK_PLATFORM_EXPORT int64_t EncodedBodyLength() const;
+  BLINK_PLATFORM_EXPORT void SetEncodedBodyLength(int64_t);
+
   BLINK_PLATFORM_EXPORT void SetIsSignedExchangeInnerResponse(bool);
   BLINK_PLATFORM_EXPORT void SetWasInPrefetchCache(bool);
+  BLINK_PLATFORM_EXPORT void SetRecursivePrefetchToken(
+      const base::Optional<base::UnguessableToken>&);
+
+  // Whether this resource is from a MHTML archive.
+  BLINK_PLATFORM_EXPORT bool FromArchive() const;
 
 #if INSIDE_BLINK
  protected:

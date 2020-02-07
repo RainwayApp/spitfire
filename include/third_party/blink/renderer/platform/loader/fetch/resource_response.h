@@ -31,24 +31,22 @@
 #include <utility>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/optional.h"
 #include "base/time/time.h"
-#include "services/network/public/cpp/cors/cors.h"
-#include "services/network/public/mojom/fetch_api.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_response.h"
-#include "third_party/blink/renderer/platform/blob/blob_data.h"
-#include "third_party/blink/renderer/platform/loader/fetch/resource_load_info.h"
-#include "third_party/blink/renderer/platform/loader/fetch/resource_load_timing.h"
 #include "third_party/blink/renderer/platform/network/http_header_map.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
-#include "third_party/blink/renderer/platform/wtf/text/cstring.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
+
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
+
+class ResourceLoadTiming;
+struct ResourceLoadInfo;
 
 // A ResourceResponse is a "response" object used in blink. Conceptually
 // it is https://fetch.spec.whatwg.org/#concept-response, but it contains
@@ -66,12 +64,6 @@ class PLATFORM_EXPORT ResourceResponse final {
     kHTTPVersion_1_0,
     kHTTPVersion_1_1,
     kHTTPVersion_2_0
-  };
-  enum SecurityStyle : uint8_t {
-    kSecurityStyleUnknown,
-    kSecurityStyleUnauthenticated,
-    kSecurityStyleAuthenticationBroken,
-    kSecurityStyleAuthenticated
   };
 
   enum CTPolicyCompliance {
@@ -119,7 +111,30 @@ class PLATFORM_EXPORT ResourceResponse final {
 
   struct SecurityDetails {
     DISALLOW_NEW();
-    SecurityDetails() : valid_from(0), valid_to(0) {}
+    SecurityDetails(const String& protocol,
+                    const String& key_exchange,
+                    const String& key_exchange_group,
+                    const String& cipher,
+                    const String& mac,
+                    const String& subject_name,
+                    const Vector<String>& san_list,
+                    const String& issuer,
+                    time_t valid_from,
+                    time_t valid_to,
+                    const Vector<AtomicString>& certificate,
+                    const SignedCertificateTimestampList& sct_list)
+        : protocol(protocol),
+          key_exchange(key_exchange),
+          key_exchange_group(key_exchange_group),
+          cipher(cipher),
+          mac(mac),
+          subject_name(subject_name),
+          san_list(san_list),
+          issuer(issuer),
+          valid_from(valid_from),
+          valid_to(valid_to),
+          certificate(certificate),
+          sct_list(sct_list) {}
     // All strings are human-readable values.
     String protocol;
     // keyExchange is the empty string if not applicable for the connection's
@@ -146,6 +161,7 @@ class PLATFORM_EXPORT ResourceResponse final {
   explicit ResourceResponse(const KURL& current_request_url);
   ResourceResponse(const ResourceResponse&);
   ResourceResponse& operator=(const ResourceResponse&);
+  ~ResourceResponse();
 
   bool IsNull() const { return is_null_; }
   bool IsHTTP() const;
@@ -207,6 +223,8 @@ class PLATFORM_EXPORT ResourceResponse final {
   const AtomicString& HttpHeaderField(const AtomicString& name) const;
   void SetHttpHeaderField(const AtomicString& name, const AtomicString& value);
   void AddHttpHeaderField(const AtomicString& name, const AtomicString& value);
+  void AddHttpHeaderFieldWithMultipleValues(const AtomicString& name,
+                                            const Vector<AtomicString>& values);
   void ClearHttpHeaderField(const AtomicString& name);
   const HTTPHeaderMap& HttpHeaderFields() const;
 
@@ -220,13 +238,13 @@ class PLATFORM_EXPORT ResourceResponse final {
   bool CacheControlContainsNoStore() const;
   bool CacheControlContainsMustRevalidate() const;
   bool HasCacheValidatorFields() const;
-  double CacheControlMaxAge() const;
-  double Date() const;
-  double Age() const;
-  double Expires() const;
-  double LastModified() const;
+  base::Optional<base::TimeDelta> CacheControlMaxAge() const;
+  base::Optional<base::Time> Date() const;
+  base::Optional<base::TimeDelta> Age() const;
+  base::Optional<base::Time> Expires() const;
+  base::Optional<base::Time> LastModified() const;
   // Will always return values >= 0.
-  double CacheControlStaleWhileRevalidate() const;
+  base::TimeDelta CacheControlStaleWhileRevalidate() const;
 
   unsigned ConnectionID() const;
   void SetConnectionID(unsigned);
@@ -269,8 +287,8 @@ class PLATFORM_EXPORT ResourceResponse final {
     security_style_ = security_style;
   }
 
-  const SecurityDetails* GetSecurityDetails() const {
-    return &security_details_;
+  const base::Optional<SecurityDetails>& GetSecurityDetails() const {
+    return security_details_;
   }
   void SetSecurityDetails(const String& protocol,
                           const String& key_exchange,
@@ -317,13 +335,9 @@ class PLATFORM_EXPORT ResourceResponse final {
     response_type_ = value;
   }
   // https://html.spec.whatwg.org/C/#cors-same-origin
-  bool IsCorsSameOrigin() const {
-    return network::cors::IsCorsSameOriginResponseType(response_type_);
-  }
+  bool IsCorsSameOrigin() const;
   // https://html.spec.whatwg.org/C/#cors-cross-origin
-  bool IsCorsCrossOrigin() const {
-    return network::cors::IsCorsCrossOriginResponseType(response_type_);
-  }
+  bool IsCorsCrossOrigin() const;
 
   // See network::ResourceResponseInfo::url_list_via_service_worker.
   const Vector<KURL>& UrlListViaServiceWorker() const {
@@ -354,8 +368,10 @@ class PLATFORM_EXPORT ResourceResponse final {
     did_service_worker_navigation_preload_ = value;
   }
 
-  Time ResponseTime() const { return response_time_; }
-  void SetResponseTime(Time response_time) { response_time_ = response_time; }
+  base::Time ResponseTime() const { return response_time_; }
+  void SetResponseTime(base::Time response_time) {
+    response_time_ = response_time;
+  }
 
   const AtomicString& RemoteIPAddress() const { return remote_ip_address_; }
   void SetRemoteIPAddress(const AtomicString& value) {
@@ -364,6 +380,11 @@ class PLATFORM_EXPORT ResourceResponse final {
 
   uint16_t RemotePort() const { return remote_port_; }
   void SetRemotePort(uint16_t value) { remote_port_ = value; }
+
+  bool WasAlpnNegotiated() const { return was_alpn_negotiated_; }
+  void SetWasAlpnNegotiated(bool was_alpn_negotiated) {
+    was_alpn_negotiated_ = was_alpn_negotiated;
+  }
 
   const AtomicString& AlpnNegotiatedProtocol() const {
     return alpn_negotiated_protocol_;
@@ -390,6 +411,14 @@ class PLATFORM_EXPORT ResourceResponse final {
   int64_t DecodedBodyLength() const { return decoded_body_length_; }
   void SetDecodedBodyLength(int64_t value);
 
+  const base::Optional<base::UnguessableToken>& RecursivePrefetchToken() const {
+    return recursive_prefetch_token_;
+  }
+  void SetRecursivePrefetchToken(
+      const base::Optional<base::UnguessableToken>& token) {
+    recursive_prefetch_token_ = token;
+  }
+
   unsigned MemoryUsage() const {
     // average size, mostly due to URL and Header Map strings
     return 1280;
@@ -407,6 +436,18 @@ class PLATFORM_EXPORT ResourceResponse final {
 
   void SetNetworkAccessed(bool network_accessed) {
     network_accessed_ = network_accessed;
+  }
+
+  bool FromArchive() const { return from_archive_; }
+
+  void SetFromArchive(bool from_archive) { from_archive_ = from_archive; }
+
+  bool WasAlternateProtocolAvailable() const {
+    return was_alternate_protocol_available_;
+  }
+
+  void SetWasAlternateProtocolAvailable(bool was_alternate_protocol_available) {
+    was_alternate_protocol_available_ = was_alternate_protocol_available;
   }
 
   bool IsSignedExchangeInnerResponse() const {
@@ -445,7 +486,7 @@ class PLATFORM_EXPORT ResourceResponse final {
 
   bool was_cached_ = false;
   bool connection_reused_ = false;
-  bool is_null_;
+  bool is_null_ = false;
   mutable bool have_parsed_age_header_ = false;
   mutable bool have_parsed_date_header_ = false;
   mutable bool have_parsed_expires_header_ = false;
@@ -494,9 +535,17 @@ class PLATFORM_EXPORT ResourceResponse final {
   // True if this resource was loaded from the network.
   bool network_accessed_ = false;
 
+  // True if this resource was loaded from a MHTML archive.
+  bool from_archive_ = false;
+
+  // True if response could use alternate protocol.
+  bool was_alternate_protocol_available_ = false;
+
+  // True if the response was delivered after ALPN is negotiated.
+  bool was_alpn_negotiated_ = false;
+
   // https://fetch.spec.whatwg.org/#concept-response-type
-  network::mojom::FetchResponseType response_type_ =
-      network::mojom::FetchResponseType::kDefault;
+  network::mojom::FetchResponseType response_type_;
 
   // HTTP version used in the response, if known.
   HTTPVersion http_version_ = kHTTPVersionUnknown;
@@ -507,22 +556,20 @@ class PLATFORM_EXPORT ResourceResponse final {
   // The security style of the resource.
   // This only contains a valid value when the DevTools Network domain is
   // enabled. (Otherwise, it contains a default value of Unknown.)
-  SecurityStyle security_style_ = kSecurityStyleUnknown;
+  SecurityStyle security_style_ = SecurityStyle::kUnknown;
 
   // Security details of this request's connection.
-  // If m_securityStyle is Unknown or Unauthenticated, this does not contain
-  // valid data.
-  SecurityDetails security_details_;
+  base::Optional<SecurityDetails> security_details_;
 
   scoped_refptr<ResourceLoadTiming> resource_load_timing_;
   scoped_refptr<ResourceLoadInfo> resource_load_info_;
 
   mutable CacheControlHeader cache_control_header_;
 
-  mutable double age_ = 0.0;
-  mutable double date_ = 0.0;
-  mutable double expires_ = 0.0;
-  mutable double last_modified_ = 0.0;
+  mutable base::Optional<base::TimeDelta> age_;
+  mutable base::Optional<base::Time> date_;
+  mutable base::Optional<base::Time> expires_;
+  mutable base::Optional<base::Time> last_modified_;
 
   // The id of the appcache this response was retrieved from, or zero if
   // the response was not retrieved from an appcache.
@@ -546,7 +593,7 @@ class PLATFORM_EXPORT ResourceResponse final {
 
   // The time at which the response headers were received.  For cached
   // responses, this time could be "far" in the past.
-  Time response_time_;
+  base::Time response_time_;
 
   // ALPN negotiated protocol of the socket which fetched this resource.
   AtomicString alpn_negotiated_protocol_;
@@ -564,6 +611,11 @@ class PLATFORM_EXPORT ResourceResponse final {
   // Sizes of the response body in bytes after any content-encoding is
   // removed.
   int64_t decoded_body_length_ = 0;
+
+  // This is propagated from the browser process's PrefetchURLLoader on
+  // cross-origin prefetch responses. It is used to pass the token along to
+  // preload header requests from these responses.
+  base::Optional<base::UnguessableToken> recursive_prefetch_token_;
 };
 
 }  // namespace blink

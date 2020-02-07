@@ -28,12 +28,10 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/timer.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
-
-class SharedBuffer;
 
 namespace test {
 
@@ -42,7 +40,7 @@ namespace test {
 void RunPendingTasks();
 
 // Waits for delayed task to complete or timers to fire for |delay|.
-void RunDelayedTasks(TimeDelta delay);
+void RunDelayedTasks(base::TimeDelta delay);
 
 void EnterRunLoop();
 void ExitRunLoop();

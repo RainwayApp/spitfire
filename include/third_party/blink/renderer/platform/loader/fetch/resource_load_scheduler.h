@@ -8,12 +8,17 @@
 #include <map>
 #include <set>
 
+#include "base/time/time.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+
+namespace base {
+class Clock;
+}
 
 namespace blink {
 
@@ -77,7 +82,7 @@ class PLATFORM_EXPORT ResourceLoadSchedulerClient
 //     minutes, all throttleable resource loading requests are throttled
 //     indefinitely (i.e., threshold is zero in such a circumstance).
 class PLATFORM_EXPORT ResourceLoadScheduler final
-    : public GarbageCollectedFinalized<ResourceLoadScheduler>,
+    : public GarbageCollected<ResourceLoadScheduler>,
       public FrameScheduler::Observer {
  public:
   // An option to use in calling Request(). If kCanNotBeStoppedOrThrottled is
@@ -195,10 +200,12 @@ class PLATFORM_EXPORT ResourceLoadScheduler final
   }
   void SetOutstandingLimitForTesting(size_t tight_limit, size_t normal_limit);
 
-  void OnNetworkQuiet();
-
   // FrameScheduler::Observer overrides:
   void OnLifecycleStateChanged(scheduler::SchedulingLifecycleState) override;
+
+  // The caller is the owner of the |clock|. The |clock| must outlive the
+  // ResourceLoadScheduler.
+  void SetClockForTesting(const base::Clock* clock);
 
  private:
   class TrafficMonitor;
@@ -302,20 +309,8 @@ class PLATFORM_EXPORT ResourceLoadScheduler final
 
   HashSet<ClientId> running_throttleable_requests_;
 
-  // Largest number of running requests seen so far.
-  unsigned maximum_running_requests_seen_ = 0;
-
   // Holds a flag to omit repeating console messages.
   bool is_console_info_shown_ = false;
-
-  enum class ThrottlingHistory {
-    kInitial,
-    kThrottled,
-    kNotThrottled,
-    kPartiallyThrottled,
-    kStopped,
-  };
-  ThrottlingHistory throttling_history_ = ThrottlingHistory::kInitial;
 
   scheduler::SchedulingLifecycleState frame_scheduler_lifecycle_state_ =
       scheduler::SchedulingLifecycleState::kNotThrottled;
@@ -331,7 +326,7 @@ class PLATFORM_EXPORT ResourceLoadScheduler final
 
   // Remembers elapsed times in seconds when the top request in each queue is
   // processed.
-  std::map<ThrottleOption, double> pending_queue_update_times_;
+  std::map<ThrottleOption, base::Time> pending_queue_update_times_;
 
   // Holds an internal class instance to monitor and report traffic.
   std::unique_ptr<TrafficMonitor> traffic_monitor_;
@@ -341,6 +336,8 @@ class PLATFORM_EXPORT ResourceLoadScheduler final
       scheduler_observer_handle_;
 
   const Member<DetachableConsoleLogger> console_logger_;
+
+  const base::Clock* clock_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceLoadScheduler);
 };

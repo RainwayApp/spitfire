@@ -28,7 +28,6 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/create_element_flags.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
-#include "third_party/blink/renderer/platform/bindings/shared_persistent.h"
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -103,6 +102,9 @@ class CORE_EXPORT HTMLPlugInElement
   ParsedFeaturePolicy ConstructContainerPolicy(
       Vector<String>* /* messages */) const override;
 
+  bool IsImageType() const;
+  HTMLImageLoader* ImageLoader() const { return image_loader_.Get(); }
+
  protected:
   HTMLPlugInElement(const QualifiedName& tag_name,
                     Document&,
@@ -127,7 +129,6 @@ class CORE_EXPORT HTMLPlugInElement
   // if necessary.
   virtual LayoutEmbeddedContent* LayoutEmbeddedContentForJSBindings() const;
 
-  bool IsImageType() const;
   LayoutEmbeddedObject* GetLayoutEmbeddedObject() const;
   bool AllowedToLoadFrameURL(const String& url);
   bool RequestObject(const PluginParameters& plugin_params);
@@ -165,7 +166,7 @@ class CORE_EXPORT HTMLPlugInElement
   bool CanStartSelection() const override;
   bool WillRespondToMouseClickEvents() final;
   void DefaultEventHandler(Event&) final;
-  void DetachLayoutTree(const AttachContext& = AttachContext()) final;
+  void DetachLayoutTree(bool performing_reattach) final;
   void FinishParsingChildren() final;
 
   // Element overrides:
@@ -198,6 +199,7 @@ class CORE_EXPORT HTMLPlugInElement
   bool AllowedToLoadPlugin(const KURL&, const String& mime_type);
   // Perform checks based on the URL and MIME-type of the object to load.
   bool AllowedToLoadObject(const KURL&, const String& mime_type);
+  void RemovePluginFromFrameView(WebPluginContainerImpl* plugin);
 
   enum class ObjectContentType {
     kNone,
@@ -209,8 +211,6 @@ class CORE_EXPORT HTMLPlugInElement
   ObjectContentType GetObjectContentType() const;
 
   void SetPersistedPlugin(WebPluginContainerImpl*);
-
-  bool RequestObjectInternal(const PluginParameters& plugin_params);
 
   void UpdateServiceTypeIfEmpty();
 

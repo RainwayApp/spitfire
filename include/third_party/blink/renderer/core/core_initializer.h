@@ -31,11 +31,16 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CORE_INITIALIZER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CORE_INITIALIZER_H_
 
+#include <memory>
+
 #include "base/macros.h"
-#include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+
+namespace mojo {
+class BinderMap;
+}
 
 namespace blink {
 
@@ -51,13 +56,12 @@ class PictureInPictureController;
 class Settings;
 class ShadowRoot;
 class WebLocalFrameClient;
-class WebLayerTreeView;
 class WebMediaPlayer;
 class WebMediaPlayerClient;
 class WebMediaPlayerSource;
 class WebRemotePlaybackClient;
 class WebViewClient;
-class WorkerClients;
+class WorkerGlobalScope;
 
 class CORE_EXPORT CoreInitializer {
   USING_FAST_MALLOC(CoreInitializer);
@@ -77,15 +81,14 @@ class CORE_EXPORT CoreInitializer {
 
   // Called on startup to register Mojo interfaces that for control messages,
   // e.g. messages that are not routed to a specific frame.
-  virtual void RegisterInterfaces(service_manager::BinderRegistry&) = 0;
+  virtual void RegisterInterfaces(mojo::BinderMap&) = 0;
   // Methods defined in CoreInitializer and implemented by ModulesInitializer to
   // bypass the inverted dependency from core/ to modules/.
   // Mojo Interfaces registered with LocalFrame
   virtual void InitLocalFrame(LocalFrame&) const = 0;
   // Supplements installed on a frame using ChromeClient
   virtual void InstallSupplements(LocalFrame&) const = 0;
-  virtual void ProvideLocalFileSystemToWorker(WorkerClients&) const = 0;
-  virtual void ProvideIndexedDBClientToWorker(WorkerClients&) const = 0;
+  virtual void ProvideLocalFileSystemToWorker(WorkerGlobalScope&) const = 0;
   virtual MediaControls* CreateMediaControls(HTMLMediaElement&,
                                              ShadowRoot&) const = 0;
   virtual PictureInPictureController* CreatePictureInPictureController(
@@ -107,8 +110,7 @@ class CORE_EXPORT CoreInitializer {
       WebLocalFrameClient*,
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
-      WebMediaPlayerClient*,
-      WebLayerTreeView*) const = 0;
+      WebMediaPlayerClient*) const = 0;
 
   virtual WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) const = 0;

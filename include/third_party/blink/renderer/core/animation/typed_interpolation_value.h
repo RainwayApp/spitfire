@@ -10,7 +10,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/core/animation/interpolation_value.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -22,10 +22,10 @@ class TypedInterpolationValue {
   USING_FAST_MALLOC(TypedInterpolationValue);
 
  public:
-  TypedInterpolationValue(
-      const InterpolationType& type,
-      std::unique_ptr<InterpolableValue> interpolable_value,
-      scoped_refptr<NonInterpolableValue> non_interpolable_value = nullptr)
+  TypedInterpolationValue(const InterpolationType& type,
+                          std::unique_ptr<InterpolableValue> interpolable_value,
+                          scoped_refptr<const NonInterpolableValue>
+                              non_interpolable_value = nullptr)
       : type_(type),
         value_(std::move(interpolable_value),
                std::move(non_interpolable_value)) {

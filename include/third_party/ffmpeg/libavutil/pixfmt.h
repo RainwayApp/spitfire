@@ -345,6 +345,9 @@ enum AVPixelFormat {
     AV_PIX_FMT_YUVA444P12BE, ///< planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples), 12b alpha, big-endian
     AV_PIX_FMT_YUVA444P12LE, ///< planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples), 12b alpha, little-endian
 
+    AV_PIX_FMT_NV24,      ///< planar YUV 4:4:4, 24bpp, 1 plane for Y and 1 plane for the UV components, which are interleaved (first byte U and the following byte V)
+    AV_PIX_FMT_NV42,      ///< as above, but U and V bytes are swapped
+
     AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
 };
 
@@ -453,7 +456,8 @@ enum AVColorPrimaries {
     AVCOL_PRI_SMPTEST428_1 = AVCOL_PRI_SMPTE428,
     AVCOL_PRI_SMPTE431    = 11, ///< SMPTE ST 431-2 (2011) / DCI P3
     AVCOL_PRI_SMPTE432    = 12, ///< SMPTE ST 432-1 (2010) / P3 D65 / Display P3
-    AVCOL_PRI_JEDEC_P22   = 22, ///< JEDEC P22 phosphors
+    AVCOL_PRI_EBU3213     = 22, ///< EBU Tech. 3213-E / JEDEC P22 phosphors
+    AVCOL_PRI_JEDEC_P22   = AVCOL_PRI_EBU3213,
     AVCOL_PRI_NB                ///< Not part of ABI
 };
 

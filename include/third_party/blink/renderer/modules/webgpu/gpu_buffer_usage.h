@@ -14,15 +14,15 @@ class GPUBufferUsage : public ScriptWrappable {
 
  public:
   // gpu_buffer_usage.idl
-  static constexpr uint32_t kNone = 0;
   static constexpr uint32_t kMapRead = 1;
   static constexpr uint32_t kMapWrite = 2;
-  static constexpr uint32_t kTransferSrc = 4;
-  static constexpr uint32_t kTransferDst = 8;
+  static constexpr uint32_t kCopySrc = 4;
+  static constexpr uint32_t kCopyDst = 8;
   static constexpr uint32_t kIndex = 16;
   static constexpr uint32_t kVertex = 32;
   static constexpr uint32_t kUniform = 64;
   static constexpr uint32_t kStorage = 128;
+  static constexpr uint32_t kIndirect = 256;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GPUBufferUsage);

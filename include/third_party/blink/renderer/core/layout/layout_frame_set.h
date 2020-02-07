@@ -134,7 +134,7 @@ class LayoutFrameSet final : public LayoutBox {
   void Paint(const PaintInfo&) const override;
   void ComputePreferredLogicalWidths() override;
   bool IsChildAllowed(LayoutObject*, const ComputedStyle&) const override;
-  CursorDirective GetCursor(const LayoutPoint&, Cursor&) const override;
+  CursorDirective GetCursor(const PhysicalOffset&, Cursor&) const override;
 
   void SetIsResizing(bool);
 
@@ -159,7 +159,6 @@ class LayoutFrameSet final : public LayoutBox {
   GridAxis cols_;
 
   bool is_resizing_;
-  bool is_child_resizing_;
 };
 
 DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutFrameSet, IsFrameSet());

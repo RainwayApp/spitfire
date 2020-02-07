@@ -81,7 +81,7 @@ class CORE_EXPORT KeyframeEffect final : public AnimationEffect {
   void setTarget(Element*);
   String composite() const;
   void setComposite(String);
-  Vector<ScriptValue> getKeyframes(ScriptState*);
+  HeapVector<ScriptValue> getKeyframes(ScriptState*);
   void setKeyframes(ScriptState*,
                     const ScriptValue& keyframes,
                     ExceptionState&);
@@ -123,6 +123,8 @@ class CORE_EXPORT KeyframeEffect final : public AnimationEffect {
 
   void Trace(blink::Visitor*) override;
 
+  bool AnimationsPreserveAxisAlignment() const;
+
  private:
   EffectModel::CompositeOperation CompositeInternal() const;
 
@@ -133,12 +135,14 @@ class CORE_EXPORT KeyframeEffect final : public AnimationEffect {
   void Detach() override;
   void AttachTarget(Animation*);
   void DetachTarget(Animation*);
-  double CalculateTimeToEffectChange(
+  AnimationTimeDelta CalculateTimeToEffectChange(
       bool forwards,
-      double inherited_time,
+      base::Optional<double> inherited_time,
       double time_to_next_iteration) const override;
   bool HasIncompatibleStyle() const;
   bool HasMultipleTransformProperties() const;
+
+  bool AnimationsPreserveAxisAlignment(const PropertyHandle&) const;
 
   Member<Element> target_;
   Member<KeyframeEffectModelBase> model_;

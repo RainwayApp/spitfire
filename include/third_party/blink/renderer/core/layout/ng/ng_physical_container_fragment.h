@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGPhysicalContainerFragment_h
-#define NGPhysicalContainerFragment_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_PHYSICAL_CONTAINER_FRAGMENT_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_PHYSICAL_CONTAINER_FRAGMENT_H_
 
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
+#include "third_party/blink/renderer/core/layout/ng/ng_break_token.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_link.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_physical_fragment.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
@@ -15,42 +17,18 @@
 namespace blink {
 
 class NGContainerFragmentBuilder;
-struct NGOutOfFlowPositionedDescendant;
+struct NGPhysicalOutOfFlowPositionedNode;
 enum class NGOutlineType;
 
 class CORE_EXPORT NGPhysicalContainerFragment : public NGPhysicalFragment {
  public:
-  class ChildLinkListBase {
+  // Same as |base::span<const NGLink>|, except that each |NGLink| has the
+  // latest generation of post-layout. See
+  // |NGPhysicalFragment::UpdatedFragment()| for more details.
+  class PostLayoutChildLinkList {
    public:
-    ChildLinkListBase(wtf_size_t count, const NGLink* buffer)
+    PostLayoutChildLinkList(wtf_size_t count, const NGLink* buffer)
         : count_(count), buffer_(buffer) {}
-
-    wtf_size_t size() const { return count_; }
-    bool IsEmpty() const { return count_ == 0; }
-
-   protected:
-    wtf_size_t count_;
-    const NGLink* buffer_;
-  };
-
-  class ChildLinkList : public ChildLinkListBase {
-   public:
-    using ChildLinkListBase::ChildLinkListBase;
-
-    const NGLink& operator[](wtf_size_t idx) const { return buffer_[idx]; }
-    const NGLink& front() const { return buffer_[0]; }
-    const NGLink& back() const { return buffer_[count_ - 1]; }
-
-    const NGLink* begin() const { return buffer_; }
-    const NGLink* end() const { return begin() + count_; }
-  };
-
-  // Same as |ChildLinkList|, except that each |NGLink| has the latest
-  // generation of post-layout. See |NGPhysicalFragment::UpdatedFragment()| for
-  // more details.
-  class PostLayoutChildLinkList : public ChildLinkListBase {
-   public:
-    using ChildLinkListBase::ChildLinkListBase;
 
     class ConstIterator {
       STACK_ALLOCATED();
@@ -95,17 +73,26 @@ class CORE_EXPORT NGPhysicalContainerFragment : public NGPhysicalFragment {
     }
     const NGLink front() const { return (*this)[0]; }
     const NGLink back() const { return (*this)[count_ - 1]; }
+
+    wtf_size_t size() const { return count_; }
+    bool empty() const { return count_ == 0; }
+
+   private:
+    wtf_size_t count_;
+    const NGLink* buffer_;
   };
 
   ~NGPhysicalContainerFragment();
+
+  const NGBreakToken* BreakToken() const { return break_token_.get(); }
 
   // Returns the children of |this|.
   //
   // Note, children in this collection maybe old generations. Items in this
   // collection are safe, but their children (grandchildren of |this|) maybe
   // from deleted nodes or LayoutObjects. Also see |PostLayoutChildren()|.
-  ChildLinkList Children() const {
-    return ChildLinkList(num_children_, buffer_);
+  base::span<const NGLink> Children() const {
+    return base::make_span(buffer_, num_children_);
   }
 
   // Similar to |Children()| but all children are the latest generation of
@@ -114,7 +101,17 @@ class CORE_EXPORT NGPhysicalContainerFragment : public NGPhysicalFragment {
     return PostLayoutChildLinkList(num_children_, buffer_);
   }
 
-  bool HasFloatingDescendants() const { return has_floating_descendants_; }
+  // Returns true if we have any floating descendants which need to be
+  // traversed during the float paint phase.
+  bool HasFloatingDescendantsForPaint() const {
+    return has_floating_descendants_for_paint_;
+  }
+
+  // Returns true if we have any adjoining-object descendants (floats, or
+  // inline-level OOF-positioned objects).
+  bool HasAdjoiningObjectDescendants() const {
+    return has_adjoining_object_descendants_;
+  }
 
   bool HasOrthogonalFlowRoots() const { return has_orthogonal_flow_roots_; }
 
@@ -130,9 +127,18 @@ class CORE_EXPORT NGPhysicalContainerFragment : public NGPhysicalFragment {
     return depends_on_percentage_block_size_;
   }
 
-  const Vector<NGOutOfFlowPositionedDescendant>&
-  OutOfFlowPositionedDescendants() const {
-    return oof_positioned_descendants_;
+  bool HasOutOfFlowPositionedDescendants() const {
+    DCHECK(!oof_positioned_descendants_ ||
+           !oof_positioned_descendants_->IsEmpty());
+    return oof_positioned_descendants_.get();
+  }
+
+  base::span<NGPhysicalOutOfFlowPositionedNode> OutOfFlowPositionedDescendants()
+      const {
+    if (!HasOutOfFlowPositionedDescendants())
+      return base::span<NGPhysicalOutOfFlowPositionedNode>();
+    return {oof_positioned_descendants_->data(),
+            oof_positioned_descendants_->size()};
   }
 
  protected:
@@ -157,7 +163,9 @@ class CORE_EXPORT NGPhysicalContainerFragment : public NGPhysicalFragment {
 
   static bool DependsOnPercentageBlockSize(const NGContainerFragmentBuilder&);
 
-  Vector<NGOutOfFlowPositionedDescendant> oof_positioned_descendants_;
+  scoped_refptr<const NGBreakToken> break_token_;
+  const std::unique_ptr<Vector<NGPhysicalOutOfFlowPositionedNode>>
+      oof_positioned_descendants_;
 
   // Because flexible arrays need to be the last member in a class, the actual
   // storage is in the subclass and we just keep a pointer to it here.
@@ -174,4 +182,4 @@ struct DowncastTraits<NGPhysicalContainerFragment> {
 
 }  // namespace blink
 
-#endif  // NGPhysicalContainerFragment_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_PHYSICAL_CONTAINER_FRAGMENT_H_
