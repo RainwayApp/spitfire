@@ -46,6 +46,7 @@ namespace Spitfire
 	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * label, const char * msg);
 	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const char * label, const uint8_t * msg, uint32_t size);
 	typedef void(__stdcall *OnIceStateChangeCallbackNative)(webrtc::PeerConnectionInterface::IceConnectionState state);
+	typedef void(__stdcall* OnIceGatheringStateCallbackNative)(webrtc::PeerConnectionInterface::IceGatheringState state);
 	typedef void(__stdcall *OnDataChannelStateCallbackNative)(const char * label, webrtc::DataChannelInterface::DataState state);
 	typedef void(__stdcall *OnBufferAmountCallbackNative)(const char * label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived);
 
@@ -80,6 +81,7 @@ namespace Spitfire
 		OnSuccessCallbackNative onSuccess;
 		OnFailureCallbackNative onFailure;
 		OnIceStateChangeCallbackNative onIceStateChange;
+		OnIceGatheringStateCallbackNative onIceGatheringStateChange;
 		OnIceCandidateCallbackNative onIceCandidate;
 		OnDataChannelStateCallbackNative onDataChannelState;
 		OnBufferAmountCallbackNative onBufferAmountChange;
@@ -114,7 +116,7 @@ namespace Spitfire
 		std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
-		bool CreatePeerConnection(bool dtls, int minPort, int maxPort);
+		bool CreatePeerConnection(int minPort, int maxPort);
 
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;

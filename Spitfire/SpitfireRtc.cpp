@@ -96,6 +96,29 @@ namespace Spitfire
 		ConnectionMax = 7
 	};
 
+	/// <summary>
+	/// <seealso href="https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/iceGatheringState"/>
+	/// </summary>
+	public enum class IceGatheringState
+	{
+		/// <summary>
+		/// The peer connection was just created and hasn't done any networking yet.
+		/// </summary>
+		New = 0,
+
+		/// <summary>
+		/// The ICE agent is in the process of gathering candidates for the connection.
+		/// </summary>
+		Gathering = 1,
+
+		/// <summary>
+		/// The ICE agent has finished gathering candidates. 
+		/// If something happens that requires collecting new candidates, such as a new interface being added or the addition of a new ICE server, 
+		/// the state will revert to "gathering" to gather those candidates.
+		/// </summary>
+		Complete = 2
+	};
+
 	public enum class SdpTypes
 	{
 		Answer,
@@ -272,6 +295,11 @@ namespace Spitfire
 			GCHandle ^ onIceStateCallbackHandle;
 
 
+			delegate void _OnIceGatheringStateCallback(webrtc::PeerConnectionInterface::IceGatheringState state);
+			_OnIceGatheringStateCallback^ onIceGatheringStateChange;
+			GCHandle^ onIceGatheringStateCallbackHandle;
+
+
 
 
 
@@ -334,9 +362,14 @@ namespace Spitfire
 			void _OnIceState(webrtc::PeerConnectionInterface::IceConnectionState state)
 			{
 			
-				
 				IceConnectionState managedState = static_cast<IceConnectionState>(state);
 				OnIceStateChange(managedState);
+			}
+
+			void _OnIceGatheringState(webrtc::PeerConnectionInterface::IceGatheringState state)
+			{
+				IceGatheringState managedState = static_cast<IceGatheringState>(state);
+				OnIceGatheringStateChange(managedState);
 			}
 
 			void _OnBufferAmountChange(String ^ label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived)
@@ -410,6 +443,10 @@ namespace Spitfire
 				onIceStateCallbackHandle = GCHandle::Alloc(onIceStateChange);
 				_conductor->get()->onIceStateChange = static_cast<Spitfire::OnIceStateChangeCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceStateChange).ToPointer());
 
+				onIceGatheringStateChange = gcnew _OnIceGatheringStateCallback(this, &SpitfireRtc::_OnIceGatheringState);
+				onIceGatheringStateCallbackHandle = GCHandle::Alloc(onIceGatheringStateChange);
+				_conductor->get()->onIceGatheringStateChange = static_cast<Spitfire::OnIceGatheringStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceGatheringStateChange).ToPointer());
+
 
 				onBufferAmountChange = gcnew _OnBufferChangeCallback(this, &SpitfireRtc::_OnBufferAmountChange);
 				onBufferAmountChangeHandle = GCHandle::Alloc(onBufferAmountChange);
@@ -455,6 +492,14 @@ namespace Spitfire
 			/// </summary>
 			event IceStateChange ^ OnIceStateChange;
 
+			delegate void IceGatheringStateChange(IceGatheringState msg);
+			/// <summary>
+			/// When ICE firststarts to gather connection candidates, the value changes from new to gathering to indicate that the process of collecting candidate 
+			/// configurations for the connection has begun. When the value changes to complete, 
+			/// all of the transports that make up the RTCPeerConnection have finished gathering ICE candidates.
+			/// </summary>
+			event IceGatheringStateChange^ OnIceGatheringStateChange;
+
 			delegate void BufferChange(String ^ label, long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
 			/// <summary>
 			/// Lets you know the buffer has changed and gives a snapshot of the current buffer
@@ -480,6 +525,7 @@ namespace Spitfire
 				FreeGCHandle(onFailureHandle);
 				FreeGCHandle(onIceCandidateHandle);
 				FreeGCHandle(onDataMessageHandle);
+				FreeGCHandle(onIceGatheringStateCallbackHandle);
 				FreeGCHandle(onDataBinaryMessageHandle);
 				FreeGCHandle(onDataChannelStateHandle);
 				if (_conductor != nullptr)
@@ -648,11 +694,9 @@ namespace Spitfire
 			/// Be aware that channels have a 16KB limit and you should take advantage 
 			/// Of the provided utilties to chunk messages quickly.
 			/// </summary>
-			void DataChannelSendData(String^ label, array<Byte>^ array_data)
+			void DataChannelSendData(String^ label, Byte* array_data, int length)
 			{
-				pin_ptr<uint8_t> thePtr = &array_data[0];
-				uint8_t * bPtr = thePtr;
-				rtc::CopyOnWriteBuffer writeBuffer(bPtr, array_data->Length);
+				rtc::CopyOnWriteBuffer writeBuffer(array_data, length);
 				_conductor->get()->DataChannelSendData(marshal_as<std::string>(label), webrtc::DataBuffer(writeBuffer, true));
 			}
 

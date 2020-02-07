@@ -34,7 +34,10 @@ void Spitfire::Observers::PeerConnectionObserver::OnIceConnectionChange(webrtc::
 
 void Spitfire::Observers::PeerConnectionObserver::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
 {
-	RTC_LOG(INFO) << __FUNCTION__ << " ";
+	if (_manager->onIceGatheringStateChange != nullptr) {
+
+		_manager->onIceGatheringStateChange(new_state);
+	}
 
 }
 void Spitfire::Observers::PeerConnectionObserver::OnIceCandidate(const webrtc::IceCandidateInterface * candidate)

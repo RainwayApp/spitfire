@@ -120,7 +120,7 @@ namespace Spitfire
 			pc_factory_->SetOptions(opt);
 		}
 
-		if (!CreatePeerConnection(true, minPort, maxPort))
+		if (!CreatePeerConnection(minPort, maxPort))
 		{
 			DeletePeerConnection();
 			return false;
@@ -128,7 +128,7 @@ namespace Spitfire
 		return peerObserver->peerConnection != nullptr;
 	}
 
-	bool RtcConductor::CreatePeerConnection(bool dtls, int minPort, int maxPort)
+	bool RtcConductor::CreatePeerConnection(int minPort, int maxPort)
 	{
 		RTC_DCHECK(pc_factory_ != nullptr);
 		RTC_DCHECK(peerObserver->peerConnection == nullptr);
@@ -138,7 +138,9 @@ namespace Spitfire
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 		//no clue why this was set to true
 		config.disable_ipv6 = false;
-		config.enable_dtls_srtp = absl::optional<bool>(dtls);
+		config.disable_ipv6_on_wifi = false;
+		config.network_preference = absl::optional<rtc::AdapterType>(rtc::AdapterType::ADAPTER_TYPE_ETHERNET);
+		
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
 
 		for each (auto server in serverConfigs)
