@@ -51,7 +51,7 @@ namespace Spitfire
 					x.second->dataChannel = nullptr;
 				}
 			}
-			dataObservers.empty();
+			//dataObservers.empty();
 		}
 		serverConfigs.clear();
 
