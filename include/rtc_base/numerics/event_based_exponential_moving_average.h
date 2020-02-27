@@ -21,7 +21,7 @@ namespace rtc {
 /**
  * This class implements exponential moving average for time series
  * estimating both value, variance and variance of estimator based on
- * https://en.wikipedia.org/w/index.php?title=Moving_average&section=9#Application_to_measuring_computer_performance
+ * https://en.wikipedia.org/w/index.php?title=Moving_average Section 9, Application_to_measuring_computer_performance
  * with the additions from nisse@ added to
  * https://en.wikipedia.org/wiki/Talk:Moving_average.
  *

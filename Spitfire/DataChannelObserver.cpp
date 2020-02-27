@@ -26,7 +26,7 @@ void Spitfire::Observers::DataChannelObserver::OnMessage(const webrtc::DataBuffe
 		if (_manager->onDataBinaryMessage != nullptr)
 		{
 			auto * data = buffer.data.data();
-			_manager->onDataBinaryMessage(dataChannel->label().c_str(), data, buffer.size());
+			_manager->onDataBinaryMessage(dataChannel->label().c_str(), data, static_cast<uint32_t>(buffer.size()));
 		}
 	}
 	else

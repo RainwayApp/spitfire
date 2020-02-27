@@ -15,7 +15,7 @@ namespace Spitfire
 	{
 		rtc::WinsockInitializer();
 		rtc::InitializeSSL();
-		rtc::InitRandom(rtc::Time());
+		rtc::InitRandom(static_cast<int>(rtc::Time()));
 	}
 
 	void EnableLogging()

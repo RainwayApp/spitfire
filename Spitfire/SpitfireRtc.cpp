@@ -374,7 +374,7 @@ namespace Spitfire
 
 			void _OnBufferAmountChange(String ^ label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived)
 			{
-				OnBufferAmountChange(label, previousAmount, currentAmount, bytesSent, bytesReceived);
+				OnBufferAmountChange(label, static_cast<long>(previousAmount), static_cast<long>(currentAmount), static_cast<long>(bytesSent), static_cast<long>(bytesReceived));
 			}
 
 			void _OnDataChannelState(String ^ label, webrtc::DataChannelInterface::DataState state)
@@ -655,9 +655,9 @@ namespace Spitfire
 				if (rtcInfo.protocol != "unknown")
 				{
 					auto managedInfo = gcnew Spitfire::DataChannelInfo();
-					managedInfo->CurrentBuffer = rtcInfo.currentBuffer;
-					managedInfo->BytesSent = rtcInfo.bytesSent;
-					managedInfo->BytesReceived = rtcInfo.bytesReceived;
+					managedInfo->CurrentBuffer = static_cast<unsigned long>(rtcInfo.currentBuffer);
+					managedInfo->BytesSent = static_cast<unsigned long>(rtcInfo.bytesSent);
+					managedInfo->BytesReceived = static_cast<unsigned long>(rtcInfo.bytesReceived);
 
 					managedInfo->Reliable = rtcInfo.reliable;
 					managedInfo->Ordered = rtcInfo.ordered;
