@@ -6,8 +6,6 @@ using cricket::MediaEngineInterface;
 
 namespace Spitfire
 {
-
-
 	RtcConductor::RtcConductor()
 	{
 		onError = nullptr;
@@ -59,8 +57,6 @@ namespace Spitfire
 		worker_thread_->Stop();
 		signaling_thread_->Stop();
 		rtc::ThreadManager::Instance()->CurrentThread()->Stop();
-
-
 	}
 
 	bool RtcConductor::InitializePeerConnection(int minPort, int maxPort)
@@ -109,8 +105,6 @@ namespace Spitfire
 			DeletePeerConnection();
 			return false;
 		}
-
-
 
 		webrtc::PeerConnectionFactoryInterface::Options opt;
 		{
@@ -239,9 +233,6 @@ namespace Spitfire
 		return true;
 	}
 
-
-
-
 	void RtcConductor::CreateDataChannel(const std::string & label, const webrtc::DataChannelInit dc_options)
 	{
 		if (!peerObserver->peerConnection)
@@ -253,8 +244,6 @@ namespace Spitfire
 			dataObservers[label]->dataChannel->RegisterObserver(dataObservers[label]);
 		}
 	}
-
-
 
 	void RtcConductor::DataChannelSendText(const std::string & label, const std::string & text)
 	{
@@ -289,8 +278,6 @@ namespace Spitfire
 
 			info.protocol = dataChannel->protocol();
 			info.state = dataChannel->state();
-
-		
 
 			return info;
 		}

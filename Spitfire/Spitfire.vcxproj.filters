@@ -27,9 +27,6 @@
     <ClInclude Include="RtcConductor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RtcUtils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PeerConnectionObserver.h">
       <Filter>Header Files\Observers</Filter>
     </ClInclude>
@@ -61,9 +58,6 @@
     </ClCompile>
     <ClCompile Include="PeerConnectionObserver.cpp">
       <Filter>Source Files\Observers</Filter>
-    </ClCompile>
-    <ClCompile Include="RtcUtils.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SpitfireRtc.cpp">
       <Filter>Source Files</Filter>

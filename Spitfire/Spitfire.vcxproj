@@ -220,7 +220,6 @@
     <ClInclude Include="PeerConnectionObserver.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="RtcConductor.h" />
-    <ClInclude Include="RtcUtils.h" />
     <ClInclude Include="SetSessionDescriptionObserver.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -229,7 +228,6 @@
     <ClCompile Include="DataChannelObserver.cpp" />
     <ClCompile Include="PeerConnectionObserver.cpp" />
     <ClCompile Include="RtcConductor.cpp" />
-    <ClCompile Include="RtcUtils.cpp" />
     <ClCompile Include="SetSessionDescriptionObserver.cpp" />
     <ClCompile Include="SpitfireRtc.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</CompileAsManaged>

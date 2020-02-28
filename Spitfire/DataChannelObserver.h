@@ -1,23 +1,22 @@
 #pragma once
 
-
 #include "api/peer_connection_interface.h"
 #include "api/data_channel_interface.h"
 
-
-namespace Spitfire {
-
-
+namespace Spitfire 
+{
 	class RtcConductor;
 
 	namespace Observers
 	{
-
-
 		class DataChannelObserver : public webrtc::DataChannelObserver
 		{
 		public:
-
+			explicit DataChannelObserver(RtcConductor* conductor) :
+				conductor_(conductor)
+			{
+			}
+			~DataChannelObserver() = default;
 
 			// The data channel state have changed.
 			void OnStateChange() override;
@@ -28,8 +27,6 @@ namespace Spitfire {
 			// The data channel's buffered_amount has changed.
 			void OnBufferedAmountChange(uint64_t previous_amount) override;
 
-			explicit DataChannelObserver(RtcConductor* manager);
-			~DataChannelObserver();
 			rtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel;
 			//gcroot<WebRtcInterop::RtcDataChannel ^> _dataChannel;
 			//rtc::scoped_refptr<webrtc::DataChannelInterface> _nativeDataChannel;
@@ -42,8 +39,9 @@ namespace Spitfire {
 			{
 				return 0;
 			};
+
 		private:
-			RtcConductor * _manager;
+			RtcConductor* conductor_;
 		};
 	}
 }

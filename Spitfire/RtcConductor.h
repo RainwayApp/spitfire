@@ -1,7 +1,7 @@
+#pragma once
 
 #ifndef WEBRTC_NET_CONDUCTOR_H_
 #define WEBRTC_NET_CONDUCTOR_H_
-#pragma once
 
 #include "DataChannelObserver.h"
 #include "PeerConnectionObserver.h"
@@ -13,13 +13,14 @@
 
 namespace Spitfire
 {
-
-	struct ProcessingThread {
+	struct ProcessingThread 
+	{
 		std::unique_ptr<rtc::Thread> thread;
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
 	};
 
-	struct RtcDataChannelInfo {
+	struct RtcDataChannelInfo 
+	{
 		uint64_t currentBuffer;
 		uint64_t bytesSent;
 		uint64_t bytesReceived;
@@ -54,7 +55,6 @@ namespace Spitfire
 	class RtcConductor
 	{
 	public:
-
 		RtcConductor();
 		~RtcConductor();
 
@@ -70,7 +70,6 @@ namespace Spitfire
 		}
 
 		void AddServerConfig(std::string uri, std::string username, std::string password);
-
 
 		void CreateDataChannel(const std::string & label, const webrtc::DataChannelInit dc_options);
 		void DataChannelSendText(const std::string & label, const std::string & text);
@@ -99,7 +98,6 @@ namespace Spitfire
 		void DeletePeerConnection();
 
 	protected:
-
 		int AddRef() const
 		{
 			return 0;
@@ -110,7 +108,6 @@ namespace Spitfire
 		};
 
 	private:
-
 		rtc::Thread* worker_thread_;
 		rtc::Thread* signaling_thread_;
 		rtc::Thread* network_thread_;
@@ -118,7 +115,6 @@ namespace Spitfire
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
 		bool CreatePeerConnection(int minPort, int maxPort);
-
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;

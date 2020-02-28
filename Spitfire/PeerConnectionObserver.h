@@ -3,8 +3,8 @@
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
 
-namespace Spitfire {
-
+namespace Spitfire 
+{
 	class RtcConductor;
 
 	namespace Observers
@@ -12,6 +12,14 @@ namespace Spitfire {
 		class PeerConnectionObserver : public webrtc::PeerConnectionObserver
 		{
 		public:
+			explicit PeerConnectionObserver(RtcConductor* conductor) :
+				conductor_(conductor)
+			{
+			}
+			~PeerConnectionObserver()
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
 
 			// Triggered when the SignalingState changed.
 			void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
@@ -21,12 +29,10 @@ namespace Spitfire {
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-
 			void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-
 
 			// Triggered when a remote peer open a data channel.
 			void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
@@ -48,9 +54,6 @@ namespace Spitfire {
 			// Called when the ICE connection receiving status changes.
 			void OnIceConnectionReceivingChange(bool receiving) override { /* Not Implemented */ };
 
-			explicit PeerConnectionObserver(RtcConductor* manager);
-			~PeerConnectionObserver();
-
 			rtc::scoped_refptr<webrtc::PeerConnectionInterface> peerConnection;
 
 			int AddRef() const
@@ -63,7 +66,7 @@ namespace Spitfire {
 			};
 
 		private:
-			RtcConductor * _manager;
+			RtcConductor* conductor_;
 		};
 	}
 }
