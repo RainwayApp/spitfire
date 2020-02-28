@@ -1,7 +1,7 @@
-
 #pragma unmanaged
 #include "RtcUtils.h"
 #include "RtcConductor.h"
+
 #pragma managed
 #include "msclr/marshal_cppstd.h"
 
@@ -11,7 +11,6 @@ using namespace System;
 using namespace System::IO;
 using namespace System::Diagnostics;
 using namespace msclr::interop;	
-
 
 [assembly:System::Runtime::Versioning::TargetFrameworkAttribute(L".NETFramework,Version=v4.0", FrameworkDisplayName = L".NET Framework 4")];
 

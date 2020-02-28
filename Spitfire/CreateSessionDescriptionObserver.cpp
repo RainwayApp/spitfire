@@ -1,13 +1,9 @@
-
-
 #include "CreateSessionDescriptionObserver.h"
 #include "RtcConductor.h"
 
 Spitfire::Observers::CreateSessionDescriptionObserver::~CreateSessionDescriptionObserver()
 {
-
 }
-
 
 Spitfire::Observers::CreateSessionDescriptionObserver::CreateSessionDescriptionObserver(RtcConductor * manager)
 {
