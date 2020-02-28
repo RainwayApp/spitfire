@@ -19,9 +19,6 @@
 #define PARSEPOS_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/uobject.h"
 
  
@@ -231,7 +228,5 @@ ParsePosition::setErrorIndex(int32_t ei)
   this->errorIndex = ei;
 }
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

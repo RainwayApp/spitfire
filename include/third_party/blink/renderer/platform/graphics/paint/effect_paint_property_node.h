@@ -249,10 +249,6 @@ class PLATFORM_EXPORT EffectPaintPropertyNode
     //        CompositingReason::kActiveBackdropFilterAnimation;
   }
 
-  CompositingReasons DirectCompositingReasonsForDebugging() const {
-    return DirectCompositingReasons();
-  }
-
   const CompositorElementId& GetCompositorElementId() const {
     DCHECK(!Parent() || !IsParentAlias());
     return state_.compositor_element_id;

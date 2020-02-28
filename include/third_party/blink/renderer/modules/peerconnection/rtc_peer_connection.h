@@ -144,7 +144,6 @@ class MODULES_EXPORT RTCPeerConnection final
                              V8RTCPeerConnectionErrorCallback*,
                              const Dictionary&);
 
-  ScriptPromise setLocalDescription(ScriptState*);
   ScriptPromise setLocalDescription(ScriptState*,
                                     const RTCSessionDescriptionInit*);
   ScriptPromise setLocalDescription(
@@ -286,7 +285,7 @@ class MODULES_EXPORT RTCPeerConnection final
 
   // WebRTCPeerConnectionHandlerClient
   void NegotiationNeeded() override;
-  void DidGenerateICECandidate(scoped_refptr<RTCIceCandidatePlatform>) override;
+  void DidGenerateICECandidate(scoped_refptr<WebRTCICECandidate>) override;
   void DidFailICECandidate(const WebString& host_candidate,
                            const WebString& url,
                            int error_code,
@@ -299,13 +298,11 @@ class MODULES_EXPORT RTCPeerConnection final
       webrtc::PeerConnectionInterface::IceConnectionState) override;
   void DidChangePeerConnectionState(
       webrtc::PeerConnectionInterface::PeerConnectionState) override;
-  void DidAddReceiverPlanB(std::unique_ptr<RTCRtpReceiverPlatform>) override;
-  void DidRemoveReceiverPlanB(std::unique_ptr<RTCRtpReceiverPlatform>) override;
+  void DidAddReceiverPlanB(std::unique_ptr<WebRTCRtpReceiver>) override;
+  void DidRemoveReceiverPlanB(std::unique_ptr<WebRTCRtpReceiver>) override;
   void DidModifySctpTransport(WebRTCSctpTransportSnapshot) override;
-  void DidModifyTransceivers(
-      WebVector<std::unique_ptr<RTCRtpTransceiverPlatform>>,
-      WebVector<uintptr_t>,
-      bool is_remote_description) override;
+  void DidModifyTransceivers(WebVector<std::unique_ptr<WebRTCRtpTransceiver>>,
+                             bool is_remote_description) override;
   void DidAddRemoteDataChannel(
       scoped_refptr<webrtc::DataChannelInterface> channel) override;
   void DidNoteInterestingUsage(int usage_pattern) override;
@@ -364,11 +361,6 @@ class MODULES_EXPORT RTCPeerConnection final
   base::TimeTicks WebRtcTimestampToBlinkTimestamp(
       base::TimeTicks webrtc_monotonic_time) const;
 
-  using RtcPeerConnectionHandlerFactoryCallback =
-      base::RepeatingCallback<std::unique_ptr<WebRTCPeerConnectionHandler>()>;
-  static void SetRtcPeerConnectionHandlerFactoryForTesting(
-      RtcPeerConnectionHandlerFactoryCallback);
-
  private:
   FRIEND_TEST_ALL_PREFIXES(RTCPeerConnectionTest, GetAudioTrack);
   FRIEND_TEST_ALL_PREFIXES(RTCPeerConnectionTest, GetVideoTrack);
@@ -403,40 +395,39 @@ class MODULES_EXPORT RTCPeerConnection final
   MediaStreamTrack* GetTrack(const WebMediaStreamTrack&) const;
   RTCRtpSender* FindSenderForTrackAndStream(MediaStreamTrack*, MediaStream*);
   HeapVector<Member<RTCRtpSender>>::iterator FindSender(
-      const RTCRtpSenderPlatform& web_sender);
+      const WebRTCRtpSender& web_sender);
   HeapVector<Member<RTCRtpReceiver>>::iterator FindReceiver(
-      const RTCRtpReceiverPlatform& platform_receiver);
+      const WebRTCRtpReceiver& web_receiver);
   HeapVector<Member<RTCRtpTransceiver>>::iterator FindTransceiver(
-      const RTCRtpTransceiverPlatform& platform_transceiver);
+      const WebRTCRtpTransceiver& web_transceiver);
 
   // Creates or updates the sender such that it is up-to-date with the
-  // RTCRtpSenderPlatform in all regards *except for streams*. The web sender
-  // only knows of stream IDs; updating the stream objects requires additional
-  // logic which is different depending on context, e.g:
+  // WebRTCRtpSender in all regards *except for streams*. The web sender only
+  // knows of stream IDs; updating the stream objects requires additional logic
+  // which is different depending on context, e.g:
   // - If created/updated with addTrack(), the streams were supplied as
   //   arguments.
   // The web sender's web track must already have a correspondent blink track in
   // |tracks_|. The caller is responsible for ensuring this with
   // RegisterTrack(), e.g:
   // - On addTrack(), the track is supplied as an argument.
-  RTCRtpSender* CreateOrUpdateSender(std::unique_ptr<RTCRtpSenderPlatform>,
+  RTCRtpSender* CreateOrUpdateSender(std::unique_ptr<WebRTCRtpSender>,
                                      String kind);
   // Creates or updates the receiver such that it is up-to-date with the
-  // RTCRtpReceiverPlatform in all regards *except for streams*. The web
-  // receiver only knows of stream IDs; updating the stream objects requires
-  // additional logic which is different depending on context, e.g:
+  // WebRTCRtpReceiver in all regards *except for streams*. The web receiver
+  // only knows of stream IDs; updating the stream objects requires additional
+  // logic which is different depending on context, e.g:
   // - If created/updated with setRemoteDescription(), there is an algorithm for
   //   processing the addition/removal of remote tracks which includes how to
   //   create and update the associated streams set.
-  RTCRtpReceiver* CreateOrUpdateReceiver(
-      std::unique_ptr<RTCRtpReceiverPlatform>);
+  RTCRtpReceiver* CreateOrUpdateReceiver(std::unique_ptr<WebRTCRtpReceiver>);
   // Creates or updates the transceiver such that it, including its sender and
-  // receiver, are up-to-date with the RTCRtpTransceiverPlatform in all regerds
+  // receiver, are up-to-date with the WebRTCRtpTransceiver in all regerds
   // *except for sender and receiver streams*. The web sender and web receiver
   // only knows of stream IDs; updating the stream objects require additional
   // logic which is different depending on context. See above.
   RTCRtpTransceiver* CreateOrUpdateTransceiver(
-      std::unique_ptr<RTCRtpTransceiverPlatform>);
+      std::unique_ptr<WebRTCRtpTransceiver>);
 
   // Creates or updates the RTCDtlsTransport object corresponding to the
   // given webrtc::DtlsTransportInterface object.
@@ -545,7 +536,6 @@ class MODULES_EXPORT RTCPeerConnection final
   HeapHashMap<webrtc::IceTransportInterface*, WeakMember<RTCIceTransport>>
       ice_transports_by_native_transport_;
 
-  // TODO(crbug.com/787254): Use RTCPeerConnectionHandler.
   std::unique_ptr<WebRTCPeerConnectionHandler> peer_handler_;
 
   TaskHandle dispatch_scheduled_events_task_handle_;

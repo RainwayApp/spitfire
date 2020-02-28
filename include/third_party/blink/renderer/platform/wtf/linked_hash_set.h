@@ -161,10 +161,6 @@ class LinkedHashSetNode : public LinkedHashSetNodeBase {
   DISALLOW_COPY_AND_ASSIGN(LinkedHashSetNode);
 };
 
-template <typename T>
-struct IsWeak<LinkedHashSetNode<T>>
-    : std::integral_constant<bool, IsWeak<T>::value> {};
-
 template <typename ValueArg,
           typename HashFunctions = typename DefaultHash<ValueArg>::Hash,
           typename TraitsArg = HashTraits<ValueArg>,
@@ -438,6 +434,8 @@ struct LinkedHashSetTraits
     static const bool value =
         ValueTraits::template IsTraceableInCollection<>::value;
   };
+  static const WeakHandlingFlag kWeakHandlingFlag =
+      ValueTraits::kWeakHandlingFlag;
 
   static constexpr bool kHasMovingCallback = true;
 

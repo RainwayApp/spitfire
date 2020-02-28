@@ -26,27 +26,17 @@
 
 namespace webrtc {
 
-struct TrendlineEstimatorSettings {
-  static constexpr char kKey[] = "WebRTC-Bwe-TrendlineEstimatorSettings";
-  static constexpr unsigned kDefaultTrendlineWindowSize = 20;
+struct BweIgnoreSmallPacketsSettings {
+  static constexpr char kKey[] = "WebRTC-BweIgnoreSmallPackets";
 
-  TrendlineEstimatorSettings() = delete;
-  explicit TrendlineEstimatorSettings(
+  BweIgnoreSmallPacketsSettings() = default;
+  explicit BweIgnoreSmallPacketsSettings(
       const WebRtcKeyValueConfig* key_value_config);
 
-  // Sort the packets in the window. Should be redundant,
-  // but then almost no cost.
-  bool enable_sort = false;
-
-  // Cap the trendline slope based on the minimum delay seen
-  // in the beginning_packets and end_packets respectively.
-  bool enable_cap = false;
-  unsigned beginning_packets = 7;
-  unsigned end_packets = 7;
-  double cap_uncertainty = 0.0;
-
-  // Size (in packets) of the window.
-  unsigned window_size = kDefaultTrendlineWindowSize;
+  double smoothing_factor = 0.1;
+  double min_fraction_large_packets = 1.0;
+  unsigned large_packet_size = 0;
+  unsigned ignored_size = 0;
 
   std::unique_ptr<StructParametersParser> Parser();
 };
@@ -75,26 +65,20 @@ class TrendlineEstimator : public DelayIncreaseDetectorInterface {
 
   BandwidthUsage State() const override;
 
-  struct PacketTiming {
-    PacketTiming(double arrival_time_ms,
-                 double smoothed_delay_ms,
-                 double raw_delay_ms)
-        : arrival_time_ms(arrival_time_ms),
-          smoothed_delay_ms(smoothed_delay_ms),
-          raw_delay_ms(raw_delay_ms) {}
-    double arrival_time_ms;
-    double smoothed_delay_ms;
-    double raw_delay_ms;
-  };
-
  private:
   friend class GoogCcStatePrinter;
+
   void Detect(double trend, double ts_delta, int64_t now_ms);
 
   void UpdateThreshold(double modified_offset, int64_t now_ms);
 
+  // Filtering out small packets. (Intention is to base the detection only
+  // on video packets even if we have TWCC sequence number for audio.)
+  BweIgnoreSmallPacketsSettings ignore_small_packets_;
+  double fraction_large_packets_;
+
   // Parameters.
-  TrendlineEstimatorSettings settings_;
+  const size_t window_size_;
   const double smoothing_coef_;
   const double threshold_gain_;
   // Used by the existing threshold.
@@ -105,7 +89,7 @@ class TrendlineEstimator : public DelayIncreaseDetectorInterface {
   double accumulated_delay_;
   double smoothed_delay_;
   // Linear least squares regression.
-  std::deque<PacketTiming> delay_hist_;
+  std::deque<std::pair<double, double>> delay_hist_;
 
   const double k_up_;
   const double k_down_;

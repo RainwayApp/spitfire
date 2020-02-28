@@ -50,7 +50,7 @@ class U_I18N_API IgnorablesMatcher : public SymbolMatcher {
   public:
     IgnorablesMatcher() = default;  // WARNING: Leaves the object in an unusable state
 
-    IgnorablesMatcher(parse_flags_t parseFlags);
+    IgnorablesMatcher(unisets::Key key);
 
     bool isFlexible() const override;
 

@@ -135,14 +135,6 @@
 /** Fuchsia is a POSIX-ish platform. @internal */
 #define U_PF_FUCHSIA 4100
 /* Maximum value for Linux-based platform is 4499 */
-/**
- * Emscripten is a C++ transpiler for the Web that can target asm.js or
- * WebAssembly. It provides some POSIX-compatible wrappers and stubs and
- * some Linux-like functionality, but is not fully compatible with
- * either.
- * @internal
- */
-#define U_PF_EMSCRIPTEN 5010
 /** z/OS is the successor to OS/390 which was the successor to MVS. @internal */
 #define U_PF_OS390 9000
 /** "IBM i" is the current name of what used to be i5/OS and earlier OS/400. @internal */
@@ -200,8 +192,6 @@
 #   define U_PLATFORM U_PF_OS390
 #elif defined(__OS400__) || defined(__TOS_OS400__)
 #   define U_PLATFORM U_PF_OS400
-#elif defined(__EMSCRIPTEN__)
-#   define U_PLATFORM U_PF_EMSCRIPTEN
 #else
 #   define U_PLATFORM U_PF_UNKNOWN
 #endif
@@ -647,8 +637,7 @@ namespace std {
  */
 #ifdef U_CHARSET_IS_UTF8
     /* Use the predefined value. */
-#elif U_PLATFORM_IS_LINUX_BASED || U_PLATFORM_IS_DARWIN_BASED || \
-        U_PLATFORM == U_PF_EMSCRIPTEN
+#elif U_PLATFORM_IS_LINUX_BASED || U_PLATFORM_IS_DARWIN_BASED
 #   define U_CHARSET_IS_UTF8 1
 #else
 #   define U_CHARSET_IS_UTF8 0
@@ -735,7 +724,7 @@ namespace std {
          * narrow-character strings are in EBCDIC.
          */
 #       define U_SIZEOF_WCHAR_T 2
-#   else
+#else
         /*
          * LOCALETYPE(*CLD) or LOCALETYPE(*LOCALE) is specified.
          * Wide-character strings are in 16-bit EBCDIC,
@@ -882,4 +871,4 @@ namespace std {
 #endif
 /* @} */
 
-#endif  // _PLATFORM_H
+#endif

@@ -20,11 +20,11 @@ size_t GetNDEFMessageSize(const device::mojom::blink::NDEFMessage& message);
 bool SetNDEFMessageURL(const String& origin,
                        device::mojom::blink::NDEFMessage* message);
 
-device::mojom::blink::NDEFPushTarget StringToNDEFPushTarget(
+device::mojom::blink::NFCPushTarget StringToNFCPushTarget(
     const WTF::String& target);
 
-DOMException* NDEFErrorTypeToDOMException(
-    device::mojom::blink::NDEFErrorType error_type);
+DOMException* NFCErrorTypeToDOMException(
+    device::mojom::blink::NFCErrorType error_type);
 
 }  // namespace blink
 

@@ -27,7 +27,6 @@ enum class AOMStringProperty {
   kAutocomplete,
   kChecked,
   kCurrent,
-  kDescription,
   kHasPopUp,
   kInvalid,
   kKeyShortcuts,
@@ -230,9 +229,6 @@ class CORE_EXPORT AccessibleNode : public EventTargetWithInlineData {
 
   AccessibleNodeList* describedBy();
   void setDescribedBy(AccessibleNodeList*);
-
-  AtomicString description() const;
-  void setDescription(const AtomicString&);
 
   AccessibleNode* details() const;
   void setDetails(AccessibleNode*);

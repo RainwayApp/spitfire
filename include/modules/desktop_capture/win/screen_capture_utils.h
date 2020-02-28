@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "modules/desktop_capture/desktop_capturer.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
@@ -40,8 +39,8 @@ DesktopRect GetFullscreenRect();
 // Get the rect of the screen identified by |screen|, relative to the primary
 // display's top-left. If the screen device key does not match |device_key|, or
 // the screen does not exist, or any error happens, an empty rect is returned.
-RTC_EXPORT DesktopRect GetScreenRect(DesktopCapturer::SourceId screen,
-                                     const std::wstring& device_key);
+DesktopRect GetScreenRect(DesktopCapturer::SourceId screen,
+                          const std::wstring& device_key);
 
 }  // namespace webrtc
 

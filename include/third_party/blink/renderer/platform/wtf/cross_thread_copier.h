@@ -51,7 +51,6 @@ class RefCountedThreadSafe;
 class TimeDelta;
 class TimeTicks;
 class Time;
-class UnguessableToken;
 }  // namespace base
 
 class SkRefCnt;
@@ -147,12 +146,6 @@ struct CrossThreadCopier<base::File> {
   STATIC_ONLY(CrossThreadCopier);
   using Type = base::File;
   static Type Copy(Type pointer) { return pointer; }
-};
-
-template <>
-struct CrossThreadCopier<base::UnguessableToken>
-    : public CrossThreadCopierPassThrough<base::UnguessableToken> {
-  STATIC_ONLY(CrossThreadCopier);
 };
 
 template <>

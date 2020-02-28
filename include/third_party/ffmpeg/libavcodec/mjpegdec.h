@@ -64,7 +64,6 @@ typedef struct MJpegDecodeContext {
     int lossless;
     int ls;
     int progressive;
-    int bayer;          /* true if it's a bayer-encoded JPEG embedded in a DNG */
     int rgb;
     uint8_t upscale_h[4];
     uint8_t upscale_v[4];

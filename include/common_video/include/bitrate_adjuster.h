@@ -17,7 +17,6 @@
 #include "absl/types/optional.h"
 #include "rtc_base/critical_section.h"
 #include "rtc_base/rate_statistics.h"
-#include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -25,7 +24,7 @@ namespace webrtc {
 // Certain hardware encoders tend to consistently overshoot the bitrate that
 // they are configured to encode at. This class estimates an adjusted bitrate
 // that when set on the encoder will produce the desired bitrate.
-class RTC_EXPORT BitrateAdjuster {
+class BitrateAdjuster {
  public:
   // min_adjusted_bitrate_pct and max_adjusted_bitrate_pct are the lower and
   // upper bound outputted adjusted bitrates as a percentage of the target

@@ -18,7 +18,8 @@ DOMFloat32Array* transformationMatrixToDOMFloat32Array(
 
 TransformationMatrix DOMFloat32ArrayToTransformationMatrix(DOMFloat32Array*);
 
-TransformationMatrix WTFFloatVectorToTransformationMatrix(const Vector<float>&);
+TransformationMatrix WTFFloatVectorToTransformationMatrix(
+    const WTF::Vector<float>&);
 
 DOMPointReadOnly* makeNormalizedQuaternion(double x,
                                            double y,

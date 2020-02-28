@@ -448,7 +448,10 @@ class CORE_EXPORT LayoutTable final : public LayoutBlock,
   LayoutNGTableSectionInterface* SectionBelowInterface(
       const LayoutNGTableSectionInterface*,
       SkipEmptySectionsValue) const final;
-  bool IsFirstCell(const LayoutNGTableCellInterface&) const final;
+  LayoutNGTableCellInterface* CellInterfacePreceding(
+      const LayoutNGTableCellInterface& cell) const final;
+  LayoutNGTableCellInterface* CellInterfaceAbove(
+      const LayoutNGTableCellInterface& cell) const final;
 
   // LayoutNGTableInterface methods end.
 

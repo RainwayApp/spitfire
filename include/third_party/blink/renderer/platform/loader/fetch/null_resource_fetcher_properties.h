@@ -43,7 +43,6 @@ class PLATFORM_EXPORT NullResourceFetcherProperties final
   scheduler::FrameStatus GetFrameStatus() const override {
     return scheduler::FrameStatus::kNone;
   }
-  const KURL& WebBundlePhysicalUrl() const override;
 
  private:
   const Member<const FetchClientSettingsObject> fetch_client_settings_object_;

@@ -34,8 +34,7 @@ enum VideoCaptureState {
   VIDEO_CAPTURE_STATE_LAST = VIDEO_CAPTURE_STATE_ENDED
 };
 
-using VideoCaptureStateUpdateCB =
-    base::RepeatingCallback<void(VideoCaptureState)>;
+using VideoCaptureStateUpdateCB = base::Callback<void(VideoCaptureState)>;
 
 }  // namespace blink
 

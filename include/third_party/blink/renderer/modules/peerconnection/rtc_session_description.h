@@ -31,8 +31,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_RTC_SESSION_DESCRIPTION_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_RTC_SESSION_DESCRIPTION_H_
 
+#include "third_party/blink/public/platform/web_rtc_session_description.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/peerconnection/rtc_session_description_platform.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -48,9 +48,9 @@ class RTCSessionDescription final : public ScriptWrappable {
  public:
   static RTCSessionDescription* Create(ExecutionContext*,
                                        const RTCSessionDescriptionInit*);
-  static RTCSessionDescription* Create(RTCSessionDescriptionPlatform*);
+  static RTCSessionDescription* Create(WebRTCSessionDescription);
 
-  explicit RTCSessionDescription(RTCSessionDescriptionPlatform*);
+  explicit RTCSessionDescription(WebRTCSessionDescription);
 
   String type() const;
   void setType(const String&);
@@ -60,12 +60,10 @@ class RTCSessionDescription final : public ScriptWrappable {
 
   ScriptValue toJSONForBinding(ScriptState*);
 
-  RTCSessionDescriptionPlatform* WebSessionDescription();
-
-  void Trace(blink::Visitor*) override;
+  WebRTCSessionDescription WebSessionDescription();
 
  private:
-  Member<RTCSessionDescriptionPlatform> platform_session_description_;
+  WebRTCSessionDescription web_session_description_;
 };
 
 }  // namespace blink

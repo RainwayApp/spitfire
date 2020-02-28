@@ -55,10 +55,10 @@ class WebString;
 // Used to pass the mojom struct blink.mojom.FetchEventPreloadHandle across the
 // boundary between //content and Blink.
 struct WebFetchEventPreloadHandle {
-  // For mojo::PendingRemote<network::mojom::URLLoader>.
+  // For network::mojom::URLLoaderPtrInfo.
   mojo::ScopedMessagePipeHandle url_loader;
-  // For mojo::PendingReceiver<network::mojom::URLLoaderClient>.
-  mojo::ScopedMessagePipeHandle url_loader_client_receiver;
+  // For network::mojom::URLLoaderClientRequest.
+  mojo::ScopedMessagePipeHandle url_loader_client_request;
 };
 
 // WebServiceWorkerContextClient is a "client" of a service worker execution

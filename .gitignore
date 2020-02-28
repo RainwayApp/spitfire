@@ -261,8 +261,11 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
-libs.zip
 scripts/*
 !scripts/*.bat
 !scripts/*.gn
+
+/lib
+/libs
 lib.zip
+libs.zip

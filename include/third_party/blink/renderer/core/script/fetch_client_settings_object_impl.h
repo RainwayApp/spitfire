@@ -47,6 +47,7 @@ class CORE_EXPORT FetchClientSettingsObjectImpl final
   WebInsecureRequestPolicy GetInsecureRequestsPolicy() const override;
   const InsecureNavigationsSet& GetUpgradeInsecureNavigationsSet()
       const override;
+  bool GetMixedAutoUpgradeOptOut() const override;
 
   void Trace(Visitor* visitor) override;
 

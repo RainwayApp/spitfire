@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" >
+    <WebRtcSrc>$(ProjectDir)..\webrtc-checkout\src</WebRtcSrc>
+    <WebRtcOut>$(WebRtcSrc)\out\$(Platform)\$(Configuration)</WebRtcOut>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(WebRtcSrc)\third_party\abseil-cpp;$(WebRtcSrc)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(WebRtcOut)\obj</AdditionalLibraryDirectories>
+      <AdditionalDependencies>%(AdditionalDependencies);webrtc.lib</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>

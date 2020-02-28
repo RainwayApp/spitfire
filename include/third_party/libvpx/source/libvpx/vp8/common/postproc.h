@@ -29,11 +29,12 @@ extern "C" {
 int vp8_post_proc_frame(struct VP8Common *oci, YV12_BUFFER_CONFIG *dest,
                         vp8_ppflags_t *ppflags);
 
-void vp8_de_noise(struct VP8Common *cm, YV12_BUFFER_CONFIG *source, int q,
+void vp8_de_noise(struct VP8Common *cm, YV12_BUFFER_CONFIG *source,
+                  YV12_BUFFER_CONFIG *post, int q, int low_var_thresh, int flag,
                   int uvfilter);
 
 void vp8_deblock(struct VP8Common *cm, YV12_BUFFER_CONFIG *source,
-                 YV12_BUFFER_CONFIG *post, int q);
+                 YV12_BUFFER_CONFIG *post, int q, int low_var_thresh, int flag);
 
 #define MFQE_PRECISION 4
 

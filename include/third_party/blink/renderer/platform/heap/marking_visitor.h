@@ -15,32 +15,81 @@ namespace blink {
 class BasePage;
 
 // Base visitor used to mark Oilpan objects on any thread.
-class PLATFORM_EXPORT MarkingVisitorCommon : public Visitor {
+class PLATFORM_EXPORT MarkingVisitorBase : public Visitor {
  public:
   enum MarkingMode {
-    // Default visitor mode used for regular marking.
+    // This is a default visitor. This is used for MarkingType=kAtomicMarking
+    // and MarkingType=kIncrementalMarking.
     kGlobalMarking,
-    // Visitor mode recording slots for compaction during marking.
+    // Perform global marking along with preparing for additional sweep
+    // compaction of heap arenas afterwards. Compared to the GlobalMarking
+    // visitor, this visitor will also register references to objects
+    // that might be moved during arena compaction -- the compaction
+    // pass will then fix up those references when the object move goes
+    // ahead.
     kGlobalMarkingWithCompaction,
   };
 
-  void VisitWeak(void*, void*, TraceDescriptor, WeakCallback) final;
-  void VisitBackingStoreStrongly(void*, void**, TraceDescriptor) final;
-  void VisitBackingStoreWeakly(void*,
-                               void**,
-                               TraceDescriptor,
-                               TraceDescriptor,
-                               WeakCallback,
-                               void*) final;
-  bool VisitEphemeronKeyValuePair(void*,
-                                  void*,
-                                  EphemeronTracingCallback,
-                                  EphemeronTracingCallback) final;
+  //
+  // Implementation of the visitor interface.
+  //
+
+  void Visit(void* object, TraceDescriptor desc) final {
+    DCHECK(object);
+    if (desc.base_object_payload == BlinkGC::kNotFullyConstructedObject) {
+      // This means that the objects are not-yet-fully-constructed. See comments
+      // on GarbageCollectedMixin for how those objects are handled.
+      not_fully_constructed_worklist_.Push(object);
+      return;
+    }
+    MarkHeader(HeapObjectHeader::FromPayload(desc.base_object_payload),
+               desc.callback);
+  }
+
+  void VisitWeak(void* object,
+                 void* object_weak_ref,
+                 TraceDescriptor desc,
+                 WeakCallback callback) final {
+    // Filter out already marked values. The write barrier for WeakMember
+    // ensures that any newly set value after this point is kept alive and does
+    // not require the callback.
+    if (desc.base_object_payload != BlinkGC::kNotFullyConstructedObject &&
+        HeapObjectHeader::FromPayload(desc.base_object_payload)
+            ->IsMarked<HeapObjectHeader::AccessMode::kAtomic>())
+      return;
+    RegisterWeakCallback(object_weak_ref, callback);
+  }
+
+  void VisitBackingStoreStrongly(void* object,
+                                 void** object_slot,
+                                 TraceDescriptor desc) final {
+    RegisterBackingStoreReference(object_slot);
+    if (!object)
+      return;
+    Visit(object, desc);
+  }
+
+  // All work is registered through RegisterWeakCallback.
+  void VisitBackingStoreWeakly(void* object,
+                               void** object_slot,
+                               TraceDescriptor desc,
+                               WeakCallback callback,
+                               void* parameter) final {
+    RegisterBackingStoreReference(object_slot);
+    if (!object)
+      return;
+    RegisterWeakCallback(parameter, callback);
+  }
 
   // Used to only mark the backing store when it has been registered for weak
   // processing. In this case, the contents are processed separately using
   // the corresponding traits but the backing store requires marking.
-  void VisitBackingStoreOnly(void*, void**) final;
+  void VisitBackingStoreOnly(void* object, void** object_slot) final {
+    RegisterBackingStoreReference(object_slot);
+    if (!object)
+      return;
+    MarkHeaderNoTracing(HeapObjectHeader::FromPayload(object));
+  }
 
   // This callback mechanism is needed to account for backing store objects
   // containing intra-object pointers, all of which must be relocated/rebased
@@ -48,8 +97,13 @@ class PLATFORM_EXPORT MarkingVisitorCommon : public Visitor {
   //
   // For Blink, |HeapLinkedHashSet<>| is currently the only abstraction which
   // relies on this feature.
-  void RegisterBackingStoreCallback(void*, MovingObjectCallback) final;
-  void RegisterWeakCallback(WeakCallback, void*) final;
+  void RegisterBackingStoreCallback(void* backing, MovingObjectCallback) final;
+  bool RegisterWeakTable(const void* closure,
+                         EphemeronCallback iteration_callback) final;
+  void RegisterWeakCallback(void* closure, WeakCallback) final;
+
+  // Unused cross-component visit methods.
+  void Visit(const TraceWrapperV8Reference<v8::Value>&) override {}
 
   // Flush private segments remaining in visitor's worklists to global pools.
   void FlushCompactionWorklists();
@@ -58,18 +112,22 @@ class PLATFORM_EXPORT MarkingVisitorCommon : public Visitor {
 
   int task_id() const { return task_id_; }
 
-  // Account for object's live bytes. Should only be adjusted when
-  // actually tracing through an already marked object. Logically, this means
-  // accounting for the bytes when transitioning from grey to black.
-  ALWAYS_INLINE void AccountMarkedBytes(HeapObjectHeader*);
+  void AdjustMarkedBytes(HeapObjectHeader*, size_t);
 
  protected:
-  MarkingVisitorCommon(ThreadState*, MarkingMode, int task_id);
-  ~MarkingVisitorCommon() override = default;
+  MarkingVisitorBase(ThreadState*, MarkingMode, int task_id);
+  ~MarkingVisitorBase() override = default;
+
+  // Marks an object and adds a tracing callback for processing of the object.
+  inline void MarkHeader(HeapObjectHeader*, TraceCallback);
 
   // Try to mark an object without tracing. Returns true when the object was not
   // marked upon calling.
-  bool MarkHeaderNoTracing(HeapObjectHeader*);
+  inline bool MarkHeaderNoTracing(HeapObjectHeader*);
+
+  // Account for an object's live bytes. Should only be adjusted when
+  // transitioning an object from unmarked to marked state.
+  ALWAYS_INLINE void AccountMarkedBytes(HeapObjectHeader*);
 
   void RegisterBackingStoreReference(void** slot);
 
@@ -84,7 +142,7 @@ class PLATFORM_EXPORT MarkingVisitorCommon : public Visitor {
   int task_id_;
 };
 
-ALWAYS_INLINE void MarkingVisitorCommon::AccountMarkedBytes(
+ALWAYS_INLINE void MarkingVisitorBase::AccountMarkedBytes(
     HeapObjectHeader* header) {
   marked_bytes_ +=
       header->IsLargeObject()
@@ -92,10 +150,9 @@ ALWAYS_INLINE void MarkingVisitorCommon::AccountMarkedBytes(
           : header->size();
 }
 
-ALWAYS_INLINE bool MarkingVisitorCommon::MarkHeaderNoTracing(
-    HeapObjectHeader* header) {
+inline bool MarkingVisitorBase::MarkHeaderNoTracing(HeapObjectHeader* header) {
   DCHECK(header);
-  DCHECK(State()->IsIncrementalMarking() || State()->InAtomicMarkingPause());
+  DCHECK(State()->InAtomicMarkingPause() || State()->IsIncrementalMarking());
   // A GC should only mark the objects that belong in its heap.
   DCHECK_EQ(State(),
             PageFromObject(header->Payload())->Arena()->GetThreadState());
@@ -103,75 +160,42 @@ ALWAYS_INLINE bool MarkingVisitorCommon::MarkHeaderNoTracing(
   // freed backing store.
   DCHECK(!header->IsFree());
 
-  return header->TryMark<HeapObjectHeader::AccessMode::kAtomic>();
-}
-
-// Base visitor used to mark Oilpan objects on any thread.
-template <class Specialized>
-class PLATFORM_EXPORT MarkingVisitorBase : public MarkingVisitorCommon {
- public:
-  void Visit(void* object, TraceDescriptor desc) final;
-
-  // Unused cross-component visit methods.
-  void Visit(const TraceWrapperV8Reference<v8::Value>&) override {}
-
- protected:
-  MarkingVisitorBase(ThreadState* state, MarkingMode marking_mode, int task_id)
-      : MarkingVisitorCommon(state, marking_mode, task_id) {}
-  ~MarkingVisitorBase() override = default;
-
-  // Marks an object and adds a tracing callback for processing of the object.
-  void MarkHeader(HeapObjectHeader*, const TraceDescriptor&);
-};
-
-template <class Specialized>
-inline void MarkingVisitorBase<Specialized>::Visit(void* object,
-                                                   TraceDescriptor desc) {
-  DCHECK(object);
-  if (desc.base_object_payload == BlinkGC::kNotFullyConstructedObject) {
-    // This means that the objects are not-yet-fully-constructed. See comments
-    // on GarbageCollectedMixin for how those objects are handled.
-    not_fully_constructed_worklist_.Push(object);
-    return;
+  if (header->TryMark<HeapObjectHeader::AccessMode::kAtomic>()) {
+    AccountMarkedBytes(header);
+    return true;
   }
-  MarkHeader(HeapObjectHeader::FromPayload(desc.base_object_payload), desc);
+  return false;
 }
 
-// Marks an object and adds a tracing callback for processing of the object.
-template <class Specialized>
-ALWAYS_INLINE void MarkingVisitorBase<Specialized>::MarkHeader(
-    HeapObjectHeader* header,
-    const TraceDescriptor& desc) {
+inline void MarkingVisitorBase::MarkHeader(HeapObjectHeader* header,
+                                           TraceCallback callback) {
   DCHECK(header);
-  DCHECK(desc.callback);
+  DCHECK(callback);
 
-  if (Specialized::IsInConstruction(header)) {
+  if (header->IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>()) {
     not_fully_constructed_worklist_.Push(header->Payload());
   } else if (MarkHeaderNoTracing(header)) {
-    marking_worklist_.Push(desc);
+    marking_worklist_.Push(
+        {reinterpret_cast<void*>(header->Payload()), callback});
   }
 }
 
 // Visitor used to mark Oilpan objects on the main thread. Also implements
 // various sorts of write barriers that should only be called from the main
 // thread.
-class PLATFORM_EXPORT MarkingVisitor
-    : public MarkingVisitorBase<MarkingVisitor> {
+class PLATFORM_EXPORT MarkingVisitor : public MarkingVisitorBase {
  public:
-  // Returns whether an object is in construction.
-  static bool IsInConstruction(HeapObjectHeader* header);
-
   // Write barrier that adds |value| to the set of marked objects. The barrier
   // bails out if marking is off or the object is not yet marked. Returns true
   // if the object was marked on this call.
-  static bool WriteBarrier(void* value);
+  ALWAYS_INLINE static bool WriteBarrier(void* value);
 
   // Eagerly traces an already marked backing store ensuring that all its
   // children are discovered by the marker. The barrier bails out if marking
   // is off and on individual objects reachable if they are already marked. The
   // barrier uses the callback function through GcInfo, so it will not inline
   // any templated type-specific code.
-  static void TraceMarkedBackingStore(void* value);
+  ALWAYS_INLINE static void TraceMarkedBackingStore(void* value);
 
   MarkingVisitor(ThreadState*, MarkingMode);
   ~MarkingVisitor() override = default;
@@ -192,18 +216,8 @@ class PLATFORM_EXPORT MarkingVisitor
   // Exact version of the marking write barriers.
   static bool WriteBarrierSlow(void*);
   static void TraceMarkedBackingStoreSlow(void*);
-
-  WriteBarrierWorklist::View write_barrier_worklist_;
 };
 
-// static
-ALWAYS_INLINE bool MarkingVisitor::IsInConstruction(HeapObjectHeader* header) {
-  // No need for atomics when operating on the mutator thread where
-  // construction happens.
-  return header->IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>();
-}
-
-// static
 ALWAYS_INLINE bool MarkingVisitor::WriteBarrier(void* value) {
   if (!ThreadState::IsAnyIncrementalMarking())
     return false;
@@ -213,7 +227,6 @@ ALWAYS_INLINE bool MarkingVisitor::WriteBarrier(void* value) {
   return WriteBarrierSlow(value);
 }
 
-// static
 ALWAYS_INLINE void MarkingVisitor::TraceMarkedBackingStore(void* value) {
   if (!ThreadState::IsAnyIncrementalMarking())
     return;
@@ -224,23 +237,13 @@ ALWAYS_INLINE void MarkingVisitor::TraceMarkedBackingStore(void* value) {
 }
 
 // Visitor used to mark Oilpan objects on concurrent threads.
-class PLATFORM_EXPORT ConcurrentMarkingVisitor
-    : public MarkingVisitorBase<ConcurrentMarkingVisitor> {
+class PLATFORM_EXPORT ConcurrentMarkingVisitor : public MarkingVisitorBase {
  public:
-  // Returns whether an object is in construction.
-  static bool IsInConstruction(HeapObjectHeader* header);
-
   ConcurrentMarkingVisitor(ThreadState*, MarkingMode, int);
   ~ConcurrentMarkingVisitor() override = default;
 
   virtual void FlushWorklists();
 };
-
-// static
-ALWAYS_INLINE bool ConcurrentMarkingVisitor::IsInConstruction(
-    HeapObjectHeader* header) {
-  return header->IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>();
-}
 
 }  // namespace blink
 

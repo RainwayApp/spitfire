@@ -31,7 +31,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_DOCUMENT_INIT_H_
 
 #include "services/network/public/mojom/ip_address_space.mojom-shared.h"
-#include "third_party/blink/public/common/frame/frame_policy.h"
 #include "third_party/blink/public/platform/web_insecure_request_policy.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
@@ -136,13 +135,8 @@ class CORE_EXPORT DocumentInit final {
   DocumentInit& WithSandboxFlags(WebSandboxFlags flags);
 
   DocumentInit& WithContentSecurityPolicy(ContentSecurityPolicy* policy);
-  DocumentInit& WithContentSecurityPolicyFromContextDoc();
-  ContentSecurityPolicy* GetContentSecurityPolicy() const;
-
-  DocumentInit& WithFramePolicy(
-      const base::Optional<FramePolicy>& frame_policy);
-  const base::Optional<FramePolicy>& GetFramePolicy() const {
-    return frame_policy_;
+  ContentSecurityPolicy* GetContentSecurityPolicy() const {
+    return content_security_policy_;
   }
 
  private:
@@ -208,13 +202,9 @@ class CORE_EXPORT DocumentInit final {
 
   // Loader's CSP
   Member<ContentSecurityPolicy> content_security_policy_;
-  bool content_security_policy_from_context_doc_;
 
   network::mojom::IPAddressSpace ip_address_space_ =
       network::mojom::IPAddressSpace::kUnknown;
-
-  // The frame policy snapshot from the beginning of navigation.
-  base::Optional<FramePolicy> frame_policy_ = base::nullopt;
 };
 
 }  // namespace blink

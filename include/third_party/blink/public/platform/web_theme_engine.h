@@ -34,7 +34,6 @@
 #include "base/optional.h"
 #include "base/time/time.h"
 #include "third_party/blink/public/common/css/forced_colors.h"
-#include "third_party/blink/public/common/css/preferred_color_scheme.h"
 #include "third_party/blink/public/platform/web_color_scheme.h"
 #include "third_party/blink/public/platform/web_rect.h"
 #include "third_party/blink/public/platform/web_scrollbar_overlay_color_theme.h"
@@ -117,7 +116,6 @@ class WebThemeEngine {
     bool indeterminate;  // Whether the button state is indeterminate.
     bool has_border;
     SkColor background_color;
-    float zoom;
   };
 
   // Extra parameters for PartTextField
@@ -145,7 +143,6 @@ class WebThemeEngine {
     bool in_drag;
     int thumb_x;
     int thumb_y;
-    float zoom;
   };
 
   // Extra parameters for PartInnerSpinButton
@@ -229,13 +226,8 @@ class WebThemeEngine {
     return base::nullopt;
   }
 
-  virtual ForcedColors GetForcedColors() const { return ForcedColors::kNone; }
+  virtual ForcedColors ForcedColors() const { return ForcedColors::kNone; }
   virtual void SetForcedColors(const blink::ForcedColors forced_colors) {}
-  virtual blink::PreferredColorScheme PreferredColorScheme() const {
-    return PreferredColorScheme::kNoPreference;
-  }
-  virtual void SetPreferredColorScheme(
-      const blink::PreferredColorScheme preferred_color_scheme) {}
 };
 
 }  // namespace blink

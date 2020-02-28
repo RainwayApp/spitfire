@@ -11,8 +11,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 
@@ -159,7 +157,7 @@ public:
 
     class U_I18N_API SuperscriptStyle : public Style {
     public:
-        virtual SuperscriptStyle *clone() const;
+        virtual Style *clone() const;
     protected:
         virtual UnicodeString &format(
                 const UnicodeString &original,
@@ -177,7 +175,7 @@ public:
                 : Style(),
                   fBeginMarkup(beginMarkup),
                   fEndMarkup(endMarkup) { }
-        virtual MarkupStyle *clone() const;
+        virtual Style *clone() const;
     protected:
         virtual UnicodeString &format(
                 const UnicodeString &original,
@@ -216,7 +214,4 @@ U_NAMESPACE_END
 
 
 #endif /* !UCONFIG_NO_FORMATTING */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif 

@@ -12,10 +12,6 @@
 #ifndef UNIFILT_H
 #define UNIFILT_H
 
-#include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/unifunct.h"
 #include "unicode/unimatch.h"
 
@@ -72,14 +68,6 @@ public:
     virtual ~UnicodeFilter();
 
     /**
-     * Clones this object polymorphically.
-     * The caller owns the result and should delete it when done.
-     * @return clone, or nullptr if an error occurred
-     * @stable ICU 2.4
-     */
-    virtual UnicodeFilter* clone() const = 0;
-
-    /**
      * Returns <tt>true</tt> for characters that are in the selected
      * subset.  In other words, if a character is <b>to be
      * filtered</b>, then <tt>contains()</tt> returns
@@ -130,7 +118,5 @@ protected:
 /*inline UnicodeFilter::UnicodeFilter() {}*/
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

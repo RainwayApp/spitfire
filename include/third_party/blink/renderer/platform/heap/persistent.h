@@ -304,7 +304,7 @@ class PersistentBase {
                   "T needs to be a garbage collected object");
     DCHECK(!IsHashTableDeletedValue());
     if (weaknessConfiguration == kWeakPersistentConfiguration) {
-      visitor->RegisterWeakCallback(HandleWeakPersistent, this);
+      visitor->RegisterWeakCallback(this, HandleWeakPersistent);
     } else {
 #if BUILDFLAG(RAW_HEAP_SNAPSHOTS)
       visitor->TraceRoot(raw_, location_.get());
@@ -384,8 +384,7 @@ class PersistentBase {
 #endif
   }
 
-  static void HandleWeakPersistent(const WeakCallbackInfo&,
-                                   void* persistent_pointer) {
+  static void HandleWeakPersistent(Visitor* self, void* persistent_pointer) {
     using Base =
         PersistentBase<typename std::remove_const<T>::type,
                        weaknessConfiguration, crossThreadnessConfiguration>;

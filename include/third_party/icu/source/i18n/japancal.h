@@ -116,7 +116,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual JapaneseCalendar* clone() const;
+    virtual Calendar* clone(void) const;
 
     /**
      * Return the extended year defined by the current fields.  In the 

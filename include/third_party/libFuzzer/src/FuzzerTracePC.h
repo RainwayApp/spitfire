@@ -119,6 +119,9 @@ class TracePC {
   void SetFocusFunction(const std::string &FuncName);
   bool ObservedFocusFunction();
 
+  void ProtectLazyCounters();
+  bool UnprotectLazyCounters(void *CounterPtr);
+
   struct PCTableEntry {
     uintptr_t PC, PCFlags;
   };

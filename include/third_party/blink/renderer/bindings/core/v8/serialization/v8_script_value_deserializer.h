@@ -83,10 +83,6 @@ class CORE_EXPORT V8ScriptValueDeserializer
     return false;
   }
 
-  SerializedScriptValue* GetSerializedScriptValue() {
-    return serialized_script_value_.get();
-  }
-
  private:
   V8ScriptValueDeserializer(ScriptState*,
                             UnpackedSerializedScriptValue*,

@@ -79,8 +79,7 @@ class CORE_EXPORT CSPDirectiveList final
                        const IntegrityMetadataSet& = IntegrityMetadataSet(),
                        ParserDisposition = kParserInserted) const;
 
-  bool AllowTrustedTypePolicy(const String& policy_name,
-                              bool is_duplicate) const;
+  bool AllowTrustedTypePolicy(const String& policy_name) const;
 
   // |allowAncestors| does not need to know whether the resource was a
   // result of a redirect. After a redirect, source paths are usually

@@ -70,7 +70,7 @@ class FunctionReplacer : public UnicodeFunctor, public UnicodeReplacer {
     /**
      * Implement UnicodeFunctor
      */
-    virtual FunctionReplacer* clone() const;
+    virtual UnicodeFunctor* clone() const;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeReplacer* pointer

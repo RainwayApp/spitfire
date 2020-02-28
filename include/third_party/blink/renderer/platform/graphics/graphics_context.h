@@ -262,14 +262,8 @@ class PLATFORM_EXPORT GraphicsContext {
   // These methods write to the canvas.
   // Also drawLine(const IntPoint& point1, const IntPoint& point2) and
   // fillRoundedRect().
-  void DrawOval(const SkRect&,
-                const PaintFlags&,
-                const DarkModeFilter::ElementRole role =
-                    DarkModeFilter::ElementRole::kBackground);
-  void DrawPath(const SkPath&,
-                const PaintFlags&,
-                const DarkModeFilter::ElementRole role =
-                    DarkModeFilter::ElementRole::kBackground);
+  void DrawOval(const SkRect&, const PaintFlags&);
+  void DrawPath(const SkPath&, const PaintFlags&);
   void DrawRect(const SkRect&,
                 const PaintFlags&,
                 const DarkModeFilter::ElementRole role =

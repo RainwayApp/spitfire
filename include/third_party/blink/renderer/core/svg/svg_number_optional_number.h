@@ -54,7 +54,7 @@ class SVGNumberOptionalNumber final : public SVGPropertyBase {
   static constexpr int kInitialValueBits = SVGNumber::kInitialValueBits;
 
   void Add(SVGPropertyBase*, SVGElement*) override;
-  void CalculateAnimatedValue(const SVGAnimateElement&,
+  void CalculateAnimatedValue(SVGAnimationElement*,
                               float percentage,
                               unsigned repeat_count,
                               SVGPropertyBase* from,

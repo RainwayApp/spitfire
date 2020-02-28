@@ -138,7 +138,7 @@ class ImageBitmapFactories final
 
     void RejectPromise(ImageBitmapRejectionReason);
 
-    void ScheduleAsyncImageBitmapDecoding(ArrayBufferContents);
+    void ScheduleAsyncImageBitmapDecoding(WTF::ArrayBufferContents::DataHandle);
     void ResolvePromiseOnOriginalThread(sk_sp<SkImage>);
 
     // ContextLifecycleObserver

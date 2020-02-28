@@ -43,7 +43,6 @@ class CORE_EXPORT NGAbstractInlineTextBox final : public AbstractInlineTextBox {
   scoped_refptr<AbstractInlineTextBox> NextInlineTextBox() const final;
   LayoutRect LocalBounds() const final;
   unsigned Len() const final;
-  unsigned TextOffsetInContainer(unsigned offset) const final;
   Direction GetDirection() const final;
   void CharacterWidths(Vector<float>&) const final;
   String GetText() const final;

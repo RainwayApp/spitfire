@@ -5,7 +5,6 @@
 #ifndef BASE_TEST_METRICS_HISTOGRAM_TESTER_H_
 #define BASE_TEST_METRICS_HISTOGRAM_TESTER_H_
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -16,7 +15,6 @@
 #include "base/macros.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_base.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 
 namespace base {
@@ -35,7 +33,7 @@ class HistogramSamples;
 // should be used to achieve that.
 class HistogramTester {
  public:
-  using CountsMap = std::map<std::string, HistogramBase::Count, std::less<>>;
+  using CountsMap = std::map<std::string, HistogramBase::Count>;
 
   // Takes a snapshot of all current histograms counts.
   HistogramTester();
@@ -44,11 +42,11 @@ class HistogramTester {
   // We know the exact number of samples in a bucket, and that no other bucket
   // should have samples. Measures the diff from the snapshot taken when this
   // object was constructed.
-  void ExpectUniqueSample(StringPiece name,
+  void ExpectUniqueSample(const std::string& name,
                           HistogramBase::Sample sample,
                           HistogramBase::Count expected_count) const;
   template <typename T>
-  void ExpectUniqueSample(StringPiece name,
+  void ExpectUniqueSample(const std::string& name,
                           T sample,
                           HistogramBase::Count expected_count) const {
     ExpectUniqueSample(name, static_cast<HistogramBase::Sample>(sample),
@@ -58,11 +56,11 @@ class HistogramTester {
   // We know the exact number of samples in a bucket, but other buckets may
   // have samples as well. Measures the diff from the snapshot taken when this
   // object was constructed.
-  void ExpectBucketCount(StringPiece name,
+  void ExpectBucketCount(const std::string& name,
                          HistogramBase::Sample sample,
                          HistogramBase::Count expected_count) const;
   template <typename T>
-  void ExpectBucketCount(StringPiece name,
+  void ExpectBucketCount(const std::string& name,
                          T sample,
                          HistogramBase::Count expected_count) const {
     ExpectBucketCount(name, static_cast<HistogramBase::Sample>(sample),
@@ -72,11 +70,12 @@ class HistogramTester {
   // We don't know the values of the samples, but we know how many there are.
   // This measures the diff from the snapshot taken when this object was
   // constructed.
-  void ExpectTotalCount(StringPiece name, HistogramBase::Count count) const;
+  void ExpectTotalCount(const std::string& name,
+                        HistogramBase::Count count) const;
 
   // We know exact number of samples for buckets corresponding to a time
   // interval. Other intervals may have samples too.
-  void ExpectTimeBucketCount(StringPiece name,
+  void ExpectTimeBucketCount(const std::string& name,
                              TimeDelta sample,
                              HistogramBase::Count count) const;
 
@@ -96,10 +95,10 @@ class HistogramTester {
   // slightly less helpful failure message:
   //   EXPECT_EQ(expected_buckets,
   //             histogram_tester.GetAllSamples("HistogramName"));
-  std::vector<Bucket> GetAllSamples(StringPiece name) const;
+  std::vector<Bucket> GetAllSamples(const std::string& name) const;
 
   // Returns the value of the |sample| bucket for ths histogram |name|.
-  HistogramBase::Count GetBucketCount(StringPiece name,
+  HistogramBase::Count GetBucketCount(const std::string& name,
                                       HistogramBase::Sample sample) const;
 
   // Finds histograms whose names start with |prefix|, and returns them along
@@ -120,12 +119,12 @@ class HistogramTester {
   //   expected_counts["MyMetric.B"] = 1;
   //   EXPECT_THAT(histogram_tester.GetTotalCountsForPrefix("MyMetric."),
   //               testing::ContainerEq(expected_counts));
-  CountsMap GetTotalCountsForPrefix(StringPiece prefix) const;
+  CountsMap GetTotalCountsForPrefix(const std::string& prefix) const;
 
   // Access a modified HistogramSamples containing only what has been logged
   // to the histogram since the creation of this object.
   std::unique_ptr<HistogramSamples> GetHistogramSamplesSinceCreation(
-      StringPiece histogram_name) const;
+      const std::string& histogram_name) const;
 
   // Dumps all histograms that have had new samples added to them into a string,
   // for debugging purposes. Note: this will dump the entire contents of any
@@ -136,7 +135,7 @@ class HistogramTester {
   // Verifies and asserts that value in the |sample| bucket matches the
   // |expected_count|. The bucket's current value is determined from |samples|
   // and is modified based on the snapshot stored for histogram |name|.
-  void CheckBucketCount(StringPiece name,
+  void CheckBucketCount(const std::string& name,
                         HistogramBase::Sample sample,
                         Histogram::Count expected_count,
                         const HistogramSamples& samples) const;
@@ -144,22 +143,21 @@ class HistogramTester {
   // Verifies that the total number of values recorded for the histogram |name|
   // is |expected_count|. This is checked against |samples| minus the snapshot
   // that was taken for |name|.
-  void CheckTotalCount(StringPiece name,
+  void CheckTotalCount(const std::string& name,
                        Histogram::Count expected_count,
                        const HistogramSamples& samples) const;
 
   // Sets the value for |count| to be the value in the |sample| bucket. The
   // bucket's current value is determined from |samples| and is modified based
   // on the snapshot stored for histogram |name|.
-  void GetBucketCountForSamples(StringPiece name,
+  void GetBucketCountForSamples(const std::string& name,
                                 HistogramBase::Sample sample,
                                 const HistogramSamples& samples,
                                 HistogramBase::Count* count) const;
 
   // Used to determine the histogram changes made during this instance's
   // lifecycle.
-  std::map<std::string, std::unique_ptr<HistogramSamples>, std::less<>>
-      histograms_snapshot_;
+  std::map<std::string, std::unique_ptr<HistogramSamples>> histograms_snapshot_;
 
   DISALLOW_COPY_AND_ASSIGN(HistogramTester);
 };

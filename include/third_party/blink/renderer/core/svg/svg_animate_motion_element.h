@@ -36,9 +36,7 @@ class SVGAnimateMotionElement final : public SVGAnimationElement {
   void UpdateAnimationPath();
 
  private:
-  bool HasValidAnimation() const override;
-  void WillChangeAnimationTarget() override;
-  void DidChangeAnimationTarget() override;
+  bool HasValidTarget() const override;
 
   void ParseAttribute(const AttributeModificationParams&) override;
 
@@ -52,7 +50,7 @@ class SVGAnimateMotionElement final : public SVGAnimationElement {
                                 const String& by_string) override;
   void CalculateAnimatedValue(float percentage,
                               unsigned repeat_count,
-                              SVGSMILElement* result_element) const override;
+                              SVGSMILElement* result_element) override;
   void ApplyResultsToTarget() override;
   float CalculateDistance(const String& from_string,
                           const String& to_string) override;

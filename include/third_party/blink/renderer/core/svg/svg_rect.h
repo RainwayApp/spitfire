@@ -60,7 +60,7 @@ class SVGRect final : public SVGPropertyHelper<SVGRect> {
   SVGParsingError SetValueAsString(const String&);
 
   void Add(SVGPropertyBase*, SVGElement*) override;
-  void CalculateAnimatedValue(const SVGAnimateElement&,
+  void CalculateAnimatedValue(SVGAnimationElement*,
                               float percentage,
                               unsigned repeat_count,
                               SVGPropertyBase* from,

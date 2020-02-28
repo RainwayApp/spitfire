@@ -53,7 +53,8 @@ class PLATFORM_EXPORT XRFrameTransport final
                    DrawingBuffer::Client*,
                    scoped_refptr<Image> image_ref,
                    std::unique_ptr<viz::SingleReleaseCallback>,
-                   int16_t vr_frame_id);
+                   int16_t vr_frame_id,
+                   bool needs_copy);
 
   void FrameSubmitMissing(device::mojom::blink::XRPresentationProvider*,
                           gpu::gles2::GLES2Interface*,

@@ -196,11 +196,6 @@ class FlexItem {
 
   bool frozen;
 
-  // Legacy partially relies on FlexLayoutAlgorithm::AlignChildren to determine
-  // if the child is eligible for stretching (specifically, checking for auto
-  // margins). FlexLayoutAlgorithm uses this flag to report back to legacy.
-  bool needs_relayout_for_stretch;
-
   NGBlockNode ng_input_node;
   scoped_refptr<const NGLayoutResult> layout_result;
 };
@@ -406,7 +401,6 @@ class FlexLayoutAlgorithm {
                                         const ComputedStyle& child_style);
 
   static LayoutUnit InitialContentPositionOffset(
-      const ComputedStyle& style,
       LayoutUnit available_free_space,
       const StyleContentAlignmentData&,
       unsigned number_of_items);
@@ -414,10 +408,6 @@ class FlexLayoutAlgorithm {
       LayoutUnit available_free_space,
       const StyleContentAlignmentData&,
       unsigned number_of_items);
-
-  void LayoutColumnReverse(LayoutUnit main_axis_content_size,
-                           LayoutUnit border_scrollbar_padding_before);
-  bool IsNGFlexBox() const;
 
  private:
   EOverflow MainAxisOverflowForChild(const LayoutBox& child) const;

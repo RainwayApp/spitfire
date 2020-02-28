@@ -41,37 +41,41 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
   ~CustomScrollbarTheme() override = default;
 
   int ScrollbarThickness(ScrollbarControlSize control_size) override {
-    return GetTheme().ScrollbarThickness(control_size);
+    return ScrollbarTheme::DeprecatedStaticGetTheme().ScrollbarThickness(
+        control_size);
   }
 
   WebScrollbarButtonsPlacement ButtonsPlacement() const override {
-    return GetTheme().ButtonsPlacement();
+    return ScrollbarTheme::DeprecatedStaticGetTheme().ButtonsPlacement();
   }
 
   void PaintScrollCorner(GraphicsContext&,
-                         const Scrollbar* vertical_scrollbar,
                          const DisplayItemClient&,
                          const IntRect& corner_rect,
                          WebColorScheme color_scheme) override;
 
   bool ShouldCenterOnThumb(const Scrollbar& scrollbar,
                            const WebMouseEvent& event) override {
-    return GetTheme().ShouldCenterOnThumb(scrollbar, event);
+    return ScrollbarTheme::DeprecatedStaticGetTheme().ShouldCenterOnThumb(
+        scrollbar, event);
   }
   bool ShouldSnapBackToDragOrigin(const Scrollbar& scrollbar,
                                   const WebMouseEvent& event) override {
-    return GetTheme().ShouldSnapBackToDragOrigin(scrollbar, event);
+    return ScrollbarTheme::DeprecatedStaticGetTheme()
+        .ShouldSnapBackToDragOrigin(scrollbar, event);
   }
 
   base::TimeDelta InitialAutoscrollTimerDelay() override {
-    return GetTheme().InitialAutoscrollTimerDelay();
+    return ScrollbarTheme::DeprecatedStaticGetTheme()
+        .InitialAutoscrollTimerDelay();
   }
   base::TimeDelta AutoscrollTimerDelay() override {
-    return GetTheme().AutoscrollTimerDelay();
+    return ScrollbarTheme::DeprecatedStaticGetTheme().AutoscrollTimerDelay();
   }
 
   void RegisterScrollbar(Scrollbar& scrollbar) override {
-    return GetTheme().RegisterScrollbar(scrollbar);
+    return ScrollbarTheme::DeprecatedStaticGetTheme().RegisterScrollbar(
+        scrollbar);
   }
 
   int MinimumThumbLength(const Scrollbar&) override;
@@ -96,9 +100,14 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
   IntRect ForwardButtonRect(const Scrollbar&, ScrollbarPart) override;
   IntRect TrackRect(const Scrollbar&) override;
 
-  void PaintTrackAndButtons(GraphicsContext&,
+  void PaintScrollbarBackground(GraphicsContext&, const Scrollbar&) override;
+  void PaintTrackBackground(GraphicsContext&,
                             const Scrollbar&,
-                            const IntPoint&) override;
+                            const IntRect&) override;
+  void PaintTrackPiece(GraphicsContext&,
+                       const Scrollbar&,
+                       const IntRect&,
+                       ScrollbarPart) override;
   void PaintButton(GraphicsContext&,
                    const Scrollbar&,
                    const IntRect&,
@@ -108,16 +117,15 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
                       const Scrollbar&,
                       const IntRect&) override;
 
+  // The layout objects in the custom scrollbar create display items.
+  bool CreatesSingleDisplayItemForTrackAndButtons() const final {
+    return false;
+  }
+
   IntRect ConstrainTrackRectToTrackPieces(const Scrollbar&,
                                           const IntRect&) override;
 
  private:
-  void PaintScrollbarBackground(GraphicsContext&, const Scrollbar&);
-  void PaintTrackBackground(GraphicsContext&, const Scrollbar&, const IntRect&);
-  void PaintTrackPiece(GraphicsContext&,
-                       const Scrollbar&,
-                       const IntRect&,
-                       ScrollbarPart);
   void PaintPart(GraphicsContext&,
                  const Scrollbar&,
                  const IntRect&,

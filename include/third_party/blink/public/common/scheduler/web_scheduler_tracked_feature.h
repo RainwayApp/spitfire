@@ -15,9 +15,6 @@ namespace scheduler {
 // A list of features which influence scheduling behaviour (throttling /
 // freezing / back-forward cache) and which might be sent to the browser process
 // for metrics-related purposes.
-//
-// Please keep in sync with WebSchedulerTrackedFeature in
-// tools/metrics/histograms/enums.xml. These values should not be renumbered.
 enum class WebSchedulerTrackedFeature {
   kWebSocket = 0,
   kWebRTC = 1,
@@ -59,7 +56,7 @@ enum class WebSchedulerTrackedFeature {
   kRequestedMIDIPermission = 21,
   kRequestedAudioCapturePermission = 22,
   kRequestedVideoCapturePermission = 23,
-  kRequestedBackForwardCacheBlockedSensors = 24,
+  kRequestedSensorsPermission = 24,
   // This covers all background-related permissions, including background sync,
   // background fetch and others.
   kRequestedBackgroundWorkPermission = 26,
@@ -86,12 +83,6 @@ static_assert(static_cast<uint32_t>(WebSchedulerTrackedFeature::kMaxValue) < 64,
 
 BLINK_COMMON_EXPORT const char* FeatureToString(
     WebSchedulerTrackedFeature feature);
-
-// Converts a WebSchedulerTrackedFeature to a bit for use in a bitmask.
-BLINK_COMMON_EXPORT constexpr uint64_t FeatureToBit(
-    WebSchedulerTrackedFeature feature) {
-  return 1ull << static_cast<uint32_t>(feature);
-}
 
 }  // namespace scheduler
 }  // namespace blink

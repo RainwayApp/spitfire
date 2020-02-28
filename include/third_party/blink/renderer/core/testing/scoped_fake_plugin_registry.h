@@ -7,9 +7,8 @@
 
 namespace blink {
 
-// Simulates the browser process serving a list of plugins that includes a fake
-// PDF plugin and a fake x-webkit-test-webplugin plugin. The PDF plugin doesn't
-// create a PluginDocument, whereas the test plugin does.
+// Simulates the browser process serving a list of plugins that includes just a
+// fake PDF plugin.
 class ScopedFakePluginRegistry {
  public:
   ScopedFakePluginRegistry();

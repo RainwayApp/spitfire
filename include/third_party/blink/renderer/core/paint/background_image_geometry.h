@@ -95,8 +95,6 @@ class BackgroundImageGeometry {
   const ComputedStyle& ImageStyle() const;
   InterpolationQuality ImageInterpolationQuality() const;
 
-  static bool ShouldUseFixedAttachment(const FillLayer&);
-
  private:
   void SetSpaceSize(const LayoutSize& repeat_spacing) {
     repeat_spacing_ = repeat_spacing;

@@ -16,13 +16,12 @@
 #include <memory>
 
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 class Desktop;
 
-class RTC_EXPORT ScopedThreadDesktop {
+class ScopedThreadDesktop {
  public:
   ScopedThreadDesktop();
   ~ScopedThreadDesktop();

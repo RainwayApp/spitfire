@@ -37,9 +37,6 @@
 
 namespace blink {
 
-class ScriptState;
-class ScriptValue;
-
 class Metadata final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -47,7 +44,10 @@ class Metadata final : public ScriptWrappable {
   explicit Metadata(const FileMetadata& platform_metadata)
       : platform_metadata_(platform_metadata) {}
 
-  ScriptValue modificationTime(ScriptState* script_state) const;
+  // Return Epoch time in milliseconds for Date.
+  double modificationTime() const {
+    return platform_metadata_.modification_time;
+  }
   uint64_t size() const {
     return static_cast<uint64_t>(platform_metadata_.length);
   }

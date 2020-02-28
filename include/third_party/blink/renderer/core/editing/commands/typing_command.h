@@ -92,10 +92,10 @@ class CORE_EXPORT TypingCommand final : public CompositeEditCommand {
 
   TypingCommand(Document&,
                 CommandType,
-                const String& text = "",
-                Options options = 0,
-                TextGranularity granularity = TextGranularity::kCharacter,
-                TextCompositionType = kTextCompositionNone);
+                const String& text,
+                Options,
+                TextGranularity,
+                TextCompositionType);
 
   void InsertTextRunWithoutNewlines(const String& text,
                                     EditingState*);
@@ -121,6 +121,26 @@ class CORE_EXPORT TypingCommand final : public CompositeEditCommand {
   String TextDataForInputEvent() const final;
 
  private:
+  static TypingCommand* Create(
+      Document& document,
+      CommandType command,
+      const String& text = "",
+      Options options = 0,
+      TextGranularity granularity = TextGranularity::kCharacter) {
+    return MakeGarbageCollected<TypingCommand>(
+        document, command, text, options, granularity, kTextCompositionNone);
+  }
+
+  static TypingCommand* Create(Document& document,
+                               CommandType command,
+                               const String& text,
+                               Options options,
+                               TextCompositionType composition_type) {
+    return MakeGarbageCollected<TypingCommand>(document, command, text, options,
+                                               TextGranularity::kCharacter,
+                                               composition_type);
+  }
+
   void SetSmartDelete(bool smart_delete) { smart_delete_ = smart_delete; }
   bool IsOpenForMoreTyping() const { return open_for_more_typing_; }
   void CloseTyping() { open_for_more_typing_ = false; }

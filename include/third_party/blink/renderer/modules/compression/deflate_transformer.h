@@ -14,19 +14,19 @@
 
 namespace blink {
 
-enum class CompressionFormat;
-
 class DeflateTransformer final : public TransformStreamTransformer {
  public:
-  DeflateTransformer(ScriptState*, CompressionFormat, int level);
+  enum class Format { kGzip, kDeflate };
+
+  DeflateTransformer(ScriptState*, Format, int level);
   ~DeflateTransformer() override;
 
-  ScriptPromise Transform(v8::Local<v8::Value> chunk,
-                          TransformStreamDefaultController*,
-                          ExceptionState&) override;
+  void Transform(v8::Local<v8::Value> chunk,
+                 TransformStreamDefaultControllerInterface*,
+                 ExceptionState&) override;
 
-  ScriptPromise Flush(TransformStreamDefaultController*,
-                      ExceptionState&) override;
+  void Flush(TransformStreamDefaultControllerInterface*,
+             ExceptionState&) override;
 
   ScriptState* GetScriptState() override { return script_state_; }
 
@@ -38,7 +38,7 @@ class DeflateTransformer final : public TransformStreamTransformer {
   void Deflate(const uint8_t*,
                wtf_size_t,
                IsFinished,
-               TransformStreamDefaultController*,
+               TransformStreamDefaultControllerInterface*,
                ExceptionState&);
 
   Member<ScriptState> script_state_;

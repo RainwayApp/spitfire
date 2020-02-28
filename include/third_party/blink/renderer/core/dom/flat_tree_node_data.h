@@ -21,7 +21,6 @@ class FlatTreeNodeData final : public GarbageCollected<FlatTreeNodeData> {
     previous_in_assigned_nodes_ = nullptr;
     next_in_assigned_nodes_ = nullptr;
   }
-
   void Trace(Visitor*);
 
 #if DCHECK_IS_ON()
@@ -48,7 +47,6 @@ class FlatTreeNodeData final : public GarbageCollected<FlatTreeNodeData> {
   friend class FlatTreeTraversal;
   friend class HTMLSlotElement;
   friend HTMLSlotElement* Node::AssignedSlot() const;
-  friend void Node::ClearFlatTreeNodeDataIfHostChanged(const ContainerNode&);
   friend Element* Node::FlatTreeParentForChildDirty() const;
 
   WeakMember<HTMLSlotElement> assigned_slot_;

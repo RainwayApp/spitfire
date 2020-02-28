@@ -23,7 +23,6 @@ class CanvasResource;
 class CanvasResourceDispatcherClient {
  public:
   virtual bool BeginFrame() = 0;
-  virtual void SetFilterQualityInResource(SkFilterQuality filter_quality) = 0;
 };
 
 class PLATFORM_EXPORT CanvasResourceDispatcher
@@ -81,9 +80,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   void DidAllocateSharedBitmap(base::ReadOnlySharedMemoryRegion region,
                                ::gpu::mojom::blink::MailboxPtr id);
   void DidDeleteSharedBitmap(::gpu::mojom::blink::MailboxPtr id);
-
-  void SetFilterQuality(SkFilterQuality filter_quality);
-  void SetPlaceholderCanvasDispatcher(int placeholder_canvas_id);
 
  private:
   friend class CanvasResourceDispatcherTest;

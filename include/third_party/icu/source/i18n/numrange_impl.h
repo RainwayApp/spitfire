@@ -13,7 +13,7 @@
 #include "number_types.h"
 #include "number_decimalquantity.h"
 #include "number_formatimpl.h"
-#include "formatted_string_builder.h"
+#include "number_stringbuilder.h"
 #include "formattedval_impl.h"
 
 U_NAMESPACE_BEGIN namespace number {
@@ -29,9 +29,9 @@ namespace impl {
  * Possible magic number: 0x46445200
  * Reads in ASCII as "FDR" (FormatteDnumberRange with room at the end)
  */
-class UFormattedNumberRangeData : public FormattedValueStringBuilderImpl {
+class UFormattedNumberRangeData : public FormattedValueNumberStringBuilderImpl {
 public:
-    UFormattedNumberRangeData() : FormattedValueStringBuilderImpl(0) {}
+    UFormattedNumberRangeData() : FormattedValueNumberStringBuilderImpl(0) {}
     virtual ~UFormattedNumberRangeData();
 
     DecimalQuantity quantity1;

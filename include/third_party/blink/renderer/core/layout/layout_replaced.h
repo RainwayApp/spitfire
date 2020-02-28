@@ -113,22 +113,8 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
   void UpdateLayout() override;
 
   LayoutSize IntrinsicSize() const final {
-    return LayoutSize(IntrinsicWidth(), IntrinsicHeight());
-  }
-
-  LayoutUnit IntrinsicWidth() const {
-    if (HasOverrideIntrinsicContentWidth())
-      return OverrideIntrinsicContentWidth();
-    else if (ShouldApplySizeContainment())
-      return LayoutUnit();
-    return intrinsic_size_.Width();
-  }
-  LayoutUnit IntrinsicHeight() const {
-    if (HasOverrideIntrinsicContentHeight())
-      return OverrideIntrinsicContentHeight();
-    else if (ShouldApplySizeContainment())
-      return LayoutUnit();
-    return intrinsic_size_.Height();
+    return ShouldApplySizeContainment() ? ContentLogicalSizeForSizeContainment()
+                                        : intrinsic_size_;
   }
 
   void ComputePositionedLogicalWidth(

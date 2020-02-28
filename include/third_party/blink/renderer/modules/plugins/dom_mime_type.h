@@ -37,6 +37,11 @@ class DOMMimeType final : public ScriptWrappable, public ContextClient {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static DOMMimeType* Create(LocalFrame* frame,
+                             const MimeClassInfo& mime_class_info) {
+    return MakeGarbageCollected<DOMMimeType>(frame, mime_class_info);
+  }
+
   DOMMimeType(LocalFrame*, const MimeClassInfo&);
 
   const String& type() const;

@@ -22,8 +22,11 @@ class LaunchParams final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  LaunchParams(HeapVector<Member<NativeFileSystemHandle>> files);
+  LaunchParams();
   ~LaunchParams() override;
+
+  void SetFiles(HeapVector<Member<NativeFileSystemHandle>> files);
+  void SetFetchRequest(mojom::blink::FetchAPIRequestPtr fetch_request);
 
   // LaunchParams IDL interface.
   const HeapVector<Member<NativeFileSystemHandle>>& files() { return files_; }

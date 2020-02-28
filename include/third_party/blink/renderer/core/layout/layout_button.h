@@ -60,9 +60,7 @@ class LayoutButton final : public LayoutFlexibleBox {
   void UpdateAnonymousChildStyle(const LayoutObject* child,
                                  ComputedStyle& child_style) const override;
 
-  bool HasLineIfEmpty() const override {
-    return IsA<HTMLInputElement>(GetNode());
-  }
+  bool HasLineIfEmpty() const override { return IsHTMLInputElement(GetNode()); }
 
   LayoutBlock* inner_;
 };

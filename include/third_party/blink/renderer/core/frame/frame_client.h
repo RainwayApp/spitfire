@@ -33,6 +33,10 @@ class CORE_EXPORT FrameClient : public GarbageCollected<FrameClient> {
 
   virtual unsigned BackForwardLength() = 0;
 
+  virtual void FrameFocused() const = 0;
+
+  virtual void VisibilityChanged(blink::mojom::FrameVisibility visibility) = 0;
+
   virtual base::UnguessableToken GetDevToolsFrameToken() const = 0;
 
   // Transfers user activation state from |source_frame| to the this frame.

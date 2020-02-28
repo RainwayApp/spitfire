@@ -184,7 +184,7 @@ class CORE_EXPORT DocumentMarkerController final
                              DocumentMarker::MarkerTypes);
 
   // Called after weak processing of |markers_| is done.
-  void DidProcessMarkerMap(const WeakCallbackInfo&);
+  void DidProcessMarkerMap(Visitor* visitor);
 
   MarkerMap markers_;
   // Provide a quick way to determine whether a particular marker type is absent

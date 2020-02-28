@@ -119,7 +119,10 @@ template <typename Property>
 class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
  public:
   Property* BaseValue() { return base_value_.Get(); }
-  Property* CurrentValue() { return current_value_.Get(); }
+
+  Property* CurrentValue() {
+    return current_value_ ? current_value_.Get() : base_value_.Get();
+  }
 
   const Property* CurrentValue() const {
     return const_cast<SVGAnimatedPropertyCommon*>(this)->CurrentValue();
@@ -129,7 +132,7 @@ class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
 
   const SVGPropertyBase& BaseValueBase() const override { return *base_value_; }
 
-  bool IsAnimating() const override { return current_value_ != base_value_; }
+  bool IsAnimating() const override { return current_value_; }
 
   SVGParsingError AttributeChanged(const String& value) override {
     static_assert(Property::kInitialValueBits <= kInitialValueStorageBits,
@@ -157,7 +160,8 @@ class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
   }
 
   void AnimationEnded() override {
-    current_value_ = base_value_;
+    current_value_.Clear();
+
     SVGAnimatedPropertyBase::AnimationEnded();
   }
 
@@ -179,8 +183,7 @@ class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
                                 attribute_name,
                                 css_property_id,
                                 initial_value_bits),
-        base_value_(initial_value),
-        current_value_(initial_value) {}
+        base_value_(initial_value) {}
 
  private:
   Member<Property> base_value_;
@@ -198,7 +201,7 @@ class SVGAnimatedProperty : public SVGAnimatedPropertyCommon<Property> {
   // SVGAnimated* DOM Spec implementations:
 
   // baseVal()/setBaseVal()/animVal() are only to be used from SVG DOM
-  // implementation.  Use CurrentValue() from C++ code.
+  // implementation.  Use currentValue() from C++ code.
   PrimitiveType baseVal() { return this->BaseValue()->Value(); }
 
   void setBaseVal(PrimitiveType value, ExceptionState&) {
@@ -285,12 +288,11 @@ class SVGAnimatedProperty<Property, TearOffType, void>
       anim_val_tear_off_->SetTarget(this->CurrentValue());
   }
 
-  // When not animated:
-  //     Both |anim_val_tear_off_| and |base_val_tear_off_| target
-  //     |base_value_|.
+  // When still (not animated):
+  //     Both m_animValTearOff and m_baseValTearOff target m_baseValue.
   // When animated:
-  //     |anim_val_tear_off_| targets |current_value_|.
-  //     |base_val_tear_off_| targets |base_value_|.
+  //     m_animValTearOff targets m_currentValue.
+  //     m_baseValTearOff targets m_baseValue.
   Member<TearOffType> base_val_tear_off_;
   Member<TearOffType> anim_val_tear_off_;
 };

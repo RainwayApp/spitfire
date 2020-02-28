@@ -15,8 +15,6 @@
  */
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/uloc.h"
@@ -413,7 +411,4 @@ public:
 U_NAMESPACE_END
 
 #endif
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

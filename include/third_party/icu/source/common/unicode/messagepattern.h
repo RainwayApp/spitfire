@@ -24,8 +24,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/parseerr.h"
@@ -943,7 +941,5 @@ private:
 U_NAMESPACE_END
 
 #endif  // !UCONFIG_NO_FORMATTING
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __MESSAGEPATTERN_H__

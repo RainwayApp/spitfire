@@ -35,6 +35,8 @@
 
 #include "base/macros.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#include "services/service_manager/public/mojom/interface_provider.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink-forward.h"
 #include "third_party/blink/public/web/web_embedded_worker.h"
 #include "third_party/blink/public/web/web_embedded_worker_start_data.h"
@@ -68,6 +70,7 @@ class MODULES_EXPORT WebEmbeddedWorkerImpl final : public WebEmbeddedWorker {
       std::unique_ptr<WebServiceWorkerInstalledScriptsManagerParams>,
       mojo::ScopedMessagePipeHandle content_settings_handle,
       mojo::ScopedMessagePipeHandle cache_storage,
+      mojo::ScopedMessagePipeHandle interface_provider,
       mojo::ScopedMessagePipeHandle browser_interface_broker,
       scoped_refptr<base::SingleThreadTaskRunner> initiator_thread_task_runner)
       override;
@@ -82,6 +85,7 @@ class MODULES_EXPORT WebEmbeddedWorkerImpl final : public WebEmbeddedWorker {
       std::unique_ptr<ServiceWorkerInstalledScriptsManager>,
       std::unique_ptr<ServiceWorkerContentSettingsProxy>,
       mojo::PendingRemote<mojom::blink::CacheStorage>,
+      service_manager::mojom::blink::InterfaceProviderPtrInfo,
       mojo::PendingRemote<mojom::blink::BrowserInterfaceBroker>,
       scoped_refptr<base::SingleThreadTaskRunner> initiator_thread_task_runner);
 

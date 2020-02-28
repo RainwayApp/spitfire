@@ -11,12 +11,9 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 
-struct WGPUDeviceProperties;
-
 namespace blink {
 
 class GPURequestAdapterOptions;
-class ScriptPromiseResolver;
 class ScriptState;
 class WebGraphicsContext3DProvider;
 class DawnControlClientHolder;
@@ -42,10 +39,6 @@ class GPU final : public ScriptWrappable, public ContextLifecycleObserver {
                                const GPURequestAdapterOptions* options);
 
  private:
-  void OnRequestAdapterCallback(ScriptPromiseResolver* resolver,
-                                uint32_t adapter_server_id,
-                                const WGPUDeviceProperties& properties);
-
   scoped_refptr<DawnControlClientHolder> dawn_control_client_;
 
   DISALLOW_COPY_AND_ASSIGN(GPU);

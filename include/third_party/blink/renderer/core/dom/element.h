@@ -85,18 +85,18 @@ class ShadowRoot;
 class ShadowRootInit;
 class SpaceSplitString;
 class StringOrTrustedHTML;
-class StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL;
+class StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURLOrTrustedURL;
 class StringOrTrustedScript;
 class StringOrTrustedScriptURL;
 class StylePropertyMap;
 class StylePropertyMapReadOnly;
+class USVStringOrTrustedURL;
 class V0CustomElementDefinition;
 
 enum class CSSPropertyID;
 enum class CSSValueID;
 enum class DisplayLockActivationReason;
 enum class DisplayLockLifecycleTarget;
-enum class DisplayLockContextCreateMethod;
 
 using ScrollOffset = FloatSize;
 
@@ -168,9 +168,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  Element(const QualifiedName& tag_name,
-          Document*,
-          ConstructionType = kCreateElement);
+  static Element* Create(const QualifiedName&, Document*);
+
+  Element(const QualifiedName& tag_name, Document*, ConstructionType);
 
   // Animatable implementation.
   Element* GetAnimationTarget() override;
@@ -186,9 +186,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // Passing g_null_atom as the second parameter removes the attribute when
   // calling either of these set methods.
   void setAttribute(const QualifiedName&, const AtomicString& value);
-  void setAttribute(const QualifiedName&,
-                    const AtomicString& value,
-                    ExceptionState&);
   void SetSynchronizedLazyAttribute(const QualifiedName&,
                                     const AtomicString& value);
 
@@ -196,8 +193,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   // Typed getters and setters for language bindings.
   int GetIntegralAttribute(const QualifiedName& attribute_name) const;
-  int GetIntegralAttribute(const QualifiedName& attribute_name,
-                           int default_value) const;
   void SetIntegralAttribute(const QualifiedName& attribute_name, int value);
   void SetUnsignedIntegralAttribute(const QualifiedName& attribute_name,
                                     unsigned value,
@@ -247,9 +242,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void setAttribute(const AtomicString& name, const AtomicString& value);
 
   // Trusted Types variant for explicit setAttribute() use.
-  void setAttribute(const AtomicString&,
-                    const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL&,
-                    ExceptionState&);
+  void setAttribute(
+      const AtomicString&,
+      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURLOrTrustedURL&,
+      ExceptionState&);
 
   // Returns attributes that should be checked against Trusted Types
   virtual const AttrNameToTrustedType& GetCheckedAttributeTypes() const;
@@ -269,6 +265,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                     const StringOrTrustedScriptURL&,
                     ExceptionState&);
 
+  // Trusted Type URL variant
+  void setAttribute(const QualifiedName&,
+                    const USVStringOrTrustedURL&,
+                    ExceptionState&);
+
   static bool ParseAttributeName(QualifiedName&,
                                  const AtomicString& namespace_uri,
                                  const AtomicString& qualified_name,
@@ -276,7 +277,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void setAttributeNS(
       const AtomicString& namespace_uri,
       const AtomicString& qualified_name,
-      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL&,
+      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURLOrTrustedURL&,
       ExceptionState&);
 
   bool toggleAttribute(const AtomicString&, ExceptionState&);
@@ -642,6 +643,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   KURL GetURLAttribute(const QualifiedName&) const;
   void GetURLAttribute(const QualifiedName&, StringOrTrustedScriptURL&) const;
+  void GetURLAttribute(const QualifiedName&, USVStringOrTrustedURL&) const;
+  void FastGetAttribute(const QualifiedName&, USVStringOrTrustedURL&) const;
   void FastGetAttribute(const QualifiedName&, StringOrTrustedHTML&) const;
 
   KURL GetNonEmptyURLAttribute(const QualifiedName&) const;
@@ -649,10 +652,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   virtual const AtomicString ImageSourceURL() const;
   virtual Image* ImageContents() { return nullptr; }
 
-  // Returns true if this is a shadow host, and its ShadowRoot has
-  // delegatesFocus flag.
-  bool DelegatesFocus() const;
-  Element* GetFocusableArea() const;
   virtual void focus(const FocusParams& = FocusParams());
   void focus(const FocusOptions*);
 
@@ -803,7 +802,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   virtual bool IsOutOfRange() const { return false; }
   virtual bool IsClearButtonElement() const { return false; }
   virtual bool IsScriptElement() const { return false; }
-  virtual bool IsVTTCueBackgroundBox() const { return false; }
 
   // Elements that may have an insertion mode other than "in body" should
   // override this and return true.
@@ -897,7 +895,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void ClearMutableInlineStyleIfEmpty();
 
   void setTabIndex(int);
-  int tabIndex() const;
+  int tabIndex() const override;
 
   // Helpers for V8DOMActivityLogger::logEvent.  They call logEvent only if
   // the element is isConnected() and the context is an isolated world.
@@ -932,11 +930,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void SetNeedsResizeObserverUpdate();
 
   DisplayLockContext* GetDisplayLockContext() const;
-  DisplayLockContext& EnsureDisplayLockContext(DisplayLockContextCreateMethod);
+  DisplayLockContext& EnsureDisplayLockContext();
 
-  // Display locking IDL implementation
   ScriptPromise updateRendering(ScriptState*);
-  void resetSubtreeRendered();
 
   bool StyleRecalcBlockedByDisplayLock(DisplayLockLifecycleTarget) const;
 
@@ -1118,7 +1114,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const QualifiedName&) const;
 
   void CancelFocusAppearanceUpdate();
-  virtual int DefaultTabIndex() const;
 
   const ComputedStyle* VirtualEnsureComputedStyle(
       PseudoId pseudo_element_specifier = kPseudoIdNone) override {

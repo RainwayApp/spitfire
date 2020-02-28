@@ -22,6 +22,8 @@ namespace rtc {
 class MemoryStream final : public StreamInterface {
  public:
   MemoryStream();
+  explicit MemoryStream(const char* data);  // Calls SetData(data, strlen(data))
+  MemoryStream(const void* data, size_t length);  // Calls SetData(data, length)
   ~MemoryStream() override;
 
   StreamState GetState() const override;

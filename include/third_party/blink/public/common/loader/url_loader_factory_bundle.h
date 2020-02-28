@@ -12,7 +12,6 @@
 
 #include "base/macros.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
@@ -27,8 +26,10 @@ namespace blink {
 
 // Holds the internal state of a URLLoaderFactoryBundle in a form that is safe
 // to pass across sequences.
-class BLINK_COMMON_EXPORT PendingURLLoaderFactoryBundle
-    : public network::PendingSharedURLLoaderFactory {
+// TODO(domfarolino, crbug.com/955171): This class should be renamed to not
+// include "Info".
+class BLINK_COMMON_EXPORT URLLoaderFactoryBundleInfo
+    : public network::SharedURLLoaderFactoryInfo {
  public:
   // Map from URL scheme to PendingRemote<URLLoaderFactory> for handling URL
   // requests for schemes not handled by the |pending_default_factory|. See also
@@ -44,14 +45,14 @@ class BLINK_COMMON_EXPORT PendingURLLoaderFactoryBundle
       std::map<url::Origin,
                mojo::PendingRemote<network::mojom::URLLoaderFactory>>;
 
-  PendingURLLoaderFactoryBundle();
-  PendingURLLoaderFactoryBundle(
+  URLLoaderFactoryBundleInfo();
+  URLLoaderFactoryBundleInfo(
       mojo::PendingRemote<network::mojom::URLLoaderFactory>
           pending_default_factory,
-      SchemeMap scheme_specific_pending_factories,
-      OriginMap isolated_world_pending_factories,
+      SchemeMap scheme_specific_factory_infos,
+      OriginMap isolated_world_factory_infos,
       bool bypass_redirect_checks);
-  ~PendingURLLoaderFactoryBundle() override;
+  ~URLLoaderFactoryBundleInfo() override;
 
   mojo::PendingRemote<network::mojom::URLLoaderFactory>&
   pending_default_factory() {
@@ -76,7 +77,7 @@ class BLINK_COMMON_EXPORT PendingURLLoaderFactoryBundle
   }
 
  protected:
-  // PendingSharedURLLoaderFactory implementation.
+  // SharedURLLoaderFactoryInfo implementation.
   scoped_refptr<network::SharedURLLoaderFactory> CreateFactory() override;
 
   mojo::PendingRemote<network::mojom::URLLoaderFactory>
@@ -87,7 +88,7 @@ class BLINK_COMMON_EXPORT PendingURLLoaderFactoryBundle
   OriginMap pending_isolated_world_factories_;
   bool bypass_redirect_checks_ = false;
 
-  DISALLOW_COPY_AND_ASSIGN(PendingURLLoaderFactoryBundle);
+  DISALLOW_COPY_AND_ASSIGN(URLLoaderFactoryBundleInfo);
 };
 
 // Encapsulates a collection of URLLoaderFactoryPtrs which can be usd to acquire
@@ -98,26 +99,25 @@ class BLINK_COMMON_EXPORT URLLoaderFactoryBundle
   URLLoaderFactoryBundle();
 
   explicit URLLoaderFactoryBundle(
-      std::unique_ptr<PendingURLLoaderFactoryBundle> pending_factories);
+      std::unique_ptr<URLLoaderFactoryBundleInfo> pending_factories);
 
   // SharedURLLoaderFactory implementation.
-  void CreateLoaderAndStart(
-      mojo::PendingReceiver<network::mojom::URLLoader> loader,
-      int32_t routing_id,
-      int32_t request_id,
-      uint32_t options,
-      const network::ResourceRequest& request,
-      mojo::PendingRemote<network::mojom::URLLoaderClient> client,
-      const net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
-      override;
+  void CreateLoaderAndStart(network::mojom::URLLoaderRequest loader,
+                            int32_t routing_id,
+                            int32_t request_id,
+                            uint32_t options,
+                            const network::ResourceRequest& request,
+                            network::mojom::URLLoaderClientPtr client,
+                            const net::MutableNetworkTrafficAnnotationTag&
+                                traffic_annotation) override;
   void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
       override;
-  std::unique_ptr<network::PendingSharedURLLoaderFactory> Clone() override;
+  std::unique_ptr<network::SharedURLLoaderFactoryInfo> Clone() override;
   bool BypassRedirectChecks() const override;
 
   // The |pending_factories| contains replacement factories for a subset of the
   // existing bundle.
-  void Update(std::unique_ptr<PendingURLLoaderFactoryBundle> pending_factories);
+  void Update(std::unique_ptr<URLLoaderFactoryBundleInfo> pending_factories);
 
  protected:
   ~URLLoaderFactoryBundle() override;
@@ -155,7 +155,7 @@ class BLINK_COMMON_EXPORT URLLoaderFactoryBundle
 
   // Map from URL scheme to Remote<URLLoaderFactory> for handling URL requests
   // for schemes not handled by the |default_factory_|.  See also
-  // PendingURLLoaderFactoryBundle::SchemeMap and
+  // URLLoaderFactoryBundleInfo::SchemeMap and
   // ContentBrowserClient::SchemeToURLLoaderFactoryMap.
   using SchemeMap =
       std::map<std::string, mojo::Remote<network::mojom::URLLoaderFactory>>;
@@ -163,7 +163,7 @@ class BLINK_COMMON_EXPORT URLLoaderFactoryBundle
 
   // Map from origin of isolated world to Remote<URLLoaderFactory> for handling
   // this isolated world's requests. See also
-  // PendingURLLoaderFactoryBundle::OriginMap.
+  // URLLoaderFactoryBundleInfo::OriginMap.
   using OriginMap =
       std::map<url::Origin, mojo::Remote<network::mojom::URLLoaderFactory>>;
   OriginMap isolated_world_factories_;

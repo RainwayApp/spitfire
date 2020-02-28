@@ -16,8 +16,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/format.h"
@@ -307,7 +305,7 @@ public:
      * @return A copy of the object
      * @stable ICU 50
      */
-    virtual TimeZoneFormat* clone() const;
+    virtual Format* clone() const;
 
     /**
      * Creates an instance of <code>TimeZoneFormat</code> for the given locale.
@@ -1096,7 +1094,4 @@ private:
 U_NAMESPACE_END
 
 #endif /* !UCONFIG_NO_FORMATTING */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

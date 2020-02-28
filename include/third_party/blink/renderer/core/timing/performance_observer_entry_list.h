@@ -25,9 +25,8 @@ class PerformanceObserverEntryList : public ScriptWrappable {
 
   PerformanceEntryVector getEntries() const;
   PerformanceEntryVector getEntriesByType(const AtomicString& entry_type);
-  PerformanceEntryVector getEntriesByName(
-      const String& name,
-      const AtomicString& entry_type = g_null_atom);
+  PerformanceEntryVector getEntriesByName(const String& name,
+                                          const AtomicString& entry_type);
 
   void Trace(blink::Visitor*) override;
 

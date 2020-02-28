@@ -24,9 +24,8 @@ class SharedWorkerContentSettingsProxy : public WebContentSettingsClient {
   ~SharedWorkerContentSettingsProxy() override;
 
   // WebContentSettingsClient overrides.
-  bool AllowIndexedDB() override;
-  bool AllowCacheStorage() override;
-  bool AllowWebLocks() override;
+  bool AllowIndexedDB(const WebSecurityOrigin&) override;
+  bool AllowCacheStorage(const WebSecurityOrigin&) override;
   bool RequestFileSystemAccessSync() override;
 
  private:

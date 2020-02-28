@@ -115,7 +115,7 @@ class EscapeTransliterator : public Transliterator {
     /**
      * Transliterator API.
      */
-    virtual EscapeTransliterator* clone() const;
+    virtual Transliterator* clone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

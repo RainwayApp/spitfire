@@ -105,7 +105,6 @@ namespace android_webview {
 class AwFormDatabaseService;
 class CookieManager;
 class ScopedAllowInitGLBindings;
-class VizCompositorThreadRunnerWebView;
 }
 namespace audio {
 class OutputDevice;
@@ -212,11 +211,6 @@ class PrinterQuery;
 namespace rlz_lib {
 class FinancialPing;
 }
-namespace syncer {
-class GetLocalChangesRequest;
-class HttpBridge;
-class ModelSafeWorker;
-}
 namespace ui {
 class CommandBufferClientImpl;
 class CommandBufferLocal;
@@ -228,13 +222,10 @@ class MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
 class MultiThreadedProxyResolverScopedAllowJoinOnIO;
 class NetworkChangeNotifierMac;
 class NetworkConfigWatcherMacThread;
+class ScopedAllowThreadJoinForProxyResolverV8Tracing;
 namespace internal {
 class AddressTrackerLinux;
 }
-}
-
-namespace proxy_resolver {
-class ScopedAllowThreadJoinForProxyResolverV8Tracing;
 }
 
 namespace remoting {
@@ -271,10 +262,6 @@ class VrShell;
 namespace web {
 class WebMainLoop;
 class WebSubThread;
-}
-
-namespace weblayer {
-class ProfileImpl;
 }
 
 namespace webrtc {
@@ -371,7 +358,6 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class ui::MaterialDesignController;
   friend class web::WebSubThread;
   friend class StackSamplingProfiler;
-  friend class weblayer::ProfileImpl;
 
   ScopedAllowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
   ~ScopedAllowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
@@ -432,9 +418,6 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class rlz_lib::FinancialPing;
   friend class shell_integration_linux::
       LaunchXdgUtilityScopedAllowBaseSyncPrimitives;
-  friend class syncer::HttpBridge;
-  friend class syncer::GetLocalChangesRequest;
-  friend class syncer::ModelSafeWorker;
   friend class webrtc::DesktopConfigurationMonitor;
 
   // Usage that should be fixed:
@@ -474,7 +457,6 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class android_webview::
       AwFormDatabaseService;  // http://crbug.com/904431
   friend class android_webview::CookieManager;
-  friend class android_webview::VizCompositorThreadRunnerWebView;
   friend class audio::OutputDevice;
   friend class base::sequence_manager::internal::TaskQueueImpl;
   friend class base::FileDescriptorWatcher;
@@ -519,9 +501,9 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class net::
       MultiThreadedProxyResolverScopedAllowJoinOnIO;  // http://crbug.com/69710
   friend class net::NetworkChangeNotifierMac;         // http://crbug.com/125097
-  friend class printing::PrinterQuery;                 // http://crbug.com/66082
-  friend class proxy_resolver::
+  friend class net::
       ScopedAllowThreadJoinForProxyResolverV8Tracing;  // http://crbug.com/69710
+  friend class printing::PrinterQuery;                 // http://crbug.com/66082
   friend class remoting::AutoThread;  // https://crbug.com/944316
   // Not used in production yet, https://crbug.com/844078.
   friend class service_manager::ServiceProcessLauncher;

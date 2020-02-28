@@ -48,7 +48,7 @@ public:
 
     virtual ~Win32DateFormat();
 
-    virtual Win32DateFormat *clone() const;
+    virtual Format *clone(void) const;
 
     Win32DateFormat &operator=(const Win32DateFormat &other);
 

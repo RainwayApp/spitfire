@@ -16,7 +16,6 @@
 #include <string>
 
 #include "absl/types/optional.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace cricket {
 
@@ -24,7 +23,7 @@ namespace cricket {
 // Used to be flags, but that makes it hard to selectively apply options.
 // We are moving all of the setting of options to structs like this,
 // but some things currently still use flags.
-struct RTC_EXPORT AudioOptions {
+struct AudioOptions {
   AudioOptions();
   ~AudioOptions();
   void SetAll(const AudioOptions& change);

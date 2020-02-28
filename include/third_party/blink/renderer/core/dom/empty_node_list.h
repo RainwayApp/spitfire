@@ -33,7 +33,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EMPTY_NODE_LIST_H_
 
 #include "third_party/blink/renderer/core/dom/node_list.h"
-#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -56,15 +55,11 @@ class EmptyNodeList final : public NodeList {
   Member<Node> owner_;
 };
 
-template <>
-struct DowncastTraits<EmptyNodeList> {
-  static bool AllowFrom(const NodeList& nodeList) {
-    return nodeList.IsEmptyNodeList();
-  }
-  static bool AllowFrom(const NodeList* nodeList) {
-    return nodeList->IsEmptyNodeList();
-  }
-};
+DEFINE_TYPE_CASTS(EmptyNodeList,
+                  NodeList,
+                  nodeList,
+                  nodeList->IsEmptyNodeList(),
+                  nodeList.IsEmptyNodeList());
 
 }  // namespace blink
 

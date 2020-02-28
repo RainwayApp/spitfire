@@ -44,8 +44,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
 
 #include "unicode/uobject.h"
@@ -1878,7 +1876,4 @@ private:
 
 U_NAMESPACE_END
 #endif  // UCONFIG_NO_REGULAR_EXPRESSIONS
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

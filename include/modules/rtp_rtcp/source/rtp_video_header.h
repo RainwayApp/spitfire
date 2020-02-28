@@ -28,53 +28,52 @@
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 
 namespace webrtc {
-	using RTPVideoTypeHeader = absl::variant<absl::monostate,
-		RTPVideoHeaderVP8,
-		RTPVideoHeaderVP9,
-		RTPVideoHeaderH264>;
+using RTPVideoTypeHeader = absl::variant<absl::monostate,
+                                         RTPVideoHeaderVP8,
+                                         RTPVideoHeaderVP9,
+                                         RTPVideoHeaderH264>;
 
-	struct RTPVideoHeader {
-		struct GenericDescriptorInfo {
-			GenericDescriptorInfo();
-			GenericDescriptorInfo(const GenericDescriptorInfo& other);
-			~GenericDescriptorInfo();
+struct RTPVideoHeader {
+  struct GenericDescriptorInfo {
+    GenericDescriptorInfo();
+    GenericDescriptorInfo(const GenericDescriptorInfo& other);
+    ~GenericDescriptorInfo();
 
-			int64_t frame_id = 0;
-			int spatial_index = 0;
-			int temporal_index = 0;
-			absl::InlinedVector<int64_t, 5> dependencies;
-			absl::InlinedVector<int, 5> higher_spatial_layers;
-			bool discardable = false;
-		};
+    int64_t frame_id = 0;
+    int spatial_index = 0;
+    int temporal_index = 0;
+    absl::InlinedVector<int64_t, 5> dependencies;
+    absl::InlinedVector<int, 5> higher_spatial_layers;
+    bool discardable = false;
+  };
 
-		RTPVideoHeader();
-		RTPVideoHeader(const RTPVideoHeader& other);
+  RTPVideoHeader();
+  RTPVideoHeader(const RTPVideoHeader& other);
 
-		~RTPVideoHeader();
+  ~RTPVideoHeader();
 
-		#ifdef __cplusplus_cli
-			#define generic __identifier(generic)
-		#endif
-		absl::optional<GenericDescriptorInfo> generic;
-		#ifdef __cplusplus_cli
-			#undef generic
-		#endif
-		VideoFrameType frame_type = VideoFrameType::kEmptyFrame;
-		uint16_t width = 0;
-		uint16_t height = 0;
-		VideoRotation rotation = VideoRotation::kVideoRotation_0;
-		VideoContentType content_type = VideoContentType::UNSPECIFIED;
-		bool is_first_packet_in_frame = false;
-		bool is_last_packet_in_frame = false;
-		uint8_t simulcastIdx = 0;
-		VideoCodecType codec = VideoCodecType::kVideoCodecGeneric;
+  #ifdef __cplusplus_cli
+    absl::optional<GenericDescriptorInfo> __identifier(generic)
+  #else
+    absl::optional<GenericDescriptorInfo> generic;
+  #endif
 
-		PlayoutDelay playout_delay = { -1, -1 };
-		VideoSendTiming video_timing;
-		FrameMarking frame_marking = { false, false, false, false, false, 0xFF, 0, 0 };
-		absl::optional<ColorSpace> color_space;
-		RTPVideoTypeHeader video_type_header;
-	};
+  VideoFrameType frame_type = VideoFrameType::kEmptyFrame;
+  uint16_t width = 0;
+  uint16_t height = 0;
+  VideoRotation rotation = VideoRotation::kVideoRotation_0;
+  VideoContentType content_type = VideoContentType::UNSPECIFIED;
+  bool is_first_packet_in_frame = false;
+  bool is_last_packet_in_frame = false;
+  uint8_t simulcastIdx = 0;
+  VideoCodecType codec = VideoCodecType::kVideoCodecGeneric;
+
+  PlayoutDelay playout_delay = {-1, -1};
+  VideoSendTiming video_timing;
+  FrameMarking frame_marking = {false, false, false, false, false, 0xFF, 0, 0};
+  absl::optional<ColorSpace> color_space;
+  RTPVideoTypeHeader video_type_header;
+};
 
 }  // namespace webrtc
 

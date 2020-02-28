@@ -55,9 +55,9 @@ class MemoryCacheEntry final : public GarbageCollected<MemoryCacheEntry> {
   Resource* GetResource() const { return resource_; }
 
  private:
-  void ClearResourceWeak(const WeakCallbackInfo&);
+  void ClearResourceWeak(Visitor*);
 
-  UntracedMember<Resource> resource_;
+  WeakMember<Resource> resource_;
 };
 
 // This cache holds subresources used by Web pages: images, scripts,

@@ -94,7 +94,7 @@ class PortalContents : public GarbageCollected<PortalContents>,
   Document& GetDocument() const { return *document_; }
 
   // Called on response to the request to activate the portal contents.
-  void OnActivateResponse(mojom::blink::PortalActivateResult);
+  void OnActivateResponse(bool was_adopted);
 
   // The document which owns this contents.
   // TODO(jbroman): Should this be a DocumentShutdownObserver instead?

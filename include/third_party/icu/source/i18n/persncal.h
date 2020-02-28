@@ -164,7 +164,7 @@ class PersianCalendar : public Calendar {
   // TODO: copy c'tor, etc
 
   // clone
-  virtual PersianCalendar* clone() const;
+  virtual Calendar* clone() const;
 
  private:
   /**

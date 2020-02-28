@@ -24,10 +24,8 @@
 #include "call/rtp_video_sender.h"
 #include "modules/congestion_controller/rtp/control_handler.h"
 #include "modules/congestion_controller/rtp/transport_feedback_adapter.h"
-#include "modules/pacing/paced_sender.h"
 #include "modules/pacing/packet_router.h"
 #include "modules/pacing/rtp_packet_pacer.h"
-#include "modules/pacing/task_queue_paced_sender.h"
 #include "modules/utility/include/process_thread.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/network_route.h"
@@ -56,8 +54,7 @@ class RtpTransportControllerSend final
       NetworkControllerFactoryInterface* controller_factory,
       const BitrateConstraints& bitrate_config,
       std::unique_ptr<ProcessThread> process_thread,
-      TaskQueueFactory* task_queue_factory,
-      const WebRtcKeyValueConfig* trials);
+      TaskQueueFactory* task_queue_factory);
   ~RtpTransportControllerSend() override;
 
   RtpVideoSenderInterface* CreateRtpVideoSender(
@@ -86,7 +83,10 @@ class RtpTransportControllerSend final
 
   void SetPacingFactor(float pacing_factor) override;
   void SetQueueTimeLimit(int limit_ms) override;
-  StreamFeedbackProvider* GetStreamFeedbackProvider() override;
+  void RegisterPacketFeedbackObserver(
+      PacketFeedbackObserver* observer) override;
+  void DeRegisterPacketFeedbackObserver(
+      PacketFeedbackObserver* observer) override;
   void RegisterTargetTransferRateObserver(
       TargetTransferRateObserver* observer) override;
   void OnNetworkRouteChanged(const std::string& transport_name,
@@ -139,14 +139,13 @@ class RtpTransportControllerSend final
 
   Clock* const clock_;
   RtcEventLog* const event_log_;
+  const FieldTrialBasedConfig trial_based_config_;
   PacketRouter packet_router_;
   std::vector<std::unique_ptr<RtpVideoSenderInterface>> video_rtp_senders_;
   RtpBitrateConfigurator bitrate_configurator_;
   std::map<std::string, rtc::NetworkRoute> network_routes_;
   const std::unique_ptr<ProcessThread> process_thread_;
-  const bool use_task_queue_pacer_;
-  std::unique_ptr<PacedSender> process_thread_pacer_;
-  std::unique_ptr<TaskQueuePacedSender> task_queue_pacer_;
+  PacedSender pacer_;
 
   TargetTransferRateObserver* observer_ RTC_GUARDED_BY(task_queue_);
 
@@ -183,6 +182,7 @@ class RtpTransportControllerSend final
   bool network_available_ RTC_GUARDED_BY(task_queue_);
   RepeatingTaskHandle pacer_queue_update_task_ RTC_GUARDED_BY(task_queue_);
   RepeatingTaskHandle controller_task_ RTC_GUARDED_BY(task_queue_);
+  // Protects access to last_packet_feedback_vector_ in feedback adapter.
   // TODO(srte): Remove this checker when feedback adapter runs on task queue.
   rtc::RaceChecker worker_race_;
 

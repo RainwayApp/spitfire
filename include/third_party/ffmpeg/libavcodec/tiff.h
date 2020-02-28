@@ -101,8 +101,6 @@ enum TiffTags {
 enum DngTags {
     DNG_VERSION             = 0xC612,
     DNG_BACKWARD_VERSION    = 0xC613,
-    DNG_LINEARIZATION_TABLE = 0xC618,
-    DNG_BLACK_LEVEL         = 0xC61A,
     DNG_WHITE_LEVEL         = 0xC61D,
 };
 

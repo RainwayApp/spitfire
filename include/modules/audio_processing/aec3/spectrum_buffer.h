@@ -13,10 +13,8 @@
 
 #include <stddef.h>
 
-#include <array>
 #include <vector>
 
-#include "modules/audio_processing/aec3/aec3_common.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -24,7 +22,7 @@ namespace webrtc {
 // Struct for bundling a circular buffer of one dimensional vector objects
 // together with the read and write indices.
 struct SpectrumBuffer {
-  SpectrumBuffer(size_t size, size_t num_channels);
+  SpectrumBuffer(size_t size, size_t num_channels, size_t spectrum_length);
   ~SpectrumBuffer();
 
   int IncIndex(int index) const {
@@ -52,7 +50,7 @@ struct SpectrumBuffer {
   void DecReadIndex() { read = DecIndex(read); }
 
   const int size;
-  std::vector<std::vector<std::array<float, kFftLengthBy2Plus1>>> buffer;
+  std::vector<std::vector<std::vector<float>>> buffer;
   int write = 0;
   int read = 0;
 };

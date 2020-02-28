@@ -9,14 +9,14 @@
 
 namespace blink {
 
-class GPUCommandBuffer : public DawnObject<WGPUCommandBuffer> {
+class GPUCommandBuffer : public DawnObject<DawnCommandBuffer> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static GPUCommandBuffer* Create(GPUDevice* device,
-                                  WGPUCommandBuffer command_buffer);
+                                  DawnCommandBuffer command_buffer);
   explicit GPUCommandBuffer(GPUDevice* device,
-                            WGPUCommandBuffer command_buffer);
+                            DawnCommandBuffer command_buffer);
   ~GPUCommandBuffer() override;
 
  private:

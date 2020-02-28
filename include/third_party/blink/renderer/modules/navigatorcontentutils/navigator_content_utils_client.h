@@ -12,12 +12,12 @@
 namespace blink {
 
 class KURL;
-class LocalFrame;
+class WebLocalFrameImpl;
 
 class MODULES_EXPORT NavigatorContentUtilsClient
     : public GarbageCollected<NavigatorContentUtilsClient> {
  public:
-  explicit NavigatorContentUtilsClient(LocalFrame*);
+  explicit NavigatorContentUtilsClient(WebLocalFrameImpl*);
   virtual ~NavigatorContentUtilsClient() = default;
 
   virtual void RegisterProtocolHandler(const String& scheme,
@@ -29,7 +29,7 @@ class MODULES_EXPORT NavigatorContentUtilsClient
   virtual void Trace(blink::Visitor*);
 
  private:
-  Member<LocalFrame> frame_;
+  Member<WebLocalFrameImpl> web_frame_;
 };
 
 }  // namespace blink

@@ -9,7 +9,6 @@
 
 #include "numparse_types.h"
 #include "numparse_decimal.h"
-#include "numparse_symbols.h"
 #include "unicode/numberformatter.h"
 
 using icu::number::impl::Grouper;
@@ -33,7 +32,6 @@ class ScientificMatcher : public NumberParseMatcher, public UMemory {
   private:
     UnicodeString fExponentSeparatorString;
     DecimalMatcher fExponentMatcher;
-    IgnorablesMatcher fIgnorablesMatcher;
     UnicodeString fCustomMinusSign;
     UnicodeString fCustomPlusSign;
 };

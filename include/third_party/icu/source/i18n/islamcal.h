@@ -230,7 +230,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   // TODO: copy c'tor, etc
 
   // clone
-  virtual IslamicCalendar* clone() const;
+  virtual Calendar* clone() const;
 
  private:
   /**

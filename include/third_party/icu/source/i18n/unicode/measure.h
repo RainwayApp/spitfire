@@ -15,8 +15,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 /**
  * \file 
  * \brief C++ API: MeasureUnit object.
@@ -74,7 +72,7 @@ class U_I18N_API Measure: public UObject {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual Measure* clone() const;
+    virtual UObject* clone() const;
 
     /**
      * Destructor
@@ -160,7 +158,4 @@ inline const MeasureUnit& Measure::getUnit() const {
 U_NAMESPACE_END
 
 #endif // !UCONFIG_NO_FORMATTING
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif // __MEASURE_H__

@@ -38,9 +38,6 @@
  */
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/uobject.h"
 #include "unicode/std_string.h"
 
@@ -269,7 +266,5 @@ class StringByteSink : public ByteSink {
 };
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __BYTESTREAM_H__

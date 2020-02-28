@@ -13,9 +13,11 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
-namespace blink {
+namespace service_manager {
+class InterfaceProvider;
+}  // namespace service_manager
 
-class BrowserInterfaceBrokerProxy;
+namespace blink {
 
 class PLATFORM_EXPORT DocumentResourceCoordinator final {
   USING_FAST_MALLOC(DocumentResourceCoordinator);
@@ -23,7 +25,7 @@ class PLATFORM_EXPORT DocumentResourceCoordinator final {
  public:
   // Returns nullptr if instrumentation is not enabled.
   static std::unique_ptr<DocumentResourceCoordinator> MaybeCreate(
-      const BrowserInterfaceBrokerProxy&);
+      service_manager::InterfaceProvider*);
   ~DocumentResourceCoordinator();
 
   void SetNetworkAlmostIdle();
@@ -36,7 +38,7 @@ class PLATFORM_EXPORT DocumentResourceCoordinator final {
   void OnNonPersistentNotificationCreated();
 
  private:
-  explicit DocumentResourceCoordinator(const BrowserInterfaceBrokerProxy&);
+  explicit DocumentResourceCoordinator(service_manager::InterfaceProvider*);
 
   mojo::Remote<performance_manager::mojom::blink::DocumentCoordinationUnit>
       service_;

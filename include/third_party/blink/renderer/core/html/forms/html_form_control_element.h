@@ -49,8 +49,8 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   ~HTMLFormControlElement() override;
   void Trace(Visitor*) override;
 
-  String formAction() const;
-  void setFormAction(const AtomicString&);
+  void formAction(USVStringOrTrustedURL&) const;
+  void setFormAction(const USVStringOrTrustedURL&, ExceptionState&);
   String formEnctype() const;
   void setFormEnctype(const AtomicString&);
   String formMethod() const;
@@ -155,6 +155,8 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
  private:
   bool IsFormControlElement() const final { return true; }
   bool AlwaysCreateUserAgentShadowRoot() const override { return true; }
+
+  int tabIndex() const override;
 
   bool IsValidElement() override;
   bool MatchesValidityPseudoClasses() const override;

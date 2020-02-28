@@ -43,7 +43,7 @@ struct BASE_EXPORT PendingTask {
   // The site this PendingTask was posted from.
   Location posted_from;
 
-  // The time when the task should be run. This is null for an immediate task.
+  // The time when the task should be run.
   base::TimeTicks delayed_run_time;
 
   // The time at which the task was queued. For SequenceManager tasks and

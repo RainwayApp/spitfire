@@ -303,9 +303,7 @@ class WebAXObject {
       ax::mojom::ScrollAlignment horizontal_scroll_alignment =
           ax::mojom::ScrollAlignment::kScrollAlignmentCenter,
       ax::mojom::ScrollAlignment vertical_scroll_alignment =
-          ax::mojom::ScrollAlignment::kScrollAlignmentCenter,
-      ax::mojom::ScrollBehavior scroll_behavior =
-          ax::mojom::ScrollBehavior::kDoNotScrollIfVisible) const;
+          ax::mojom::ScrollAlignment::kScrollAlignmentCenter) const;
   // Scroll this object to a given point in global coordinates of the top-level
   // window.
   BLINK_EXPORT bool ScrollToGlobalPoint(const WebPoint&) const;
@@ -385,7 +383,7 @@ class WebAXObject {
   BLINK_EXPORT WebString ToString() const;
 
   BLINK_EXPORT void HandleAutofillStateChanged(
-      const WebAXAutofillState state) const;
+      bool suggestions_available) const;
 
 #if INSIDE_BLINK
   BLINK_EXPORT WebAXObject(AXObject*);

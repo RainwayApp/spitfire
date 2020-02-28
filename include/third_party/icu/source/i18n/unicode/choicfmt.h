@@ -26,22 +26,19 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 /**
  * \file
  * \brief C++ API: Choice Format.
  */
 
 #if !UCONFIG_NO_FORMATTING
+#ifndef U_HIDE_DEPRECATED_API
 
 #include "unicode/fieldpos.h"
 #include "unicode/format.h"
 #include "unicode/messagepattern.h"
 #include "unicode/numfmt.h"
 #include "unicode/unistr.h"
-
-#ifndef U_HIDE_DEPRECATED_API
 
 U_NAMESPACE_BEGIN
 
@@ -251,7 +248,7 @@ public:
      * @return a copy of this object
      * @deprecated ICU 49 Use MessageFormat instead, with plural and select arguments.
      */
-    virtual ChoiceFormat* clone() const;
+    virtual Format* clone(void) const;
 
     /**
      * Returns true if the given Format objects are semantically equal.
@@ -594,8 +591,6 @@ U_NAMESPACE_END
 
 #endif  // U_HIDE_DEPRECATED_API
 #endif /* #if !UCONFIG_NO_FORMATTING */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // CHOICFMT_H
 //eof

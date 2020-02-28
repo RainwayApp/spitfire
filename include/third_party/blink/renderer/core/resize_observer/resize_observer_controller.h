@@ -37,8 +37,6 @@ class ResizeObserverController final
   void ClearObservations();
   void ObserverChanged() { observers_changed_ = true; }
 
-  void SetNeedsForcedResizeObservations();
-
   void Trace(blink::Visitor*);
 
   // For testing only.

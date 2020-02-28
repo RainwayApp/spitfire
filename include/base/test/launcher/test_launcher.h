@@ -79,9 +79,6 @@ class TestLauncherDelegate {
   // Returns the delegate specific batch size.
   virtual size_t GetBatchSize() = 0;
 
-  // Returns true if test should run.
-  virtual bool ShouldRunTest(const TestIdentifier& test);
-
  protected:
   virtual ~TestLauncherDelegate();
 };

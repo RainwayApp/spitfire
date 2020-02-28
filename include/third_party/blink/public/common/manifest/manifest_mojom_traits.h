@@ -102,9 +102,9 @@ struct BLINK_COMMON_EXPORT
     return manifest.share_target;
   }
 
-  static const std::vector<::blink::Manifest::FileHandler>& file_handlers(
+  static const base::Optional<::blink::Manifest::FileHandler>& file_handler(
       const ::blink::Manifest& manifest) {
-    return manifest.file_handlers;
+    return manifest.file_handler;
   }
 
   static const std::vector<::blink::Manifest::RelatedApplication>&
@@ -244,20 +244,14 @@ template <>
 struct BLINK_COMMON_EXPORT
     StructTraits<blink::mojom::ManifestFileHandlerDataView,
                  ::blink::Manifest::FileHandler> {
-  static const GURL& action(const ::blink::Manifest::FileHandler& entry) {
-    return entry.action;
+  static const GURL& action(
+      const ::blink::Manifest::FileHandler& file_handler) {
+    return file_handler.action;
   }
-
-  static const base::string16& name(
-      const ::blink::Manifest::FileHandler& entry) {
-    return entry.name;
+  static const std::vector<::blink::Manifest::FileFilter>& files(
+      const ::blink::Manifest::FileHandler& file_handler) {
+    return file_handler.files;
   }
-
-  static const std::map<base::string16, std::vector<base::string16>>& accept(
-      const ::blink::Manifest::FileHandler& entry) {
-    return entry.accept;
-  }
-
   static bool Read(blink::mojom::ManifestFileHandlerDataView data,
                    ::blink::Manifest::FileHandler* out);
 };

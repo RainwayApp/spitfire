@@ -42,7 +42,6 @@ class EchoRemover {
       bool capture_signal_saturation,
       const absl::optional<DelayEstimate>& external_delay,
       RenderBuffer* render_buffer,
-      std::vector<std::vector<std::vector<float>>>* linear_output,
       std::vector<std::vector<std::vector<float>>>* capture) = 0;
 
   // Updates the status on whether echo leakage is detected in the output of the

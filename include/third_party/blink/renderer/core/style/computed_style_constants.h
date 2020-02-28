@@ -59,7 +59,6 @@ enum PseudoId {
   kPseudoIdFirstLetter,
   kPseudoIdBefore,
   kPseudoIdAfter,
-  kPseudoIdMarker,
   kPseudoIdBackdrop,
   kPseudoIdSelection,
   kPseudoIdScrollbar,
@@ -78,7 +77,6 @@ enum PseudoId {
   kFirstInternalPseudoId = kPseudoIdFirstLineInherited,
   kElementPseudoIdMask = (1 << (kPseudoIdBefore - kFirstPublicPseudoId)) |
                          (1 << (kPseudoIdAfter - kFirstPublicPseudoId)) |
-                         (1 << (kPseudoIdMarker - kFirstPublicPseudoId)) |
                          (1 << (kPseudoIdBackdrop - kFirstPublicPseudoId))
 };
 

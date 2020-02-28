@@ -47,7 +47,7 @@ public:
      * Transliterator API.
      * @return A copy of the object.
      */
-    virtual RemoveTransliterator* clone() const;
+    virtual Transliterator* clone(void) const;
 
     /**
      * Implements {@link Transliterator#handleTransliterate}.

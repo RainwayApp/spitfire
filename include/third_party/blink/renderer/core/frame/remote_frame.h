@@ -5,9 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_REMOTE_FRAME_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_REMOTE_FRAME_H_
 
-#include "mojo/public/cpp/bindings/associated_receiver.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
-#include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/platform/web_focus_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/remote_security_context.h"
@@ -21,23 +18,18 @@ class Layer;
 
 namespace blink {
 
-class AssociatedInterfaceProvider;
-class InterfaceRegistry;
 class LocalFrame;
 class RemoteFrameClient;
 struct FrameLoadRequest;
 
-class CORE_EXPORT RemoteFrame final : public Frame,
-                                      public mojom::blink::RemoteFrame {
+class CORE_EXPORT RemoteFrame final : public Frame {
  public:
   // For a description of |inheriting_agent_factory| go see the comment on the
   // Frame constructor.
   RemoteFrame(RemoteFrameClient*,
               Page&,
               FrameOwner*,
-              WindowAgentFactory* inheriting_agent_factory,
-              InterfaceRegistry*,
-              AssociatedInterfaceProvider*);
+              WindowAgentFactory* inheriting_agent_factory);
   ~RemoteFrame() override;
 
   // Frame overrides:
@@ -54,7 +46,6 @@ class CORE_EXPORT RemoteFrame final : public Frame,
   bool BubbleLogicalScrollFromChildFrame(ScrollDirection direction,
                                          ScrollGranularity granularity,
                                          Frame* child) override;
-  void DidFocus() override;
 
   void SetCcLayer(cc::Layer*,
                   bool prevent_contents_opaque_changes,
@@ -69,8 +60,6 @@ class CORE_EXPORT RemoteFrame final : public Frame,
   void SetView(RemoteFrameView*);
   void CreateView();
 
-  mojom::blink::RemoteFrameHost& GetRemoteFrameHostRemote();
-
   RemoteFrameView* View() const override;
 
   RemoteFrameClient* Client() const;
@@ -78,21 +67,6 @@ class CORE_EXPORT RemoteFrame final : public Frame,
   bool IsIgnoredForHitTest() const;
 
   void DidChangeVisibleToHitTesting() override;
-
-  void SetReplicatedFeaturePolicyHeaderAndOpenerPolicies(
-      const ParsedFeaturePolicy& parsed_header,
-      const FeaturePolicy::FeatureState&);
-
-  // blink::mojom::LocalFrame overrides:
-  void WillEnterFullscreen() override;
-  void ResetReplicatedContentSecurityPolicy() override;
-  void EnforceInsecureNavigationsSet(const WTF::Vector<uint32_t>& set) override;
-  void SetReplicatedOrigin(
-      const scoped_refptr<const SecurityOrigin>& origin,
-      bool is_potentially_trustworthy_unique_origin) override;
-  void DispatchLoadEventForFrameOwner() override;
-  void Collapse(bool collapsed) final;
-  void Focus() override;
 
  private:
   // Frame protected overrides:
@@ -104,22 +78,12 @@ class CORE_EXPORT RemoteFrame final : public Frame,
   bool IsRemoteFrame() const override { return true; }
 
   void DetachChildren();
-  void ApplyReplicatedFeaturePolicyHeader();
-
-  static void BindToReceiver(
-      blink::RemoteFrame* frame,
-      mojo::PendingAssociatedReceiver<mojom::blink::RemoteFrame> receiver);
 
   Member<RemoteFrameView> view_;
   Member<RemoteSecurityContext> security_context_;
   cc::Layer* cc_layer_ = nullptr;
   bool prevent_contents_opaque_changes_ = false;
   bool is_surface_layer_ = false;
-  ParsedFeaturePolicy feature_policy_header_;
-
-  mojo::AssociatedRemote<mojom::blink::RemoteFrameHost>
-      remote_frame_host_remote_;
-  mojo::AssociatedReceiver<mojom::blink::RemoteFrame> receiver_{this};
 };
 
 inline RemoteFrameView* RemoteFrame::View() const {

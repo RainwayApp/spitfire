@@ -91,9 +91,6 @@ class CORE_EXPORT HTMLOptionElement final : public HTMLElement {
 
   int ListIndex() const;
 
-  void SetMultiSelectFocusedState(bool);
-  bool IsMultiSelectFocused() const;
-
  private:
   ~HTMLOptionElement() override;
 
@@ -118,9 +115,6 @@ class CORE_EXPORT HTMLOptionElement final : public HTMLElement {
   // Represents 'dirtiness'.
   // https://html.spec.whatwg.org/C/#concept-option-dirtiness
   bool is_dirty_ = false;
-  // Represents the option being focused on in a multi-select non-contiguous
-  // traversal via the keyboard.
-  bool is_multi_select_focused_ = false;
 };
 
 }  // namespace blink

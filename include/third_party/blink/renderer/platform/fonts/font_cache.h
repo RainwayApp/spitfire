@@ -58,10 +58,6 @@
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 
-#if defined(OS_LINUX)
-#include "ui/gfx/font_fallback_linux.h"
-#endif
-
 #if defined(OS_WIN)
 #include "third_party/blink/public/mojom/dwrite_font_proxy/dwrite_font_proxy.mojom-blink.h"
 #include "third_party/blink/renderer/platform/fonts/win/fallback_family_style_cache_win.h"
@@ -242,9 +238,17 @@ class PLATFORM_EXPORT FontCache {
 #endif  // defined(OS_ANDROID)
 
 #if defined(OS_LINUX)
-  static bool GetFontForCharacter(UChar32,
+  struct PlatformFallbackFont {
+    String name;
+    std::string filename;
+    int fontconfig_interface_id;
+    int ttc_index;
+    bool is_bold;
+    bool is_italic;
+  };
+  static void GetFontForCharacter(UChar32,
                                   const char* preferred_locale,
-                                  gfx::FallbackFontData*);
+                                  PlatformFallbackFont*);
 #endif  // defined(OS_LINUX)
 
   scoped_refptr<SimpleFontData> FontDataFromFontPlatformData(

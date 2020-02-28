@@ -52,10 +52,6 @@ class CORE_EXPORT IntersectionGeometry {
     TransformationMatrix root_to_document_transform;
   };
 
-  static const LayoutObject* GetRootLayoutObjectForTarget(
-      const Element* root_element,
-      LayoutObject* target);
-
   IntersectionGeometry(const Element* root,
                        const Element& target,
                        const Vector<Length>& root_margin,

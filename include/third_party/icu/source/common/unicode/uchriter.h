@@ -11,9 +11,6 @@
 #define UCHRITER_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/chariter.h"
 
 /**
@@ -135,7 +132,7 @@ public:
    * @return the CharacterIterator newly created
    * @stable ICU 2.0
    */
-  virtual UCharCharacterIterator* clone() const;
+  virtual CharacterIterator* clone(void) const;
 
   /**
    * Sets the iterator to refer to the first code unit in its
@@ -387,7 +384,4 @@ protected:
 };
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

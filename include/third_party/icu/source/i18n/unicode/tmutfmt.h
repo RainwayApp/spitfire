@@ -18,9 +18,8 @@
  */
 
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
+#ifndef U_HIDE_DEPRECATED_API
 
 #include "unicode/unistr.h"
 #include "unicode/tmunit.h"
@@ -29,7 +28,6 @@
 #include "unicode/numfmt.h"
 #include "unicode/plurrule.h"
 
-#ifndef U_HIDE_DEPRECATED_API
 
 /**
  * Constants for various styles.
@@ -126,7 +124,7 @@ public:
      * @return    A copy of the object.
      * @deprecated ICU 53
      */
-    virtual TimeUnitFormat* clone() const;
+    virtual Format* clone(void) const;
 
     /**
      * Assignment operator
@@ -245,8 +243,6 @@ U_NAMESPACE_END
 
 #endif /* U_HIDE_DEPRECATED_API */
 #endif /* #if !UCONFIG_NO_FORMATTING */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // __TMUTFMT_H__
 //eof

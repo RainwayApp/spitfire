@@ -114,7 +114,7 @@ class Internals final : public ScriptWrappable {
   void setBrowserControlsState(float top_height,
                                float bottom_height,
                                bool shrinks_layout);
-  void setBrowserControlsShownRatio(float top_ratio, float bottom_ratio);
+  void setBrowserControlsShownRatio(float);
 
   Node* effectiveRootScroller(Document*);
 
@@ -344,6 +344,10 @@ class Internals final : public ScriptWrappable {
 
   String layerTreeAsText(Document*, unsigned flags, ExceptionState&) const;
   String layerTreeAsText(Document*, ExceptionState&) const;
+  String elementLayerTreeAsText(Element*,
+                                unsigned flags,
+                                ExceptionState&) const;
+  String elementLayerTreeAsText(Element*, ExceptionState&) const;
 
   bool scrollsWithRespectTo(Element*, Element*, ExceptionState&);
 
@@ -581,6 +585,8 @@ class Internals final : public ScriptWrappable {
 
   void simulateRasterUnderInvalidations(bool enable);
 
+  void BypassLongCompileThresholdOnce(ExceptionState&);
+
   // The number of calls to update the blink lifecycle (see:
   // LocalFrameView::UpdateLifecyclePhasesInternal).
   unsigned LifecycleUpdateCount() const;
@@ -596,9 +602,6 @@ class Internals final : public ScriptWrappable {
   void setDeviceEmulationScale(float scale, ExceptionState&);
 
   String getDocumentAgentId(Document*);
-
-  void useMockOverlayScrollbars();
-  bool overlayScrollbarsEnabled() const;
 
  private:
   Document* ContextDocument() const;

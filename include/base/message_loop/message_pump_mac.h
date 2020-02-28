@@ -88,15 +88,6 @@ class BASE_EXPORT MessagePumpCFRunLoopBase : public MessagePump {
   void ScheduleDelayedWork(const TimeTicks& delayed_work_time) override;
   void SetTimerSlack(TimerSlack timer_slack) override;
 
-#if defined(OS_IOS)
-  // Some iOS message pumps do not support calling |Run()| to spin the main
-  // message loop directly.  Instead, call |Attach()| to set up a delegate, then
-  // |Detach()| before destroying the message pump.  These methods do nothing if
-  // the message pump supports calling |Run()| and |Quit()|.
-  virtual void Attach(Delegate* delegate);
-  virtual void Detach();
-#endif  // OS_IOS
-
  protected:
   // Needs access to CreateAutoreleasePool.
   friend class MessagePumpScopedAutoreleasePool;
@@ -341,12 +332,9 @@ class MessagePumpUIApplication : public MessagePumpCFRunLoopBase {
   void DoRun(Delegate* delegate) override;
   bool DoQuit() override;
 
-  // MessagePumpCFRunLoopBase.
-  // MessagePumpUIApplication can not spin the main message loop directly.
-  // Instead, call |Attach()| to set up a delegate.  It is an error to call
-  // |Run()|.
-  void Attach(Delegate* delegate) override;
-  void Detach() override;
+  // This message pump can not spin the main message loop directly.  Instead,
+  // call |Attach()| to set up a delegate.  It is an error to call |Run()|.
+  virtual void Attach(Delegate* delegate);
 
  private:
   RunLoop* run_loop_;

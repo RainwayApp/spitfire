@@ -33,6 +33,7 @@ namespace webrtc {
 namespace test {
 
 class PacketTransport;
+class DEPRECATED_SingleThreadedTaskQueueForTesting;
 
 class RtpRtcpObserver {
  public:

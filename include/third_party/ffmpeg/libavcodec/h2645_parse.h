@@ -78,7 +78,6 @@ typedef struct H2645Packet {
     H2645RBSP rbsp;
     int nb_nals;
     int nals_allocated;
-    unsigned nal_buffer_size;
 } H2645Packet;
 
 /**

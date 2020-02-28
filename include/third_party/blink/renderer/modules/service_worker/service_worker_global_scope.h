@@ -38,15 +38,14 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/network/public/mojom/network_context.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker.mojom-blink.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/request_or_usv_string.h"
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/service_worker/service_worker_event_queue.h"
 #include "third_party/blink/renderer/modules/service_worker/service_worker_installed_scripts_manager.h"
+#include "third_party/blink/renderer/modules/service_worker/service_worker_timeout_timer.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -168,9 +167,9 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // PauseEvaluation() is called.
   void ResumeEvaluation();
 
-  // Creates a ServiceWorkerEventQueue::StayAwakeToken to ensure that the idle
+  // Creates a ServiceWorkerTimeoutTimer::StayAwakeToken to ensure that the idle
   // timer won't be triggered while any of these are alive.
-  std::unique_ptr<ServiceWorkerEventQueue::StayAwakeToken>
+  std::unique_ptr<ServiceWorkerTimeoutTimer::StayAwakeToken>
   CreateStayAwakeToken();
 
   // Returns the ServiceWorker object described by the given info. Creates a new
@@ -338,7 +337,7 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // number of scripts and the total bytes of scripts.
   void CountScriptInternal(size_t script_size, size_t cached_metadata_size);
 
-  // Called by ServiceWorkerEventQueue when a certain time has passed since
+  // Called by ServiceWorkerTimeoutTimer when a certain time has passed since
   // the last task finished.
   void OnIdleTimeout();
 
@@ -354,6 +353,12 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
 
   using DispatchFetchEventInternalCallback =
       base::OnceCallback<void(mojom::blink::ServiceWorkerEventStatus)>;
+  void DispatchFetchEventInternal(
+      mojom::blink::DispatchFetchEventParamsPtr params,
+      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
+          response_callback,
+      DispatchFetchEventInternalCallback callback);
+
   void SetFetchHandlerExistence(FetchHandlerExistence fetch_handler_existence);
 
   // Implements mojom::blink::ControllerServiceWorker.
@@ -368,10 +373,8 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
       mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
           response_callback,
       DispatchFetchEventForSubresourceCallback callback) override;
-  void Clone(
-      mojo::PendingReceiver<mojom::blink::ControllerServiceWorker> reciever,
-      network::mojom::blink::CrossOriginEmbedderPolicy
-          cross_origin_embedder_policy) override;
+  void Clone(mojo::PendingReceiver<mojom::blink::ControllerServiceWorker>
+                 reciever) override;
 
   // Implements mojom::blink::ServiceWorker.
   void InitializeGlobalScope(
@@ -444,7 +447,8 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
           response_callback,
       DispatchPaymentRequestEventCallback callback) override;
   void DispatchCookieChangeEvent(
-      network::mojom::blink::CookieChangeInfoPtr change,
+      const WebCanonicalCookie& cookie,
+      ::network::mojom::blink::CookieChangeCause cause,
       DispatchCookieChangeEventCallback callback) override;
   void DispatchContentDeleteEvent(
       const String& id,
@@ -456,96 +460,6 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
 
   void NoteNewFetchEvent(const KURL& request_url);
   void NoteRespondedToFetchEvent(const KURL& request_url);
-
-  // Dispatches the event synchronously. Enqueued by Dispatch*Event methods to
-  // the event queue, and executed immediately or sometimes later.
-  void StartFetchEvent(
-      mojom::blink::DispatchFetchEventParamsPtr params,
-      network::mojom::blink::CrossOriginEmbedderPolicy requestor_coep,
-      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
-          response_callback,
-      DispatchFetchEventInternalCallback callback,
-      int event_id);
-  void StartInstallEvent(DispatchInstallEventCallback callback, int event_id);
-  void StartActivateEvent(DispatchActivateEventCallback callback, int event_id);
-  void StartBackgroundFetchAbortEvent(
-      mojom::blink::BackgroundFetchRegistrationPtr registration,
-      DispatchBackgroundFetchAbortEventCallback callback,
-      int event_id);
-  void StartBackgroundFetchClickEvent(
-      mojom::blink::BackgroundFetchRegistrationPtr registration,
-      DispatchBackgroundFetchClickEventCallback callback,
-      int event_id);
-  void StartBackgroundFetchFailEvent(
-      mojom::blink::BackgroundFetchRegistrationPtr registration,
-      DispatchBackgroundFetchFailEventCallback callback,
-      int event_id);
-  void StartBackgroundFetchSuccessEvent(
-      mojom::blink::BackgroundFetchRegistrationPtr registration,
-      DispatchBackgroundFetchSuccessEventCallback callback,
-      int event_id);
-  void StartExtendableMessageEvent(
-      mojom::blink::ExtendableMessageEventPtr event,
-      DispatchExtendableMessageEventCallback callback,
-      int event_id);
-  void StartFetchEventForMainResource(
-      mojom::blink::DispatchFetchEventParamsPtr params,
-      mojo::PendingRemote<mojom::blink::ServiceWorkerFetchResponseCallback>
-          response_callback,
-      int event_id);
-  void StartNotificationClickEvent(
-      String notification_id,
-      mojom::blink::NotificationDataPtr notification_data,
-      int action_index,
-      String reply,
-      DispatchNotificationClickEventCallback callback,
-      int event_id);
-  void StartNotificationCloseEvent(
-      String notification_id,
-      mojom::blink::NotificationDataPtr notification_data,
-      DispatchNotificationCloseEventCallback callback,
-      int event_id);
-  void StartPushEvent(String payload,
-                      DispatchPushEventCallback callback,
-                      int event_id);
-  void StartPushSubscriptionChangeEvent(
-      mojom::blink::PushSubscriptionPtr old_subscription,
-      mojom::blink::PushSubscriptionPtr new_subscription,
-      DispatchPushSubscriptionChangeEventCallback callback,
-      int event_id);
-  void StartSyncEvent(String tag,
-                      bool last_chance,
-                      DispatchSyncEventCallback callback,
-                      int event_id);
-  void StartPeriodicSyncEvent(String tag,
-                              DispatchPeriodicSyncEventCallback callback,
-                              int event_id);
-  void StartAbortPaymentEvent(
-      mojo::PendingRemote<
-          payments::mojom::blink::PaymentHandlerResponseCallback>
-          response_callback,
-      DispatchAbortPaymentEventCallback callback,
-      int event_id);
-  void StartCanMakePaymentEvent(
-      payments::mojom::blink::CanMakePaymentEventDataPtr event_data,
-      mojo::PendingRemote<
-          payments::mojom::blink::PaymentHandlerResponseCallback>
-          response_callback,
-      DispatchCanMakePaymentEventCallback callback,
-      int event_id);
-  void StartPaymentRequestEvent(
-      payments::mojom::blink::PaymentRequestEventDataPtr event_data,
-      mojo::PendingRemote<
-          payments::mojom::blink::PaymentHandlerResponseCallback>
-          response_callback,
-      DispatchPaymentRequestEventCallback callback,
-      int event_id);
-  void StartCookieChangeEvent(network::mojom::blink::CookieChangeInfoPtr change,
-                              DispatchCookieChangeEventCallback callback,
-                              int event_id);
-  void StartContentDeleteEvent(String id,
-                               DispatchContentDeleteEventCallback callback,
-                               int event_id);
 
   Member<ServiceWorkerClients> clients_;
   Member<ServiceWorkerRegistration> registration_;
@@ -583,7 +497,7 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   mojo::Receiver<mojom::blink::ServiceWorker> receiver_{this};
 
   // Maps for inflight event callbacks.
-  // These are mapped from an event id issued from ServiceWorkerEventQueue to
+  // These are mapped from an event id issued from ServiceWorkerTimeoutTimer to
   // the Mojo callback to notify the end of the event.
   HashMap<int, DispatchInstallEventCallback> install_event_callbacks_;
   HashMap<int, DispatchActivateEventCallback> activate_event_callbacks_;
@@ -641,9 +555,9 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // optimizations in these cases.
   HashMap<KURL, int> unresponded_fetch_event_counts_;
 
-  // ServiceWorker event queue where all events are queued before
-  // they are dispatched.
-  std::unique_ptr<ServiceWorkerEventQueue> event_queue_;
+  // Timer triggered when the service worker considers it should be stopped or
+  // an event should be aborted.
+  std::unique_ptr<ServiceWorkerTimeoutTimer> timeout_timer_;
 
   // InitializeGlobalScope() pauses the top level script evaluation when this
   // flag is true.
@@ -653,15 +567,10 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
 
   // Connected by the ServiceWorkerProviderHost in the browser process and by
   // the controllees. |controller_bindings_| should be destroyed before
-  // |event_queue_| since the pipe needs to be disconnected before callbacks
+  // |timeout_timer_| since the pipe needs to be disconnected before callbacks
   // passed by DispatchSomeEvent() get destructed, which may be stored in
-  // |event_queue_|.
-  // network::mojom::blink::CrossOriginEmbedderPolicy set as the context of
-  // mojo::ReceiverSet is the policy for the client which dispatches FetchEvents
-  // to the ControllerServiceWorker. It should be referred to before sending the
-  // response back to the client.
-  mojo::ReceiverSet<mojom::blink::ControllerServiceWorker,
-                    network::mojom::blink::CrossOriginEmbedderPolicy>
+  // |timeout_timer_|
+  mojo::ReceiverSet<mojom::blink::ControllerServiceWorker>
       controller_receivers_;
 };
 

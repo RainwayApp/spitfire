@@ -109,8 +109,6 @@ class MODULES_EXPORT ServiceWorkerContainer final
   void setOnmessage(EventListener* listener);
   EventListener* onmessage();
 
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(messageerror, kMessageerror)
-
   // Returns the ServiceWorkerRegistration object described by the given info.
   // Creates a new object if needed, or else returns the existing one.
   ServiceWorkerRegistration* GetOrCreateServiceWorkerRegistration(

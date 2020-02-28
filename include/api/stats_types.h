@@ -242,7 +242,7 @@ class RTC_EXPORT StatsReport {
     kStatsValueNameAudioDeviceUnderrunCounter,
   };
 
-  class RTC_EXPORT IdBase : public rtc::RefCountInterface {
+  class IdBase : public rtc::RefCountInterface {
    public:
     ~IdBase() override;
     StatsType type() const;
@@ -268,7 +268,7 @@ class RTC_EXPORT StatsReport {
 
   typedef rtc::scoped_refptr<IdBase> Id;
 
-  struct RTC_EXPORT Value {
+  struct Value {
     enum Type {
       kInt,           // int.
       kInt64,         // int64_t.

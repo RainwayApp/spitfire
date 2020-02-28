@@ -14,14 +14,14 @@ class GPUTextureDescriptor;
 class GPUTextureView;
 class GPUTextureViewDescriptor;
 
-class GPUTexture : public DawnObject<WGPUTexture> {
+class GPUTexture : public DawnObject<DawnTexture> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static GPUTexture* Create(GPUDevice* device,
                             const GPUTextureDescriptor* webgpu_desc,
                             ExceptionState& exception_state);
-  explicit GPUTexture(GPUDevice* device, WGPUTexture texture);
+  explicit GPUTexture(GPUDevice* device, DawnTexture texture);
   ~GPUTexture() override;
 
   // gpu_texture.idl

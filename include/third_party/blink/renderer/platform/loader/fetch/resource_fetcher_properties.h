@@ -9,7 +9,6 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_status.h"
-#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
 
@@ -83,10 +82,6 @@ class PLATFORM_EXPORT ResourceFetcherProperties
   // Returns the scheduling status of the associated frame. Returns |kNone|
   // if there is no such a frame.
   virtual scheduler::FrameStatus GetFrameStatus() const = 0;
-
-  // The physical URL of Web Bundle from which this global context is loaded.
-  // Used as an additional identifier for MemoryCache.
-  virtual const KURL& WebBundlePhysicalUrl() const = 0;
 };
 
 // A delegating ResourceFetcherProperties subclass which can be retained
@@ -145,10 +140,6 @@ class PLATFORM_EXPORT DetachableResourceFetcherProperties final
     return properties_ ? properties_->GetFrameStatus()
                        : scheduler::FrameStatus::kNone;
   }
-  const KURL& WebBundlePhysicalUrl() const override {
-    return properties_ ? properties_->WebBundlePhysicalUrl()
-                       : web_bundle_physical_url_;
-  }
 
  private:
   // |properties_| is null if and only if detached.
@@ -160,7 +151,6 @@ class PLATFORM_EXPORT DetachableResourceFetcherProperties final
   bool paused_ = false;
   bool load_complete_ = false;
   bool is_subframe_deprioritization_enabled_ = false;
-  KURL web_bundle_physical_url_;
 };
 
 }  // namespace blink

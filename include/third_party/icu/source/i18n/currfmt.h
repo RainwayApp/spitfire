@@ -57,7 +57,7 @@ class CurrencyFormat : public MeasureFormat {
     /**
      * Override Format API.
      */
-    virtual CurrencyFormat* clone() const;
+    virtual Format* clone() const;
 
 
     using MeasureFormat::format;

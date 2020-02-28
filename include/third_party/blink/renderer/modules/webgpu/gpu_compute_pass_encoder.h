@@ -6,37 +6,28 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_GPU_COMPUTE_PASS_ENCODER_H_
 
 #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"
-#include "third_party/blink/renderer/modules/webgpu/gpu_programmable_pass_encoder.h"
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_buffer.h"
 
 namespace blink {
 
 class GPUBindGroup;
-class GPUBuffer;
 class GPUComputePipeline;
 
-class GPUComputePassEncoder : public DawnObject<WGPUComputePassEncoder>,
-                              public GPUProgrammablePassEncoder {
+class GPUComputePassEncoder : public DawnObject<DawnComputePassEncoder> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static GPUComputePassEncoder* Create(
       GPUDevice* device,
-      WGPUComputePassEncoder compute_pass_encoder);
+      DawnComputePassEncoder compute_pass_encoder);
   explicit GPUComputePassEncoder(GPUDevice* device,
-                                 WGPUComputePassEncoder compute_pass_encoder);
+                                 DawnComputePassEncoder compute_pass_encoder);
   ~GPUComputePassEncoder() override;
 
   // gpu_compute_pass_encoder.idl
   void setBindGroup(uint32_t index,
                     GPUBindGroup* bindGroup,
-                    const Vector<uint32_t>& dynamicOffsets);
-  void setBindGroup(uint32_t index,
-                    GPUBindGroup* bind_group,
-                    const FlexibleUint32ArrayView& dynamic_offsets_data,
-                    uint64_t dynamic_offsets_data_start,
-                    uint32_t dynamic_offsets_data_length,
-                    ExceptionState& exception_state);
+                    const Vector<uint64_t>& dynamicOffsets);
   void pushDebugGroup(String groupLabel);
   void popDebugGroup();
   void insertDebugMarker(String markerLabel);

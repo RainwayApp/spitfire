@@ -71,7 +71,7 @@ struct SecurityOriginHash {
     if (!a || !b)
       return a == b;
 
-    return a->IsSameOriginWith(b);
+    return a->IsSameSchemeHostPort(b);
   }
   static bool Equal(const SecurityOrigin* a,
                     const scoped_refptr<const SecurityOrigin>& b) {

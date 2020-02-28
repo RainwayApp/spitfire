@@ -18,7 +18,6 @@
 #include "unicode/localpointer.h"
 #include "numparse_validators.h"
 #include "number_multiplier.h"
-#include "string_segment.h"
 
 U_NAMESPACE_BEGIN
 

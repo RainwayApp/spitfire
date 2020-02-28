@@ -54,13 +54,6 @@ typedef void ID3D11Device;
 #define NVENC_HAVE_HEVC_BFRAME_REF_MODE
 #endif
 
-// SDK 9.1 compile time feature checks
-#if NVENCAPI_CHECK_VERSION(9, 1)
-#define NVENC_HAVE_MULTIPLE_REF_FRAMES
-#define NVENC_HAVE_CUSTREAM_PTR
-#define NVENC_HAVE_GETLASTERRORSTRING
-#endif
-
 typedef struct NvencSurface
 {
     NV_ENC_INPUT_PTR input_surface;
@@ -134,7 +127,6 @@ typedef struct NvencContext
     NV_ENC_CONFIG encode_config;
     CUcontext cu_context;
     CUcontext cu_context_internal;
-    CUstream cu_stream;
     ID3D11Device *d3d11_device;
 
     int nb_surfaces;
@@ -200,7 +192,6 @@ typedef struct NvencContext
     int coder;
     int b_ref_mode;
     int a53_cc;
-    int dpb_size;
 } NvencContext;
 
 int ff_nvenc_encode_init(AVCodecContext *avctx);

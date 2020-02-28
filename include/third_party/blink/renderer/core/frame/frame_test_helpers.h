@@ -59,7 +59,7 @@
 #include "third_party/blink/renderer/core/exported/web_view_impl.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
-#include "third_party/blink/renderer/core/testing/scoped_mock_overlay_scrollbars.h"
+#include "third_party/blink/renderer/core/testing/use_mock_scrollbar_settings.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -236,8 +236,7 @@ class TestWebWidgetClient : public WebWidgetClient {
   void StartDeferringCommits(base::TimeDelta timeout) override;
   void StopDeferringCommits(cc::PaintHoldingCommitTrigger) override;
   void DidMeaningfulLayout(WebMeaningfulLayout) override;
-  void SetBrowserControlsShownRatio(float top_ratio,
-                                    float bottom_ratio) override;
+  void SetBrowserControlsShownRatio(float) override;
   void SetBrowserControlsHeight(float top_height,
                                 float bottom_height,
                                 bool shrink_viewport) override;
@@ -309,7 +308,7 @@ class TestWebViewClient : public WebViewClient {
 
 // Convenience class for handling the lifetime of a WebView and its associated
 // mainframe in tests.
-class WebViewHelper : public ScopedMockOverlayScrollbars {
+class WebViewHelper {
   USING_FAST_MALLOC(WebViewHelper);
 
  public:
@@ -392,6 +391,7 @@ class WebViewHelper : public ScopedMockOverlayScrollbars {
   bool viewport_enabled_ = false;
 
   WebViewImpl* web_view_;
+  UseMockScrollbarSettings mock_scrollbar_settings_;
 
   std::unique_ptr<TestWebViewClient> owned_test_web_view_client_;
   TestWebViewClient* test_web_view_client_ = nullptr;
@@ -410,7 +410,7 @@ class WebViewHelper : public ScopedMockOverlayScrollbars {
 class TestWebFrameClient : public WebLocalFrameClient {
  public:
   TestWebFrameClient();
-  ~TestWebFrameClient() override;
+  ~TestWebFrameClient() override = default;
 
   static bool IsLoading() { return loads_in_progress_ > 0; }
   Vector<String>& ConsoleMessages() { return console_messages_; }
@@ -452,8 +452,6 @@ class TestWebFrameClient : public WebLocalFrameClient {
                               unsigned source_line,
                               const WebString& stack_trace) override;
   WebPlugin* CreatePlugin(const WebPluginParams& params) override;
-  AssociatedInterfaceProvider* GetRemoteNavigationAssociatedInterfaces()
-      override;
 
  private:
   void CommitNavigation(std::unique_ptr<WebNavigationInfo>);
@@ -466,8 +464,6 @@ class TestWebFrameClient : public WebLocalFrameClient {
   // Use service_manager::InterfaceProvider::TestApi to provide test interfaces
   // through this client.
   std::unique_ptr<service_manager::InterfaceProvider> interface_provider_;
-
-  std::unique_ptr<AssociatedInterfaceProvider> associated_interface_provider_;
 
   // This is null from when the client is created until it is initialized with
   // Bind().
@@ -502,15 +498,9 @@ class TestWebRemoteFrameClient : public WebRemoteFrameClient {
                           WebSecurityOrigin target_origin,
                           WebDOMMessageEvent) override {}
 
-  AssociatedInterfaceProvider* GetAssociatedInterfaceProvider() {
-    return associated_interface_provider_.get();
-  }
-
  private:
   // If set to a non-null value, self-deletes on frame detach.
   std::unique_ptr<TestWebRemoteFrameClient> self_owned_;
-
-  std::unique_ptr<AssociatedInterfaceProvider> associated_interface_provider_;
 
   // This is null from when the client is created until it is initialized with
   // Bind().

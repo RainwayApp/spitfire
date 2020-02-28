@@ -16,11 +16,10 @@
 #include <string>
 
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
-class RTC_EXPORT Desktop {
+class Desktop {
  public:
   ~Desktop();
 
