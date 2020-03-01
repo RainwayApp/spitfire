@@ -23,15 +23,18 @@ namespace Spitfire
 	RtcConductor::~RtcConductor()
 	{
 		DeletePeerConnection();
-		RTC_DCHECK(peerObserver->peerConnection == nullptr);
+		RTC_DCHECK(!peerObserver || !peerObserver->peerConnection);
 	}
 
 	void RtcConductor::DeletePeerConnection()
 	{
-		if (peerObserver->peerConnection.get())
+		if (peerObserver)
 		{
-			peerObserver->peerConnection->Close();
-			peerObserver->peerConnection = nullptr;
+			if (peerObserver->peerConnection)
+			{
+				peerObserver->peerConnection->Close();
+				peerObserver->peerConnection = nullptr;
+			}
 			peerObserver = nullptr;
 		}
 
@@ -41,15 +44,15 @@ namespace Spitfire
 
 		if (!dataObservers.empty())
 		{
-			for (auto const& x : dataObservers)
+			for (auto const& pair : dataObservers)
 			{
-				if (x.second->dataChannel.get())
+				if (pair.second->dataChannel)
 				{
-					x.second->dataChannel->UnregisterObserver();
-					x.second->dataChannel = nullptr;
+					pair.second->dataChannel->UnregisterObserver();
+					pair.second->dataChannel = nullptr;
 				}
 			}
-			//dataObservers.empty();
+			dataObservers.clear();
 		}
 		serverConfigs.clear();
 
@@ -59,17 +62,15 @@ namespace Spitfire
 		rtc::ThreadManager::Instance()->CurrentThread()->Stop();
 	}
 
-	bool RtcConductor::InitializePeerConnection(int minPort, int maxPort)
+	bool RtcConductor::InitializePeerConnection(int min_port, int max_port)
 	{
-
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
-		RTC_DCHECK(pc_factory_ == nullptr);
-		RTC_DCHECK(peerObserver->peerConnection == nullptr);
+		RTC_DCHECK(!pc_factory_);
+		RTC_DCHECK(peerObserver && !peerObserver->peerConnection);
 
 		network_thread_ = rtc::Thread::CreateWithSocketServer().release();
 		worker_thread_ = rtc::Thread::Create().release();
 		signaling_thread_ = rtc::Thread::Create().release();
-
 
 		network_thread_->Start();
 		worker_thread_->Start();
@@ -81,51 +82,40 @@ namespace Spitfire
 		factory_deps.signaling_thread = signaling_thread_;
 
 		pc_factory_ = webrtc::CreateModularPeerConnectionFactory(std::move(factory_deps));
-
-		if (!pc_factory_)
+		if(pc_factory_)
 		{
-			DeletePeerConnection();
-			return false;
+			default_network_manager_.reset(new rtc::BasicNetworkManager());
+			if(default_network_manager_)
+			{
+				default_socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_));
+				if(default_socket_factory_)
+				{
+					default_relay_port_factory_.reset(new cricket::TurnPortFactory());
+					if(default_relay_port_factory_)
+					{
+						webrtc::PeerConnectionFactoryInterface::Options opt;
+						//opt.disable_encryption = true;
+						//opt.disable_network_monitor = true;
+						//opt.disable_sctp_data_channels = true;
+						pc_factory_->SetOptions(opt);
+						if(CreatePeerConnection(min_port, max_port))
+						{
+							RTC_DCHECK(peerObserver->peerConnection);
+							if(peerObserver->peerConnection)
+								return true;
+						}
+					}
+				}
+			}
 		}
-
-		default_network_manager_.reset(new rtc::BasicNetworkManager());
-		if (!default_network_manager_) {
-			DeletePeerConnection();
-			return false;
-		}
-
-		default_socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_));
-		if (!default_socket_factory_) {
-			DeletePeerConnection();
-			return false;
-		}
-
-		default_relay_port_factory_.reset(new cricket::TurnPortFactory());
-		if (!default_relay_port_factory_) {
-			DeletePeerConnection();
-			return false;
-		}
-
-		webrtc::PeerConnectionFactoryInterface::Options opt;
-		{
-			//opt.disable_encryption = true;
-			//opt.disable_network_monitor = true;
-			//opt.disable_sctp_data_channels = true;
-			pc_factory_->SetOptions(opt);
-		}
-
-		if (!CreatePeerConnection(minPort, maxPort))
-		{
-			DeletePeerConnection();
-			return false;
-		}
-		return peerObserver->peerConnection != nullptr;
+		DeletePeerConnection();
+		return false;
 	}
 
 	bool RtcConductor::CreatePeerConnection(int minPort, int maxPort)
 	{
-		RTC_DCHECK(pc_factory_ != nullptr);
-		RTC_DCHECK(peerObserver->peerConnection == nullptr);
+		RTC_DCHECK(pc_factory_);
+		RTC_DCHECK(peerObserver && !peerObserver->peerConnection);
 
 		webrtc::PeerConnectionInterface::RTCConfiguration config;
 		

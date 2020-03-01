@@ -58,7 +58,7 @@ namespace Spitfire
 		RtcConductor();
 		~RtcConductor();
 
-		bool InitializePeerConnection(int minPort, int maxPort);
+		bool InitializePeerConnection(int min_port, int max_port);
 		void CreateOffer();
 		void OnOfferReply(std::string type, std::string sdp);
 		void OnOfferRequest(std::string sdp);
