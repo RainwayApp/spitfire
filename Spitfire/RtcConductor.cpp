@@ -56,10 +56,13 @@ namespace Spitfire
 		}
 		serverConfigs.clear();
 
+		RTC_DCHECK(network_thread_ && worker_thread_ && signaling_thread_);
 		network_thread_->Stop();
 		worker_thread_->Stop();
 		signaling_thread_->Stop();
-		rtc::ThreadManager::Instance()->CurrentThread()->Stop();
+		rtc::Thread* current_thread = rtc::ThreadManager::Instance()->CurrentThread();
+		if(current_thread)
+			current_thread->Stop();
 	}
 
 	bool RtcConductor::InitializePeerConnection(int min_port, int max_port)
@@ -68,6 +71,7 @@ namespace Spitfire
 		RTC_DCHECK(!pc_factory_);
 		RTC_DCHECK(peerObserver && !peerObserver->peerConnection);
 
+		RTC_DCHECK(!network_thread_ && !worker_thread_ && !signaling_thread_);
 		network_thread_ = rtc::Thread::CreateWithSocketServer().release();
 		worker_thread_ = rtc::Thread::Create().release();
 		signaling_thread_ = rtc::Thread::Create().release();
