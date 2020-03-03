@@ -104,6 +104,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   virtual ~PeerConnectionFactory();
 
  private:
+  bool IsTrialEnabled(absl::string_view key) const;
+
   std::unique_ptr<RtcEventLog> CreateRtcEventLog_w();
   std::unique_ptr<Call> CreateCall_w(RtcEventLog* event_log);
 
@@ -127,6 +129,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<NetworkControllerFactoryInterface>
       injected_network_controller_factory_;
   std::unique_ptr<MediaTransportFactory> media_transport_factory_;
+  std::unique_ptr<NetEqFactory> neteq_factory_;
+  const std::unique_ptr<WebRtcKeyValueConfig> trials_;
 };
 
 }  // namespace webrtc

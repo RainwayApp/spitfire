@@ -23,11 +23,9 @@ class NGEarlyBreak;
 class NGLayoutResult;
 class NGPhysicalBoxFragment;
 class NGPhysicalContainerFragment;
-class NGPhysicalFragment;
 struct MinMaxSize;
 struct NGBoxStrut;
 struct NGLayoutAlgorithmParams;
-struct LogicalOffset;
 
 // Represents a node to be laid out.
 class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
@@ -53,7 +51,11 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   //
   // As OOF-positioned objects have their position, and size computed
   // pre-layout, we need a way to quickly determine if we need to perform this
-  // work. This method compares the containing-block size to determine this.
+  // work.
+  //
+  // We have this "first-tier" cache explicitly for this purpose.
+  // This method compares the containing-block size to determine if we can skip
+  // the position, and size calculation.
   //
   // If the containing-block size hasn't changed, and we are layout-clean we
   // can reuse the previous layout result.
@@ -94,6 +96,7 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   bool ChildrenInline() const;
   bool IsInlineLevel() const;
   bool IsAtomicInlineLevel() const;
+  bool MayHaveAspectRatio() const;
 
   // Returns true if this node should fill the viewport.
   // This occurs when we are in quirks-mode and we are *not* OOF-positioned,
@@ -130,10 +133,6 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   // Called if this is an out-of-flow block which needs to be
   // positioned with legacy layout.
   void UseLegacyOutOfFlowPositioning() const;
-
-  // Save static position for legacy AbsPos layout.
-  void SaveStaticOffsetForLegacy(const LogicalOffset&,
-                                 const LayoutObject* offset_container);
 
   // Write back resolved margins to legacy.
   void StoreMargins(const NGConstraintSpace&, const NGBoxStrut& margins);
@@ -174,12 +173,13 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
       bool initial_container_is_flipped,
       PhysicalOffset offset = {});
   void PlaceChildrenInLayoutBox(const NGPhysicalBoxFragment&,
-                                const PhysicalOffset& offset_from_start);
+                                const NGBlockBreakToken* previous_break_token);
   void PlaceChildrenInFlowThread(const NGPhysicalBoxFragment&);
   void CopyChildFragmentPosition(
-      const NGPhysicalFragment& fragment,
-      const PhysicalOffset fragment_offset,
-      const PhysicalOffset additional_offset = PhysicalOffset());
+      const NGPhysicalBoxFragment& child_fragment,
+      PhysicalOffset,
+      const NGPhysicalBoxFragment& container_fragment,
+      const NGBlockBreakToken* previous_container_break_token = nullptr);
 
   void CopyBaselinesFromLegacyLayout(const NGConstraintSpace&,
                                      NGBoxFragmentBuilder*);

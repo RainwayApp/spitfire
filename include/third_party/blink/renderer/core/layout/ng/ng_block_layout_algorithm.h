@@ -20,6 +20,7 @@
 
 namespace blink {
 
+enum class NGBreakStatus;
 class NGConstraintSpace;
 class NGEarlyBreak;
 class NGFragment;
@@ -112,7 +113,7 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
       const NGInflowChildData& child_data,
       const LogicalSize child_available_size,
       bool is_new_fc,
-      const base::Optional<LayoutUnit> forced_bfc_block_offset = base::nullopt,
+      const base::Optional<LayoutUnit> bfc_block_offset = base::nullopt,
       bool has_clearance_past_adjoining_floats = false);
 
   // @return Estimated BFC block offset for the "to be layout" child.
@@ -221,20 +222,8 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
   // whether fits within the fragmentainer or not.
   bool IsFragmentainerOutOfSpace(LayoutUnit block_offset) const;
 
-  // Return the block-offset from the start of the fragmentainer, to this node.
-  LayoutUnit OffsetFromFragmentainerStart() const;
-
-  // Return the block-size of the portion that intersects with the
-  // fragmentainer. The block-offset is relative to this node.
-  LayoutUnit PortionIntersectingWithFragmentainer(LayoutUnit block_offset,
-                                                  LayoutUnit block_size) const;
-
-  // Propagate the block-size of unbreakable content. This is used to inflate
-  // the initial minimal column block-size when balancing columns. Unbreakable
-  // content will actually fragment if the columns aren't large enough, and we
-  // want to prevent that, if possible.
-  void PropagateUnbreakableBlockSize(LayoutUnit block_offset,
-                                     LayoutUnit block_size);
+  // Signal that we've reached the end of the fragmentainer.
+  void SetFragmentainerOutOfSpace(NGPreviousInflowPosition*);
 
   // Final adjustments before fragment creation. We need to prevent the fragment
   // from crossing fragmentainer boundaries, and rather create a break token if
@@ -244,69 +233,13 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
   // returned.
   bool FinalizeForFragmentation();
 
-  // Outcome of considering (and possibly attempting) breaking before a child.
-  enum BreakStatus {
-    // Continue layout. No break was inserted before the child (but there may be
-    // a break inside).
-    kContinueWithoutBreaking,
-
-    // A break was inserted before the child. Discard the child fragment and
-    // finish layout of the container. If there was a break inside the child, it
-    // will be discarded along with the child fragment.
-    kBrokeBefore,
-
-    // The child couldn't fit here, but no break was inserted before the child,
-    // as it was an unappealing place to break, and we have a better earlier
-    // breakpoint. We now need to abort the current layout, and go back and
-    // re-layout to said earlier breakpoint.
-    kNeedsEarlierBreak
-  };
-
-  // Insert a fragmentainer break before the child if necessary. In that case,
-  // the previous in-flow position will be updated, we'll return |kBrokeBefore|.
-  // If we don't break inside, we'll consider the appeal of doing so anyway (and
-  // store it as the most appealing break point so far if that's the case),
-  // since we might have to go back and break here. Return
-  // |kContinueWithoutBreaking| if we're to continue laying out. If
-  // |kNeedsEarlierBreak| is returned, it means that we ran out of space, but
-  // shouldn't break before the child, but rather abort layout, and re-layout to
-  // a previously found good breakpoint.
-  // If |has_container_separation| is true, it means that we're at a valid
-  // breakpoint. We obviously prefer valid breakpoints, but sometimes we need to
-  // break at undesirable locations. Class A breakpoints occur between block
-  // siblings. Class B breakpoints between line boxes. Both these breakpoint
-  // classes imply that we're already past the first in-flow child in the
-  // container, but there's also another way of achieving container separation:
-  // class C breakpoints. Those occur if there's a positive gap between the
-  // block-start content edge of the container and the block-start margin edge
-  // of the first in-flow child. This can happen when in-flow content is pushed
-  // down by floats. https://www.w3.org/TR/css-break-3/#possible-breaks
-  BreakStatus BreakBeforeChildIfNeeded(NGLayoutInputNode child,
-                                       const NGLayoutResult&,
-                                       NGPreviousInflowPosition*,
-                                       LayoutUnit block_offset,
-                                       bool has_container_separation);
-
-  // Insert either a soft or forced break before the child.
-  void BreakBeforeChild(NGLayoutInputNode child,
-                        const NGLayoutResult&,
-                        LayoutUnit block_offset,
-                        NGBreakAppeal,
-                        bool is_forced_break,
-                        NGPreviousInflowPosition*);
-  void BreakBeforeChild(NGLayoutInputNode child,
-                        NGBreakAppeal,
-                        bool is_forced_break,
-                        NGPreviousInflowPosition*);
-
-  // Propagate the minimal space shortage from a child.
-  void PropagateSpaceShortage(const NGLayoutResult&, LayoutUnit block_offset);
-
-  // Look for a better breakpoint (than we already have) either before the child
-  // (class A breakpoint), or inside it (class A or B breakpoint), and store it.
-  void UpdateEarlyBreakAtBlockChild(NGBlockNode child,
-                                    const NGLayoutResult& layout_result,
-                                    NGBreakAppeal break_before);
+  // Insert a fragmentainer break before the child if necessary.
+  // See |::blink::BreakBeforeChildIfNeeded()| for more documentation.
+  NGBreakStatus BreakBeforeChildIfNeeded(NGLayoutInputNode child,
+                                         const NGLayoutResult&,
+                                         NGPreviousInflowPosition*,
+                                         LayoutUnit block_offset,
+                                         bool has_container_separation);
 
   // Look for a better breakpoint (than we already have) between lines (i.e. a
   // class B breakpoint), and store it.
@@ -400,11 +333,23 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
       LayoutUnit child_bfc_line_offset,
       const base::Optional<LayoutUnit>& child_bfc_block_offset);
 
-  // Computes minimum size for HTML and BODY elements in quirks mode.
-  // Returns kIndefiniteSize in all other cases.
-  LayoutUnit CalculateMinimumBlockSize(const NGMarginStrut& end_margin_strut);
+  // In quirks mode the body element will stretch to fit the viewport.
+  //
+  // In order to determine the final block-size we need to take the available
+  // block-size minus the total block-direction margin.
+  //
+  // This block-direction margin is non-trivial to calculate for the body
+  // element, and is computed upfront for the |ClampIntrinsicBlockSize|
+  // function.
+  base::Optional<LayoutUnit> CalculateQuirkyBodyMarginBlockSum(
+      const NGMarginStrut& end_margin_strut);
 
+  // Border + padding sum, resolved from the node's computed style.
   const NGBoxStrut border_padding_;
+
+  // Border + scrollbar + padding sum for the fragment to be generated (most
+  // importantly, for non-first fragments, leading block border + scrollbar +
+  // padding is zero).
   NGBoxStrut border_scrollbar_padding_;
 
   LogicalSize child_available_size_;
@@ -440,6 +385,12 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
   // in-flow child of a container. It is used to check if we're at a valid class
   // A or B breakpoint (between block-level siblings or line box siblings).
   bool has_processed_first_child_ = false;
+
+  // Set once we've inserted a break before a float. We need to know this, so
+  // that we don't attempt to lay out any more floats in the current
+  // fragmentainer. Floats aren't allowed have an earlier block-start offset
+  // than earlier floats.
+  bool broke_before_float_ = false;
 
   bool did_break_before_child_ = false;
 

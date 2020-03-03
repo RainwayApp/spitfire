@@ -134,11 +134,10 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
   // the contents of the canvas (called didDraw). It marks the completion
   // of a presentable frame.
   virtual void FinalizeFrame() {}
-  void NeedsFinalizeFrame();
 
   // Thread::TaskObserver implementation
   void DidProcessTask(const base::PendingTask&) override;
-  void WillProcessTask(const base::PendingTask&) final {}
+  void WillProcessTask(const base::PendingTask&, bool) final {}
 
   // Canvas2D-specific interface
   virtual bool Is2d() const { return false; }
@@ -169,7 +168,6 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
     NOTREACHED();
     return nullptr;
   }
-  virtual void ProvideBackBufferToResourceProvider() const { NOTREACHED(); }
   virtual int ExternallyAllocatedBufferCountPerPixel() {
     NOTREACHED();
     return 0;

@@ -73,13 +73,19 @@ class CORE_EXPORT HTMLPortalElement : public HTMLFrameOwnerElement {
   // due to recent adoption.
   void ExpireAdoptionLifetime();
 
+  // Called by PortalContents when it is about to be destroyed.
+  void PortalContentsWillBeDestroyed(PortalContents*);
+
  private:
   enum class GuestContentsEligibility {
     // Can have a guest contents.
     kEligible,
 
-    // Would be eligible except that it is not top-level.
+    // Ineligible as it is not top-level.
     kNotTopLevel,
+
+    // Ineligible as the host's protocol is not in the HTTP family.
+    kNotHTTPFamily,
 
     // Ineligible for additional reasons.
     kIneligible,

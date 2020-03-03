@@ -9,7 +9,7 @@
 
 #include "base/macros.h"
 #include "base/synchronization/waitable_event.h"
-#include "services/network/public/mojom/ip_address_space.mojom-blink-forward.h"
+#include "services/network/public/mojom/ip_address_space.mojom-blink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/renderer/bindings/core/v8/source_location.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_cache_options.h"
@@ -106,7 +106,7 @@ class WorkerThreadForTest : public WorkerThread {
       WorkerReportingProxy& mock_worker_reporting_proxy)
       : WorkerThread(mock_worker_reporting_proxy),
         worker_backing_thread_(std::make_unique<WorkerBackingThread>(
-            ThreadCreationParams(WebThreadType::kTestThread))) {}
+            ThreadCreationParams(ThreadType::kTestThread))) {}
 
   ~WorkerThreadForTest() override = default;
 
@@ -160,8 +160,8 @@ class WorkerThreadForTest : public WorkerThread {
   }
 
  private:
-  WebThreadType GetThreadType() const override {
-    return WebThreadType::kUnspecifiedWorkerThread;
+  ThreadType GetThreadType() const override {
+    return ThreadType::kUnspecifiedWorkerThread;
   }
 
   std::unique_ptr<WorkerBackingThread> worker_backing_thread_;

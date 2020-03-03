@@ -33,6 +33,7 @@
 #include <memory>
 #include <utility>
 #include "base/auto_reset.h"
+#include "third_party/blink/public/common/css/forced_colors.h"
 #include "third_party/blink/public/common/css/preferred_color_scheme.h"
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -49,6 +50,7 @@
 #include "third_party/blink/renderer/core/css/style_recalc_root.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/tree_ordered_list.h"
+#include "third_party/blink/renderer/core/html/track/text_track.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector_client.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -109,6 +111,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   }
 
   CSSStyleSheet* InspectorStyleSheet() const { return inspector_style_sheet_; }
+
+  void AddTextTrack(TextTrack*);
+  void RemoveTextTrack(TextTrack*);
 
   const ActiveStyleSheetVector ActiveStyleSheetsForInspector();
 
@@ -299,6 +304,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void NodeWillBeRemoved(Node&);
   void ChildrenRemoved(ContainerNode& parent);
+  void RemovedFromFlatTree(Node& node) {
+    style_recalc_root_.RemovedFromFlatTree(node);
+  }
   void PseudoElementRemoved(Element& originating_element) {
     layout_tree_rebuild_root_.ChildrenRemoved(originating_element);
   }
@@ -355,6 +363,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void UpdateViewportStyle();
   void UpdateStyleAndLayoutTree();
   void RecalcStyle();
+  void ClearEnsuredDescendantStyles(Element& element);
   void RebuildLayoutTree();
   bool InRebuildLayoutTree() const { return in_layout_tree_rebuild_; }
 
@@ -363,6 +372,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   PreferredColorScheme GetPreferredColorScheme() const {
     return preferred_color_scheme_;
   }
+  ForcedColors GetForcedColors() const { return forced_colors_; }
   void UpdateColorSchemeBackground();
 
   void Trace(blink::Visitor*) override;
@@ -395,6 +405,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   typedef HeapHashSet<Member<TreeScope>> UnorderedTreeScopeSet;
 
   void MediaQueryAffectingValueChanged(UnorderedTreeScopeSet&);
+  void MediaQueryAffectingValueChanged(HeapHashSet<Member<TextTrack>>&);
   const RuleFeatureSet& GetRuleFeatureSet() const {
     DCHECK(IsMaster());
     DCHECK(global_rule_set_);
@@ -566,15 +577,20 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // scheme is used to opt-out of forced darkening.
   Member<const CSSValue> meta_color_scheme_;
 
-  // The preferred color scheme is set in settings, but may be overridden by the
-  // ForceDarkMode setting where the preferred_color_scheme_ will be set to
-  // kNoPreference to avoid dark styling to be applied before auto darkening.
+  // The preferred color scheme is set in WebThemeEngine, but may be overridden
+  // by the ForceDarkMode setting where the preferred_color_scheme_ will be set
+  // to kNoPreference to avoid dark styling to be applied before auto darkening.
   PreferredColorScheme preferred_color_scheme_ =
       PreferredColorScheme::kNoPreference;
+
+  // Forced colors is set in WebThemeEngine.
+  ForcedColors forced_colors_ = ForcedColors::kNone;
 
   friend class NodeTest;
   friend class StyleEngineTest;
   friend class WhitespaceAttacherTest;
+
+  HeapHashSet<Member<TextTrack>> text_tracks_;
 };
 
 }  // namespace blink

@@ -58,9 +58,6 @@ enum {
   kRelationNoOpener = 0x00040000,
 };
 
-class ExceptionState;
-class USVStringOrTrustedURL;
-
 class CORE_EXPORT HTMLAnchorElement : public HTMLElement, public DOMURLUtils {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -69,12 +66,8 @@ class CORE_EXPORT HTMLAnchorElement : public HTMLElement, public DOMURLUtils {
   HTMLAnchorElement(const QualifiedName&, Document&);
   ~HTMLAnchorElement() override;
 
-  // Returns attributes that should be checked against Trusted Types
-  const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
-
   KURL Href() const;
   void SetHref(const AtomicString&);
-  void setHref(const USVStringOrTrustedURL&, ExceptionState&);
 
   const AtomicString& GetName() const;
 
@@ -117,7 +110,7 @@ class CORE_EXPORT HTMLAnchorElement : public HTMLElement, public DOMURLUtils {
   bool IsURLAttribute(const Attribute&) const final;
   bool HasLegalLinkAttribute(const QualifiedName&) const final;
   bool CanStartSelection() const final;
-  int tabIndex() const final;
+  int DefaultTabIndex() const final;
   bool draggable() const final;
   bool IsInteractiveContent() const final;
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
@@ -139,7 +132,7 @@ inline LinkHash HTMLAnchorElement::VisitedLinkHash() const {
 // Functions shared with the other anchor elements (i.e., SVG).
 
 bool IsEnterKeyKeydownEvent(Event&);
-bool IsLinkClick(Event&);
+Event* GetClickEventOrNull(Event&);
 
 }  // namespace blink
 

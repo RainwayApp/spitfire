@@ -2231,7 +2231,6 @@ OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
 #define SSL_CURVE_SECP521R1 25
 #define SSL_CURVE_X25519 29
 #define SSL_CURVE_CECPQ2 16696
-#define SSL_CURVE_CECPQ2b 65074
 
 // SSL_get_curve_id returns the ID of the curve used by |ssl|'s most recently
 // completed handshake or 0 if not applicable.
@@ -3057,19 +3056,6 @@ OPENSSL_EXPORT const char *SSL_get_psk_identity_hint(const SSL *ssl);
 // SSL_get_psk_identity, after the handshake completes, returns the PSK identity
 // that was negotiated by |ssl| or NULL if PSK was not used.
 OPENSSL_EXPORT const char *SSL_get_psk_identity(const SSL *ssl);
-
-
-// Post-quantum experiment signaling extension.
-//
-// *** EXPERIMENTAL ***
-//
-// In order to define a control group in an experiment of post-quantum key
-// agreements, clients and servers may send a non-IANA defined extension as a
-// signaling bit. These functions should not be used without explicit permission
-// from BoringSSL-team.
-
-OPENSSL_EXPORT void SSL_CTX_enable_pq_experiment_signal(SSL_CTX *ctx);
-OPENSSL_EXPORT int SSL_pq_experiment_signal_seen(const SSL *ssl);
 
 
 // QUIC transport parameters.
@@ -3947,6 +3933,11 @@ OPENSSL_EXPORT void SSL_set_ignore_tls13_downgrade(SSL *ssl, int ignore);
 // mechanism would have aborted |ssl|'s handshake and zero otherwise.
 OPENSSL_EXPORT int SSL_is_tls13_downgrade(const SSL *ssl);
 
+// SSL_used_hello_retry_request returns one if the TLS 1.3 HelloRetryRequest
+// message has been either sent by the server or received by the client. It
+// returns zero otherwise.
+OPENSSL_EXPORT int SSL_used_hello_retry_request(const SSL *ssl);
+
 // SSL_set_jdk11_workaround configures whether to workaround various bugs in
 // JDK 11's TLS 1.3 implementation by disabling TLS 1.3 for such clients.
 //
@@ -4120,6 +4111,11 @@ OPENSSL_EXPORT void SSL_set_state(SSL *ssl, int state);
 // SSL_get_shared_ciphers writes an empty string to |buf| and returns a
 // pointer to |buf|, or NULL if |len| is less than or equal to zero.
 OPENSSL_EXPORT char *SSL_get_shared_ciphers(const SSL *ssl, char *buf, int len);
+
+// SSL_get_shared_sigalgs returns zero.
+OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *ssl, int idx, int *psign,
+                                          int *phash, int *psignandhash,
+                                          uint8_t *rsig, uint8_t *rhash);
 
 // SSL_MODE_HANDSHAKE_CUTTHROUGH is the same as SSL_MODE_ENABLE_FALSE_START.
 #define SSL_MODE_HANDSHAKE_CUTTHROUGH SSL_MODE_ENABLE_FALSE_START

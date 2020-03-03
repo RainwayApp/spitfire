@@ -47,8 +47,12 @@ class MockEchoControl : public EchoControl {
   MOCK_METHOD1(AnalyzeCapture, void(AudioBuffer* capture));
   MOCK_METHOD2(ProcessCapture,
                void(AudioBuffer* capture, bool echo_path_change));
+  MOCK_METHOD3(ProcessCapture,
+               void(AudioBuffer* capture,
+                    AudioBuffer* linear_output,
+                    bool echo_path_change));
   MOCK_CONST_METHOD0(GetMetrics, Metrics());
-  MOCK_METHOD1(SetAudioBufferDelay, void(size_t delay_ms));
+  MOCK_METHOD1(SetAudioBufferDelay, void(int delay_ms));
   MOCK_CONST_METHOD0(ActiveProcessing, bool());
 };
 
@@ -97,11 +101,17 @@ class MockAudioProcessing : public ::testing::NiceMock<AudioProcessing> {
                    size_t samples_per_channel,
                    int sample_rate_hz,
                    ChannelLayout layout));
+  MOCK_METHOD2(AnalyzeReverseStream,
+               int(const float* const* data,
+                   const StreamConfig& reverse_config));
   MOCK_METHOD4(ProcessReverseStream,
                int(const float* const* src,
                    const StreamConfig& input_config,
                    const StreamConfig& output_config,
                    float* const* dest));
+  MOCK_CONST_METHOD1(
+      GetLinearAecOutput,
+      bool(rtc::ArrayView<std::array<float, 160>> linear_output));
   MOCK_METHOD1(set_stream_delay_ms, int(int delay));
   MOCK_CONST_METHOD0(stream_delay_ms, int());
   MOCK_CONST_METHOD0(was_stream_delay_set, bool());

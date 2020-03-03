@@ -152,7 +152,7 @@ const int kShowTreeCharacterOffset = 39;
 // The purpose of the layout tree is to do layout (aka reflow) and store its
 // results for painting and hit-testing. Layout is the process of sizing and
 // positioning Nodes on the page. In Blink, layouts always start from a relayout
-// boundary (see objectIsRelayoutBoundary in LayoutObject.cpp). As such, we
+// boundary (see ObjectIsRelayoutBoundary in layout_object.cc). As such, we
 // need to mark the ancestors all the way to the enclosing relayout boundary in
 // order to do a correct layout.
 //
@@ -755,6 +755,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
 
   inline bool IsBeforeContent() const;
   inline bool IsAfterContent() const;
+  inline bool IsMarkerContent() const;
   inline bool IsBeforeOrAfterContent() const;
   static inline bool IsAfterContent(const LayoutObject* obj) {
     return obj && obj->IsAfterContent();
@@ -1378,6 +1379,9 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   void SetIsInLayoutNGInlineFormattingContext(bool);
   virtual NGPaintFragment* FirstInlineFragment() const { return nullptr; }
   virtual void SetFirstInlineFragment(NGPaintFragment*) {}
+  virtual wtf_size_t FirstInlineFragmentItemIndex() const { return 0u; }
+  virtual void ClearFirstInlineFragmentItemIndex() {}
+  virtual void SetFirstInlineFragmentItemIndex(wtf_size_t) {}
   void SetForceLegacyLayout() { bitfields_.SetForceLegacyLayout(true); }
 
   void SetHasBoxDecorationBackground(bool);
@@ -1420,6 +1424,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // Recalculates visual overflow for this object and non-self-painting
   // PaintLayer descendants.
   virtual void RecalcVisualOverflow();
+  void RecalcNormalFlowChildVisualOverflowIfNeeded();
 
   // Subclasses must reimplement this method to compute the size and position
   // of this object and all its descendants.
@@ -1694,7 +1699,9 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   PhysicalOffset OffsetFromContainer(const LayoutObject*,
                                      bool ignore_scroll_offset = false) const;
   // Return the offset from an object from the ancestor. The ancestor need
-  // not be on the containing block chain of |this|.
+  // not be on the containing block chain of |this|. Note that this function
+  // cannot be used when there are transforms between this object and the
+  // ancestor - use |LocalToAncestorPoint| if there might be transforms.
   PhysicalOffset OffsetFromAncestor(const LayoutObject*) const;
 
   FloatRect AbsoluteBoundingBoxFloatRect(MapCoordinatesFlags = 0) const;
@@ -2051,11 +2058,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
       const LayoutObject*);
 
   bool IsRelayoutBoundary() const;
-
-  // The visual rect, in the the space of the paint invalidation container
-  // (*not* the graphics layer that paints this object).
-  LayoutRect VisualRectIncludingCompositedScrolling(
-      const LayoutBoxModelObject& paint_invalidation_container) const;
 
   // Called when the previous visual rect(s) is no longer valid.
   virtual void ClearPreviousVisualRects();
@@ -2660,9 +2662,9 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
 
   // Returns |container|'s containing block.
-  LayoutBlock* FindNonAnonymousContainingBlock(
+  static LayoutBlock* FindNonAnonymousContainingBlock(
       LayoutObject* container,
-      LayoutObject::AncestorSkipInfo* = nullptr) const;
+      AncestorSkipInfo* = nullptr);
   // Returns ContainerForAbsolutePosition() if it's a LayoutBlock, or the
   // containing LayoutBlock of it.
   LayoutBlock* ContainingBlockForAbsolutePosition(
@@ -2680,13 +2682,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   const ComputedStyle* FirstLineStyleWithoutFallback() const;
 
  private:
-  // Adjusts a visual rect in the space of |visual_rect| to be in the space of
-  // the |paint_invalidation_container|, if needed. They can be different only
-  // if |paint_invalidation_container| is a composited scroller.
-  void AdjustVisualRectForCompositedScrolling(
-      LayoutRect& visual_rect,
-      const LayoutBoxModelObject& paint_invalidation_container) const;
-
   FloatQuad LocalToAncestorQuadInternal(const FloatQuad&,
                                         const LayoutBoxModelObject* ancestor,
                                         MapCoordinatesFlags = 0) const;
@@ -3275,6 +3270,15 @@ inline bool LayoutObject::IsBeforeContent() const {
 
 inline bool LayoutObject::IsAfterContent() const {
   if (StyleRef().StyleType() != kPseudoIdAfter)
+    return false;
+  // Text nodes don't have their own styles, so ignore the style on a text node.
+  if (IsText() && !IsBR())
+    return false;
+  return true;
+}
+
+inline bool LayoutObject::IsMarkerContent() const {
+  if (StyleRef().StyleType() != kPseudoIdMarker)
     return false;
   // Text nodes don't have their own styles, so ignore the style on a text node.
   if (IsText() && !IsBR())

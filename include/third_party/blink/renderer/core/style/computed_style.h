@@ -27,6 +27,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_COMPUTED_STYLE_H_
 
 #include <memory>
+#include "base/util/type_safety/pass_key.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
@@ -294,6 +295,11 @@ class ComputedStyle : public ComputedStyleBase,
   CORE_EXPORT static ComputedStyle& MutableInitialStyle();
 
  public:
+  using PassKey = util::PassKey<ComputedStyle>;
+
+  ALWAYS_INLINE ComputedStyle(PassKey, const ComputedStyle&);
+  ALWAYS_INLINE explicit ComputedStyle(PassKey);
+
   CORE_EXPORT static scoped_refptr<ComputedStyle> Create();
   static scoped_refptr<ComputedStyle> CreateAnonymousStyleWithDisplay(
       const ComputedStyle& parent_style,
@@ -1069,6 +1075,9 @@ class ComputedStyle : public ComputedStyleBase,
   float WordSpacing() const { return GetFontDescription().WordSpacing(); }
   void SetWordSpacing(float);
 
+  // font-variant-numeric spacing
+  void SetFontVariantNumericSpacing(FontVariantNumeric::NumericSpacing);
+
   // orphans
   void SetOrphans(int16_t o) { SetOrphansInternal(clampTo<int16_t>(o, 1)); }
 
@@ -1261,6 +1270,12 @@ class ComputedStyle : public ComputedStyleBase,
            !ColumnRuleColorInternal().Alpha();
   }
   bool ColumnRuleEquivalent(const ComputedStyle& other_style) const;
+  bool HasColumnRule() const {
+    if (LIKELY(!SpecifiesColumns()))
+      return false;
+    return ColumnRuleWidth() && !ColumnRuleIsTransparent() &&
+           BorderStyleIsVisible(ColumnRuleStyle());
+  }
 
   // Flex utility functions.
   bool ResolvedIsColumnFlexDirection() const {
@@ -2103,7 +2118,8 @@ class ComputedStyle : public ComputedStyleBase,
   bool IsDisplayTableType() const { return IsDisplayTableType(Display()); }
 
   bool BlockifiesChildren() const {
-    return IsDisplayFlexibleOrGridBox() || IsDisplayLayoutCustomBox() ||
+    return IsDisplayFlexibleOrGridBox() || IsDisplayMathBox(Display()) ||
+           IsDisplayLayoutCustomBox() ||
            (Display() == EDisplay::kContents && IsInBlockifyingDisplay());
   }
 
@@ -2220,14 +2236,26 @@ class ComputedStyle : public ComputedStyleBase,
     return TableLayout() == ETableLayout::kFixed && !LogicalWidth().IsAuto();
   }
 
-  // Returns true if the computed style contains a 3D transform operation.
-  // This can be individual operations from the transform property, or
-  // individual values from translate/rotate/scale properties. Note that
-  // perspective is omitted, since it does not by itself specify a 3D transform.
+  // Returns true if the computed style contains a 3D transform operation. This
+  // can be individual operations from the transform property, or individual
+  // values from translate/rotate/scale properties. Perspective is omitted since
+  // it does not, by itself, specify a 3D transform.
   bool Has3DTransformOperation() const {
     return Transform().HasNonPerspective3DOperation() ||
            (Translate() && Translate()->Z() != 0) ||
            (Rotate() && (Rotate()->X() != 0 || Rotate()->Y() != 0)) ||
+           (Scale() && Scale()->Z() != 1);
+  }
+  // Returns true if the computed style contains a 3D transform operation with a
+  // non-trivial component in the Z axis. This can be individual operations from
+  // the transform property, or individual values from translate/rotate/scale
+  // properties. Perspective is omitted since it does not, by itself, specify a
+  // 3D transform.
+  bool HasNonTrivial3DTransformOperation() const {
+    return Transform().HasNonTrivial3DComponent() ||
+           (Translate() && Translate()->Z() != 0) ||
+           (Rotate() && Rotate()->Angle() != 0 &&
+            (Rotate()->X() != 0 || Rotate()->Y() != 0)) ||
            (Scale() && Scale()->Z() != 1);
   }
   bool HasTransform() const {
@@ -2415,7 +2443,7 @@ class ComputedStyle : public ComputedStyleBase,
 
   bool BreakWords() const {
     return (WordBreak() == EWordBreak::kBreakWord ||
-            OverflowWrap() == EOverflowWrap::kBreakWord) &&
+            OverflowWrap() != EOverflowWrap::kNormal) &&
            IsNot(WhiteSpace(), EWhiteSpace::kPre | EWhiteSpace::kNowrap);
   }
 
@@ -2490,6 +2518,10 @@ class ComputedStyle : public ComputedStyleBase,
       return false;
     if (Display() == EDisplay::kNone)
       return false;
+    if (IsEnsuredInDisplayNone())
+      return false;
+    if (pseudo == kPseudoIdMarker)
+      return Display() == EDisplay::kListItem;
     if (Display() != EDisplay::kContents)
       return true;
     // For display: contents elements, we still need to generate ::before and
@@ -2508,6 +2540,20 @@ class ComputedStyle : public ComputedStyleBase,
   Color ForcedBackplateColor() const {
     return LayoutTheme::GetTheme().SystemColor(CSSValueID::kWindow,
                                                WebColorScheme::kLight);
+  }
+
+  // render-subtree helpers.
+  bool RenderSubtreeInvisible() const {
+    return static_cast<unsigned>(RenderSubtree()) &
+           static_cast<unsigned>(RenderSubtreeFlags::kInvisible);
+  }
+  bool RenderSubtreeSkipActivation() const {
+    return static_cast<unsigned>(RenderSubtree()) &
+           static_cast<unsigned>(RenderSubtreeFlags::kSkipActivation);
+  }
+  bool RenderSubtreeSkipViewportActivation() const {
+    return static_cast<unsigned>(RenderSubtree()) &
+           static_cast<unsigned>(RenderSubtreeFlags::kSkipViewportActivation);
   }
 
  private:
@@ -2576,6 +2622,10 @@ class ComputedStyle : public ComputedStyleBase,
 
   static bool IsDisplayGridBox(EDisplay display) {
     return display == EDisplay::kGrid || display == EDisplay::kInlineGrid;
+  }
+
+  static bool IsDisplayMathBox(EDisplay display) {
+    return display == EDisplay::kMath || display == EDisplay::kInlineMath;
   }
 
   static bool IsDisplayLayoutCustomBox(EDisplay display) {

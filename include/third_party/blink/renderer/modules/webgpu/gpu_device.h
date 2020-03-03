@@ -48,7 +48,7 @@ class ScriptState;
 
 class GPUDevice final : public EventTargetWithInlineData,
                         public ContextClient,
-                        public DawnObject<DawnDevice> {
+                        public DawnObject<WGPUDevice> {
   USING_GARBAGE_COLLECTED_MIXIN(GPUDevice);
   DEFINE_WRAPPERTYPEINFO();
 
@@ -69,6 +69,8 @@ class GPUDevice final : public EventTargetWithInlineData,
   // gpu_device.idl
   GPUAdapter* adapter() const;
   ScriptPromise lost(ScriptState* script_state);
+
+  GPUQueue* defaultQueue();
 
   GPUBuffer* createBuffer(const GPUBufferDescriptor* descriptor);
   HeapVector<ScriptValue> createBufferMapped(
@@ -101,8 +103,6 @@ class GPUDevice final : public EventTargetWithInlineData,
   GPURenderBundleEncoder* createRenderBundleEncoder(
       const GPURenderBundleEncoderDescriptor* descriptor);
 
-  GPUQueue* getQueue();
-
   void pushErrorScope(const WTF::String& filter);
   ScriptPromise popErrorScope(ScriptState* script_state);
 
@@ -118,18 +118,18 @@ class GPUDevice final : public EventTargetWithInlineData,
                                              ToV8UndefinedGenerator>;
 
   void OnUncapturedError(ExecutionContext* execution_context,
-                         DawnErrorType errorType,
+                         WGPUErrorType errorType,
                          const char* message);
 
   void OnPopErrorScopeCallback(ScriptPromiseResolver* resolver,
-                               DawnErrorType type,
+                               WGPUErrorType type,
                                const char* message);
 
   Member<GPUAdapter> adapter_;
   Member<GPUQueue> queue_;
   Member<LostProperty> lost_property_;
   std::unique_ptr<
-      DawnCallback<base::RepeatingCallback<void(DawnErrorType, const char*)>>>
+      DawnCallback<base::RepeatingCallback<void(WGPUErrorType, const char*)>>>
       error_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(GPUDevice);

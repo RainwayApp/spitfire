@@ -13,7 +13,7 @@
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar.h"
-#include "third_party/blink/renderer/core/scroll/scrollbar_theme_mock.h"
+#include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
@@ -67,8 +67,8 @@ class MockScrollableArea : public GarbageCollected<MockScrollableArea>,
   MOCK_CONST_METHOD0(EnclosingScrollableArea, ScrollableArea*());
   MOCK_CONST_METHOD1(VisibleContentRect, IntRect(IncludeScrollbarsInRect));
   MOCK_CONST_METHOD0(ContentsSize, IntSize());
-  MOCK_CONST_METHOD0(LayerForHorizontalScrollbar, GraphicsLayer*());
-  MOCK_CONST_METHOD0(LayerForVerticalScrollbar, GraphicsLayer*());
+  MOCK_CONST_METHOD0(LayerForHorizontalScrollbar, cc::Layer*());
+  MOCK_CONST_METHOD0(LayerForVerticalScrollbar, cc::Layer*());
   MOCK_CONST_METHOD0(HorizontalScrollbar, Scrollbar*());
   MOCK_CONST_METHOD0(VerticalScrollbar, Scrollbar*());
   MOCK_CONST_METHOD0(ScrollbarsHiddenIfOverlay, bool());
@@ -90,7 +90,7 @@ class MockScrollableArea : public GarbageCollected<MockScrollableArea>,
   }
   int VisibleHeight() const override { return 768; }
   int VisibleWidth() const override { return 1024; }
-  CompositorElementId GetCompositorElementId() const override {
+  CompositorElementId GetScrollElementId() const override {
     return CompositorElementId();
   }
   bool ScrollAnimatorEnabled() const override { return false; }
@@ -108,7 +108,7 @@ class MockScrollableArea : public GarbageCollected<MockScrollableArea>,
   void SetIsPopup() { chrome_client_->SetIsPopup(true); }
 
   ScrollbarTheme& GetPageScrollbarTheme() const override {
-    return ScrollbarTheme::DeprecatedStaticGetTheme();
+    return ScrollbarTheme::GetTheme();
   }
 
   using ScrollableArea::ShowOverlayScrollbars;

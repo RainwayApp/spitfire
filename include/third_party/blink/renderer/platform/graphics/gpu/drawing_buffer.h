@@ -52,6 +52,7 @@
 #include "third_party/khronos/GLES2/gl2.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/color_space.h"
+#include "ui/gl/gpu_preference.h"
 
 namespace cc {
 class Layer;
@@ -98,6 +99,9 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
     virtual void DrawingBufferClientRestoreFramebufferBinding() = 0;
     virtual void DrawingBufferClientRestorePixelUnpackBufferBinding() = 0;
     virtual void DrawingBufferClientRestorePixelPackBufferBinding() = 0;
+    virtual bool
+    DrawingBufferClientUserAllocatedMultisampledRenderbuffers() = 0;
+    virtual void DrawingBufferClientForceLostContextWithAutoRecovery() = 0;
   };
 
   enum PreserveDrawingBuffer {
@@ -129,7 +133,8 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       PreserveDrawingBuffer,
       WebGLVersion,
       ChromiumImageUsage,
-      const CanvasColorParams&);
+      const CanvasColorParams&,
+      gl::GpuPreference);
   static void ForceNextDrawingBufferCreationToFail();
 
   ~DrawingBuffer() override;
@@ -249,7 +254,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   void RestoreAllState();
 
   bool UsingSwapChain() const { return using_swap_chain_; }
-  void PresentSwapChain();
 
   // This class helps implement correct semantics for BlitFramebuffer
   // when the DrawingBuffer is using a CHROMIUM image for its backing
@@ -284,7 +288,8 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
                 bool wants_depth,
                 bool wants_stencil,
                 ChromiumImageUsage,
-                const CanvasColorParams&);
+                const CanvasColorParams&,
+                gl::GpuPreference gpu_preference);
 
   bool Initialize(const IntSize&, bool use_multisampling);
 
@@ -399,10 +404,10 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       bool force_gpu_result);
 
   // Helper functions to be called only by PrepareTransferableResourceInternal.
-  void FinishPrepareTransferableResourceGpu(
+  bool FinishPrepareTransferableResourceGpu(
       viz::TransferableResource* out_resource,
       std::unique_ptr<viz::SingleReleaseCallback>* out_release_callback);
-  void FinishPrepareTransferableResourceSoftware(
+  bool FinishPrepareTransferableResourceSoftware(
       cc::SharedBitmapIdRegistrar* bitmap_registrar,
       viz::TransferableResource* out_resource,
       std::unique_ptr<viz::SingleReleaseCallback>* out_release_callback);
@@ -478,6 +483,9 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   // and GPU switch
   bool ReallocateMultisampleRenderbuffer(const IntSize&);
 
+  // Presents swap chain if swap chain is being used and contents have changed.
+  void PresentSwapChainIfNeeded();
+
   // Weak, reset by beginDestruction.
   Client* client_ = nullptr;
 
@@ -503,7 +511,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   const bool using_gpu_compositing_;
   const bool using_swap_chain_;
   bool has_implicit_stencil_buffer_ = false;
-  bool storage_texture_supported_ = false;
 
   // The texture target (2D or RECTANGLE) for our allocations.
   GLenum texture_target_ = 0;
@@ -603,6 +610,9 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   bool ShouldUseChromiumImage();
 
   bool opengl_flip_y_extension_;
+
+  gl::GpuPreference initial_gpu_;
+  gl::GpuPreference current_active_gpu_;
 
   DISALLOW_COPY_AND_ASSIGN(DrawingBuffer);
 };

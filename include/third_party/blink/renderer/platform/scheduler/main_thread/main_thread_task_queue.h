@@ -27,8 +27,8 @@ namespace main_thread_scheduler_impl_unittest {
 class MainThreadSchedulerImplTest;
 }
 
-namespace frame_interference_recorder_test {
-class FrameInterferenceRecorderTest;
+namespace agent_interference_recorder_test {
+class AgentInterferenceRecorderTest;
 }
 
 class FrameSchedulerImpl;
@@ -118,7 +118,7 @@ class PLATFORM_EXPORT MainThreadTaskQueue
           can_be_paused(false),
           can_be_frozen(false),
           can_run_in_background(true),
-          can_run_when_virtual_time_paused(false) {}
+          can_run_when_virtual_time_paused(true) {}
 
     // Separate enum class for handling prioritisation decisions in task queues.
     enum class PrioritisationType {
@@ -345,7 +345,7 @@ class PLATFORM_EXPORT MainThreadTaskQueue
     return queue_traits_.can_run_in_background;
   }
 
-  bool ShouldUseVirtualTime() const {
+  bool CanRunWhenVirtualTimePaused() const {
     return queue_traits_.can_run_when_virtual_time_paused;
   }
 
@@ -384,7 +384,12 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   void SetNetRequestPriority(net::RequestPriority net_request_priority);
   base::Optional<net::RequestPriority> net_request_priority() const;
 
+  void SetWebSchedulingPriority(WebSchedulingPriority priority);
   base::Optional<WebSchedulingPriority> web_scheduling_priority() const;
+
+  base::WeakPtr<MainThreadTaskQueue> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
  protected:
   void SetFrameSchedulerForTest(FrameSchedulerImpl* frame_scheduler);
@@ -400,7 +405,7 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   friend class base::sequence_manager::SequenceManager;
   friend class blink::scheduler::main_thread_scheduler_impl_unittest::
       MainThreadSchedulerImplTest;
-  friend class frame_interference_recorder_test::FrameInterferenceRecorderTest;
+  friend class agent_interference_recorder_test::AgentInterferenceRecorderTest;
 
   // Clear references to main thread scheduler and frame scheduler and dispatch
   // appropriate notifications. This is the common part of ShutdownTaskQueue and
@@ -424,10 +429,7 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   // |web_scheduling_priority_| is the priority of the task queue within the web
   // scheduling API. This priority is used in conjunction with the frame
   // scheduling policy to determine the task queue priority.
-  //
-  // For the initial prototype, we aren't allowing the priority to change since
-  // we're only implementing a set of global task queues.
-  const base::Optional<WebSchedulingPriority> web_scheduling_priority_;
+  base::Optional<WebSchedulingPriority> web_scheduling_priority_;
 
   // Needed to notify renderer scheduler about completed tasks.
   MainThreadSchedulerImpl* main_thread_scheduler_;  // NOT OWNED

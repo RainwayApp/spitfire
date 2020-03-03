@@ -33,7 +33,6 @@
 #include "third_party/blink/public/platform/web_input_event_result.h"
 #include "third_party/blink/public/platform/web_menu_source_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
 #include "third_party/blink/renderer/core/events/text_event_input_type.h"
 #include "third_party/blink/renderer/core/input/fallback_cursor_event_manager.h"
 #include "third_party/blink/renderer/core/input/gesture_manager.h"
@@ -63,7 +62,6 @@ class Element;
 class Event;
 template <typename EventType>
 class EventWithHitTestResults;
-class FloatQuad;
 class HTMLFrameSetElement;
 class HitTestRequest;
 class HitTestResult;
@@ -98,7 +96,7 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
 
   void MayUpdateHoverWhenContentUnderMouseChanged(
       MouseEventManager::UpdateHoverReason);
-  void MayUpdateHoverAfterScroll(const FloatQuad&);
+  void MayUpdateHoverAfterScroll(const FloatRect&);
 
   HitTestResult HitTestResultAtLocation(
       const HitTestLocation&,
@@ -248,10 +246,6 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   bool UseHandCursor(Node*, bool is_over_link);
 
   void NotifyElementActivated();
-
-  scoped_refptr<UserGestureToken> TakeLastMouseDownGestureToken() {
-    return std::move(last_mouse_down_user_gesture_token_);
-  }
 
   SelectionController& GetSelectionController() const {
     return *selection_controller_;
@@ -448,8 +442,6 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
 
   Member<HTMLFrameSetElement> frame_set_being_resized_;
 
-  scoped_refptr<UserGestureToken> last_mouse_down_user_gesture_token_;
-
   // Local frames in the same local root share the same EventHandlerRegistry.
   Member<EventHandlerRegistry> event_handler_registry_;
   Member<ScrollManager> scroll_manager_;
@@ -503,6 +495,15 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
                            EditableAnchorTextCanStartSelection);
   FRIEND_TEST_ALL_PREFIXES(EventHandlerTest,
                            ReadOnlyInputDoesNotInheritUserSelect);
+  FRIEND_TEST_ALL_PREFIXES(EventHandlerTest,
+                           CursorForVerticalResizableTextArea);
+  FRIEND_TEST_ALL_PREFIXES(EventHandlerTest,
+                           CursorForHorizontalResizableTextArea);
+  FRIEND_TEST_ALL_PREFIXES(EventHandlerTest, CursorForResizableTextArea);
+  FRIEND_TEST_ALL_PREFIXES(EventHandlerTest, CursorForRtlResizableTextArea);
+  FRIEND_TEST_ALL_PREFIXES(EventHandlerTest,
+                           CursorForInlineVerticalWritingMode);
+  FRIEND_TEST_ALL_PREFIXES(EventHandlerTest, CursorForBlockVerticalWritingMode);
 
   FRIEND_TEST_ALL_PREFIXES(FallbackCursorEventManagerTest,
                            MouseMoveCursorLockOnDiv);

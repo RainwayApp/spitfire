@@ -444,8 +444,12 @@ class RTC_EXPORT RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
   RTCStatsMember<uint32_t> frames_decoded;
   RTCStatsMember<uint32_t> key_frames_decoded;
   RTCStatsMember<double> total_decode_time;
+  RTCStatsMember<double> total_inter_frame_delay;
+  RTCStatsMember<double> total_squared_inter_frame_delay;
   // https://henbos.github.io/webrtc-provisional-stats/#dom-rtcinboundrtpstreamstats-contenttype
   RTCStatsMember<std::string> content_type;
+  // TODO(asapersson): Currently only populated if audio/video sync is enabled.
+  RTCStatsMember<double> estimated_playout_timestamp;
   // TODO(hbos): This is only implemented for video; implement it for audio as
   // well.
   RTCStatsMember<std::string> decoder_implementation;
@@ -598,6 +602,9 @@ class RTC_EXPORT RTCTransportStats final : public RTCStats {
   RTCStatsMember<std::string> selected_candidate_pair_id;
   RTCStatsMember<std::string> local_certificate_id;
   RTCStatsMember<std::string> remote_certificate_id;
+  RTCStatsMember<std::string> tls_version;
+  RTCStatsMember<std::string> dtls_cipher;
+  RTCStatsMember<std::string> srtp_cipher;
   RTCStatsMember<uint32_t> selected_candidate_pair_changes;
 };
 

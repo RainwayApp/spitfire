@@ -10,8 +10,6 @@
 namespace blink {
 
 class TransformationMatrix;
-class XRHitTestOptions;
-class XRHitTestSource;
 class XRPose;
 class XRSpace;
 
@@ -19,17 +17,11 @@ class XRHitTestResult : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRHitTestResult(XRHitTestSource* hit_test_source,
-                  const TransformationMatrix& pose);
-
-  XRHitTestOptions* hitTestOptions() const;
+  explicit XRHitTestResult(const TransformationMatrix& pose);
 
   XRPose* getPose(XRSpace* relative_to);
 
-  void Trace(blink::Visitor* visitor) override;
-
  private:
-  Member<XRHitTestSource> hit_test_source_;
   std::unique_ptr<TransformationMatrix> pose_;
 };
 

@@ -26,6 +26,8 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "third_party/blink/public/common/page/page_visibility_state.h"
+#include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/platform/web_text_autosizer_page_info.h"
 #include "third_party/blink/public/web/web_window_features.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -135,6 +137,7 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   HeapVector<Member<Page>> RelatedPages();
 
   static void PlatformColorsChanged();
+  static void ColorSchemeChanged();
 
   void InitialStyleChanged();
   void UpdateAcceleratedCompositingSettings();
@@ -260,7 +263,9 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   static void AllVisitedStateChanged(bool invalidate_visited_link_hashes);
   static void VisitedStateChanged(LinkHash visited_hash);
 
-  void SetIsHidden(bool hidden, bool is_initial_state);
+  void SetVisibilityState(PageVisibilityState visibility_state,
+                          bool is_initial_state);
+  PageVisibilityState GetVisibilityState() const;
   bool IsPageVisible() const;
 
   PageLifecycleState LifecycleState() const;
@@ -335,6 +340,12 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   }
   void ClearMediaFeatureOverrides();
 
+  WebScopedVirtualTimePauser& HistoryNavigationVirtualTimePauser() {
+    return history_navigation_virtual_time_pauser_;
+  }
+
+  static void PrepareForLeakDetection();
+
  private:
   friend class ScopedPagePauser;
 
@@ -408,7 +419,7 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   float device_scale_factor_;
 
-  bool is_hidden_;
+  PageVisibilityState visibility_state_;
 
   bool is_ordinary_;
 
@@ -445,10 +456,18 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   WebTextAutosizerPageInfo web_text_autosizer_page_info_;
 
+  WebScopedVirtualTimePauser history_navigation_virtual_time_pauser_;
+
   DISALLOW_COPY_AND_ASSIGN(Page);
 };
 
 extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<Page>;
+
+class CORE_EXPORT InternalSettingsPageSupplementBase : public Supplement<Page> {
+ public:
+  using Supplement<Page>::Supplement;
+  static const char kSupplementName[];
+};
 
 }  // namespace blink
 

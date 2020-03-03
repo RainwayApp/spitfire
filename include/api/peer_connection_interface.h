@@ -83,8 +83,10 @@
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/fec_controller.h"
+#include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
+#include "api/neteq/neteq_factory.h"
 #include "api/network_state_predictor.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
@@ -102,6 +104,7 @@
 #include "api/transport/enums.h"
 #include "api/transport/media/media_transport_interface.h"
 #include "api/transport/network_control.h"
+#include "api/transport/webrtc_key_value_config.h"
 #include "api/turn_customizer.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
@@ -200,7 +203,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     kTlsCertPolicyInsecureNoCheck,
   };
 
-  struct IceServer {
+  struct RTC_EXPORT IceServer {
     IceServer();
     IceServer(const IceServer&);
     ~IceServer();
@@ -616,19 +619,12 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // correctly. This flag will be deprecated soon. Do not rely on it.
     bool active_reset_srtp_params = false;
 
-    // If MediaTransportFactory is provided in PeerConnectionFactory, this flag
-    // informs PeerConnection that it should use the MediaTransportInterface for
-    // media (audio/video). It's invalid to set it to |true| if the
-    // MediaTransportFactory wasn't provided.
+    // DEPRECATED.  Do not use.  This option is ignored by peer connection.
+    // TODO(webrtc:9719):  Delete this option.
     bool use_media_transport = false;
 
-    // If MediaTransportFactory is provided in PeerConnectionFactory, this flag
-    // informs PeerConnection that it should use the MediaTransportInterface for
-    // data channels.  It's invalid to set it to |true| if the
-    // MediaTransportFactory wasn't provided.  Data channels over media
-    // transport are not compatible with RTP or SCTP data channels.  Setting
-    // both |use_media_transport_for_data_channels| and
-    // |enable_rtp_data_channel| is invalid.
+    // DEPRECATED.  Do not use.  This option is ignored by peer connection.
+    // TODO(webrtc:9719):  Delete this option.
     bool use_media_transport_for_data_channels = false;
 
     // If MediaTransportFactory is provided in PeerConnectionFactory, this flag
@@ -672,6 +668,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
     // Added to be able to control rollout of this feature.
     bool enable_implicit_rollback = false;
+
+    // Whether network condition based codec switching is allowed.
+    absl::optional<bool> allow_codec_switching;
 
     //
     // Don't forget to update operator== if adding something.
@@ -988,6 +987,11 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // that this method always takes ownership of it.
   virtual void SetLocalDescription(SetSessionDescriptionObserver* observer,
                                    SessionDescriptionInterface* desc) = 0;
+  // Implicitly creates an offer or answer (depending on the current signaling
+  // state) and performs SetLocalDescription() with the newly generated session
+  // description.
+  // TODO(hbos): Make pure virtual when implemented by downstream projects.
+  virtual void SetLocalDescription(SetSessionDescriptionObserver* observer) {}
   // Sets the remote session description.
   // The PeerConnection takes the ownership of |desc| even if it fails.
   // The |observer| callback will be called when done.
@@ -1030,7 +1034,14 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // A copy of the |candidate| will be created and added to the remote
   // description. So the caller of this method still has the ownership of the
   // |candidate|.
+  // TODO(hbos): The spec mandates chaining this operation onto the operations
+  // chain; deprecate and remove this version in favor of the callback-based
+  // signature.
   virtual bool AddIceCandidate(const IceCandidateInterface* candidate) = 0;
+  // TODO(hbos): Remove default implementation once implemented by downstream
+  // projects.
+  virtual void AddIceCandidate(std::unique_ptr<IceCandidateInterface> candidate,
+                               std::function<void(RTCError)> callback) {}
 
   // Removes a group of remote candidates from the ICE agent. Needed mainly for
   // continual gathering, to avoid an ever-growing list of candidates as
@@ -1192,6 +1203,14 @@ class PeerConnectionObserver {
                                    int error_code,
                                    const std::string& error_text) {}
 
+  // Gathering of an ICE candidate failed.
+  // See https://w3c.github.io/webrtc-pc/#event-icecandidateerror
+  virtual void OnIceCandidateError(const std::string& address,
+                                   int port,
+                                   const std::string& url,
+                                   int error_code,
+                                   const std::string& error_text) {}
+
   // Ice candidates have been removed.
   // TODO(honghaiz): Make this a pure virtual method when all its subclasses
   // implement it.
@@ -1272,6 +1291,7 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   std::unique_ptr<cricket::PortAllocator> allocator;
   std::unique_ptr<rtc::PacketSocketFactory> packet_socket_factory;
   std::unique_ptr<webrtc::AsyncResolverFactory> async_resolver_factory;
+  std::unique_ptr<webrtc::IceTransportFactory> ice_transport_factory;
   std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator;
   std::unique_ptr<rtc::SSLCertificateVerifier> tls_cert_verifier;
   std::unique_ptr<webrtc::VideoBitrateAllocatorFactory>
@@ -1310,6 +1330,8 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
       network_state_predictor_factory;
   std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
   std::unique_ptr<MediaTransportFactory> media_transport_factory;
+  std::unique_ptr<NetEqFactory> neteq_factory;
+  std::unique_ptr<WebRtcKeyValueConfig> trials;
 };
 
 // PeerConnectionFactoryInterface is the factory interface used for creating
@@ -1325,7 +1347,8 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
 // of networking classes, it should use the alternate
 // CreatePeerConnectionFactory method which accepts threads as input, and use
 // the CreatePeerConnection version that takes a PortAllocator as an argument.
-class PeerConnectionFactoryInterface : public rtc::RefCountInterface {
+class RTC_EXPORT PeerConnectionFactoryInterface
+    : public rtc::RefCountInterface {
  public:
   class Options {
    public:

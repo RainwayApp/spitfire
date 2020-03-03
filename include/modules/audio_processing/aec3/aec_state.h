@@ -127,8 +127,7 @@ class AecState {
   }
 
   // Updates the aec state.
-  // TODO(bugs.webrtc.org/10913): Handle multi-channel adaptive filter response.
-  // TODO(bugs.webrtc.org/10913): Compute multi-channel ERL, ERLE, and reverb.
+  // TODO(bugs.webrtc.org/10913): Compute multi-channel ERL.
   void Update(
       const absl::optional<DelayEstimate>& external_delay,
       rtc::ArrayView<const std::vector<std::array<float, kFftLengthBy2Plus1>>>
@@ -150,6 +149,7 @@ class AecState {
   static int instance_count_;
   std::unique_ptr<ApmDataDumper> data_dumper_;
   const EchoCanceller3Config config_;
+  const size_t num_capture_channels_;
 
   // Class for controlling the transition from the intial state, which in turn
   // controls when the filter parameters for the initial state should be used.
@@ -314,7 +314,7 @@ class AecState {
   EchoAudibility echo_audibility_;
   ReverbModelEstimator reverb_model_estimator_;
   ReverbModel avg_render_reverb_;
-  std::vector<SubtractorOutputAnalyzer> subtractor_output_analyzers_;
+  SubtractorOutputAnalyzer subtractor_output_analyzer_;
 };
 
 }  // namespace webrtc

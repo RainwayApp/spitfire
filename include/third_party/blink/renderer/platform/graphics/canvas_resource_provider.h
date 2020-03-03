@@ -23,6 +23,12 @@ namespace gles2 {
 class GLES2Interface;
 
 }  // namespace gles2
+
+namespace raster {
+
+class RasterInterface;
+
+}  // namespace raster
 }  // namespace gpu
 
 namespace blink {
@@ -144,7 +150,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // queue, thus reducing latency, but with the possible side effects of tearing
   // (in cases where the resource is scanned out directly) and irregular frame
   // rate.
-  bool IsSingleBuffered() { return is_single_buffered_; }
+  bool IsSingleBuffered() const { return is_single_buffered_; }
 
   // Attempt to enable single buffering mode on this resource provider.  May
   // fail if the CanvasResourcePRovider subclass does not support this mode of
@@ -192,6 +198,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
  protected:
   gpu::gles2::GLES2Interface* ContextGL() const;
+  gpu::raster::RasterInterface* RasterInterface() const;
   GrContext* GetGrContext() const;
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> ContextProviderWrapper() {
     return context_provider_wrapper_;
@@ -203,6 +210,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   }
   SkFilterQuality FilterQuality() const { return filter_quality_; }
   scoped_refptr<StaticBitmapImage> SnapshotInternal();
+  scoped_refptr<CanvasResource> GetImportedResource() const;
 
   CanvasResourceProvider(const ResourceProviderType&,
                          const IntSize&,

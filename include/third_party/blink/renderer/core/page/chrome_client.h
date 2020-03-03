@@ -76,7 +76,6 @@ class FileChooser;
 class FloatPoint;
 class Frame;
 class FullscreenOptions;
-class GraphicsLayer;
 class HTMLFormControlElement;
 class HTMLInputElement;
 class HTMLSelectElement;
@@ -329,12 +328,6 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
 
   virtual void OpenFileChooser(LocalFrame*, scoped_refptr<FileChooser>) = 0;
 
-  // Pass nullptr as the GraphicsLayer to detach the root layer.
-  // This sets the graphics layer for the LocalFrame's WebWidget, if it has
-  // one. Otherwise it sets it for the WebViewImpl.
-  virtual void AttachRootGraphicsLayer(GraphicsLayer*,
-                                       LocalFrame* local_root) = 0;
-
   // Pass nullptr as the cc::Layer to detach the root layer.
   // This sets the cc::Layer for the LocalFrame's WebWidget, if it has
   // one. Otherwise it sets it for the WebViewImpl.
@@ -386,7 +379,8 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual void SetBrowserControlsState(float top_height,
                                        float bottom_height,
                                        bool shrinks_layout) {}
-  virtual void SetBrowserControlsShownRatio(float) {}
+  virtual void SetBrowserControlsShownRatio(float top_ratio,
+                                            float bottom_ratio) {}
 
   virtual String AcceptLanguages() = 0;
 
@@ -487,6 +481,8 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
 
   virtual void DidUpdateTextAutosizerPageInfo(const WebTextAutosizerPageInfo&) {
   }
+
+  virtual void DocumentDetached(Document&) {}
 
  protected:
   ChromeClient() = default;

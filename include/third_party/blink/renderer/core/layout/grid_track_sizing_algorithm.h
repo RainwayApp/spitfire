@@ -38,6 +38,11 @@ enum TrackSizeComputationPhase {
   kMaximizeTracks,
 };
 
+enum SpaceDistributionLimit {
+  kUpToGrowthLimit,
+  kBeyondGrowthLimit,
+};
+
 class GridTrack {
   DISALLOW_NEW();
 
@@ -71,13 +76,11 @@ class GridTrack {
   }
   void SetGrowthLimitCap(base::Optional<LayoutUnit>);
 
-  // For flexible tracks, intrinsic contributions are distributed according to
-  // the ratios of the flex fractions. At that point we will only have some
-  // GridTracks, but we won't know their index, so we won't be able to call
-  // GetGridTrackSize in order to obtain their flex fraction. Therefore we cache
-  // them instead of computing on demand.
-  double SizeDistributionWeight() const { return size_distribution_weight_; }
-  void SetSizeDistributionWeight(double);
+  const GridTrackSize& CachedTrackSize() const {
+    DCHECK(cached_track_size_.has_value());
+    return cached_track_size_.value();
+  }
+  void SetCachedTrackSize(const GridTrackSize&);
 
  private:
   bool IsGrowthLimitBiggerThanBaseSize() const;
@@ -89,7 +92,7 @@ class GridTrack {
   LayoutUnit size_during_distribution_;
   base::Optional<LayoutUnit> growth_limit_cap_;
   bool infinitely_growable_;
-  double size_distribution_weight_{0};
+  base::Optional<GridTrackSize> cached_track_size_;
 };
 
 class GridTrackSizingAlgorithm final {
@@ -150,10 +153,10 @@ class GridTrackSizingAlgorithm final {
                                   GridTrackSizingDirection) const;
   bool IsRelativeSizedTrackAsAuto(const GridTrackSize&,
                                   GridTrackSizingDirection) const;
-  GridTrackSize GetGridTrackSize(GridTrackSizingDirection,
-                                 size_t translated_index) const;
-  GridTrackSize RawGridTrackSize(GridTrackSizingDirection,
-                                 size_t translated_index) const;
+  GridTrackSize CalculateGridTrackSize(GridTrackSizingDirection,
+                                       size_t translated_index) const;
+  const GridTrackSize& RawGridTrackSize(GridTrackSizingDirection,
+                                        size_t translated_index) const;
 
   // Helper methods for step 1. initializeTrackSizes().
   LayoutUnit InitialBaseSize(const GridTrackSize&) const;
@@ -335,11 +338,6 @@ class GridTrackSizingAlgorithmStrategy {
   const LayoutGrid* GetLayoutGrid() const { return algorithm_.layout_grid_; }
   base::Optional<LayoutUnit> AvailableSpace() const {
     return algorithm_.AvailableSpace();
-  }
-
-  GridTrackSize GetGridTrackSize(GridTrackSizingDirection direction,
-                                 size_t translated_index) const {
-    return algorithm_.GetGridTrackSize(direction, translated_index);
   }
 
   // Helper functions

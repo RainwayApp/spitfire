@@ -568,7 +568,6 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   void MarkLayerComposited() override;
 
   sk_sp<SkData> PaintRenderingResultsToDataArray(SourceDrawingBuffer) override;
-  void ProvideBackBufferToResourceProvider() const override;
 
   unsigned MaxVertexAttribs() const { return max_vertex_attribs_; }
 
@@ -607,17 +606,10 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
 
   void commit();
 
-  // For use by WebVR which doesn't use the normal compositing path.
-  // This clears the backbuffer if preserveDrawingBuffer is false.
-  void MarkCompositedAndClearBackbufferIfNeeded();
-
-  // For use by WebVR, commits the current canvas content similar
-  // to the "commit" JS API.
-  scoped_refptr<StaticBitmapImage> GetStaticBitmapImage(
-      std::unique_ptr<viz::SingleReleaseCallback>* out_release_callback);
-
   ScriptPromise makeXRCompatible(ScriptState*);
   bool IsXRCompatible();
+
+  void UpdateNumberOfUserAllocatedMultisampledRenderbuffers(int delta);
 
  protected:
   friend class EXTDisjointTimerQuery;
@@ -637,7 +629,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   friend class WebGLCompressedTextureS3TCsRGB;
   friend class WebGLMultiDraw;
   friend class WebGLMultiDrawCommon;
-  friend class WebGLMultiDrawInstanced;
+  friend class WebGLDrawInstancedBaseVertexBaseInstance;
+  friend class WebGLMultiDrawInstancedBaseVertexBaseInstance;
   friend class WebGLRenderingContextErrorMessageCallback;
   friend class WebGLVertexArrayObjectBase;
   friend class WebGLVideoTexture;
@@ -681,6 +674,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   void DrawingBufferClientRestoreFramebufferBinding() override;
   void DrawingBufferClientRestorePixelUnpackBufferBinding() override;
   void DrawingBufferClientRestorePixelPackBufferBinding() override;
+  bool DrawingBufferClientUserAllocatedMultisampledRenderbuffers() override;
+  void DrawingBufferClientForceLostContextWithAutoRecovery() override;
 
   virtual void DestroyContext();
   void MarkContextChanged(ContentChangeType);
@@ -1760,6 +1755,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
 
   FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
       feature_handle_for_scheduler_;
+
+  int number_of_user_allocated_multisampled_renderbuffers_;
 
   DISALLOW_COPY_AND_ASSIGN(WebGLRenderingContextBase);
 };

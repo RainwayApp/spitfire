@@ -24,7 +24,6 @@
 #include "call/call.h"
 #include "media/base/media_engine.h"
 #include "media/base/rtp_utils.h"
-#include "media/engine/apm_helpers.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/network_route.h"
@@ -152,9 +151,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
       uint32_t ssrc,
       const webrtc::RtpParameters& parameters) override;
   webrtc::RtpParameters GetRtpReceiveParameters(uint32_t ssrc) const override;
-  bool SetRtpReceiveParameters(
-      uint32_t ssrc,
-      const webrtc::RtpParameters& parameters) override;
+  webrtc::RtpParameters GetDefaultRtpReceiveParameters() const override;
 
   void SetPlayout(bool playout) override;
   void SetSend(bool send) override;
@@ -182,8 +179,9 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
                          rtc::scoped_refptr<webrtc::FrameEncryptorInterface>
                              frame_encryptor) override;
 
-  // SSRC=0 will apply the new volume to current and future unsignaled streams.
   bool SetOutputVolume(uint32_t ssrc, double volume) override;
+  // Applies the new volume to current and future unsignaled streams.
+  bool SetDefaultOutputVolume(double volume) override;
 
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
   absl::optional<int> GetBaseMinimumPlayoutDelayMs(
@@ -199,10 +197,13 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   void OnReadyToSend(bool ready) override;
   bool GetStats(VoiceMediaInfo* info) override;
 
-  // SSRC=0 will set the audio sink on the latest unsignaled stream, future or
-  // current. Only one stream at a time will use the sink.
+  // Set the audio sink for an existing stream.
   void SetRawAudioSink(
       uint32_t ssrc,
+      std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
+  // Will set the audio sink on the latest unsignaled stream, future or
+  // current. Only one stream at a time will use the sink.
+  void SetDefaultRawAudioSink(
       std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
 
   std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const override;

@@ -156,10 +156,45 @@ class IncrementalMarkingTestDriver {
                        BlinkGC::StackState::kNoHeapPointersOnStack);
   void FinishGC(bool complete_sweep = true);
 
+  // Methods for forcing a concurrent marking step without any assistance from
+  // mutator thread (i.e. without incremental marking on the mutator thread).
+  bool SingleConcurrentStep(BlinkGC::StackState stack_state =
+                                BlinkGC::StackState::kNoHeapPointersOnStack);
+  void FinishConcurrentSteps(BlinkGC::StackState stack_state =
+                                 BlinkGC::StackState::kNoHeapPointersOnStack);
+
   size_t GetHeapCompactLastFixupCount() const;
 
  private:
   ThreadState* const thread_state_;
+};
+
+class IntegerObject : public GarbageCollected<IntegerObject> {
+ public:
+  void Trace(blink::Visitor* visitor) {}
+
+  int Value() const { return x_; }
+
+  bool operator==(const IntegerObject& other) const {
+    return other.Value() == Value();
+  }
+
+  unsigned GetHash() { return IntHash<int>::GetHash(x_); }
+
+  explicit IntegerObject(int x) : x_(x) {}
+
+ private:
+  int x_;
+};
+
+struct IntegerObjectHash {
+  static unsigned GetHash(const IntegerObject& key) {
+    return WTF::HashInt(static_cast<uint32_t>(key.Value()));
+  }
+
+  static bool Equal(const IntegerObject& a, const IntegerObject& b) {
+    return a == b;
+  }
 };
 
 }  // namespace blink

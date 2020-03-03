@@ -68,6 +68,7 @@ class MockRtpRtcp : public RtpRtcp {
   MOCK_METHOD1(SetCSRCStatus, int32_t(bool include));
   MOCK_METHOD1(SetRtxSendStatus, void(int modes));
   MOCK_CONST_METHOD0(RtxSendStatus, int());
+  MOCK_CONST_METHOD0(RtxSsrc, absl::optional<uint32_t>());
   MOCK_METHOD1(SetRtxSsrc, void(uint32_t));
   MOCK_METHOD2(SetRtxSendPayloadType, void(int, int));
   MOCK_CONST_METHOD0(FlexfecSsrc, absl::optional<uint32_t>());
@@ -76,6 +77,7 @@ class MockRtpRtcp : public RtpRtcp {
   MOCK_CONST_METHOD0(Sending, bool());
   MOCK_METHOD1(SetSendingMediaStatus, void(bool sending));
   MOCK_CONST_METHOD0(SendingMedia, bool());
+  MOCK_CONST_METHOD0(IsAudioConfigured, bool());
   MOCK_METHOD1(SetAsPartOfAllocation, void(bool));
   MOCK_CONST_METHOD4(BitrateSent,
                      void(uint32_t* total_rate,
@@ -88,6 +90,7 @@ class MockRtpRtcp : public RtpRtcp {
   MOCK_METHOD2(TrySendPacket,
                bool(RtpPacketToSend* packet,
                     const PacedPacketInfo& pacing_info));
+  MOCK_METHOD1(OnPacketsAcknowledged, void(rtc::ArrayView<const uint16_t>));
   MOCK_METHOD1(
       GeneratePadding,
       std::vector<std::unique_ptr<RtpPacketToSend>>(size_t target_size_bytes));

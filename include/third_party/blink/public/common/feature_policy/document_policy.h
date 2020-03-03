@@ -64,13 +64,6 @@ namespace blink {
 // Each defined feature has a default policy, which determines the threshold
 // value to use when no policy has been declared.
 
-struct BLINK_COMMON_EXPORT ParsedDocumentPolicyDeclaration {
-  mojom::FeaturePolicyFeature feature;
-  PolicyValue value;
-};
-
-using ParsedDocumentPolicy = std::vector<ParsedDocumentPolicyDeclaration>;
-
 class BLINK_COMMON_EXPORT DocumentPolicy {
  public:
   using FeatureState = std::map<mojom::FeaturePolicyFeature, PolicyValue>;
@@ -89,24 +82,22 @@ class BLINK_COMMON_EXPORT DocumentPolicy {
   bool IsFeatureEnabled(mojom::FeaturePolicyFeature feature,
                         const PolicyValue& threshold_value) const;
 
+  // Returns true if the feature is being migrated to document policy
+  // TODO(iclelland): remove this method when those features are fully
+  // migrated to document policy.
+  bool IsFeatureSupported(mojom::FeaturePolicyFeature feature) const;
+
   // Returns the value of the given feature on the given origin.
   PolicyValue GetFeatureValue(mojom::FeaturePolicyFeature feature) const;
-
-  // Sets the declared policy from the parsed Document-Policy HTTP header.
-  // Unrecognized features will be ignored.
-  void SetHeaderPolicy(const ParsedDocumentPolicy& parsed_header);
 
   // Returns the current threshold values assigned to all document policies.
   // the declared header policy as well as any unadvertised required policies
   // (such as sandbox policies).
   FeatureState GetFeatureState() const;
 
-  // Returns the required policy to advertise for an outgoing HTTP request.
-  ParsedDocumentPolicy RequiredPolicy() const;
-
-  // Returns true if this document policy is compatible with the given required
-  // policy.
-  bool IsPolicyCompatible(const ParsedDocumentPolicy& required_policy);
+  // Returns true if this document policy is compatible with the incoming
+  // document policy.
+  bool IsPolicyCompatible(const FeatureState& incoming_policy);
 
   // Returns the list of features which can be controlled by Document Policy,
   // and their default values.

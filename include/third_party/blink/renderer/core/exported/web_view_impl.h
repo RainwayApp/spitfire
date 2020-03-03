@@ -85,8 +85,6 @@ class Frame;
 class FullscreenController;
 class HTMLPlugInElement;
 class PageScaleConstraintsSet;
-class PaintLayerCompositor;
-class UserGestureToken;
 class WebDevToolsAgentImpl;
 class WebElement;
 class WebInputMethodController;
@@ -142,7 +140,6 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   WebFrame* MainFrame() override;
   WebLocalFrame* FocusedFrame() override;
   void SetFocusedFrame(WebFrame*) override;
-  void FocusDocumentView(WebFrame*) override;
   void SetInitialFocus(bool reverse) override;
   void ClearFocusedElement() override;
   void SmoothScroll(int target_x,
@@ -201,7 +198,8 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   void AcceptLanguagesChanged() override;
   void SetPageFrozen(bool frozen) override;
   void PutPageIntoBackForwardCache() override;
-  void RestorePageFromBackForwardCache() override;
+  void RestorePageFromBackForwardCache(
+      base::TimeTicks navigation_start) override;
   WebWidget* MainFrameWidget() override;
   void SetBaseBackgroundColor(SkColor) override;
   void SetBackgroundColorOverride(SkColor) override;
@@ -309,12 +307,10 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   void CleanupPagePopup();
   LocalDOMWindow* PagePopupWindow() const;
 
-  GraphicsLayer* RootGraphicsLayer();
-  PaintLayerCompositor* Compositor() const;
-
   PageScheduler* Scheduler() const override;
-  void SetIsHidden(bool hidden, bool is_initial_state) override;
-  bool IsHidden() override;
+  void SetVisibilityState(PageVisibilityState visibility_state,
+                          bool is_initial_state) override;
+  PageVisibilityState GetVisibilityState() override;
 
   // Called by a full frame plugin inside this view to inform it that its
   // zoom level has been updated.  The plugin should only call this function
@@ -538,7 +534,6 @@ class CORE_EXPORT WebViewImpl final : public WebView,
 
   float DeviceScaleFactor() const;
 
-  void SetRootGraphicsLayer(GraphicsLayer*);
   void SetRootLayer(scoped_refptr<cc::Layer>);
 
   LocalFrame* FocusedLocalFrameInWidget() const;
@@ -650,7 +645,6 @@ class CORE_EXPORT WebViewImpl final : public WebView,
 
   // If set, the (plugin) element which has mouse capture.
   Persistent<HTMLPlugInElement> mouse_capture_element_;
-  scoped_refptr<UserGestureToken> mouse_capture_gesture_token_;
 
   // WebViews, and WebWidgets, are used to host a Page. The WidgetClient()
   // provides compositing support for the WebView.
@@ -667,8 +661,6 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   cc::AnimationHost* animation_host_ = nullptr;
 
   scoped_refptr<cc::Layer> root_layer_;
-  GraphicsLayer* root_graphics_layer_ = nullptr;
-  GraphicsLayer* visual_viewport_container_layer_ = nullptr;
   bool matches_heuristics_for_gpu_rasterization_ = false;
 
   std::unique_ptr<FullscreenController> fullscreen_controller_;

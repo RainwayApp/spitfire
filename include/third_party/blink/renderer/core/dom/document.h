@@ -60,7 +60,6 @@
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
-#include "third_party/blink/renderer/core/frame/dom_timer_coordinator.h"
 #include "third_party/blink/renderer/core/frame/hosts_using_features.h"
 #include "third_party/blink/renderer/core/html/custom/v0_custom_element.h"
 #include "third_party/blink/renderer/core/html/parser/parser_synchronization_policy.h"
@@ -93,6 +92,7 @@ class ChromeClient;
 class Comment;
 class ComputedAccessibleNode;
 class WindowAgent;
+class WindowAgentFactory;
 class ComputedStyle;
 class ConsoleMessage;
 class ContextFeatures;
@@ -124,6 +124,7 @@ template <typename EventType>
 class EventWithHitTestResults;
 class FloatQuad;
 class FloatRect;
+class FontMatchingMetrics;
 class FormController;
 class HTMLAllCollection;
 class HTMLBodyElement;
@@ -189,7 +190,6 @@ class StyleSheetList;
 class TextAutosizer;
 class TransformSource;
 class TreeWalker;
-class USVStringOrTrustedURL;
 class V8NodeFilter;
 class ViewportData;
 class VisitedLinkState;
@@ -236,7 +236,7 @@ enum ShadowCascadeOrder {
   kShadowCascadeV1
 };
 
-enum class SecureContextState { kUnknown, kNonSecure, kSecure };
+enum class SecureContextState { kNonSecure, kSecure };
 
 using DocumentClassFlags = unsigned char;
 
@@ -629,7 +629,7 @@ class CORE_EXPORT Document : public ContainerNode,
                  const AtomicString& replace,
                  ExceptionState&);
   DOMWindow* open(v8::Isolate*,
-                  const USVStringOrTrustedURL& string_or_url,
+                  const String& url_string,
                   const AtomicString& name,
                   const AtomicString& features,
                   ExceptionState&);
@@ -775,6 +775,12 @@ class CORE_EXPORT Document : public ContainerNode,
   }
   void SetPrinting(PrintingState);
 
+  bool IsPaintingPreview() const { return is_painting_preview_; }
+  bool IsCapturingLayout() const {
+    return printing_ == kPrinting || is_painting_preview_;
+  }
+  void SetIsPaintingPreview(bool);
+
   enum CompatibilityMode { kQuirksMode, kLimitedQuirksMode, kNoQuirksMode };
 
   void SetCompatibilityMode(CompatibilityMode);
@@ -834,6 +840,8 @@ class CORE_EXPORT Document : public ContainerNode,
                                 bool matches);
   void EnqueueAutofocusCandidate(Element&);
   bool HasAutofocusCandidates() const;
+  void FlushAutofocusCandidates();
+  void FinalizeAutofocus();
   void SetSequentialFocusNavigationStartingPoint(Node*);
   Element* SequentialFocusNavigationStartingPoint(WebFocusType) const;
 
@@ -1191,6 +1199,7 @@ class CORE_EXPORT Document : public ContainerNode,
   void EnqueueOverscrollEventForNode(Node* target,
                                      double delta_x,
                                      double delta_y);
+  void EnqueueDisplayLockActivationTask(base::OnceClosure);
   void EnqueueAnimationFrameTask(base::OnceClosure);
   void EnqueueAnimationFrameEvent(Event*);
   // Only one event for a target/event type combination will be dispatched per
@@ -1345,8 +1354,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void PlatformColorsChanged();
 
-  DOMTimerCoordinator* Timers() final;
-
   HostsUsingFeatures::Value& HostsUsingFeaturesValue() {
     return hosts_using_features_value_;
   }
@@ -1358,11 +1365,6 @@ class CORE_EXPORT Document : public ContainerNode,
   void SetSecureContextStateForTesting(SecureContextState state) {
     secure_context_state_ = state;
   }
-
-  void BindDocumentInterfaceBroker(mojo::ScopedMessagePipeHandle js_handle);
-
-  mojo::ScopedMessagePipeHandle SetDocumentInterfaceBrokerForTesting(
-      mojo::ScopedMessagePipeHandle blink_handle);
 
   CanvasFontCache* GetCanvasFontCache();
 
@@ -1430,7 +1432,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   CoreProbeSink* GetProbeSink() final;
   service_manager::InterfaceProvider* GetInterfaceProvider() final;
-  mojom::blink::DocumentInterfaceBroker* GetDocumentInterfaceBroker() final;
 
   BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() final;
 
@@ -1463,6 +1464,10 @@ class CORE_EXPORT Document : public ContainerNode,
 
   ukm::UkmRecorder* UkmRecorder();
   ukm::SourceId UkmSourceID() const;
+
+  // Tracks and reports UKM metrics of the number of attempted font family match
+  // attempts (both successful and not successful) by the page.
+  FontMatchingMetrics* GetFontMatchingMetrics();
 
   // May return nullptr.
   FrameOrWorkerScheduler* GetScheduler() override;
@@ -1522,6 +1527,7 @@ class CORE_EXPORT Document : public ContainerNode,
   LazyLoadImageObserver& EnsureLazyLoadImageObserver();
 
   WindowAgent& GetWindowAgent();
+  WindowAgentFactory* GetWindowAgentFactory() { return window_agent_factory_; }
 
   void CountPotentialFeaturePolicyViolation(
       mojom::FeaturePolicyFeature) const override;
@@ -1576,6 +1582,7 @@ class CORE_EXPORT Document : public ContainerNode,
   void SetShowBeforeUnloadDialog(bool show_dialog);
 
   TrustedTypePolicyFactory* GetTrustedTypes() const override;
+  bool RequireTrustedTypes() const override;
 
   void ColorSchemeChanged();
 
@@ -1621,6 +1628,13 @@ class CORE_EXPORT Document : public ContainerNode,
   }
   bool ToggleDuringParsing() { return toggle_during_parsing_; }
 
+  // We setup a dummy document to sanitize clipboard markup before pasting.
+  // Sets and indicates whether this is the dummy document.
+  void SetIsForMarkupSanitization(bool is_for_sanitization) {
+    is_for_markup_sanitization_ = is_for_sanitization;
+  }
+  bool IsForMarkupSanitization() const { return is_for_markup_sanitization_; }
+
   bool HasPendingJavaScriptUrlsForTest() {
     return !pending_javascript_urls_.IsEmpty();
   }
@@ -1629,6 +1643,15 @@ class CORE_EXPORT Document : public ContainerNode,
   bool UseCountFragmentDirective() const {
     return use_count_fragment_directive_;
   }
+
+#if DCHECK_IS_ON()
+  bool AllowDirtyShadowV0Traversal() const {
+    return allow_dirty_shadow_v0_traversal_;
+  }
+  void SetAllowDirtyShadowV0Traversal(bool allow) {
+    allow_dirty_shadow_v0_traversal_ = allow;
+  }
+#endif
 
  protected:
   void ClearXMLVersion() { xml_version_ = String(); }
@@ -1741,7 +1764,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void ClearFocusedElementSoon();
   void ClearFocusedElementTimerFired(TimerBase*);
-  void FlushAutofocusCandidates();
   bool HasNonEmptyFragment() const;
 
   bool HaveScriptBlockingStylesheetsLoaded() const;
@@ -1798,6 +1820,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // stylesheets do eventually load.
   PendingSheetLayout pending_sheet_layout_;
 
+  Member<WindowAgentFactory> window_agent_factory_;
   Member<LocalFrame> frame_;
   Member<LocalDOMWindow> dom_window_;
   Member<HTMLImportsController> imports_controller_;
@@ -1838,6 +1861,7 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<CSSStyleSheet> elem_sheet_;
 
   PrintingState printing_;
+  bool is_painting_preview_;
 
   CompatibilityMode compatibility_mode_;
   // This is cheaper than making setCompatibilityMode virtual.
@@ -2026,8 +2050,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   HeapHashSet<Member<SVGUseElement>> use_elements_needing_update_;
 
-  DOMTimerCoordinator timers_;
-
   bool has_viewport_units_;
 
   ParserSynchronizationPolicy parser_sync_policy_;
@@ -2061,10 +2083,14 @@ class CORE_EXPORT Document : public ContainerNode,
   std::unique_ptr<DocumentOutliveTimeReporter> document_outlive_time_reporter_;
 
   // |ukm_recorder_| and |source_id_| will allow objects that are part of
-  // the document to recorde UKM.
+  // the document to record UKM.
   std::unique_ptr<ukm::UkmRecorder> ukm_recorder_;
   int64_t ukm_source_id_;
   bool needs_to_record_ukm_outlive_time_;
+
+  // Tracks and reports UKM metrics of the number of attempted font family match
+  // attempts (both successful and not successful) by the page.
+  std::unique_ptr<FontMatchingMetrics> font_matching_metrics_;
 
 #if DCHECK_IS_ON()
   unsigned slot_assignment_recalc_forbidden_recursion_depth_ = 0;
@@ -2097,6 +2123,12 @@ class CORE_EXPORT Document : public ContainerNode,
   // counterpart to a PluginDocument except that it contains a FrameView as
   // opposed to a PluginView.
   bool is_for_external_handler_ = false;
+
+#if DCHECK_IS_ON()
+  // Allow traversal of Shadow DOM V0 traversal with dirty distribution.
+  // Required for marking ancestors style-child-dirty for FlatTreeStyleRecalc.
+  bool allow_dirty_shadow_v0_traversal_ = false;
+#endif
 
   Member<NavigationInitiatorImpl> navigation_initiator_;
   Member<LazyLoadImageObserver> lazy_load_image_observer_;
@@ -2143,6 +2175,8 @@ class CORE_EXPORT Document : public ContainerNode,
   std::unique_ptr<FrameOrWorkerScheduler> detached_scheduler_;
 
   bool toggle_during_parsing_ = false;
+
+  bool is_for_markup_sanitization_ = false;
 
   String fragment_directive_;
 

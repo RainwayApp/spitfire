@@ -61,7 +61,6 @@ class AXObjectCache;
 class ChromeClient;
 class CompositorAnimationTimeline;
 class Cursor;
-class DisplayItemClient;
 class DocumentLifecycle;
 class FloatRect;
 class FloatSize;
@@ -294,9 +293,7 @@ class CORE_EXPORT LocalFrameView final
   // Objects with background-attachment:fixed.
   void AddBackgroundAttachmentFixedObject(LayoutObject*);
   void RemoveBackgroundAttachmentFixedObject(LayoutObject*);
-  bool HasBackgroundAttachmentFixedObjects() const {
-    return background_attachment_fixed_objects_.size();
-  }
+  bool RequiresMainThreadScrollingForBackgroundAttachmentFixed() const;
   const ObjectSet& BackgroundAttachmentFixedObjects() const {
     return background_attachment_fixed_objects_;
   }
@@ -430,21 +427,10 @@ class CORE_EXPORT LocalFrameView final
   // FIXME: Remove this method once plugin loading is decoupled from layout.
   void FlushAnyPendingPostLayoutTasks();
 
-  static void SetInitialTracksPaintInvalidationsForTesting(bool);
-
   // These methods are for testing.
-  void SetTracksPaintInvalidations(bool);
-  bool IsTrackingPaintInvalidations() const {
-    return tracked_object_paint_invalidations_.get();
-  }
-  void TrackObjectPaintInvalidation(const DisplayItemClient&,
-                                    PaintInvalidationReason);
-  struct ObjectPaintInvalidation {
-    String name;
-    PaintInvalidationReason reason;
-  };
-  Vector<ObjectPaintInvalidation>* TrackedObjectPaintInvalidations() const {
-    return tracked_object_paint_invalidations_.get();
+  void SetTracksRasterInvalidations(bool);
+  bool IsTrackingRasterInvalidations() const {
+    return is_tracking_raster_invalidations_;
   }
 
   using ScrollableAreaSet = HeapHashSet<Member<PaintLayerScrollableArea>>;
@@ -613,6 +599,8 @@ class CORE_EXPORT LocalFrameView final
   void DequeueScrollAnchoringAdjustment(ScrollableArea*);
   void PerformScrollAnchoringAdjustments();
 
+  void SetNeedsEnqueueScrollEvent(PaintLayerScrollableArea*);
+
   // Only for CompositeAfterPaint.
   std::unique_ptr<JSONObject> CompositedLayersAsJSON(LayerTreeFlags);
 
@@ -625,9 +613,9 @@ class CORE_EXPORT LocalFrameView final
 
   bool HasVisibleSlowRepaintViewportConstrainedObjects() const;
 
-  bool MapToVisualRectInTopFrameSpace(PhysicalRect&);
+  bool MapToVisualRectInRemoteRootFrame(PhysicalRect&);
 
-  void ApplyTransformForTopFrameSpace(TransformState&);
+  void MapLocalToRemoteRootFrame(TransformState&);
 
   void CrossOriginStatusChanged();
 
@@ -674,6 +662,11 @@ class CORE_EXPORT LocalFrameView final
   // Return the UKM aggregator for this frame, creating it if necessary.
   LocalFrameUkmAggregator& EnsureUkmAggregator();
 
+  // Report the First Contentful Paint signal to the LocalFrameView.
+  // This causes Deferred Commits to be restarted and tells the UKM
+  // aggregator that FCP has been reached.
+  void OnFirstContentfulPaint();
+
 #if DCHECK_IS_ON()
   void SetIsUpdatingDescendantDependentFlags(bool val) {
     is_updating_descendant_dependent_flags_ = val;
@@ -686,17 +679,24 @@ class CORE_EXPORT LocalFrameView final
   void RegisterForLifecycleNotifications(LifecycleNotificationObserver*);
   void UnregisterFromLifecycleNotifications(LifecycleNotificationObserver*);
 
+  // Sets whether all ResizeObservers should check all their ResizeObservations
+  // for a resize. This is needed when exiting a display lock.
+  void SetNeedsForcedResizeObservations();
+
  protected:
   void FrameRectsChanged(const IntRect&) override;
   void SelfVisibleChanged() override;
   void ParentVisibleChanged() override;
   void NotifyFrameRectsChangedIfNeeded();
-  void SetViewportIntersection(const IntRect& viewport_intersection,
-                               FrameOcclusionState occlusion_state) override {}
+  void SetViewportIntersection(
+      const ViewportIntersectionState& intersection_state) override {}
   void VisibilityForThrottlingChanged() override;
   bool LifecycleUpdatesThrottled() const override {
     return lifecycle_updates_throttled_;
   }
+  void VisibilityChanged(blink::mojom::FrameVisibility visibility) override;
+
+  void EnqueueScrollEvents();
 
  private:
   LocalFrameView(LocalFrame&, IntRect);
@@ -827,6 +827,8 @@ class CORE_EXPORT LocalFrameView final
 
   void LayoutFromRootObject(LayoutObject& root);
 
+  void UpdateLayerDebugInfoEnabled();
+
   LayoutSize size_;
 
   typedef HashSet<scoped_refptr<LayoutEmbeddedObject>> EmbeddedObjectSet;
@@ -902,8 +904,6 @@ class CORE_EXPORT LocalFrameView final
   bool frame_timing_requests_dirty_;
 
   // Exists only on root frame.
-  // TODO(bokan): crbug.com/484188. We should specialize LocalFrameView for the
-  // main frame.
   Member<RootFrameViewport> viewport_scrollable_area_;
 
   // Non-top-level frames a throttled until they are ready to run lifecycle
@@ -918,6 +918,8 @@ class CORE_EXPORT LocalFrameView final
   using AnchoringAdjustmentQueue =
       HeapLinkedHashSet<WeakMember<ScrollableArea>>;
   AnchoringAdjustmentQueue anchoring_adjustment_queue_;
+
+  HeapLinkedHashSet<WeakMember<PaintLayerScrollableArea>> scroll_event_queue_;
 
   bool suppress_adjust_view_size_;
 #if DCHECK_IS_ON()
@@ -935,16 +937,17 @@ class CORE_EXPORT LocalFrameView final
   // We won't defer again for the same document.
   bool have_deferred_commits_ = false;
 
-  LifecycleData lifecycle_data_;
+  // Whether to collect layer debug information for debugging, tracing,
+  // inspection, etc. Applies to local root only.
+  bool layer_debug_info_enabled_ = DCHECK_IS_ON();
 
-  IntRect remote_viewport_intersection_;
+  LifecycleData lifecycle_data_;
 
   // Lazily created, but should only be created on a local frame root's view.
   mutable std::unique_ptr<ScrollingCoordinatorContext> scrolling_context_;
 
   // For testing.
-  std::unique_ptr<Vector<ObjectPaintInvalidation>>
-      tracked_object_paint_invalidations_;
+  bool is_tracking_raster_invalidations_ = false;
 
   // Currently used in PushPaintArtifactToCompositor() to collect composited
   // layers as foreign layers. It's transient, but may live across frame updates
@@ -1010,20 +1013,6 @@ inline void LocalFrameView::IncrementVisuallyNonEmptyPixelCount(
   static const unsigned kVisualPixelThreshold = 32 * 32;
   if (visually_non_empty_pixel_count_ > kVisualPixelThreshold)
     SetIsVisuallyNonEmpty();
-}
-
-inline bool operator==(const LocalFrameView::ObjectPaintInvalidation& a,
-                       const LocalFrameView::ObjectPaintInvalidation& b) {
-  return a.name == b.name && a.reason == b.reason;
-}
-inline bool operator!=(const LocalFrameView::ObjectPaintInvalidation& a,
-                       const LocalFrameView::ObjectPaintInvalidation& b) {
-  return !(a == b);
-}
-inline std::ostream& operator<<(
-    std::ostream& os,
-    const LocalFrameView::ObjectPaintInvalidation& info) {
-  return os << info.name << " reason=" << info.reason;
 }
 
 template <>

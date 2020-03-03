@@ -27,8 +27,8 @@ BLINK_COMMON_EXPORT extern const base::Feature kFreezePurgeMemoryAllPagesFrozen;
 BLINK_COMMON_EXPORT extern const base::Feature kFreezeUserAgent;
 BLINK_COMMON_EXPORT extern const base::Feature kImplicitRootScroller;
 BLINK_COMMON_EXPORT extern const base::Feature kCSSOMViewScrollCoordinates;
-BLINK_COMMON_EXPORT extern const base::Feature kCSSBackdropFilter;
 BLINK_COMMON_EXPORT extern const base::Feature kDisplayLocking;
+BLINK_COMMON_EXPORT extern const base::Feature kDoNotCompositeTrivial3D;
 BLINK_COMMON_EXPORT extern const base::Feature kFastBorderRadius;
 BLINK_COMMON_EXPORT extern const base::Feature kLayoutNG;
 BLINK_COMMON_EXPORT extern const base::Feature kMixedContentAutoupgrade;
@@ -37,6 +37,7 @@ BLINK_COMMON_EXPORT extern const base::Feature
     kOffMainThreadServiceWorkerStartup;
 BLINK_COMMON_EXPORT extern const base::Feature kPlzDedicatedWorker;
 BLINK_COMMON_EXPORT extern const base::Feature kPortals;
+BLINK_COMMON_EXPORT extern const base::Feature kPortalsCrossOrigin;
 BLINK_COMMON_EXPORT extern const base::Feature
     kPreviewsResourceLoadingHintsSpecificResourceTypes;
 BLINK_COMMON_EXPORT extern const base::Feature
@@ -44,9 +45,6 @@ BLINK_COMMON_EXPORT extern const base::Feature
 BLINK_COMMON_EXPORT extern const base::Feature kRTCGetDisplayMedia;
 BLINK_COMMON_EXPORT extern const base::Feature kRTCUnifiedPlanByDefault;
 BLINK_COMMON_EXPORT extern const base::Feature kRTCOfferExtmapAllowMixed;
-BLINK_COMMON_EXPORT extern const base::Feature kWebRtcHWH264Encoding;
-BLINK_COMMON_EXPORT extern const base::Feature kWebRtcHWVP8Encoding;
-BLINK_COMMON_EXPORT extern const base::Feature kWebRtcHWVP9Encoding;
 BLINK_COMMON_EXPORT extern const base::Feature kWebRtcMultiplexCodec;
 BLINK_COMMON_EXPORT extern const base::Feature kWebRtcHideLocalIpsWithMdns;
 
@@ -70,10 +68,10 @@ BLINK_COMMON_EXPORT extern const base::Feature kFileHandlingAPI;
 BLINK_COMMON_EXPORT extern const base::Feature kAllowSyncXHRInPageDismissal;
 BLINK_COMMON_EXPORT extern const base::Feature kPrefetchPrivacyChanges;
 
+BLINK_COMMON_EXPORT extern const base::Feature kWebComponentsV0Enabled;
+
 BLINK_COMMON_EXPORT extern const char kMixedContentAutoupgradeModeParamName[];
-BLINK_COMMON_EXPORT extern const char kMixedContentAutoupgradeModeBlockable[];
-BLINK_COMMON_EXPORT extern const char
-    kMixedContentAutoupgradeModeOptionallyBlockable[];
+BLINK_COMMON_EXPORT extern const char kMixedContentAutoupgradeModeNoImages[];
 
 BLINK_COMMON_EXPORT extern const base::Feature kDecodeJpeg420ImagesToYUV;
 BLINK_COMMON_EXPORT extern const base::Feature kDecodeLossyWebPImagesToYUV;
@@ -86,6 +84,8 @@ BLINK_COMMON_EXPORT extern const base::Feature
 BLINK_COMMON_EXPORT extern const base::Feature kAudioWorkletRealtimeThread;
 
 BLINK_COMMON_EXPORT extern const base::Feature kLightweightNoStatePrefetch;
+BLINK_COMMON_EXPORT extern const base::Feature
+    kLightweightNoStatePrefetch_FetchFonts;
 
 BLINK_COMMON_EXPORT extern const base::Feature kForceWebContentsDarkMode;
 BLINK_COMMON_EXPORT extern const base::FeatureParam<ForceDarkInversionMethod>
@@ -100,7 +100,7 @@ BLINK_COMMON_EXPORT extern const base::FeatureParam<int>
 // Returns true when PlzDedicatedWorker is enabled.
 BLINK_COMMON_EXPORT bool IsPlzDedicatedWorkerEnabled();
 
-BLINK_COMMON_EXPORT extern const base::Feature kCanvasAlwaysDeferral;
+BLINK_COMMON_EXPORT extern const base::Feature kWebRtcUseMinMaxVEADimensions;
 
 // Blink garbage collection.
 BLINK_COMMON_EXPORT extern const base::Feature kBlinkHeapCompaction;
@@ -126,9 +126,27 @@ BLINK_COMMON_EXPORT extern const base::Feature
 BLINK_COMMON_EXPORT extern const base::Feature
     kLowerJavaScriptPriorityWhenForceDeferred;
 
-BLINK_COMMON_EXPORT extern const base::Feature kARIAAnnotationRoles;
+BLINK_COMMON_EXPORT extern const base::Feature kARIAAnnotations;
 
 BLINK_COMMON_EXPORT extern const base::Feature kDisableDirectlyCompositedImages;
+BLINK_COMMON_EXPORT extern const base::Feature kCompositeCrossOriginIframes;
+
+BLINK_COMMON_EXPORT extern const base::Feature kSubresourceRedirect;
+
+BLINK_COMMON_EXPORT extern const base::Feature kSetLowPriorityForBeacon;
+
+BLINK_COMMON_EXPORT extern const base::Feature
+    kSetDetachedWindowReasonByNavigation;
+BLINK_COMMON_EXPORT extern const base::Feature
+    kSetDetachedWindowReasonByClosing;
+BLINK_COMMON_EXPORT extern const base::Feature
+    kSetDetachedWindowReasonByOtherReason;
+
+BLINK_COMMON_EXPORT extern const base::Feature kCacheStorageCodeCacheHintHeader;
+BLINK_COMMON_EXPORT extern const base::FeatureParam<std::string>
+    kCacheStorageCodeCacheHintHeaderName;
+
+BLINK_COMMON_EXPORT extern const base::Feature kDispatchBeforeUnloadOnFreeze;
 
 }  // namespace features
 }  // namespace blink

@@ -104,8 +104,6 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   void DisableAudioNetworkAdaptor() override;
   void OnReceivedUplinkPacketLossFraction(
       float uplink_packet_loss_fraction) override;
-  void OnReceivedUplinkRecoverablePacketLossFraction(
-      float uplink_recoverable_packet_loss_fraction) override;
   void OnReceivedUplinkBandwidth(
       int target_audio_bitrate_bps,
       absl::optional<int64_t> bwe_period_ms) override;
@@ -179,6 +177,10 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   const bool use_stable_target_for_adaptation_;
   const bool adjust_bandwidth_;
   bool bitrate_changed_;
+  // A multiplier for bitrates at 5 kbps and higher. The target bitrate
+  // will be multiplied by these multipliers, each multiplier is applied to a
+  // 1 kbps range.
+  std::vector<float> bitrate_multipliers_;
   float packet_loss_rate_;
   const float min_packet_loss_rate_;
   const std::unique_ptr<NewPacketLossRateOptimizer> new_packet_loss_optimizer_;

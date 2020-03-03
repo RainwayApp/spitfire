@@ -71,6 +71,7 @@ class PLATFORM_EXPORT HeapAllocator {
   STATIC_ONLY(HeapAllocator);
 
  public:
+  using WeakCallbackInfo = blink::WeakCallbackInfo;
   using Visitor = blink::Visitor;
   static constexpr bool kIsGarbageCollected = true;
 
@@ -91,43 +92,18 @@ class PLATFORM_EXPORT HeapAllocator {
         ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState();
     DCHECK(state->IsAllocationAllowed());
     uint32_t gc_info_index = GCInfoTrait<HeapVectorBacking<T>>::Index();
-    NormalPageArena* arena = static_cast<NormalPageArena*>(
-        state->Heap().VectorBackingArena(gc_info_index));
-    return reinterpret_cast<T*>(MarkAsConstructed(arena->AllocateObject(
-        ThreadHeap::AllocationSizeFromSize(size), gc_info_index)));
-  }
-  template <typename T>
-  static T* AllocateExpandedVectorBacking(size_t size) {
-    ThreadState* state =
-        ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState();
-    DCHECK(state->IsAllocationAllowed());
-    uint32_t gc_info_index = GCInfoTrait<HeapVectorBacking<T>>::Index();
-    NormalPageArena* arena = static_cast<NormalPageArena*>(
-        state->Heap().ExpandedVectorBackingArena(gc_info_index));
-    return reinterpret_cast<T*>(MarkAsConstructed(arena->AllocateObject(
-        ThreadHeap::AllocationSizeFromSize(size), gc_info_index)));
+    const char* type_name =
+        WTF_HEAP_PROFILER_TYPE_NAME(HeapHashTableBacking<HeapVectorBacking<T>>);
+    return reinterpret_cast<T*>(
+        MarkAsConstructed(state->Heap().AllocateOnArenaIndex(
+            state, ThreadHeap::AllocationSizeFromSize(size),
+            BlinkGC::kVectorArenaIndex, gc_info_index, type_name)));
   }
   static void FreeVectorBacking(void*);
   static bool ExpandVectorBacking(void*, size_t);
   static bool ShrinkVectorBacking(void* address,
                                   size_t quantized_current_size,
                                   size_t quantized_shrunk_size);
-  template <typename T>
-  static T* AllocateInlineVectorBacking(size_t size) {
-    uint32_t gc_info_index = GCInfoTrait<HeapVectorBacking<T>>::Index();
-    ThreadState* state =
-        ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState();
-    const char* type_name = WTF_HEAP_PROFILER_TYPE_NAME(HeapVectorBacking<T>);
-    return reinterpret_cast<T*>(
-        MarkAsConstructed(state->Heap().AllocateOnArenaIndex(
-            state, size, BlinkGC::kInlineVectorArenaIndex, gc_info_index,
-            type_name)));
-  }
-  static void FreeInlineVectorBacking(void*);
-  static bool ExpandInlineVectorBacking(void*, size_t);
-  static bool ShrinkInlineVectorBacking(void* address,
-                                        size_t quantized_current_size,
-                                        size_t quantized_shrunk_size);
 
   template <typename T, typename HashTable>
   static T* AllocateHashTableBacking(size_t size) {
@@ -165,16 +141,6 @@ class PLATFORM_EXPORT HeapAllocator {
     }
   }
 
-  template <typename T>
-  static void BackingWriteBarrier(Member<T>* address, size_t size) {
-    MarkingVisitor::WriteBarrier(address);
-  }
-
-  template <typename T>
-  static void BackingWriteBarrier(T* address, size_t size) {
-    MarkingVisitor::WriteBarrier(address);
-  }
-
   template <typename Return, typename Metadata>
   static Return Malloc(size_t size, const char* type_name) {
     return reinterpret_cast<Return>(
@@ -206,17 +172,10 @@ class PLATFORM_EXPORT HeapAllocator {
     return ThreadHeap::IsHeapObjectAlive(object);
   }
 
-  template <typename VisitorDispatcher, typename T, typename Traits>
-  static void Trace(VisitorDispatcher visitor, T& t) {
-    TraceCollectionIfEnabled<Traits::kWeakHandlingFlag, T, Traits>::Trace(
-        visitor, t);
-  }
-
-  template <typename VisitorDispatcher>
-  static bool RegisterWeakTable(VisitorDispatcher visitor,
-                                const void* closure,
-                                EphemeronCallback iteration_callback) {
-    return visitor->RegisterWeakTable(closure, iteration_callback);
+  template <typename T, typename Traits>
+  static void Trace(blink::Visitor* visitor, T& t) {
+    TraceCollectionIfEnabled<WTF::WeakHandlingTrait<T>::value, T,
+                             Traits>::Trace(visitor, &t);
   }
 
   template <typename T, typename VisitorDispatcher>
@@ -249,10 +208,8 @@ class PLATFORM_EXPORT HeapAllocator {
       // No weak handling for write barriers. Modifying weakly reachable objects
       // strongifies them for the current cycle.
       DCHECK(!Traits::kCanHaveDeletedValue || !Traits::IsDeletedValue(*object));
-      TraceCollectionIfEnabled<
-          WTF::kNoWeakHandling, T, Traits>::Trace(thread_state
-                                                      ->CurrentVisitor(),
-                                                  *object);
+      TraceCollectionIfEnabled<WTF::kNoWeakHandling, T, Traits>::Trace(
+          thread_state->CurrentVisitor(), object);
     }
   }
 
@@ -272,10 +229,8 @@ class PLATFORM_EXPORT HeapAllocator {
       while (len-- > 0) {
         DCHECK(!Traits::kCanHaveDeletedValue ||
                !Traits::IsDeletedValue(*array));
-        TraceCollectionIfEnabled<
-            WTF::kNoWeakHandling, T, Traits>::Trace(thread_state
-                                                        ->CurrentVisitor(),
-                                                    *array);
+        TraceCollectionIfEnabled<WTF::kNoWeakHandling, T, Traits>::Trace(
+            thread_state->CurrentVisitor(), array);
         array++;
       }
     }
@@ -305,7 +260,7 @@ class PLATFORM_EXPORT HeapAllocator {
                                           T** backing_slot,
                                           WeakCallback callback,
                                           void* parameter) {
-    visitor->TraceBackingStoreWeakly(
+    visitor->TraceBackingStoreWeakly<HashTable>(
         reinterpret_cast<HeapHashTableBacking<HashTable>*>(backing),
         reinterpret_cast<HeapHashTableBacking<HashTable>**>(backing_slot),
         callback, parameter);
@@ -371,7 +326,7 @@ static void TraceListHashSetValue(VisitorDispatcher visitor, Value& value) {
   // strongify template argument, so we specify WTF::WeakPointersActWeak,
   // arbitrarily.
   TraceCollectionIfEnabled<WTF::kNoWeakHandling, Value,
-                           WTF::HashTraits<Value>>::Trace(visitor, value);
+                           WTF::HashTraits<Value>>::Trace(visitor, &value);
 }
 
 // The inline capacity is just a dummy template argument to match the off-heap
@@ -510,6 +465,7 @@ class HeapHashMap : public HashMap<KeyArg,
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     return ThreadHeap::Allocate<
         HeapHashMap<KeyArg, MappedArg, HashArg, KeyTraitsArg, MappedTraitsArg>>(
@@ -539,6 +495,7 @@ class HeapHashSet
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     return ThreadHeap::Allocate<HeapHashSet<ValueArg, HashArg, TraitsArg>>(
         size);
@@ -568,6 +525,7 @@ class HeapLinkedHashSet
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     return ThreadHeap::Allocate<
         HeapLinkedHashSet<ValueArg, HashArg, TraitsArg>>(size);
@@ -601,6 +559,7 @@ class HeapListHashSet
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     return ThreadHeap::Allocate<
         HeapListHashSet<ValueArg, inlineCapacity, HashArg>>(size);
@@ -629,6 +588,7 @@ class HeapHashCountedSet
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     return ThreadHeap::Allocate<
         HeapHashCountedSet<Value, HashFunctions, Traits>>(size);
@@ -655,6 +615,7 @@ class HeapVector : public Vector<T, inlineCapacity, HeapAllocator> {
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     // On-heap HeapVectors generally should not have inline capacity, but it is
     // hard to avoid when using a type alias. Hence we only disallow the
@@ -706,6 +667,7 @@ class HeapDeque : public Deque<T, inlineCapacity, HeapAllocator> {
   }
 
  public:
+  template <typename>
   static void* AllocateObject(size_t size) {
     // On-heap HeapDeques generally should not have inline capacity, but it is
     // hard to avoid when using a type alias. Hence we only disallow the
@@ -750,17 +712,6 @@ struct VectorTraits<blink::Member<T>> : VectorTraitsBase<blink::Member<T>> {
   static const bool kCanClearUnusedSlotsWithMemset = true;
   static const bool kCanCopyWithMemcpy = true;
   static const bool kCanMoveWithMemcpy = true;
-};
-
-template <typename T>
-struct VectorTraits<blink::SameThreadCheckedMember<T>>
-    : VectorTraitsBase<blink::SameThreadCheckedMember<T>> {
-  STATIC_ONLY(VectorTraits);
-  static const bool kNeedsDestruction = false;
-  static const bool kCanInitializeWithMemset = true;
-  static const bool kCanClearUnusedSlotsWithMemset = true;
-  static const bool kCanMoveWithMemcpy = true;
-  static const bool kCanSwapUsingCopyOrMove = false;
 };
 
 template <typename T>
@@ -863,42 +814,6 @@ struct HashTraits<blink::Member<T>> : SimpleClassHashTraits<blink::Member<T>> {
 };
 
 template <typename T>
-struct HashTraits<blink::SameThreadCheckedMember<T>>
-    : SimpleClassHashTraits<blink::SameThreadCheckedMember<T>> {
-  STATIC_ONLY(HashTraits);
-  // FIXME: Implement proper const'ness for iterator types. Requires support
-  // in the marking Visitor.
-  using PeekInType = T*;
-  using IteratorGetType = blink::SameThreadCheckedMember<T>*;
-  using IteratorConstGetType = const blink::SameThreadCheckedMember<T>*;
-  using IteratorReferenceType = blink::SameThreadCheckedMember<T>&;
-  using IteratorConstReferenceType = const blink::SameThreadCheckedMember<T>&;
-  static IteratorReferenceType GetToReferenceConversion(IteratorGetType x) {
-    return *x;
-  }
-  static IteratorConstReferenceType GetToReferenceConstConversion(
-      IteratorConstGetType x) {
-    return *x;
-  }
-
-  using PeekOutType = T*;
-
-  template <typename U>
-  static void Store(const U& value,
-                    blink::SameThreadCheckedMember<T>& storage) {
-    storage = value;
-  }
-
-  static PeekOutType Peek(const blink::SameThreadCheckedMember<T>& value) {
-    return value;
-  }
-
-  static blink::SameThreadCheckedMember<T> EmptyValue() {
-    return blink::SameThreadCheckedMember<T>(nullptr, nullptr);
-  }
-};
-
-template <typename T>
 struct HashTraits<blink::WeakMember<T>>
     : SimpleClassHashTraits<blink::WeakMember<T>> {
   STATIC_ONLY(HashTraits);
@@ -926,21 +841,6 @@ struct HashTraits<blink::WeakMember<T>>
   }
 
   static PeekOutType Peek(const blink::WeakMember<T>& value) { return value; }
-
-  static bool IsAlive(blink::WeakMember<T>& weak_member) {
-    return blink::ThreadHeap::IsHeapObjectAlive(weak_member);
-  }
-
-  template <typename VisitorDispatcher>
-  static bool TraceInCollection(VisitorDispatcher visitor,
-                                blink::WeakMember<T>& weak_member,
-                                WeakHandlingFlag weakness) {
-    if (weakness == kNoWeakHandling) {
-      visitor->Trace(weak_member.Get());  // Strongified visit.
-      return false;
-    }
-    return !blink::ThreadHeap::IsHeapObjectAlive(weak_member);
-  }
 };
 
 template <typename T>

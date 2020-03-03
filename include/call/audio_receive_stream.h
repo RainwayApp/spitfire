@@ -23,7 +23,6 @@
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
-#include "api/transport/media/media_transport_config.h"
 #include "api/transport/rtp/rtp_source.h"
 #include "call/rtp_config.h"
 
@@ -87,6 +86,8 @@ class AudioReceiveStream {
     double relative_packet_arrival_delay_seconds = 0.0;
     int32_t interruption_count = 0;
     int32_t total_interruption_duration_ms = 0;
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-estimatedplayouttimestamp
+    absl::optional<int64_t> estimated_playout_ntp_timestamp_ms;
   };
 
   struct Config {
@@ -122,8 +123,6 @@ class AudioReceiveStream {
     } rtp;
 
     Transport* rtcp_send_transport = nullptr;
-
-    MediaTransportConfig media_transport_config;
 
     // NetEq settings.
     size_t jitter_buffer_max_packets = 200;

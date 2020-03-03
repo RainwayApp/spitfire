@@ -13,7 +13,6 @@
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/renderer/core/clipboard/data_object.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/timer.h"
@@ -30,7 +29,6 @@ class Point;
 
 namespace blink {
 class AnimationWorkletMutatorDispatcherImpl;
-class GraphicsLayer;
 class HitTestResult;
 class Page;
 class PageWidgetEventHandler;
@@ -71,11 +69,6 @@ class CORE_EXPORT WebFrameWidgetBase
   // be dereferenced on the output |paint_task_runner|.
   base::WeakPtr<PaintWorkletPaintDispatcher> EnsureCompositorPaintDispatcher(
       scoped_refptr<base::SingleThreadTaskRunner>* paint_task_runner);
-
-  // Sets the root graphics layer. |GraphicsLayer| can be null when detaching
-  // the root layer.
-  virtual void SetRootGraphicsLayer(GraphicsLayer*) = 0;
-  virtual GraphicsLayer* RootGraphicsLayer() const = 0;
 
   // Sets the root layer. The |layer| can be null when detaching the root layer.
   virtual void SetRootLayer(scoped_refptr<cc::Layer> layer) = 0;
@@ -199,7 +192,6 @@ class CORE_EXPORT WebFrameWidgetBase
   Member<WebLocalFrameImpl> local_root_;
 
   static bool ignore_input_events_;
-  scoped_refptr<UserGestureToken> pointer_lock_gesture_token_;
 
   // This is owned by the LayerTreeHostImpl, and should only be used on the
   // compositor thread, so we keep the TaskRunner where you post tasks to

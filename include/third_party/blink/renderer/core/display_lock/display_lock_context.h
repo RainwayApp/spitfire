@@ -19,27 +19,55 @@ namespace blink {
 class DisplayLockSuspendedHandle;
 class Element;
 class DisplayLockScopedLogger;
+class StyleRecalcChange;
 
 enum class DisplayLockLifecycleTarget { kSelf, kChildren };
 enum class DisplayLockActivationReason {
-  // This represents activations triggered by intersection observer when the
-  // element intersects the viewport.
-  kViewport = 1 << 0,
-  // This represents activations triggered by script or user actions, such as
-  // find-in-page or scrollIntoView().
-  kUser = 1 << 1,
-  // This represents any activation, and should be result of all other flags
-  // combined.
-  kAny =
-      static_cast<unsigned char>(kViewport) | static_cast<unsigned char>(kUser)
+  // Accessibility driven activation
+  kAccessibility = 1 << 0,
+  // Activation as a result of find-in-page
+  kFindInPage = 1 << 1,
+  // Fragment link navigation
+  kFragmentNavigation = 1 << 2,
+  // Script invoked focus().
+  kScriptFocus = 1 << 3,
+  // scrollIntoView()
+  kScrollIntoView = 1 << 4,
+  // User / script selection
+  kSelection = 1 << 5,
+  // Simulated click (Node::DispatchSimulatedClick)
+  kSimulatedClick = 1 << 6,
+  // User focus (e.g. tab navigation)
+  kUserFocus = 1 << 7,
+  // Intersection observer activation
+  kViewportIntersection = 1 << 8,
+
+  // Shorthands
+  kViewport = static_cast<uint16_t>(kSelection) |
+              static_cast<uint16_t>(kUserFocus) |
+              static_cast<uint16_t>(kViewportIntersection),
+  kAny = static_cast<uint16_t>(kAccessibility) |
+         static_cast<uint16_t>(kFindInPage) |
+         static_cast<uint16_t>(kFragmentNavigation) |
+         static_cast<uint16_t>(kScriptFocus) |
+         static_cast<uint16_t>(kScrollIntoView) |
+         static_cast<uint16_t>(kSelection) |
+         static_cast<uint16_t>(kSimulatedClick) |
+         static_cast<uint16_t>(kUserFocus) |
+         static_cast<uint16_t>(kViewportIntersection)
 };
 
 // Instead of specifying an underlying type, which would propagate throughout
 // forward declarations, we static assert that the activation reasons enum is
-// small.
-static_assert(static_cast<int>(DisplayLockActivationReason::kAny) <
-                  std::numeric_limits<unsigned char>::max(),
+// small-ish.
+static_assert(static_cast<uint32_t>(DisplayLockActivationReason::kAny) <
+                  std::numeric_limits<uint16_t>::max(),
               "DisplayLockActivationReason is too large");
+
+// Since we currently, and temporarily, support both CSS and attribute version,
+// we need to distinguish the two so that lack of CSS, for example, doesn't
+// unlock the attribute version and vice versa.
+enum class DisplayLockContextCreateMethod { kUnknown, kCSS, kAttribute };
 
 class CORE_EXPORT DisplayLockContext final
     : public GarbageCollected<DisplayLockContext>,
@@ -113,7 +141,13 @@ class CORE_EXPORT DisplayLockContext final
   void ContextDestroyed(ExecutionContext*) override;
 
   // Set which reasons activate, as a mask of DisplayLockActivationReason enums.
-  void SetActivatable(unsigned char activatable_mask);
+  void SetActivatable(uint16_t activatable_mask);
+
+  // Returns true if this lock has been activated and the activation has not yet
+  // been cleared.
+  bool IsActivated() const;
+  // Clear the activated flag.
+  void ClearActivated();
 
   // Acquire the lock, should only be called when unlocked.
   void StartAcquire();
@@ -199,6 +233,10 @@ class CORE_EXPORT DisplayLockContext final
     needs_graphics_layer_collection_ = true;
   }
 
+  void NotifyCompositingRequirementsUpdateWasBlocked() {
+    needs_compositing_requirements_update_ = true;
+  }
+
   // Notify this element will be disconnected.
   void NotifyWillDisconnect();
 
@@ -212,6 +250,26 @@ class CORE_EXPORT DisplayLockContext final
         needs_effective_allowed_touch_action_update;
     needs_prepaint_subtree_walk_ = true;
   }
+
+  void SetMethod(DisplayLockContextCreateMethod method) { method_ = method; }
+  DisplayLockContextCreateMethod GetMethod() const {
+    DCHECK(method_ != DisplayLockContextCreateMethod::kUnknown);
+    return method_;
+  }
+
+  // Note that this returns true if there is no context at all, so in order to
+  // check whether this is strictly an attribute version, as opposed to a null
+  // context, one needs to compare context with nullptr first.
+  static bool IsAttributeVersion(DisplayLockContext* context) {
+    return !context ||
+           context->GetMethod() == DisplayLockContextCreateMethod::kAttribute;
+  }
+
+  // This is called by the style recalc code in lieu of
+  // MarkForStyleRecalcIfNeeded() in order to adjust the child change if we need
+  // to recalc children nodes here.
+  StyleRecalcChange AdjustStyleRecalcChangeForChildren(
+      StyleRecalcChange change);
 
  private:
   friend class DisplayLockContextTest;
@@ -250,6 +308,7 @@ class CORE_EXPORT DisplayLockContext final
   bool MarkForLayoutIfNeeded();
   bool MarkAncestorsForPrePaintIfNeeded();
   bool MarkPaintLayerNeedsRepaint();
+  bool MarkForCompositingUpdatesIfNeeded();
 
   bool IsElementDirtyForStyleRecalc() const;
   bool IsElementDirtyForLayout() const;
@@ -308,6 +367,10 @@ class CORE_EXPORT DisplayLockContext final
   // register/unregister is required.
   void UpdateActivationObservationIfNeeded();
 
+  // This function is called from within a task to fire the activation event.
+  // Scheduled by CommitForActivationWithSignal.
+  void FireActivationEvent(Element* activated_element);
+
   std::unique_ptr<DisplayLockBudget> update_budget_;
 
   Member<ScriptPromiseResolver> update_resolver_;
@@ -337,6 +400,8 @@ class CORE_EXPORT DisplayLockContext final
   bool needs_prepaint_subtree_walk_ = false;
   bool is_horizontal_writing_mode_ = true;
   bool needs_graphics_layer_collection_ = false;
+  bool needs_compositing_requirements_update_ = false;
+
   // Will be true if child traversal was blocked on a previous layout run on the
   // locked element. We need to keep track of this to ensure that on the next
   // layout run where the descendants of the locked element are allowed to be
@@ -347,8 +412,15 @@ class CORE_EXPORT DisplayLockContext final
   // document level intersection observer.
   bool is_observed_ = false;
 
-  unsigned char activatable_mask_ =
-      static_cast<unsigned char>(DisplayLockActivationReason::kAny);
+  uint16_t activatable_mask_ =
+      static_cast<uint16_t>(DisplayLockActivationReason::kAny);
+
+  bool is_activated_ = false;
+
+  DisplayLockContextCreateMethod method_ =
+      DisplayLockContextCreateMethod::kUnknown;
+
+  base::WeakPtrFactory<DisplayLockContext> weak_factory_{this};
 };
 
 }  // namespace blink

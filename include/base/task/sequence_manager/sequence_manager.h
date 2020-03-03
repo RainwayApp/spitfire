@@ -150,10 +150,11 @@ class BASE_EXPORT SequenceManager {
 
   // Returns the task runner the current task was posted on. Returns null if no
   // task is currently running. Must be called on the bound thread.
-  virtual scoped_refptr<SequencedTaskRunner> GetTaskRunnerForCurrentTask() = 0;
+  virtual const scoped_refptr<SequencedTaskRunner>&
+  GetTaskRunnerForCurrentTask() = 0;
 
   // Finishes the initialization for a SequenceManager created via
-  // CreateUnboundSequenceManagerWithPump(). Must not be called in any other
+  // CreateUnboundSequenceManager(). Must not be called in any other
   // circumstances. The ownership of the pump is transferred to SequenceManager.
   virtual void BindToMessagePump(std::unique_ptr<MessagePump> message_pump) = 0;
 

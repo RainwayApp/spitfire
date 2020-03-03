@@ -290,6 +290,7 @@ struct RTC_EXPORT PortConfiguration : public rtc::MessageData {
   ServerAddresses stun_servers;
   std::string username;
   std::string password;
+  bool use_turn_server_as_stun_server_disabled = false;
 
   typedef std::vector<RelayServerConfig> RelayList;
   RelayList relays;
@@ -315,11 +316,10 @@ struct RTC_EXPORT PortConfiguration : public rtc::MessageData {
   // Determines whether the given relay server supports the given protocol.
   bool SupportsProtocol(const RelayServerConfig& relay,
                         ProtocolType type) const;
-  bool SupportsProtocol(RelayType turn_type, ProtocolType type) const;
+  bool SupportsProtocol(ProtocolType type) const;
   // Helper method returns the server addresses for the matching RelayType and
   // Protocol type.
-  ServerAddresses GetRelayServerAddresses(RelayType turn_type,
-                                          ProtocolType type) const;
+  ServerAddresses GetRelayServerAddresses(ProtocolType type) const;
 };
 
 class UDPPort;
@@ -387,7 +387,6 @@ class AllocationSequence : public rtc::MessageHandler,
   void CreateTCPPorts();
   void CreateStunPorts();
   void CreateRelayPorts();
-  void CreateGturnPort(const RelayServerConfig& config);
 
   void OnReadPacket(rtc::AsyncPacketSocket* socket,
                     const char* data,

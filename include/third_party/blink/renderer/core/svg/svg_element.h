@@ -37,6 +37,7 @@ namespace blink {
 
 class AffineTransform;
 class Document;
+class ElementSMILAnimations;
 class SVGAnimatedPropertyBase;
 class SubtreeLayoutScope;
 class SVGAnimatedString;
@@ -55,7 +56,6 @@ class CORE_EXPORT SVGElement : public Element {
  public:
   ~SVGElement() override;
 
-  int tabIndex() const override;
   bool SupportsFocus() const override { return false; }
 
   // The TreeScope this element should resolve id's against. This differs from
@@ -102,8 +102,10 @@ class CORE_EXPORT SVGElement : public Element {
                                SVGPropertyBase*);
   void ClearWebAnimatedAttributes();
 
+  ElementSMILAnimations* GetSMILAnimations();
+  ElementSMILAnimations& EnsureSMILAnimations();
+
   void SetAnimatedAttribute(const QualifiedName&, SVGPropertyBase*);
-  void InvalidateAnimatedAttribute(const QualifiedName&);
   void ClearAnimatedAttribute(const QualifiedName&);
 
   SVGSVGElement* ownerSVGElement() const;
@@ -213,7 +215,6 @@ class CORE_EXPORT SVGElement : public Element {
   static const AtomicString& EventParameterName();
 
   bool IsPresentationAttribute(const QualifiedName&) const override;
-  virtual bool IsPresentationAttributeWithSVGDOM(const QualifiedName&) const;
 
   bool HasSVGParent() const;
 

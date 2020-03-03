@@ -186,6 +186,9 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
 
   std::unique_ptr<WebSchedulingTaskQueue> CreateWebSchedulingTaskQueue(
       WebSchedulingPriority) override;
+  void OnWebSchedulingTaskQueuePriorityChanged(MainThreadTaskQueue*);
+
+  const base::UnguessableToken& GetAgentClusterId() const;
 
  protected:
   FrameSchedulerImpl(MainThreadSchedulerImpl* main_thread_scheduler,

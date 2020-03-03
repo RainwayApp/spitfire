@@ -126,8 +126,7 @@ class MODULES_EXPORT UserMediaProcessor
           source_ready);
   virtual std::unique_ptr<blink::MediaStreamVideoSource> CreateVideoSource(
       const blink::MediaStreamDevice& device,
-      const blink::WebPlatformMediaStreamSource::SourceStoppedCallback&
-          stop_callback);
+      blink::WebPlatformMediaStreamSource::SourceStoppedCallback stop_callback);
 
   // Intended to be used only for testing.
   const blink::AudioCaptureSettings& AudioCaptureSettingsForTesting() const;
@@ -294,7 +293,7 @@ class MODULES_EXPORT UserMediaProcessor
   MediaDevicesDispatcherCallback media_devices_dispatcher_cb_;
   base::OnceClosure request_completed_cb_;
 
-  WeakMember<LocalFrame> frame_;
+  Member<LocalFrame> frame_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   THREAD_CHECKER(thread_checker_);

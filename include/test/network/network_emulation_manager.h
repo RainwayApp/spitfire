@@ -19,6 +19,7 @@
 
 #include "api/test/network_emulation_manager.h"
 #include "api/test/simulated_network.h"
+#include "api/test/time_controller.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/logging.h"
@@ -33,7 +34,6 @@
 #include "test/network/network_emulation.h"
 #include "test/network/simulated_network_node.h"
 #include "test/network/traffic_route.h"
-#include "test/time_controller/time_controller.h"
 
 namespace webrtc {
 namespace test {
@@ -76,6 +76,10 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
       std::vector<EmulatedNetworkNode*> send_link,
       std::vector<EmulatedNetworkNode*> ret_link,
       FakeTcpConfig config);
+
+  TcpMessageRoute* CreateTcpRoute(EmulatedRoute* send_route,
+                                  EmulatedRoute* ret_route);
+
   void StopCrossTraffic(FakeTcpCrossTraffic* traffic);
 
   EmulatedNetworkManagerInterface* CreateEmulatedNetworkManagerInterface(
@@ -101,6 +105,7 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
   std::vector<std::unique_ptr<RandomWalkCrossTraffic>> random_cross_traffics_;
   std::vector<std::unique_ptr<PulsedPeaksCrossTraffic>> pulsed_cross_traffics_;
   std::list<std::unique_ptr<FakeTcpCrossTraffic>> tcp_cross_traffics_;
+  std::list<std::unique_ptr<TcpMessageRoute>> tcp_message_routes_;
   std::vector<std::unique_ptr<EndpointsContainer>> endpoints_containers_;
   std::vector<std::unique_ptr<EmulatedNetworkManager>> network_managers_;
 

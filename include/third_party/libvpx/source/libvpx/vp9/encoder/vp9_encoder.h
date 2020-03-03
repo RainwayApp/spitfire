@@ -20,8 +20,10 @@
 #include "vpx_dsp/ssim.h"
 #endif
 #include "vpx_dsp/variance.h"
+#include "vpx_dsp/psnr.h"
 #include "vpx_ports/system_state.h"
 #include "vpx_util/vpx_thread.h"
+#include "vpx_util/vpx_timestamp.h"
 
 #include "vp9/common/vp9_alloccommon.h"
 #include "vp9/common/vp9_ppflags.h"
@@ -152,7 +154,10 @@ typedef struct VP9EncoderConfig {
   int height;                    // height of data passed to the compressor
   unsigned int input_bit_depth;  // Input bit depth.
   double init_framerate;         // set to passed in framerate
-  int64_t target_bandwidth;      // bandwidth to be used in bits per second
+  vpx_rational_t g_timebase;  // equivalent to g_timebase in vpx_codec_enc_cfg_t
+  vpx_rational64_t g_timebase_in_ts;  // g_timebase * TICKS_PER_SEC
+
+  int64_t target_bandwidth;  // bandwidth to be used in bits per second
 
   int noise_sensitivity;  // pre processing blur: recommendation 0
   int sharpness;          // sharpening output: recommendation 0:
@@ -259,7 +264,6 @@ typedef struct VP9EncoderConfig {
   unsigned int target_level;
 
   vpx_fixed_buf_t two_pass_stats_in;
-  struct vpx_codec_pkt_list *output_pkt_list;
 
 #if CONFIG_FP_MB_STATS
   vpx_fixed_buf_t firstpass_mb_stats_in;
@@ -483,7 +487,6 @@ typedef enum {
 
 typedef struct {
   int8_t level_index;
-  uint8_t rc_config_updated;
   uint8_t fail_flag;
   int max_frame_size;   // in bits
   double max_cpb_size;  // in bits
@@ -512,6 +515,31 @@ typedef struct KMEANS_DATA {
   int pos;
   int group_idx;
 } KMEANS_DATA;
+
+#if CONFIG_RATE_CTRL
+typedef struct ENCODE_COMMAND {
+  int use_external_quantize_index;
+  int external_quantize_index;
+} ENCODE_COMMAND;
+
+static INLINE void encode_command_init(ENCODE_COMMAND *encode_command) {
+  vp9_zero(*encode_command);
+  encode_command->use_external_quantize_index = 0;
+  encode_command->external_quantize_index = -1;
+}
+
+static INLINE void encode_command_set_external_quantize_index(
+    ENCODE_COMMAND *encode_command, int quantize_index) {
+  encode_command->use_external_quantize_index = 1;
+  encode_command->external_quantize_index = quantize_index;
+}
+
+static INLINE void encode_command_reset_external_quantize_index(
+    ENCODE_COMMAND *encode_command) {
+  encode_command->use_external_quantize_index = 0;
+  encode_command->external_quantize_index = -1;
+}
+#endif  // CONFIG_RATE_CTRL
 
 typedef struct VP9_COMP {
   FRAME_INFO frame_info;
@@ -817,11 +845,23 @@ typedef struct VP9_COMP {
 
   int multi_layer_arf;
   vpx_roi_map_t roi;
+#if CONFIG_RATE_CTRL
+  ENCODE_COMMAND encode_command;
+#endif
 } VP9_COMP;
+
+typedef struct ENCODE_FRAME_RESULT {
+  int show_idx;
+  FRAME_UPDATE_TYPE update_type;
+  double psnr;
+  uint64_t sse;
+  int quantize_index;
+} ENCODE_FRAME_RESULT;
 
 void vp9_initialize_enc(void);
 
-struct VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf,
+void vp9_update_compressor_with_img_fmt(VP9_COMP *cpi, vpx_img_fmt_t img_fmt);
+struct VP9_COMP *vp9_create_compressor(const VP9EncoderConfig *oxcf,
                                        BufferPool *const pool);
 void vp9_remove_compressor(VP9_COMP *cpi);
 
@@ -835,7 +875,8 @@ int vp9_receive_raw_frame(VP9_COMP *cpi, vpx_enc_frame_flags_t frame_flags,
 
 int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
                             size_t *size, uint8_t *dest, int64_t *time_stamp,
-                            int64_t *time_end, int flush);
+                            int64_t *time_end, int flush,
+                            ENCODE_FRAME_RESULT *encode_frame_result);
 
 int vp9_get_preview_raw_frame(VP9_COMP *cpi, YV12_BUFFER_CONFIG *dest,
                               vp9_ppflags_t *flags);
@@ -887,7 +928,7 @@ static INLINE void stack_init(int *stack, int length) {
   for (idx = 0; idx < length; ++idx) stack[idx] = -1;
 }
 
-int vp9_get_quantizer(struct VP9_COMP *cpi);
+int vp9_get_quantizer(const VP9_COMP *cpi);
 
 static INLINE int frame_is_kf_gf_arf(const VP9_COMP *cpi) {
   return frame_is_intra_only(&cpi->common) || cpi->refresh_alt_ref_frame ||
@@ -1059,6 +1100,8 @@ int vp9_set_roi_map(VP9_COMP *cpi, unsigned char *map, unsigned int rows,
 void vp9_new_framerate(VP9_COMP *cpi, double framerate);
 
 void vp9_set_row_mt(VP9_COMP *cpi);
+
+int vp9_get_psnr(const VP9_COMP *cpi, PSNR_STATS *psnr);
 
 #define LAYER_IDS_TO_IDX(sl, tl, num_tl) ((sl) * (num_tl) + (tl))
 

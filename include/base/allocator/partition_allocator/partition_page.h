@@ -14,24 +14,6 @@
 #include "base/allocator/partition_allocator/random.h"
 #include "base/logging.h"
 
-namespace {
-
-// Returns true if we've hit the end of a random-length period. We don't want to
-// invoke `RandomValue` too often, because we call this function in a hot spot
-// (`Free`), and `RandomValue` incurs the cost of atomics.
-#if !DCHECK_IS_ON()
-bool RandomPeriod() {
-  static thread_local uint8_t counter = 0;
-  if (UNLIKELY(counter == 0)) {
-    counter = base::RandomValue();
-  }
-  counter--;
-  return counter == 0;
-}
-#endif
-
-}  // namespace
-
 namespace base {
 namespace internal {
 
@@ -220,27 +202,22 @@ ALWAYS_INLINE size_t PartitionPage::get_raw_size() const {
 }
 
 ALWAYS_INLINE void PartitionPage::Free(void* ptr) {
-  size_t slot_size = this->bucket->slot_size;
+#if DCHECK_IS_ON()
+  size_t slot_size = bucket->slot_size;
   const size_t raw_size = get_raw_size();
   if (raw_size) {
     slot_size = raw_size;
   }
 
-#if DCHECK_IS_ON()
   // If these asserts fire, you probably corrupted memory.
   PartitionCookieCheckValue(ptr);
   PartitionCookieCheckValue(reinterpret_cast<char*>(ptr) + slot_size -
                             kCookieSize);
 
   memset(ptr, kFreedByte, slot_size);
-#else
-  // `memset` only once in a while.
-  if (UNLIKELY(RandomPeriod())) {
-    memset(ptr, kFreedByte, slot_size);
-  }
 #endif
 
-  DCHECK(this->num_allocated_slots);
+  DCHECK(num_allocated_slots);
   // Catches an immediate double free.
   CHECK(ptr != freelist_head);
   // Look for double free one level deeper in debug.
@@ -250,8 +227,8 @@ ALWAYS_INLINE void PartitionPage::Free(void* ptr) {
       static_cast<internal::PartitionFreelistEntry*>(ptr);
   entry->next = internal::PartitionFreelistEntry::Encode(freelist_head);
   freelist_head = entry;
-  --this->num_allocated_slots;
-  if (UNLIKELY(this->num_allocated_slots <= 0)) {
+  --num_allocated_slots;
+  if (UNLIKELY(num_allocated_slots <= 0)) {
     FreeSlowPath();
   } else {
     // All single-slot allocations must go through the slow path to
@@ -302,7 +279,7 @@ ALWAYS_INLINE void PartitionPage::set_raw_size(size_t size) {
 }
 
 ALWAYS_INLINE void PartitionPage::Reset() {
-  DCHECK(this->is_decommitted());
+  DCHECK(is_decommitted());
 
   num_unprovisioned_slots = bucket->get_slots_per_span();
   DCHECK(num_unprovisioned_slots);

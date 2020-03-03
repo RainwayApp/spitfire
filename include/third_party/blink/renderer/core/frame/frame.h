@@ -36,7 +36,6 @@
 #include "third_party/blink/public/common/frame/user_activation_update_source.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
 #include "third_party/blink/renderer/core/frame/frame_lifecycle.h"
 #include "third_party/blink/renderer/core/frame/frame_view.h"
 #include "third_party/blink/renderer/core/frame/navigation_rate_limiter.h"
@@ -237,6 +236,9 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   bool GetVisibleToHitTesting() const { return visible_to_hit_testing_; }
   void UpdateVisibleToHitTesting();
 
+  // Called when the focus controller changes the focus to this frame.
+  virtual void DidFocus() = 0;
+
  protected:
   // |inheriting_agent_factory| should basically be set to the parent frame or
   // opener's WindowAgentFactory. Pass nullptr if the frame is isolated from
@@ -264,6 +266,8 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   }
 
   virtual void DidChangeVisibleToHitTesting() = 0;
+
+  void FocusImpl();
 
   mutable FrameTree tree_node_;
 

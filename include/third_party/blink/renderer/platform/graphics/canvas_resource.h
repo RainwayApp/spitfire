@@ -25,6 +25,14 @@ class GpuMemoryBuffer;
 
 }  // namespace gfx
 
+namespace gpu {
+namespace raster {
+
+class RasterInterface;
+
+}  // namespace raster
+}  // namespace gpu
+
 namespace viz {
 
 class SingleReleaseCallback;
@@ -152,6 +160,7 @@ class PLATFORM_EXPORT CanvasResource
     Abandon();
   }
 
+  void SetFilterQuality(SkFilterQuality filter) { filter_quality_ = filter; }
   // The filter quality to use when the resource is drawn by the compositor.
   SkFilterQuality FilterQuality() const { return filter_quality_; }
 
@@ -183,7 +192,9 @@ class PLATFORM_EXPORT CanvasResource
   // was created.
   virtual void TearDown() = 0;
 
+  gpu::InterfaceBase* InterfaceBase() const;
   gpu::gles2::GLES2Interface* ContextGL() const;
+  gpu::raster::RasterInterface* RasterInterface() const;
   GLenum GLFilter() const;
   GrContext* GetGrContext() const;
   virtual base::WeakPtr<WebGraphicsContext3DProviderWrapper>
@@ -311,7 +322,6 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
     bool mailbox_needs_new_sync_token = true;
     gpu::Mailbox shared_image_mailbox;
     gpu::SyncToken sync_token;
-    bool needs_gl_filter_reset = true;
     size_t bitmap_image_read_refs = 0u;
     MailboxSyncMode mailbox_sync_mode = kVerifiedSyncToken;
     bool is_lost = false;
@@ -350,7 +360,6 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
                             bool is_origin_top_left,
                             bool allow_concurrent_read_write_access,
                             bool is_accelerated);
-  void SetGLFilterIfNeeded();
 
   OwningThreadData& owning_thread_data() {
     DCHECK_EQ(base::PlatformThread::CurrentId(), owning_thread_id_);
@@ -406,7 +415,8 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
       const CanvasColorParams&,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       base::WeakPtr<CanvasResourceProvider>,
-      SkFilterQuality);
+      SkFilterQuality,
+      bool is_origin_top_left);
   ~ExternalCanvasResource() override;
   bool IsRecycleable() const final { return IsValid(); }
   bool IsAccelerated() const final { return true; }
@@ -437,13 +447,16 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
                          const CanvasColorParams&,
                          base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
                          base::WeakPtr<CanvasResourceProvider>,
-                         SkFilterQuality);
+                         SkFilterQuality,
+                         bool is_origin_top_left);
 
   const base::WeakPtr<WebGraphicsContext3DProviderWrapper>
       context_provider_wrapper_;
   const IntSize size_;
+  const gpu::Mailbox mailbox_;
   const GLenum texture_target_;
-  gpu::Mailbox mailbox_;
+  const bool is_origin_top_left_;
+
   gpu::SyncToken sync_token_;
 
   bool is_origin_clean_ = true;

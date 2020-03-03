@@ -52,7 +52,6 @@ struct WebCursorInfo;
 // Handles window-level notifications from core on behalf of a WebView.
 class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
  public:
-  static ChromeClientImpl* Create(WebViewImpl*);
   explicit ChromeClientImpl(WebViewImpl*);
   ~ChromeClientImpl() override;
   void Trace(Visitor* visitor) override;
@@ -167,8 +166,6 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void RequestUnbufferedInputEvents(LocalFrame*) override;
   void SetTouchAction(LocalFrame*, TouchAction) override;
 
-  void AttachRootGraphicsLayer(GraphicsLayer*, LocalFrame* local_root) override;
-
   void AttachRootLayer(scoped_refptr<cc::Layer>,
                        LocalFrame* local_root) override;
 
@@ -209,7 +206,8 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void SetBrowserControlsState(float top_height,
                                float bottom_height,
                                bool shrinks_layout) override;
-  void SetBrowserControlsShownRatio(float) override;
+  void SetBrowserControlsShownRatio(float top_ratio,
+                                    float bottom_ratio) override;
 
   bool ShouldOpenUIElementDuringPageDismissal(
       LocalFrame&,
@@ -268,6 +266,8 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   int GetLayerTreeId(LocalFrame& frame) override;
 
   void DidUpdateTextAutosizerPageInfo(const WebTextAutosizerPageInfo&) override;
+
+  void DocumentDetached(Document&) override;
 
  private:
   bool IsChromeClientImpl() const override { return true; }

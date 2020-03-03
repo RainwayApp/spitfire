@@ -82,6 +82,8 @@ class WorkerFetchContext final : public BaseFetchContext {
                                const ClientHintsPreferences&,
                                const FetchParameters::ResourceWidth&,
                                ResourceRequest&) override;
+  mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+  TakePendingWorkerTimingReceiver(int request_id) override;
 
   WorkerSettings* GetWorkerSettings() const;
   WebWorkerFetchContext* GetWebWorkerFetchContext() const {
@@ -89,7 +91,6 @@ class WorkerFetchContext final : public BaseFetchContext {
   }
 
   bool AllowRunningInsecureContent(bool enabled_per_settings,
-                                   const SecurityOrigin* origin,
                                    const KURL& url) const;
 
   void Trace(blink::Visitor*) override;

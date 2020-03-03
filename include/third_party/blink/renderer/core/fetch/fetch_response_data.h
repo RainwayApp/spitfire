@@ -68,6 +68,7 @@ class CORE_EXPORT FetchResponseData final
   uint16_t Status() const { return status_; }
   AtomicString StatusMessage() const { return status_message_; }
   FetchHeaderList* HeaderList() const { return header_list_.Get(); }
+  FetchHeaderList* InternalHeaderList() const;
   BodyStreamBuffer* Buffer() const { return buffer_; }
   String MimeType() const;
   // Returns the BodyStreamBuffer of |m_internalResponse| if any. Otherwise,
@@ -112,7 +113,8 @@ class CORE_EXPORT FetchResponseData final
   void ReplaceBodyStreamBuffer(BodyStreamBuffer*);
 
   // Does not contain the blob response body.
-  mojom::blink::FetchAPIResponsePtr PopulateFetchAPIResponse();
+  mojom::blink::FetchAPIResponsePtr PopulateFetchAPIResponse(
+      const KURL& request_url);
 
   void Trace(blink::Visitor*);
 

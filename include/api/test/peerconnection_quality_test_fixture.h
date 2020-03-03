@@ -25,6 +25,7 @@
 #include "api/rtc_event_log/rtc_event_log_factory_interface.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/audio_quality_analyzer_interface.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/test/simulated_network.h"
 #include "api/test/stats_observer_interface.h"
 #include "api/test/video_quality_analyzer_interface.h"
@@ -167,10 +168,15 @@ class PeerConnectionE2EQualityTestFixture {
     // Have to be unique among all specified configs for all peers in the call.
     // Will be auto generated if omitted.
     absl::optional<std::string> stream_label;
-    // Only 1 from |generator|, |input_file_name|, |screen_share_config| and
-    // |capturing_device_index| can be specified. If none of them are specified,
-    // then |generator| will be set to VideoGeneratorType::kDefault. If
-    // specified generator of this type will be used to produce input video.
+    // You can specify one of |generator|, |input_file_name|,
+    // |screen_share_config| and |capturing_device_index|.
+    // If none of them are specified:
+    // * If config is added to the PeerConfigurer without specifying any video
+    //   source, then |generator| will be set to VideoGeneratorType::kDefault.
+    // * If config is added with own video source implementation, then that
+    //   video source will be used.
+
+    // If specified generator of this type will be used to produce input video.
     absl::optional<VideoGeneratorType> generator;
     // If specified this file will be used as input. Input video will be played
     // in a circle.
@@ -285,6 +291,11 @@ class PeerConnectionE2EQualityTestFixture {
 
     // Add new video stream to the call that will be sent from this peer.
     virtual PeerConfigurer* AddVideoConfig(VideoConfig config) = 0;
+    // Add new video stream to the call that will be sent from this peer with
+    // provided own implementation of video frames generator.
+    virtual PeerConfigurer* AddVideoConfig(
+        VideoConfig config,
+        std::unique_ptr<test::FrameGeneratorInterface> generator) = 0;
     // Set the audio stream for the call from this peer. If this method won't
     // be invoked, this peer will send no audio.
     virtual PeerConfigurer* SetAudioConfig(AudioConfig config) = 0;

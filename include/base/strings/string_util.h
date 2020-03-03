@@ -184,11 +184,11 @@ BASE_EXPORT bool RemoveChars(const std::string& input,
 // NOTE: Safe to use the same variable for both |input| and |output|.
 BASE_EXPORT bool ReplaceChars(const string16& input,
                               StringPiece16 replace_chars,
-                              const string16& replace_with,
+                              StringPiece16 replace_with,
                               string16* output);
 BASE_EXPORT bool ReplaceChars(const std::string& input,
                               StringPiece replace_chars,
-                              const std::string& replace_with,
+                              StringPiece replace_with,
                               std::string* output);
 
 enum TrimPositions {
@@ -486,9 +486,11 @@ BASE_EXPORT void ReplaceSubstringsAfterOffset(
 BASE_EXPORT char* WriteInto(std::string* str, size_t length_with_null);
 BASE_EXPORT char16* WriteInto(string16* str, size_t length_with_null);
 
-// Does the opposite of SplitString()/SplitStringPiece(). Joins a vector or list
-// of strings into a single string, inserting |separator| (which may be empty)
-// in between all elements.
+// Joins a vector or list of strings into a single string, inserting |separator|
+// (which may be empty) in between all elements.
+//
+// Note this is inverse of SplitString()/SplitStringPiece() defined in
+// string_split.h.
 //
 // If possible, callers should build a vector of StringPieces and use the
 // StringPiece variant, so that they do not create unnecessary copies of
@@ -547,6 +549,8 @@ BASE_EXPORT bool TrimString(WStringPiece input,
 BASE_EXPORT WStringPiece TrimString(WStringPiece input,
                                     WStringPiece trim_chars,
                                     TrimPositions positions);
+
+BASE_EXPORT wchar_t* WriteInto(std::wstring* str, size_t length_with_null);
 #endif
 
 }  // namespace base

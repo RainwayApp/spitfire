@@ -24,6 +24,28 @@ class FakeLocalFrameHost : public mojom::blink::LocalFrameHost {
   void EnterFullscreen(mojom::blink::FullscreenOptionsPtr options) override;
   void ExitFullscreen() override;
   void FullscreenStateChanged(bool is_fullscreen) override;
+  void RegisterProtocolHandler(const WTF::String& scheme,
+                               const ::blink::KURL& url,
+                               const ::WTF::String& title,
+                               bool user_gesture) override;
+  void UnregisterProtocolHandler(const WTF::String& scheme,
+                                 const ::blink::KURL& url,
+                                 bool user_gesture) override;
+  void DidDisplayInsecureContent() override;
+  void DidContainInsecureFormAction() override;
+  void SetNeedsOcclusionTracking(bool needs_tracking) override;
+  void LifecycleStateChanged(mojom::blink::FrameLifecycleState state) override;
+  void EvictFromBackForwardCache() override;
+  void VisibilityChanged(mojom::blink::FrameVisibility visibility) override;
+  void DidChangeThemeColor(
+      const base::Optional<::SkColor>& theme_color) override;
+  void DidFocusFrame() override;
+  void EnforceInsecureRequestPolicy(uint8_t policy_bitmap) override;
+  void EnforceInsecureNavigationsSet(const WTF::Vector<uint32_t>& set) override;
+  void DidChangeActiveSchedulerTrackedFeatures(uint64_t features_mask) override;
+  void SuddenTerminationDisablerChanged(
+      bool present,
+      blink::mojom::SuddenTerminationDisablerType disabler_type) override;
 
  private:
   void BindFrameHostReceiver(mojo::ScopedInterfaceEndpointHandle handle);

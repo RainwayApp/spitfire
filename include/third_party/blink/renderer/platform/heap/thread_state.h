@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/platform/wtf/thread_specific.h"
 #include "third_party/blink/renderer/platform/wtf/threading.h"
 #include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace v8 {
 class EmbedderGraph;
@@ -61,6 +62,7 @@ class IncrementalMarkingScope;
 }  // namespace incremental_marking_test
 
 class CancelableTaskScheduler;
+class HeapObjectHeader;
 class MarkingVisitor;
 class PersistentNode;
 class PersistentRegion;
@@ -92,17 +94,13 @@ class Visitor;
 //     Member<Bar> bar_;
 //   };
 #define USING_PRE_FINALIZER(Class, preFinalizer)                          \
- public:                                                                  \
-  static bool InvokePreFinalizer(void* object) {                          \
-    Class* self = reinterpret_cast<Class*>(object);                       \
-    if (ThreadHeap::IsHeapObjectAlive(self))                              \
-      return false;                                                       \
-    self->Class::preFinalizer();                                          \
-    return true;                                                          \
+ private:                                                                 \
+  static void PreFinalizerDispatch(void* object) {                        \
+    reinterpret_cast<Class*>(object)->Class::preFinalizer();              \
   }                                                                       \
                                                                           \
- private:                                                                 \
-  ThreadState::PrefinalizerRegistration<Class> prefinalizer_dummy_{this}; \
+  friend class ThreadState::PreFinalizerRegistration<Class>;              \
+  ThreadState::PreFinalizerRegistration<Class> prefinalizer_dummy_{this}; \
   using UsingPreFinalizerMacroNeedsTrailingSemiColon = char
 
 class PLATFORM_EXPORT BlinkGCObserver {
@@ -132,24 +130,16 @@ class PLATFORM_EXPORT ThreadState final {
   // Register the pre-finalizer for the |self| object. The class T be using
   // USING_PRE_FINALIZER() macro.
   template <typename T>
-  class PrefinalizerRegistration final {
+  class PreFinalizerRegistration final {
     DISALLOW_NEW();
 
    public:
-    PrefinalizerRegistration(T* self) {
-      static_assert(sizeof(&T::InvokePreFinalizer) > 0,
+    PreFinalizerRegistration(T* self) {
+      static_assert(sizeof(&T::PreFinalizerDispatch) > 0,
                     "USING_PRE_FINALIZER(T) must be defined.");
       ThreadState* state =
           ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState();
-#if DCHECK_IS_ON()
-      DCHECK(state->CheckThread());
-#endif
-      DCHECK(!state->SweepForbidden());
-      DCHECK(std::find(state->ordered_pre_finalizers_.begin(),
-                       state->ordered_pre_finalizers_.end(),
-                       PreFinalizer(self, T::InvokePreFinalizer)) ==
-             state->ordered_pre_finalizers_.end());
-      state->ordered_pre_finalizers_.emplace_back(self, T::InvokePreFinalizer);
+      state->RegisterPreFinalizer(self, T::PreFinalizerDispatch);
     }
   };
 
@@ -253,13 +243,16 @@ class PLATFORM_EXPORT ThreadState final {
   void PerformConcurrentSweep();
 
   void SchedulePreciseGC();
-  void ScheduleIncrementalGC(BlinkGC::GCReason);
   void ScheduleForcedGCForTesting();
   void ScheduleGCIfNeeded();
   void WillStartV8GC(BlinkGC::V8GCType);
   void SetGCState(GCState);
   GCState GetGCState() const { return gc_state_; }
   void SetGCPhase(GCPhase);
+
+  // Immediately starts incremental marking and schedules further steps if
+  // necessary.
+  void StartIncrementalMarking(BlinkGC::GCReason);
 
   // Returns true if marking is in progress.
   bool IsMarkingInProgress() const { return gc_phase_ == GCPhase::kMarking; }
@@ -286,9 +279,6 @@ class PLATFORM_EXPORT ThreadState final {
 
   void EnableCompactionForNextGCForTesting();
 
-  void IncrementalMarkingStart(BlinkGC::GCReason);
-  void IncrementalMarkingStep(BlinkGC::StackState);
-  void IncrementalMarkingFinalize();
   bool FinishIncrementalMarkingIfRunning(BlinkGC::StackState,
                                          BlinkGC::MarkingType,
                                          BlinkGC::SweepingType,
@@ -297,15 +287,7 @@ class PLATFORM_EXPORT ThreadState final {
   void EnableIncrementalMarkingBarrier();
   void DisableIncrementalMarkingBarrier();
 
-  // Returns true if concurrent marking is finished (i.e. all current threads
-  // terminated and the worklist is empty)
-  bool ConcurrentMarkingStep();
-  void ScheduleConcurrentMarking();
-  void PerformConcurrentMark(int);
-
   void CompleteSweep();
-  void NotifySweepDone();
-  void PostSweep();
 
   // Returns whether it is currently allowed to allocate an object. Mainly used
   // for sanity checks asserts.
@@ -382,6 +364,24 @@ class PLATFORM_EXPORT ThreadState final {
   bool IsVerifyMarkingEnabled() const;
 
  private:
+  class IncrementalMarkingScheduler;
+
+  using PreFinalizerCallback = void (*)(void*);
+  struct PreFinalizer {
+    HeapObjectHeader* header;
+    void* object;
+    PreFinalizerCallback callback;
+
+    bool operator==(const PreFinalizer& other) const {
+      return object == other.object && callback == other.callback;
+    }
+  };
+
+  // Duration of one incremental marking step. Should be short enough that it
+  // doesn't cause jank even though it is scheduled as a normal task.
+  static constexpr base::TimeDelta kDefaultIncrementalMarkingStepDuration =
+      base::TimeDelta::FromMilliseconds(2);
+
   // Stores whether some ThreadState is currently in incremental marking.
   static AtomicEntryFlag incremental_marking_flag_;
 
@@ -482,21 +482,38 @@ class PLATFORM_EXPORT ThreadState final {
   // Visit all DOM wrappers allocatd on this thread.
   void VisitDOMWrappers(Visitor*);
 
+  // Incremental marking implementation functions.
+  void IncrementalMarkingStartForTesting();
+  void IncrementalMarkingStart(BlinkGC::GCReason);
+  // Incremental marking step advance marking on the mutator thread. This method
+  // also reschedules concurrent marking tasks if needed. The duration parameter
+  // applies only to incremental marking steps on the mutator thread.
+  void IncrementalMarkingStep(
+      BlinkGC::StackState,
+      base::TimeDelta duration = kDefaultIncrementalMarkingStepDuration);
+  void IncrementalMarkingFinalize();
+
+  // Returns true if concurrent marking is finished (i.e. all current threads
+  // terminated and the worklist is empty)
+  bool ConcurrentMarkingStep();
+  void ScheduleConcurrentMarking();
+  void PerformConcurrentMark();
+
   // Schedule helpers.
-  void ScheduleIncrementalMarkingStep();
-  void ScheduleIncrementalMarkingFinalize();
   void ScheduleIdleLazySweep();
   void ScheduleConcurrentAndLazySweep();
+
+  void NotifySweepDone();
+  void PostSweep();
 
   // See |DetachCurrentThread|.
   void RunTerminationGC();
 
   void RunScheduledGC(BlinkGC::StackState);
 
-  void UpdateIncrementalMarkingStepDuration();
-
   void SynchronizeAndFinishConcurrentSweeping();
 
+  void RegisterPreFinalizer(void*, PreFinalizerCallback);
   void InvokePreFinalizers();
 
   // Adds the given observer to the ThreadState's observer list. This doesn't
@@ -540,16 +557,10 @@ class PLATFORM_EXPORT ThreadState final {
   size_t gc_forbidden_count_ = 0;
   size_t static_persistent_registration_disabled_count_ = 0;
 
-  base::TimeDelta next_incremental_marking_step_duration_;
-  base::TimeDelta previous_incremental_marking_time_left_;
-
   GCState gc_state_ = GCState::kNoGCScheduled;
   GCPhase gc_phase_ = GCPhase::kNone;
   BlinkGC::GCReason reason_for_scheduled_gc_ =
       BlinkGC::GCReason::kForcedGCForTesting;
-
-  using PreFinalizerCallback = bool (*)(void*);
-  using PreFinalizer = std::pair<void*, PreFinalizerCallback>;
 
   // Pre-finalizers are called in the reverse order in which they are
   // registered by the constructors (including constructors of Mixin objects)
@@ -583,9 +594,12 @@ class PLATFORM_EXPORT ThreadState final {
   };
   GCData current_gc_data_;
 
+  std::unique_ptr<IncrementalMarkingScheduler> incremental_marking_scheduler_;
+
   std::unique_ptr<CancelableTaskScheduler> marker_scheduler_;
+  Vector<uint8_t> available_concurrent_marking_task_ids_;
   uint8_t active_markers_ = 0;
-  base::Lock active_concurrent_markers_lock_;
+  base::Lock concurrent_marker_bootstrapping_lock_;
   size_t concurrently_marked_bytes_ = 0;
 
   std::unique_ptr<CancelableTaskScheduler> sweeper_scheduler_;
@@ -595,8 +609,9 @@ class PLATFORM_EXPORT ThreadState final {
   friend class IncrementalMarkingTestDriver;
   friend class HeapAllocator;
   template <typename T>
-  friend class PrefinalizerRegistration;
+  friend class PreFinalizerRegistration;
   friend class TestGCScope;
+  friend class TestSupportingGC;
   friend class ThreadStateSchedulingTest;
   friend class UnifiedHeapController;
 

@@ -23,19 +23,24 @@ class GPUAdapter final : public ScriptWrappable, public DawnObjectBase {
  public:
   static GPUAdapter* Create(
       const String& name,
-      gpu::webgpu::PowerPreference power_preference,
+      uint32_t adapter_service_id,
+      const WGPUDeviceProperties& properties,
       scoped_refptr<DawnControlClientHolder> dawn_control_client);
   GPUAdapter(const String& name,
-             gpu::webgpu::PowerPreference power_preference,
+             uint32_t adapter_service_id,
+             const WGPUDeviceProperties& properties,
              scoped_refptr<DawnControlClientHolder> dawn_control_client);
 
   const String& name() const;
+  ScriptValue extensions(ScriptState* script_state) const;
 
   ScriptPromise requestDevice(ScriptState* script_state,
                               const GPUDeviceDescriptor* descriptor);
 
  private:
   String name_;
+  uint32_t adapter_service_id_;
+  WGPUDeviceProperties adapter_properties_;
 
   DISALLOW_COPY_AND_ASSIGN(GPUAdapter);
 };
