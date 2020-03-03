@@ -1,22 +1,35 @@
-﻿using System.Collections.Generic;
-using System.Net;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Text.RegularExpressions;
-namespace SpitfireUtils { 
+
+namespace SpitfireUtils
+{
 
     public enum IceType
     {
+        /// <summary>
+        /// The candidate is a host candidate, whose IP address as specified in the RTCIceCandidate.ip property is in fact the true address of the remote peer.
+        /// </summary>
         Host,
+        /// <summary>
+        /// The candidate is a server reflexive candidate; the ip indicates an intermediary address assigned by the STUN server to represent the candidate's peer anonymously.
+        /// </summary>
         Srflx,
+        /// <summary>
+        /// The candidate is a peer reflexive candidate; the ip is an intermediary address assigned by the STUN server to represent the candidate's peer anonymously.
+        /// </summary>
         Prflx,
-        Relay,
-        Unknown
+        /// <summary>
+        /// The candidate is a relay candidate, obtained from a TURN server. The relay candidate's IP address is an address the TURN server uses to forward the media between the two peers.
+        /// </summary>
+        Relay
     }
 
     public enum IceTransport
     {
         Tcp,
-        Udp,
-        Unknown
+        Udp
     }
     /// <summary>
     /// Contains information on a parse ICE candidate.
@@ -29,17 +42,15 @@ namespace SpitfireUtils {
         public IceTransport Transport { get; set; }
         public ulong Priority { get; set; }
 
-        public IPAddress LocalIp { get; set; }
+        public string LocalIp { get; set; }
 
         public ushort LocalPort { get; set; }
         public IceType Type { get; set; }
 
-        public IPAddress RemoteIp { get; set; }
+        public string RemoteIp { get; set; }
 
         public ushort RemotePort { get; set; }
         public uint Generation { get; set; }
-
-        public bool Valid => Type != IceType.Unknown;
 
         public string UFrag { get; set; }
         public int NetworkCost { get; set; }
@@ -72,8 +83,11 @@ namespace SpitfireUtils {
         private static readonly Regex Ipv4AddressRegex = new Regex("[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}");
         private static readonly Regex Ipv6AdresssRegex = new Regex(":?(?:[0-9a-fA-F]{0,4}:?)+");
 
+        private static readonly Regex DomainRegex = new Regex(@"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]");
+
+
         private static readonly Regex ConnectAddressRegex =
-            new Regex($"(?:{Ipv4AddressRegex})|(?:{Ipv6AdresssRegex})");
+            new Regex($"(?:{Ipv4AddressRegex})|(?:{Ipv6AdresssRegex})|(?:{DomainRegex})");
 
         private static readonly Regex PortRegex = new Regex("[0-9]{1,5}");
 
@@ -92,8 +106,8 @@ namespace SpitfireUtils {
         /// <returns>The connection type</returns>
         private static IceTransport GetTransportType(string transport)
         {
-            transport = transport.ToLower();
-            return IceTransportMap.ContainsKey(transport) ? IceTransportMap[transport] : IceTransport.Unknown;
+            transport = transport.Trim().ToLower();
+            return IceTransportMap.ContainsKey(transport) ? IceTransportMap[transport] : throw new IndexOutOfRangeException($"Unaware of transport type {transport}");
         }
 
 
@@ -107,9 +121,10 @@ namespace SpitfireUtils {
             var iceCandidate = new IceCandidate();
             var parsed = MasterRegex.Match(candidate);
             //we should only ever have 11 results, even if generation is missing.
+
             if (!parsed.Success || parsed.Groups.Count != 14)
             {
-                return null;
+                throw new DataException($"Failed to parse ICE candidate {candidate}");
             }
             for (var i = 0; i < parsed.Groups.Count; i++)
             {
@@ -139,7 +154,7 @@ namespace SpitfireUtils {
                             iceCandidate.Priority = ulong.Parse(value);
                             break;
                         case 5:
-                            iceCandidate.LocalIp = IPAddress.Parse(value);
+                            iceCandidate.LocalIp = value;
                             break;
                         case 6:
                             iceCandidate.LocalPort = ushort.Parse(value);
@@ -148,7 +163,7 @@ namespace SpitfireUtils {
                             iceCandidate.Type = GetIceType(value);
                             break;
                         case 8:
-                            iceCandidate.RemoteIp = IPAddress.Parse(value);
+                            iceCandidate.RemoteIp = value;
                             break;
                         case 9:
                             iceCandidate.RemotePort = ushort.Parse(value);
@@ -169,7 +184,7 @@ namespace SpitfireUtils {
                 }
                 catch (System.Exception ex)
                 {
-                    return null;
+                    throw new DataException(ex.Message);
                 }
             }
             return iceCandidate;
@@ -183,7 +198,7 @@ namespace SpitfireUtils {
         private static IceType GetIceType(string value)
         {
             value = value.ToLower();
-            return IceTypeMap.ContainsKey(value) ? IceTypeMap[value] : IceType.Unknown;
+            return IceTypeMap.ContainsKey(value) ? IceTypeMap[value] : throw new IndexOutOfRangeException($"Unaware of candidate type {value}");
         }
     }
 }
