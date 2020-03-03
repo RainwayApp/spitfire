@@ -40,6 +40,8 @@ class MediaStreamTrackEvent final : public Event {
   ~MediaStreamTrackEvent() override;
 
   static MediaStreamTrackEvent* Create(const AtomicString& type,
+                                       MediaStreamTrack*);
+  static MediaStreamTrackEvent* Create(const AtomicString& type,
                                        const MediaStreamTrackEventInit*);
 
   MediaStreamTrackEvent(const AtomicString& type, MediaStreamTrack*);

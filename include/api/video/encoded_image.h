@@ -44,10 +44,17 @@ class EncodedImageBufferInterface : public rtc::RefCountInterface {
   // this non-const data method.
   virtual uint8_t* data() = 0;
   virtual size_t size() const = 0;
+  // TODO(bugs.webrtc.org/9378): Delete from this interface, together with
+  // EncodedImage::Allocate. Implemented properly only by the below concrete
+  // class
+  virtual void Realloc(size_t size) { RTC_NOTREACHED(); }
+  // Will be implemented by RefCountedObject, which also implements
+  // |rtc::RefCountInterface|.
+  virtual bool HasOneRef() const = 0;
 };
 
 // Basic implementation of EncodedImageBufferInterface.
-class RTC_EXPORT EncodedImageBuffer : public EncodedImageBufferInterface {
+class EncodedImageBuffer : public EncodedImageBufferInterface {
  public:
   static rtc::scoped_refptr<EncodedImageBuffer> Create() { return Create(0); }
   static rtc::scoped_refptr<EncodedImageBuffer> Create(size_t size);
@@ -57,7 +64,7 @@ class RTC_EXPORT EncodedImageBuffer : public EncodedImageBufferInterface {
   const uint8_t* data() const override;
   uint8_t* data() override;
   size_t size() const override;
-  void Realloc(size_t t);
+  void Realloc(size_t t) override;
 
  protected:
   explicit EncodedImageBuffer(size_t size);
@@ -139,23 +146,16 @@ class RTC_EXPORT EncodedImage {
     capacity_ = capacity;
   }
 
+  // TODO(bugs.webrtc.org/9378): Delete; this method implies realloc, which
+  // should not be generally supported by the EncodedImageBufferInterface.
+  RTC_DEPRECATED
+  void Allocate(size_t capacity);
+
   void SetEncodedData(
       rtc::scoped_refptr<EncodedImageBufferInterface> encoded_data) {
     encoded_data_ = encoded_data;
     size_ = encoded_data->size();
     buffer_ = nullptr;
-  }
-
-  void ClearEncodedData() {
-    encoded_data_ = nullptr;
-    size_ = 0;
-    buffer_ = nullptr;
-    capacity_ = 0;
-  }
-
-  rtc::scoped_refptr<EncodedImageBufferInterface> GetEncodedData() const {
-    RTC_DCHECK(buffer_ == nullptr);
-    return encoded_data_;
   }
 
   // TODO(nisse): Delete, provide only read-only access to the buffer.

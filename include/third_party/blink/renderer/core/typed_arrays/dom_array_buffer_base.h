@@ -6,9 +6,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_DOM_ARRAY_BUFFER_BASE_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/typed_arrays/array_buffer/array_buffer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/wtf/typed_arrays/array_buffer.h"
 
 namespace blink {
 
@@ -16,22 +16,12 @@ class CORE_EXPORT DOMArrayBufferBase : public ScriptWrappable {
  public:
   ~DOMArrayBufferBase() override = default;
 
-  const ArrayBuffer* Buffer() const { return buffer_.get(); }
-  ArrayBuffer* Buffer() { return buffer_.get(); }
+  const WTF::ArrayBuffer* Buffer() const { return buffer_.get(); }
+  WTF::ArrayBuffer* Buffer() { return buffer_.get(); }
 
   const void* Data() const { return Buffer()->Data(); }
   void* Data() { return Buffer()->Data(); }
-
-  size_t ByteLengthAsSizeT() const { return Buffer()->ByteLengthAsSizeT(); }
-
-  // This function is deprecated and should not be used. Use {ByteLengthAsSizeT}
-  // instead.
-  unsigned DeprecatedByteLengthAsUnsigned() const {
-    size_t size = ByteLengthAsSizeT();
-    CHECK_LE(size, static_cast<size_t>(std::numeric_limits<unsigned>::max()));
-    return static_cast<unsigned>(size);
-  }
-
+  unsigned ByteLength() const { return Buffer()->ByteLength(); }
   bool IsDetached() const { return Buffer()->IsDetached(); }
   bool IsShared() const { return Buffer()->IsShared(); }
 
@@ -42,12 +32,12 @@ class CORE_EXPORT DOMArrayBufferBase : public ScriptWrappable {
   }
 
  protected:
-  explicit DOMArrayBufferBase(scoped_refptr<ArrayBuffer> buffer)
+  explicit DOMArrayBufferBase(scoped_refptr<WTF::ArrayBuffer> buffer)
       : buffer_(std::move(buffer)) {
     DCHECK(buffer_);
   }
 
-  scoped_refptr<ArrayBuffer> buffer_;
+  scoped_refptr<WTF::ArrayBuffer> buffer_;
 };
 
 }  // namespace blink

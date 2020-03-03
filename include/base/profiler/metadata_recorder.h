@@ -9,7 +9,6 @@
 #include <atomic>
 #include <utility>
 
-#include "base/optional.h"
 #include "base/profiler/profile_builder.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
@@ -128,14 +127,14 @@ class BASE_EXPORT MetadataRecorder {
   MetadataRecorder(const MetadataRecorder&) = delete;
   MetadataRecorder& operator=(const MetadataRecorder&) = delete;
 
-  // Sets a value for a (|name_hash|, |key|) pair, overwriting any value
-  // previously set for the pair. Nullopt keys are treated as just another key
-  // state for the purpose of associating values.
-  void Set(uint64_t name_hash, Optional<int64_t> key, int64_t value);
+  // Sets a name hash/value pair, overwriting any previous value set for that
+  // name hash.
+  void Set(uint64_t name_hash, int64_t value);
 
-  // Removes the item with the specified name hash and optional key. Has no
-  // effect if such an item does not exist.
-  void Remove(uint64_t name_hash, Optional<int64_t> key);
+  // Removes the item with the specified name hash.
+  //
+  // If such an item does not exist, this has no effect.
+  void Remove(uint64_t name_hash);
 
   // Creates a MetadataProvider object for the recorder, which acquires the
   // necessary exclusive read lock and provides access to the recorder's items
@@ -206,15 +205,12 @@ class BASE_EXPORT MetadataRecorder {
     // is marked as active.
     std::atomic<bool> is_active{false};
 
-    // Neither name_hash or key require atomicity or memory order constraints
-    // because no reader will attempt to read them mid-write. Specifically,
-    // readers wait until |is_active| is true to read them. Because |is_active|
-    // is always stored with a memory_order_release fence, we're guaranteed that
-    // |name_hash| and |key| will be finished writing before |is_active| is set
-    // to true.
+    // Doesn't need atomicity or memory order constraints because no reader will
+    // attempt to read it mid-write. Specifically, readers wait until
+    // |is_active| is true to read |name_hash|. Because |is_active| is always
+    // stored with a memory_order_release fence, we're guaranteed that
+    // |name_hash| will be finished writing before |is_active| is set to true.
     uint64_t name_hash;
-    Optional<int64_t> key;
-
     // Requires atomic reads and writes to avoid word tearing when updating an
     // existing item unsynchronized. Does not require acquire/release semantics
     // because we rely on the |is_active| acquire/release semantics to ensure

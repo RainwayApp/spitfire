@@ -132,10 +132,8 @@ class NetEqTestFactory {
     int skip_get_audio_events = default_skip_get_audio_events();
     // Enables jitter buffer fast accelerate.
     bool enable_fast_accelerate = false;
-    // Dumps events that describes the simulation on a step-by-step basis.
-    bool textlog = false;
-    // If specified and |textlog| is true, the output of |textlog| is written to
-    // the specified file name.
+    // Path to the output text log file that describes the simulation on a
+    // step-by-step basis.
     absl::optional<std::string> textlog_filename;
     // Base name for the output script files for plotting the delay profile.
     absl::optional<std::string> plot_scripts_basename;

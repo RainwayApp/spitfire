@@ -99,7 +99,7 @@
  *   </tr>
  *   <tr>
  *     <td>Codepage Conversion</td>
- *     <td>ucnv.h, ucnvsel.h</td>
+ *     <td>ucnv.h, ucnvsel.hb</td>
  *     <td>C API</td>
  *   </tr>
  *   <tr>
@@ -115,7 +115,7 @@
  *   <tr>
  *     <td>Locales </td>
  *     <td>uloc.h</a></td>
- *     <td>icu::Locale, icu::LocaleBuilder, icu::LocaleMatcher</td>
+ *     <td>icu::Locale, icu::LocaleBuilder</td>
  *   </tr>
  *   <tr>
  *     <td>Resource Bundles</td>

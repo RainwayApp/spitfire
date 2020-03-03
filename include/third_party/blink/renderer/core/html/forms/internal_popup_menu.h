@@ -54,7 +54,6 @@ class CORE_EXPORT InternalPopupMenu final : public PopupMenu,
   void SetValue(const String&) override;
   void CancelPopup() override;
   Element& OwnerElement() override;
-  ChromeClient& GetChromeClient() override;
   float ZoomFactor() override { return 1.0; }
   Locale& GetLocale() override;
   void DidClosePopup() override;

@@ -1,7 +1,3 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COMPRESSION_INFLATE_TRANSFORMER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COMPRESSION_INFLATE_TRANSFORMER_H_
 
@@ -14,19 +10,19 @@
 
 namespace blink {
 
-enum class CompressionFormat;
-
 class InflateTransformer final : public TransformStreamTransformer {
  public:
-  InflateTransformer(ScriptState*, CompressionFormat);
+  enum class Format { kDeflate, kGzip };
+
+  InflateTransformer(ScriptState*, Format format);
   ~InflateTransformer() override;
 
-  ScriptPromise Transform(v8::Local<v8::Value> chunk,
-                          TransformStreamDefaultController*,
-                          ExceptionState&) override;
+  void Transform(v8::Local<v8::Value> chunk,
+                 TransformStreamDefaultControllerInterface*,
+                 ExceptionState&) override;
 
-  ScriptPromise Flush(TransformStreamDefaultController*,
-                      ExceptionState&) override;
+  void Flush(TransformStreamDefaultControllerInterface*,
+             ExceptionState&) override;
 
   ScriptState* GetScriptState() override { return script_state_; }
 
@@ -38,7 +34,7 @@ class InflateTransformer final : public TransformStreamTransformer {
   void Inflate(const uint8_t*,
                wtf_size_t,
                IsFinished,
-               TransformStreamDefaultController*,
+               TransformStreamDefaultControllerInterface*,
                ExceptionState&);
 
   Member<ScriptState> script_state_;
@@ -48,7 +44,6 @@ class InflateTransformer final : public TransformStreamTransformer {
   Vector<uint8_t> out_buffer_;
 
   bool was_flush_called_ = false;
-  bool reached_end_ = false;
 
   // This buffer size has been experimentally verified to be optimal.
   static constexpr wtf_size_t kBufferSize = 65536;

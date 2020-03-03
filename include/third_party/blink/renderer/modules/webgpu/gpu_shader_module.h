@@ -11,13 +11,13 @@ namespace blink {
 
 class GPUShaderModuleDescriptor;
 
-class GPUShaderModule : public DawnObject<WGPUShaderModule> {
+class GPUShaderModule : public DawnObject<DawnShaderModule> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static GPUShaderModule* Create(GPUDevice* device,
                                  const GPUShaderModuleDescriptor* webgpu_desc);
-  explicit GPUShaderModule(GPUDevice* device, WGPUShaderModule shader_module);
+  explicit GPUShaderModule(GPUDevice* device, DawnShaderModule shader_module);
   ~GPUShaderModule() override;
 
  private:

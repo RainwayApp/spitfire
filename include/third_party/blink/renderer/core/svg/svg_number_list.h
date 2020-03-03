@@ -53,7 +53,7 @@ class SVGNumberList final
   String ValueAsString() const override;
 
   void Add(SVGPropertyBase*, SVGElement*) override;
-  void CalculateAnimatedValue(const SVGAnimateElement&,
+  void CalculateAnimatedValue(SVGAnimationElement*,
                               float percentage,
                               unsigned repeat_count,
                               SVGPropertyBase* from_value,

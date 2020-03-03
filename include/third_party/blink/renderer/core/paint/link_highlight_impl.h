@@ -72,8 +72,7 @@ class CORE_EXPORT LinkHighlightImpl final : public CompositorAnimationDelegate,
 
   const EffectPaintPropertyNode& Effect() const { return *effect_; }
 
-  void UpdateBeforePrePaint();
-  void UpdateAfterPrePaint();
+  void UpdatePrePaint();
   void Paint(GraphicsContext&);
 
   wtf_size_t FragmentCountForTesting() const { return fragments_.size(); }

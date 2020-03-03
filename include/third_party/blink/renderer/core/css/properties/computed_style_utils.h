@@ -17,6 +17,8 @@
 
 namespace blink {
 
+using namespace cssvalue;
+
 class CSSNumericLiteralValue;
 class CSSStyleValue;
 class CSSValue;
@@ -214,12 +216,6 @@ class ComputedStyleUtils {
   static CSSValue* ValueForGapLength(const GapLength&, const ComputedStyle&);
   static std::unique_ptr<CrossThreadStyleValue>
   CrossThreadStyleValueFromCSSStyleValue(CSSStyleValue* style_value);
-
-  static CSSValuePair* ValuesForIntrinsicSizeShorthand(
-      const StylePropertyShorthand&,
-      const ComputedStyle&,
-      const LayoutObject*,
-      bool allow_visited_style);
 };
 
 }  // namespace blink

@@ -44,7 +44,6 @@
 
 namespace blink {
 
-struct BlinkTransferableMessage;
 class ExceptionState;
 class ExecutionContext;
 class PostMessageOptions;
@@ -137,7 +136,6 @@ class CORE_EXPORT MessagePort : public EventTargetWithInlineData,
   bool Accept(mojo::Message*) override;
   void ResetMessageCount();
   bool ShouldYieldAfterNewMessage();
-  Event* CreateMessageEvent(BlinkTransferableMessage& message);
 
   std::unique_ptr<mojo::Connector> connector_;
   int messages_in_current_task_ = 0;

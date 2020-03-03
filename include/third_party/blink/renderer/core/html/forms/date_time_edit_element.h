@@ -106,7 +106,6 @@ class DateTimeEditElement final : public HTMLDivElement,
   void SetValueAsDate(const LayoutParameters&, const DateComponents&);
   void SetValueAsDateTimeFieldsState(const DateTimeFieldsState&);
   void SetOnlyYearMonthDay(const DateComponents&);
-  void SetOnlyTime(const DateComponents&);
   void StepDown();
   void StepUp();
   String Value() const;

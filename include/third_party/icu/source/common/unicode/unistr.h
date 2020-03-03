@@ -28,11 +28,8 @@
  * \brief C++ API: Unicode String
  */
 
-#include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include <cstddef>
+#include "unicode/utypes.h"
 #include "unicode/char16ptr.h"
 #include "unicode/rep.h"
 #include "unicode/std_string.h"
@@ -212,9 +209,7 @@ class UnicodeStringAppendable;  // unicode/appendable.h
  * similar functionality as the Java String and StringBuffer/StringBuilder classes.
  * It is a concrete implementation of the abstract class Replaceable (for transliteration).
  *
- * The UnicodeString equivalent of std::string’s clear() is remove().
- *
- * A UnicodeString may "alias" an external array of characters
+ * A UnicodeString may also "alias" an external array of characters
  * (that is, point to it, rather than own the array)
  * whose lifetime must then at least match the lifetime of the aliasing object.
  * This aliasing may be preserved when returning a UnicodeString by value,
@@ -2097,7 +2092,8 @@ public:
    *   s.truncate(0);        // set to an empty string (complete truncation), or
    *   s=UnicodeString();    // assign an empty string, or
    *   s.setTo((UChar32)-1); // set to a pseudo code point that is out of range, or
-   *   s.setTo(u"", 0);      // set to an empty C Unicode string
+   *   static const char16_t nul=0;
+   *   s.setTo(&nul, 0);     // set to an empty C Unicode string
    * }
    * \endcode
    *
@@ -2538,14 +2534,11 @@ public:
   /* Remove operations */
 
   /**
-   * Removes all characters from the UnicodeString object and clears the bogus flag.
-   * This is the UnicodeString equivalent of std::string’s clear().
-   *
+   * Remove all characters from the UnicodeString object.
    * @return a reference to this
-   * @see setToBogus
    * @stable ICU 2.0
    */
-  inline UnicodeString& remove();
+  inline UnicodeString& remove(void);
 
   /**
    * Remove the characters in the range
@@ -3041,11 +3034,11 @@ public:
    * uint16_t * constructor.
    * Delegates to UnicodeString(const char16_t *, int32_t).
    * @param text UTF-16 string
-   * @param textLength string length
+   * @param length string length
    * @stable ICU 59
    */
-  UnicodeString(const uint16_t *text, int32_t textLength) :
-      UnicodeString(ConstChar16Ptr(text), textLength) {}
+  UnicodeString(const uint16_t *text, int32_t length) :
+      UnicodeString(ConstChar16Ptr(text), length) {}
 #endif
 
 #if U_SIZEOF_WCHAR_T==2 || defined(U_IN_DOXYGEN)
@@ -3054,21 +3047,21 @@ public:
    * (Only defined if U_SIZEOF_WCHAR_T==2.)
    * Delegates to UnicodeString(const char16_t *, int32_t).
    * @param text NUL-terminated UTF-16 string
-   * @param textLength string length
+   * @param length string length
    * @stable ICU 59
    */
-  UnicodeString(const wchar_t *text, int32_t textLength) :
-      UnicodeString(ConstChar16Ptr(text), textLength) {}
+  UnicodeString(const wchar_t *text, int32_t length) :
+      UnicodeString(ConstChar16Ptr(text), length) {}
 #endif
 
   /**
    * nullptr_t constructor.
    * Effectively the same as the default constructor, makes an empty string object.
    * @param text nullptr
-   * @param textLength ignored
+   * @param length ignored
    * @stable ICU 59
    */
-  inline UnicodeString(const std::nullptr_t text, int32_t textLength);
+  inline UnicodeString(const std::nullptr_t text, int32_t length);
 
   /**
    * Readonly-aliasing char16_t* constructor.
@@ -3273,13 +3266,13 @@ public:
    *     }
    * \endcode
    * @param src String using only invariant characters.
-   * @param textLength Length of src, or -1 if NUL-terminated.
+   * @param length Length of src, or -1 if NUL-terminated.
    * @param inv Signature-distinguishing paramater, use US_INV.
    *
    * @see US_INV
    * @stable ICU 3.2
    */
-  UnicodeString(const char *src, int32_t textLength, enum EInvariant inv);
+  UnicodeString(const char *src, int32_t length, enum EInvariant inv);
 
 
   /**
@@ -3330,6 +3323,9 @@ public:
    * Clones can be used concurrently in multiple threads.
    * If a subclass does not implement clone(), or if an error occurs,
    * then NULL is returned.
+   * The clone functions in all subclasses return a pointer to a Replaceable
+   * because some compilers do not support covariant (same-as-this)
+   * return types; cast to the appropriate subclass if necessary.
    * The caller must delete the clone.
    *
    * @return a clone of this object
@@ -3338,7 +3334,7 @@ public:
    * @see getDynamicClassID
    * @stable ICU 2.6
    */
-  virtual UnicodeString *clone() const;
+  virtual Replaceable *clone() const;
 
   /** Destructor.
    * @stable ICU 2.0
@@ -4751,7 +4747,5 @@ UnicodeString::reverse(int32_t start,
 { return doReverse(start, _length); }
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

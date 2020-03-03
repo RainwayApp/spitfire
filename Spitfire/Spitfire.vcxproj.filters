@@ -21,16 +21,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RtcConductor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RtcUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PeerConnectionObserver.h">
@@ -65,9 +59,6 @@
     <ClCompile Include="PeerConnectionObserver.cpp">
       <Filter>Source Files\Observers</Filter>
     </ClCompile>
-    <ClCompile Include="RtcUtils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SpitfireRtc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -76,5 +67,8 @@
     <ResourceCompile Include="Resource.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="webrtc.props" />
   </ItemGroup>
 </Project>

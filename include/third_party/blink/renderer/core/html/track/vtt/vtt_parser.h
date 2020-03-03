@@ -68,8 +68,7 @@ class VTTParser final : public GarbageCollected<VTTParser> {
     kTimingsAndSettings,
     kCueText,
     kRegion,
-    kBadCue,
-    kStyle
+    kBadCue
   };
 
   VTTParser(VTTParserClient*, Document&);
@@ -101,8 +100,7 @@ class VTTParser final : public GarbageCollected<VTTParser> {
 
   // Create the DocumentFragment representation of the WebVTT cue text.
   static DocumentFragment* CreateDocumentFragmentFromCueText(Document&,
-                                                             const String&,
-                                                             TextTrack*);
+                                                             const String&);
 
   // Input data to the parser to parse.
   void ParseBytes(const char* data, size_t length);
@@ -110,9 +108,6 @@ class VTTParser final : public GarbageCollected<VTTParser> {
 
   // Transfers ownership of last parsed cues to caller.
   void GetNewCues(HeapVector<Member<TextTrackCue>>&);
-
-  // Transfers ownership of last parsed style sheets to caller.
-  void GetNewStyleSheets(HeapVector<Member<CSSStyleSheet>>&);
 
   void Trace(Visitor*);
 
@@ -131,9 +126,9 @@ class VTTParser final : public GarbageCollected<VTTParser> {
   ParseState CollectRegionSettings(const String&);
   ParseState CollectWebVTTBlock(const String&);
   ParseState CheckAndRecoverCue(const String& line);
-  ParseState CollectStyleSheet(const String& line);
   bool CheckAndCreateRegion(const String& line);
   bool CheckAndStoreRegion(const String& line);
+
   void CreateNewCue();
   void ResetCueValues();
 
@@ -149,11 +144,8 @@ class VTTParser final : public GarbageCollected<VTTParser> {
   String current_settings_;
   Member<VTTRegion> current_region_;
   Member<VTTParserClient> client_;
-  HeapVector<Member<CSSStyleSheet>> style_sheets_;
-  HeapVector<Member<TextTrackCue>> cue_list_;
 
-  // Used for histogram metric logging only.
-  bool contains_style_block_;
+  HeapVector<Member<TextTrackCue>> cue_list_;
 
   VTTRegionMap region_map_;
 };

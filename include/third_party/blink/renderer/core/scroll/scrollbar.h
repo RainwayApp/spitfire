@@ -37,6 +37,7 @@
 
 namespace blink {
 
+class CullRect;
 class Element;
 class GraphicsContext;
 class IntRect;
@@ -124,9 +125,8 @@ class CORE_EXPORT Scrollbar : public GarbageCollected<Scrollbar>,
   void SetProportion(int visible_size, int total_size);
   void SetPressedPos(int p) { pressed_pos_ = p; }
 
-  void Paint(GraphicsContext&) const;
+  void Paint(GraphicsContext&, const CullRect&) const;
 
-  virtual bool IsSolidColor() const;
   virtual bool IsOverlayScrollbar() const;
   bool ShouldParticipateInHitTesting();
 

@@ -18,10 +18,7 @@ namespace base {
 class BASE_EXPORT TaskObserver {
  public:
   // This method is called before processing a task.
-  // |was_blocked_or_low_priority| indicates if the task was at some point in a
-  // queue that was blocked or less important than "normal".
-  virtual void WillProcessTask(const PendingTask& pending_task,
-                               bool was_blocked_or_low_priority) = 0;
+  virtual void WillProcessTask(const PendingTask& pending_task) = 0;
 
   // This method is called after processing a task.
   virtual void DidProcessTask(const PendingTask& pending_task) = 0;

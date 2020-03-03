@@ -20,10 +20,11 @@ class SerialPortUnderlyingSink final : public UnderlyingSinkBase {
   SerialPortUnderlyingSink(SerialPort*, mojo::ScopedDataPipeProducerHandle);
 
   // UnderlyingSinkBase
-  ScriptPromise start(ScriptState*, WritableStreamDefaultController*) override;
+  ScriptPromise start(ScriptState*,
+                      WritableStreamDefaultControllerInterface*) override;
   ScriptPromise write(ScriptState*,
                       ScriptValue chunk,
-                      WritableStreamDefaultController*) override;
+                      WritableStreamDefaultControllerInterface*) override;
   ScriptPromise close(ScriptState*) override;
   ScriptPromise abort(ScriptState*, ScriptValue reason) override;
 

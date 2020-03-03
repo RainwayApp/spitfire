@@ -41,6 +41,7 @@ class LayoutEmbeddedContent;
 class Page;
 class Scrollbar;
 class ScrollingCoordinator;
+class VisualViewport;
 
 enum CompositingUpdateType {
   kCompositingUpdateNone,
@@ -151,6 +152,8 @@ class CORE_EXPORT PaintLayerCompositor {
       PaintLayer*,
       CompositingStateTransitionType composited_layer_update);
 
+  void AttachRootLayerViaChromeClient();
+
   PaintLayer* GetCompositingInputsRoot() {
     return compositing_inputs_root_.Get();
   }
@@ -186,7 +189,9 @@ class CORE_EXPORT PaintLayerCompositor {
 
   void EnableCompositingModeIfNeeded();
 
-  GraphicsLayer* OverlayFullscreenVideoGraphicsLayer() const;
+  void ApplyOverlayFullscreenVideoAdjustmentIfNeeded();
+  void AdjustOverlayFullscreenVideoPosition(GraphicsLayer*);
+  GraphicsLayer* OverlayFullscreenVideoGraphicsLayer();
 
   // Checks the given graphics layer against the compositor's horizontal and
   // vertical scrollbar graphics layers, returning the associated Scrollbar
@@ -194,6 +199,9 @@ class CORE_EXPORT PaintLayerCompositor {
   Scrollbar* GraphicsLayerToScrollbar(const GraphicsLayer*) const;
 
   bool IsMainFrame() const;
+  VisualViewport& GetVisualViewport() const;
+  GraphicsLayer* ParentForContentLayers(
+      GraphicsLayer* child_frame_parent_candidate = nullptr) const;
 
   GraphicsLayer* GetXrImmersiveDomOverlayLayer() const;
 
@@ -217,8 +225,9 @@ class CORE_EXPORT PaintLayerCompositor {
 
   enum RootLayerAttachment {
     kRootLayerUnattached,
-    kRootLayerAttachedViaEnclosingFrame,
-    kRootLayerOfLocalFrameRoot  // which doesn't need to attach to anything.
+    kRootLayerPendingAttachViaChromeClient,
+    kRootLayerAttachedViaChromeClient,
+    kRootLayerAttachedViaEnclosingFrame
   };
   RootLayerAttachment root_layer_attachment_ = kRootLayerUnattached;
 

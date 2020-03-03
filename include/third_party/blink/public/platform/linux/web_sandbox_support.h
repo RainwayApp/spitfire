@@ -31,12 +31,9 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_LINUX_WEB_SANDBOX_SUPPORT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_LINUX_WEB_SANDBOX_SUPPORT_H_
 
+#include "third_party/blink/public/platform/linux/out_of_process_font.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_string.h"
-
-namespace gfx {
-struct FallbackFontData;
-}
 
 namespace blink {
 
@@ -52,26 +49,25 @@ class WebSandboxSupport {
   // Get information to instantiate a font which contains glyphs for the given
   // Unicode code-point.
   //   character: a UTF-32 codepoint
-  //   preferred_locale: preferred locale identifier for the |characters|
-  //                     (e.g. "en", "ja", "zh-CN")
+  //   preferredLocale: preferred locale identifier for the |characters|
+  //                    (e.g. "en", "ja", "zh-CN")
   //
-  // fallback_font will be filled with the font name and filename, among other
-  // data. Returns false if the request could not be satisfied.
-  virtual bool GetFallbackFontForCharacter(
-      WebUChar32 character,
-      const char* preferred_locale,
-      gfx::FallbackFontData* fallback_font) = 0;
+  // Returns a OutOfProcessFont instance with the font name and filename.
+  // The instance has empty font name if the request cannot be satisfied.
+  virtual void GetFallbackFontForCharacter(WebUChar32,
+                                           const char* preferred_locale,
+                                           OutOfProcessFont*) = 0;
 
-  // Get a FallbackFontData specification for a font uniquely identified by full
+  // Get a OutOfProcessFont specification for a font uniquely identified by full
   // font name or postscript name.  Specify full font name or postscript name as
   // argument in UTF-8.
   //
-  // The FallbackFontData out parameter will contain a filename, ttc index and
+  // The OutOfProcessFont out parameter will contain a filename, ttc index and
   // fontconfig interface id, with the italic and bold members set always
-  // initialised to false. If a match is not found, return false.
-  virtual bool MatchFontByPostscriptNameOrFullFontName(
+  // initialised to false.
+  virtual void MatchFontByPostscriptNameOrFullFontName(
       const char* font_unique_name,
-      gfx::FallbackFontData*) = 0;
+      OutOfProcessFont*) = 0;
 
   // Fill out the given WebFontRenderStyle with the user's preferences for
   // rendering the given font at the given size (in pixels), given weight and
@@ -88,4 +84,4 @@ class WebSandboxSupport {
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_PUBLIC_PLATFORM_LINUX_WEB_SANDBOX_SUPPORT_H_
+#endif

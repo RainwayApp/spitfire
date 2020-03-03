@@ -168,8 +168,17 @@ class RtpHelper : public Base {
     }
     return webrtc::RtpParameters();
   }
-  virtual webrtc::RtpParameters GetDefaultRtpReceiveParameters() const {
-    return webrtc::RtpParameters();
+  virtual bool SetRtpReceiveParameters(
+      uint32_t ssrc,
+      const webrtc::RtpParameters& parameters) {
+    auto parameters_iterator = rtp_receive_parameters_.find(ssrc);
+    if (parameters_iterator != rtp_receive_parameters_.end()) {
+      parameters_iterator->second = parameters;
+      return true;
+    }
+    // Replicate the behavior of the real media channel: return false
+    // when setting parameters for unknown SSRCs.
+    return false;
   }
 
   bool IsStreamMuted(uint32_t ssrc) const {
@@ -341,8 +350,6 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
   bool InsertDtmf(uint32_t ssrc, int event_code, int duration) override;
 
   bool SetOutputVolume(uint32_t ssrc, double volume) override;
-  bool SetDefaultOutputVolume(double volume) override;
-
   bool GetOutputVolume(uint32_t ssrc, double* volume);
 
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
@@ -353,8 +360,6 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
 
   void SetRawAudioSink(
       uint32_t ssrc,
-      std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
-  void SetDefaultRawAudioSink(
       std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
 
   std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const override;
@@ -422,8 +427,6 @@ class FakeVideoMediaChannel : public RtpHelper<VideoMediaChannel> {
   bool GetSendCodec(VideoCodec* send_codec) override;
   bool SetSink(uint32_t ssrc,
                rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void SetDefaultSink(
-      rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
   bool HasSink(uint32_t ssrc) const;
 
   bool SetSend(bool send) override;
@@ -444,13 +447,6 @@ class FakeVideoMediaChannel : public RtpHelper<VideoMediaChannel> {
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
   absl::optional<int> GetBaseMinimumPlayoutDelayMs(
       uint32_t ssrc) const override;
-
-  void SetRecordableEncodedFrameCallback(
-      uint32_t ssrc,
-      std::function<void(const webrtc::RecordableEncodedFrame&)> callback)
-      override;
-  void ClearRecordableEncodedFrameCallback(uint32_t ssrc) override;
-  void GenerateKeyFrame(uint32_t ssrc) override;
 
  private:
   bool SetRecvCodecs(const std::vector<VideoCodec>& codecs);

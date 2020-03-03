@@ -142,13 +142,6 @@ class PLATFORM_EXPORT ImageDecoder {
     kMaxValue = kWebPAnimationFormat,
   };
 
-  // Enforces YUV decoding to be disallowed in the image decoder. The default
-  // value defers to the YUV decoding decision to the decoder.
-  enum class OverrideAllowDecodeToYuv {
-    kDefault,
-    kDeny,
-  };
-
   virtual ~ImageDecoder() = default;
 
   // Returns a caller-owned decoder of the appropriate type.  Returns nullptr if
@@ -161,8 +154,6 @@ class PLATFORM_EXPORT ImageDecoder {
       AlphaOption,
       HighBitDepthDecodingOption,
       const ColorBehavior&,
-      const OverrideAllowDecodeToYuv allow_decode_to_yuv =
-          OverrideAllowDecodeToYuv::kDefault,
       const SkISize& desired_size = SkISize::MakeEmpty());
   static std::unique_ptr<ImageDecoder> Create(
       scoped_refptr<SharedBuffer> data,
@@ -170,12 +161,10 @@ class PLATFORM_EXPORT ImageDecoder {
       AlphaOption alpha_option,
       HighBitDepthDecodingOption high_bit_depth_decoding_option,
       const ColorBehavior& color_behavior,
-      const OverrideAllowDecodeToYuv allow_decode_to_yuv =
-          OverrideAllowDecodeToYuv::kDefault,
       const SkISize& desired_size = SkISize::MakeEmpty()) {
     return Create(SegmentReader::CreateFromSharedBuffer(std::move(data)),
                   data_complete, alpha_option, high_bit_depth_decoding_option,
-                  color_behavior, allow_decode_to_yuv, desired_size);
+                  color_behavior, desired_size);
   }
 
   virtual String FilenameExtension() const = 0;
@@ -375,7 +364,7 @@ class PLATFORM_EXPORT ImageDecoder {
     frame_buffer_cache_[0].SetMemoryAllocator(allocator);
   }
 
-  bool CanDecodeToYUV() { return allow_decode_to_yuv_; }
+  virtual bool CanDecodeToYUV() { return allow_decode_to_yuv_; }
   // Should only be called if CanDecodeToYuv() returns true, in which case
   // the subclass of ImageDecoder must override this method.
   virtual void DecodeToYUV() { NOTREACHED(); }
@@ -387,13 +376,12 @@ class PLATFORM_EXPORT ImageDecoder {
   ImageDecoder(AlphaOption alpha_option,
                HighBitDepthDecodingOption high_bit_depth_decoding_option,
                const ColorBehavior& color_behavior,
-               size_t max_decoded_bytes,
-               const bool allow_decode_to_yuv = false)
+               size_t max_decoded_bytes)
       : premultiply_alpha_(alpha_option == kAlphaPremultiplied),
         high_bit_depth_decoding_option_(high_bit_depth_decoding_option),
         color_behavior_(color_behavior),
         max_decoded_bytes_(max_decoded_bytes),
-        allow_decode_to_yuv_(allow_decode_to_yuv),
+        allow_decode_to_yuv_(false),
         purge_aggressively_(false) {}
 
   // Calculates the most recent frame whose image data may be needed in

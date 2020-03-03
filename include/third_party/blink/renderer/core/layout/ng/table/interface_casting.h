@@ -69,8 +69,7 @@ const Derived& ToInterface(const Base& from) {
 
 template <typename Derived, typename Base>
 const Derived* ToInterface(const Base* from) {
-  if (from)
-    SECURITY_DCHECK(InterfaceDowncastTraits<Derived>::AllowFrom(*from));
+  SECURITY_DCHECK(InterfaceDowncastTraits<Derived>::AllowFrom(*from));
   return from ? &InterfaceDowncastTraits<Derived>::ConvertFrom(*from) : nullptr;
 }
 
@@ -84,8 +83,7 @@ Derived& ToInterface(Base& from) {
 
 template <typename Derived, typename Base>
 Derived* ToInterface(Base* from) {
-  if (from)
-    SECURITY_DCHECK(InterfaceDowncastTraits<Derived>::AllowFrom(*from));
+  SECURITY_DCHECK(InterfaceDowncastTraits<Derived>::AllowFrom(*from));
   // const_cast is safe because from is not const.
   return from ? const_cast<Derived*>(
                     &InterfaceDowncastTraits<Derived>::ConvertFrom(*from))

@@ -77,7 +77,7 @@ class UnescapeTransliterator : public Transliterator {
     /**
      * Transliterator API.
      */
-    virtual UnescapeTransliterator* clone() const;
+    virtual Transliterator* clone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

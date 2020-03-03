@@ -37,6 +37,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/mojom/frame/document_interface_broker.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_focus_type.h"
 #include "third_party/blink/public/platform/web_menu_source_type.h"
@@ -204,6 +205,7 @@ class CORE_EXPORT EmptyChromeClient : public ChromeClient {
   void SetCursorOverridden(bool) override {}
   Cursor LastSetCursorForTesting() const override { return PointerCursor(); }
 
+  void AttachRootGraphicsLayer(GraphicsLayer*, LocalFrame* local_root) override;
   void AttachRootLayer(scoped_refptr<cc::Layer>,
                        LocalFrame* local_root) override;
 
@@ -267,6 +269,7 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
   Frame* FirstChild() const override { return nullptr; }
   void WillBeDetached() override {}
   void Detached(FrameDetachType) override {}
+  void FrameFocused() const override {}
 
   void DispatchWillSendRequest(ResourceRequest&) override {}
   void DispatchDidLoadResourceFromMemoryCache(
@@ -284,6 +287,7 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
                            WebHistoryCommitType) override {}
   void DispatchDidFinishDocumentLoad() override {}
   void DispatchDidFinishLoad() override {}
+  void DispatchDidChangeThemeColor() override {}
 
   void BeginNavigation(
       const ResourceRequest&,
@@ -295,7 +299,7 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
       bool,
       WebFrameLoadType,
       bool,
-      TriggeringEventInfo,
+      WebTriggeringEventInfo,
       HTMLFormElement*,
       ContentSecurityPolicyDisposition,
       mojo::PendingRemote<mojom::blink::BlobURLToken>,
@@ -335,6 +339,8 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
   void TransitionToCommittedForNewPage() override {}
 
   bool NavigateBackForward(int offset) const override { return false; }
+  void DidDisplayInsecureContent() override {}
+  void DidContainInsecureFormAction() override {}
   void DidRunInsecureContent(const SecurityOrigin*, const KURL&) override {}
   void DidDispatchPingLoader(const KURL&) override {}
   void DidDisplayContentWithCertificateErrors() override {}
@@ -373,9 +379,15 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
                                 int32_t world_id) override {}
   bool AllowScriptExtensions() override { return false; }
 
+  void VisibilityChanged(blink::mojom::FrameVisibility) override {}
+
   service_manager::InterfaceProvider* GetInterfaceProvider() override {
     return &interface_provider_;
   }
+
+  mojom::blink::DocumentInterfaceBroker* GetDocumentInterfaceBroker() override;
+  mojo::ScopedMessagePipeHandle SetDocumentInterfaceBrokerForTesting(
+      mojo::ScopedMessagePipeHandle blink_handle) override;
 
   BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() override {
     return GetEmptyBrowserInterfaceBroker();
@@ -421,11 +433,15 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
 
   Frame* FindFrame(const AtomicString& name) const override;
 
+  void EvictFromBackForwardCache() override {}
+
  protected:
   // Not owned
   WebTextCheckClient* text_check_client_;
 
   service_manager::InterfaceProvider interface_provider_;
+  mojo::Remote<mojom::blink::DocumentInterfaceBroker>
+      document_interface_broker_;
 
   DISALLOW_COPY_AND_ASSIGN(EmptyLocalFrameClient);
 };
@@ -462,9 +478,12 @@ class CORE_EXPORT EmptyRemoteFrameClient : public RemoteFrameClient {
   void FrameRectsChanged(const IntRect& local_frame_rect,
                          const IntRect& transformed_frame_rect) override {}
   void UpdateRemoteViewportIntersection(
-      const ViewportIntersectionState& intersection_state) override {}
+      const IntRect& viewport_intersection,
+      FrameOcclusionState occlusion_state) override {}
   void AdvanceFocus(WebFocusType, LocalFrame* source) override {}
+  void VisibilityChanged(blink::mojom::FrameVisibility) override {}
   void SetIsInert(bool) override {}
+  void SetInheritedEffectiveTouchAction(TouchAction) override {}
   void UpdateRenderThrottlingStatus(bool is_throttled,
                                     bool subtree_throttled) override {}
   uint32_t Print(const IntRect& rect, cc::PaintCanvas* canvas) const override {
@@ -480,6 +499,7 @@ class CORE_EXPORT EmptyRemoteFrameClient : public RemoteFrameClient {
   Frame* Top() const override { return nullptr; }
   Frame* NextSibling() const override { return nullptr; }
   Frame* FirstChild() const override { return nullptr; }
+  void FrameFocused() const override {}
   base::UnguessableToken GetDevToolsFrameToken() const override {
     return base::UnguessableToken::Create();
   }

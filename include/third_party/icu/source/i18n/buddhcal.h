@@ -94,7 +94,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual BuddhistCalendar* clone() const;
+    virtual Calendar* clone(void) const;
 
 public:
     /**

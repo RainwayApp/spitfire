@@ -9,6 +9,8 @@
 
 #include "unicode/utypes.h"
 
+#ifndef U_HIDE_DRAFT_API
+
 #include "unicode/localpointer.h"
 #include "unicode/ucpmap.h"
 #include "unicode/ucptrie.h"
@@ -42,7 +44,7 @@ U_CDECL_BEGIN
  *
  * @see UCPTrie
  * @see umutablecptrie_buildImmutable
- * @stable ICU 63
+ * @draft ICU 63
  */
 typedef struct UMutableCPTrie UMutableCPTrie;
 
@@ -57,7 +59,7 @@ typedef struct UMutableCPTrie UMutableCPTrie;
  * @param errorValue the value for out-of-range code points and ill-formed UTF-8/16
  * @param pErrorCode an in/out ICU UErrorCode
  * @return the trie
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI UMutableCPTrie * U_EXPORT2
 umutablecptrie_open(uint32_t initialValue, uint32_t errorValue, UErrorCode *pErrorCode);
@@ -69,7 +71,7 @@ umutablecptrie_open(uint32_t initialValue, uint32_t errorValue, UErrorCode *pErr
  * @param other the trie to clone
  * @param pErrorCode an in/out ICU UErrorCode
  * @return the trie clone
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI UMutableCPTrie * U_EXPORT2
 umutablecptrie_clone(const UMutableCPTrie *other, UErrorCode *pErrorCode);
@@ -78,7 +80,7 @@ umutablecptrie_clone(const UMutableCPTrie *other, UErrorCode *pErrorCode);
  * Closes a mutable trie and releases associated memory.
  *
  * @param trie the trie
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI void U_EXPORT2
 umutablecptrie_close(UMutableCPTrie *trie);
@@ -94,7 +96,7 @@ U_NAMESPACE_BEGIN
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUMutableCPTriePointer, UMutableCPTrie, umutablecptrie_close);
 
@@ -109,7 +111,7 @@ U_NAMESPACE_END
  * @param map the source map
  * @param pErrorCode an in/out ICU UErrorCode
  * @return the mutable trie
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI UMutableCPTrie * U_EXPORT2
 umutablecptrie_fromUCPMap(const UCPMap *map, UErrorCode *pErrorCode);
@@ -121,7 +123,7 @@ umutablecptrie_fromUCPMap(const UCPMap *map, UErrorCode *pErrorCode);
  * @param trie the immutable trie
  * @param pErrorCode an in/out ICU UErrorCode
  * @return the mutable trie
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI UMutableCPTrie * U_EXPORT2
 umutablecptrie_fromUCPTrie(const UCPTrie *trie, UErrorCode *pErrorCode);
@@ -132,7 +134,7 @@ umutablecptrie_fromUCPTrie(const UCPTrie *trie, UErrorCode *pErrorCode);
  * @param trie the trie
  * @param c the code point
  * @return the value
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI uint32_t U_EXPORT2
 umutablecptrie_get(const UMutableCPTrie *trie, UChar32 c);
@@ -164,7 +166,7 @@ umutablecptrie_get(const UMutableCPTrie *trie, UChar32 c);
  *     may have been modified by filter(context, trie value)
  *     if that function pointer is not NULL
  * @return the range end code point, or -1 if start is not a valid code point
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI UChar32 U_EXPORT2
 umutablecptrie_getRange(const UMutableCPTrie *trie, UChar32 start,
@@ -178,7 +180,7 @@ umutablecptrie_getRange(const UMutableCPTrie *trie, UChar32 start,
  * @param c the code point
  * @param value the value
  * @param pErrorCode an in/out ICU UErrorCode
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI void U_EXPORT2
 umutablecptrie_set(UMutableCPTrie *trie, UChar32 c, uint32_t value, UErrorCode *pErrorCode);
@@ -192,7 +194,7 @@ umutablecptrie_set(UMutableCPTrie *trie, UChar32 c, uint32_t value, UErrorCode *
  * @param end the last code point to get the value (inclusive)
  * @param value the value
  * @param pErrorCode an in/out ICU UErrorCode
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI void U_EXPORT2
 umutablecptrie_setRange(UMutableCPTrie *trie,
@@ -227,7 +229,7 @@ umutablecptrie_setRange(UMutableCPTrie *trie,
  * @param pErrorCode an in/out ICU UErrorCode
  *
  * @see umutablecptrie_fromUCPTrie
- * @stable ICU 63
+ * @draft ICU 63
  */
 U_CAPI UCPTrie * U_EXPORT2
 umutablecptrie_buildImmutable(UMutableCPTrie *trie, UCPTrieType type, UCPTrieValueWidth valueWidth,
@@ -235,4 +237,5 @@ umutablecptrie_buildImmutable(UMutableCPTrie *trie, UCPTrieType type, UCPTrieVal
 
 U_CDECL_END
 
+#endif  // U_HIDE_DRAFT_API
 #endif

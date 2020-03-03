@@ -141,15 +141,10 @@ class RTC_EXPORT VideoEncoder {
     int min_bitrate_bps = 0;
     // Recommended maximum bitrate.
     int max_bitrate_bps = 0;
-
-    bool operator==(const ResolutionBitrateLimits& rhs) const;
-    bool operator!=(const ResolutionBitrateLimits& rhs) const {
-      return !(*this == rhs);
-    }
   };
 
   // Struct containing metadata about the encoder implementing this interface.
-  struct RTC_EXPORT EncoderInfo {
+  struct EncoderInfo {
     static constexpr uint8_t kMaxFramerateFraction =
         std::numeric_limits<uint8_t>::max();
 
@@ -157,10 +152,6 @@ class RTC_EXPORT VideoEncoder {
     EncoderInfo(const EncoderInfo&);
 
     ~EncoderInfo();
-
-    std::string ToString() const;
-    bool operator==(const EncoderInfo& rhs) const;
-    bool operator!=(const EncoderInfo& rhs) const { return !(*this == rhs); }
 
     // Any encoder implementation wishing to use the WebRTC provided
     // quality scaler must populate this field.
@@ -234,7 +225,7 @@ class RTC_EXPORT VideoEncoder {
     bool supports_simulcast;
   };
 
-  struct RTC_EXPORT RateControlParameters {
+  struct RateControlParameters {
     RateControlParameters();
     RateControlParameters(const VideoBitrateAllocation& bitrate,
                           double framerate_fps);

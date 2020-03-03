@@ -60,12 +60,6 @@ class PLATFORM_EXPORT InterpolatedTransformOperation final
   void Apply(TransformationMatrix&,
              const FloatSize& border_box_size) const override;
 
-  scoped_refptr<TransformOperation> Accumulate(
-      const TransformOperation&) override {
-    NOTREACHED();
-    return this;
-  }
-
   scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
       double progress,

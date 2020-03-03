@@ -42,7 +42,6 @@
 #include "third_party/blink/public/common/frame/user_activation_update_type.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/common/loader/url_loader_factory_bundle.h"
-#include "third_party/blink/public/common/navigation/triggering_event_info.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-shared.h"
 #include "third_party/blink/public/mojom/use_counter/css_property_id.mojom-shared.h"
 #include "third_party/blink/public/platform/blame_context.h"
@@ -54,10 +53,10 @@
 #include "third_party/blink/public/platform/web_effective_connection_type.h"
 #include "third_party/blink/public/platform/web_file_system_type.h"
 #include "third_party/blink/public/platform/web_insecure_request_policy.h"
-#include "third_party/blink/public/platform/web_prescient_networking.h"
 #include "third_party/blink/public/platform/web_scroll_types.h"
 #include "third_party/blink/public/platform/web_set_sink_id_callbacks.h"
 #include "third_party/blink/public/platform/web_source_location.h"
+#include "third_party/blink/public/platform/web_sudden_termination_disabler_type.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/platform/web_url_loader_factory.h"
 #include "third_party/blink/public/platform/web_url_request.h"
@@ -77,6 +76,7 @@
 #include "third_party/blink/public/web/web_navigation_policy.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/public/web/web_text_direction.h"
+#include "third_party/blink/public/web/web_triggering_event_info.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/events/types/scroll_types.h"
 #include "v8/include/v8.h"
@@ -108,11 +108,10 @@ class WebMediaPlayerEncryptedMediaClient;
 class WebMediaPlayerSource;
 class WebMediaStreamDeviceObserver;
 class WebNavigationControl;
+class WebServiceWorkerProvider;
 class WebPlugin;
-class WebPrescientNetworking;
 class WebRTCPeerConnectionHandler;
 class WebRelatedAppsFetcher;
-class WebServiceWorkerProvider;
 class WebSocketHandshakeThrottle;
 class WebString;
 class WebURL;
@@ -185,11 +184,6 @@ class BLINK_EXPORT WebLocalFrameClient {
   virtual WebExternalPopupMenu* CreateExternalPopupMenu(
       const WebPopupMenuInfo&,
       WebExternalPopupMenuClient*) {
-    return nullptr;
-  }
-
-  // May return null.
-  virtual std::unique_ptr<WebPrescientNetworking> CreatePrescientNetworking() {
     return nullptr;
   }
 
@@ -271,8 +265,20 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Swap, the frame is being replaced in-place by WebFrame::swap().
   virtual void FrameDetached(DetachType) {}
 
+  // This frame has become focused.
+  virtual void FrameFocused() {}
+
+  // A provisional load is about to commit.
+  virtual void WillCommitProvisionalLoad() {}
+
   // This frame's name has changed.
   virtual void DidChangeName(const WebString& name) {}
+
+  // This frame has set an insecure request policy.
+  virtual void DidEnforceInsecureRequestPolicy(WebInsecureRequestPolicy) {}
+
+  // This frame has set an upgrade insecure navigations set.
+  virtual void DidEnforceInsecureNavigationsSet(const WebVector<unsigned>&) {}
 
   // The sandbox flags or container policy have changed for a child frame of
   // this frame.
@@ -314,6 +320,13 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Called when a frame is capturing mouse input, such as when a scrollbar
   // is being dragged.
   virtual void SetMouseCapture(bool capture) {}
+
+  // Announces that an embedded frame needs occlusion information from its
+  // parent frame.
+  virtual void SetNeedsOcclusionTracking(bool needs_tracking) {}
+
+  // Lifecycle of the frame has changed.
+  virtual void LifecycleStateChanged(mojom::FrameLifecycleState state) {}
 
   // Console messages ----------------------------------------------------
 
@@ -393,17 +406,17 @@ class BLINK_EXPORT WebLocalFrameClient {
   // The provisional datasource is now committed.  The first part of the
   // response body has been received, and the encoding of the response
   // body is known.
-  // When a load commits and a new Document is created, WebLocalFrameClient
-  // creates a new BrowserInterfaceBroker endpoint to ensure that interface
-  // receivers in the newly committed Document are associated with the correct
-  // origin (even if the origin of the old and the new Document are the same).
-  // The one exception is if the Window object is reused; in that case, blink
-  // passes |should_reset_browser_interface_broker| = false, and the old
-  // BrowserInterfaceBroker connection will be reused.
-  virtual void DidCommitProvisionalLoad(
-      const WebHistoryItem&,
-      WebHistoryCommitType,
-      bool should_reset_browser_interface_broker) {}
+  // The mojo::ScopedMessagePipeHandle is a DocumentInterfaceBroker handle. When
+  // a load commits and a new Document is created, Blink creates a new
+  // DocumentInterfaceBroker endpoint to ensure that interface requests in the
+  // newly committed Document are associated with the correct origin (even if
+  // the origin of the old and the new Document are the same). The one
+  // exception is if the Window object is reused; in that case, the old
+  // DocumentInterfaceBroker handle will be reused, and the endpoint won't be
+  // bound to any requests.
+  virtual void DidCommitProvisionalLoad(const WebHistoryItem&,
+                                        WebHistoryCommitType,
+                                        mojo::ScopedMessagePipeHandle) {}
 
   // The frame's document has just been initialized.
   virtual void DidCreateNewDocument() {}
@@ -464,6 +477,9 @@ class BLINK_EXPORT WebLocalFrameClient {
   // non-navigational events related to the data held by WebHistoryItem.
   // WARNING: This method may be called very frequently.
   virtual void DidUpdateCurrentHistoryItem() {}
+
+  // The frame's theme color has changed.
+  virtual void DidChangeThemeColor() {}
 
   // Called to report resource timing information for this frame to the parent.
   // Only used when the parent frame is remote.
@@ -582,6 +598,13 @@ class BLINK_EXPORT WebLocalFrameClient {
   virtual void DidLoadResourceFromMemoryCache(const WebURLRequest&,
                                               const WebURLResponse&) {}
 
+  // This frame has displayed inactive content (such as an image) from an
+  // insecure source.  Inactive content cannot spread to other frames.
+  virtual void DidDisplayInsecureContent() {}
+
+  // This frame contains a form that submits to an insecure target url.
+  virtual void DidContainInsecureFormAction() {}
+
   // The indicated security origin has run active content (such as a
   // script) from an insecure source.  Note that the insecure content can
   // spread to other frames in the same origin.
@@ -604,6 +627,12 @@ class BLINK_EXPORT WebLocalFrameClient {
   // A cpu task or tasks completed.  Triggered when at least 100ms of wall time
   // was spent in tasks on the frame.
   virtual void DidChangeCpuTiming(base::TimeDelta time) {}
+
+  // The set of active features affecting scheduling for this frame changed.
+  virtual void DidChangeActiveSchedulerTrackedFeatures(uint64_t features_mask) {
+  }
+
+  virtual void VisibilityChanged(blink::mojom::FrameVisibility visibility) {}
 
   // UseCounter ----------------------------------------------------------
   // Blink exhibited a certain loading behavior that the browser process will
@@ -740,6 +769,26 @@ class BLINK_EXPORT WebLocalFrameClient {
   // in page operation.
   virtual void HandleAccessibilityFindInPageTermination() {}
 
+  // Sudden termination --------------------------------------------------
+
+  // Called when elements preventing the sudden termination of the frame
+  // become present or stop being present. |type| is the type of element
+  // (BeforeUnload handler, Unload handler).
+  virtual void SuddenTerminationDisablerChanged(
+      bool present,
+      WebSuddenTerminationDisablerType) {}
+
+  // Navigator Content Utils  --------------------------------------------
+
+  // Registers a new URL handler for the given protocol.
+  virtual void RegisterProtocolHandler(const WebString& scheme,
+                                       const WebURL& url,
+                                       const WebString& title) {}
+
+  // Unregisters a given URL handler for the given protocol.
+  virtual void UnregisterProtocolHandler(const WebString& scheme,
+                                         const WebURL& url) {}
+
   // Audio Output Devices API --------------------------------------------
 
   // Checks that the given audio sink exists and is authorized. The result is
@@ -779,7 +828,7 @@ class BLINK_EXPORT WebLocalFrameClient {
 
   // AppCache ------------------------------------------------------------
   virtual void UpdateSubresourceFactory(
-      std::unique_ptr<blink::PendingURLLoaderFactoryBundle> pending_factory) {}
+      std::unique_ptr<blink::URLLoaderFactoryBundleInfo> info) {}
 
   // Misc ----------------------------------------------------------------
 
@@ -802,6 +851,10 @@ class BLINK_EXPORT WebLocalFrameClient {
 
   // Transfers user activation state from |source_frame| to the current frame.
   virtual void TransferUserActivationFrom(WebLocalFrame* source_frame) {}
+
+  // Evicts the page from the back forward cache due to e.g., JavaScript
+  // execution.
+  virtual void EvictFromBackForwardCache() {}
 };
 
 }  // namespace blink

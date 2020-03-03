@@ -143,7 +143,6 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
       TransformState&,
       VisualRectFlags = kDefaultVisualRectFlags) const override;
   PhysicalOffset OffsetForFixedPosition() const;
-  PhysicalOffset PixelSnappedOffsetForFixedPosition() const;
 
   void InvalidatePaintForViewAndCompositedLayers();
 

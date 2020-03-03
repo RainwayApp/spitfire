@@ -130,7 +130,6 @@ class MODULES_EXPORT UserMediaRequest final
   Member<UserMediaController> controller_;
 
   Member<Callbacks> callbacks_;
-  bool is_resolved_ = false;
 };
 
 }  // namespace blink

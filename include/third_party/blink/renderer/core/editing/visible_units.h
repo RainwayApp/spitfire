@@ -41,15 +41,13 @@ class IntPoint;
 class IntRect;
 class LocalFrame;
 
-// |WordSide| is used as a parameter of |StartOfWord()| and |EndOfWord()|
+// |WordSiste| is used as a parameter of |StartOfWord()| and |EndOfWord()|
 // to control a returning position when they are called for a position before
 // word boundary.
 enum WordSide {
   kNextWordIfOnBoundary = false,
   kPreviousWordIfOnBoundary = true
 };
-
-enum class PlatformWordBehavior { kWordSkipSpaces, kWordDontSkipSpaces };
 
 // offset functions on Node
 CORE_EXPORT int CaretMinOffset(const Node*);
@@ -135,9 +133,7 @@ EndOfWordPosition(const PositionInFlatTree&, WordSide = kNextWordIfOnBoundary);
 CORE_EXPORT VisiblePositionInFlatTree
 EndOfWord(const VisiblePositionInFlatTree&, WordSide = kNextWordIfOnBoundary);
 CORE_EXPORT PositionWithAffinity PreviousWordPosition(const Position&);
-CORE_EXPORT PositionWithAffinity NextWordPosition(
-    const Position&,
-    PlatformWordBehavior = PlatformWordBehavior::kWordDontSkipSpaces);
+CORE_EXPORT PositionWithAffinity NextWordPosition(const Position&);
 
 // sentences
 CORE_EXPORT Position StartOfSentencePosition(const Position&);

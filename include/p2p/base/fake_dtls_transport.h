@@ -83,10 +83,7 @@ class FakeDtlsTransport : public DtlsTransportInternal {
     ice_transport_->SetReceiving(receiving);
     set_receiving(receiving);
   }
-  void SetDtlsState(DtlsTransportState state) {
-    dtls_state_ = state;
-    SignalDtlsState(this, dtls_state_);
-  }
+  void SetDtlsState(DtlsTransportState state) { dtls_state_ = state; }
 
   // Simulates the two DTLS transports connecting to each other.
   // If |asymmetric| is true this method only affects this FakeDtlsTransport.
@@ -111,11 +108,12 @@ class FakeDtlsTransport : public DtlsTransportInternal {
       if (!asymmetric) {
         dest->SetDestination(this, true);
       }
+      dtls_state_ = DTLS_TRANSPORT_CONNECTED;
       // If the |dtls_role_| is unset, set it to SSL_CLIENT by default.
       if (!dtls_role_) {
         dtls_role_ = std::move(rtc::SSL_CLIENT);
       }
-      SetDtlsState(DTLS_TRANSPORT_CONNECTED);
+      SignalDtlsState(this, dtls_state_);
       ice_transport_->SetDestination(
           static_cast<FakeIceTransport*>(dest->ice_transport()), asymmetric);
     } else {
@@ -170,13 +168,6 @@ class FakeDtlsTransport : public DtlsTransportInternal {
     remote_cert_ = cert;
   }
   bool IsDtlsActive() const override { return do_dtls_; }
-  bool GetSslVersionBytes(int* version) const override {
-    if (!do_dtls_) {
-      return false;
-    }
-    *version = 0x0102;
-    return true;
-  }
   bool GetSrtpCryptoSuite(int* crypto_suite) override {
     if (!do_dtls_) {
       return false;

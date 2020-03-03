@@ -60,7 +60,6 @@ namespace blink {
 enum ResizerHitTestType { kResizerForPointer, kResizerForTouch };
 
 class ComputedStyle;
-class GraphicsLayer;
 class HitTestResult;
 class LayoutBox;
 class LayoutCustomScrollbarPart;
@@ -274,27 +273,21 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // composited at little cost.
   // Note that this is done in CompositedLayerMapping, this function being
   // only a helper.
-  cc::Layer* LayerForScrolling() const override;
+  GraphicsLayer* LayerForScrolling() const override;
 
   void DidScroll(const FloatPoint&) override;
 
   // GraphicsLayers for the scrolling components.
+  //
   // Any function can return nullptr if they are not accelerated.
-  GraphicsLayer* GraphicsLayerForScrolling() const;
-  GraphicsLayer* GraphicsLayerForHorizontalScrollbar() const;
-  GraphicsLayer* GraphicsLayerForVerticalScrollbar() const;
-  GraphicsLayer* GraphicsLayerForScrollCorner() const;
-
-  cc::Layer* LayerForHorizontalScrollbar() const override;
-  cc::Layer* LayerForVerticalScrollbar() const override;
-  cc::Layer* LayerForScrollCorner() const override;
+  GraphicsLayer* LayerForHorizontalScrollbar() const override;
+  GraphicsLayer* LayerForVerticalScrollbar() const override;
+  GraphicsLayer* LayerForScrollCorner() const override;
 
   bool ShouldScrollOnMainThread() const override;
   bool IsActive() const override;
   bool IsScrollCornerVisible() const override;
   IntRect ScrollCornerRect() const override;
-  void SetScrollbarNeedsPaintInvalidation(ScrollbarOrientation) override;
-  void SetScrollCornerNeedsPaintInvalidation() override;
   IntRect ConvertFromScrollbarToContainingEmbeddedContentView(
       const Scrollbar&,
       const IntRect&) const override;
@@ -318,9 +311,6 @@ class CORE_EXPORT PaintLayerScrollableArea final
   }
   IntSize ScrollOffsetInt() const override;
   ScrollOffset GetScrollOffset() const override;
-  // Commits a final scroll offset for the frame, if it might have changed.
-  // If it did change, enqueues a scroll event.
-  void EnqueueScrollEventIfNeeded();
   IntSize MinimumScrollOffsetInt() const override;
   IntSize MaximumScrollOffsetInt() const override;
   IntRect VisibleContentRect(
@@ -452,16 +442,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // Rectangle encompassing the scroll corner and resizer rect.
   IntRect ScrollCornerAndResizerRect() const;
 
-  bool ComputeNeedsCompositedScrolling(
-      bool force_prefer_compositing_to_lcd_text);
-
-  // These two functions are used by pre-CompositeAfterPaint only.
-  void UpdateNeedsCompositedScrolling(
-      bool force_prefer_compositing_to_lcd_text);
-  bool NeedsCompositedScrolling() const {
-    DCHECK(!RuntimeEnabledFeatures::CompositeAfterPaintEnabled());
-    return needs_composited_scrolling_;
-  }
+  void UpdateNeedsCompositedScrolling(bool layer_has_been_composited = false);
+  bool NeedsCompositedScrolling() const { return needs_composited_scrolling_; }
 
   IntRect ResizerCornerRect(const IntRect&, ResizerHitTestType) const;
 
@@ -530,6 +512,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
   void InvalidateStickyConstraintsFor(PaintLayer*,
                                       bool needs_compositing_update = true);
   void InvalidatePaintForStickyDescendants();
+  bool HasNonCompositedStickyDescendants() const;
   uint32_t GetNonCompositedMainThreadScrollingReasons() {
     return non_composited_main_thread_scrolling_reasons_;
   }
@@ -555,7 +538,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
   void DidScrollWithScrollbar(ScrollbarPart,
                               ScrollbarOrientation,
                               WebInputEvent::Type) override;
-  CompositorElementId GetScrollElementId() const override;
+  CompositorElementId GetCompositorElementId() const override;
 
   bool VisualViewportSuppliesScrollbars() const override;
 
@@ -567,16 +550,9 @@ class CORE_EXPORT PaintLayerScrollableArea final
   const DisplayItemClient& GetScrollingBackgroundDisplayItemClient() const {
     return scrolling_background_display_item_client_;
   }
-  const DisplayItemClient& GetScrollCornerDisplayItemClient() const {
-    return scroll_corner_display_item_client_;
-  }
 
   const cc::SnapContainerData* GetSnapContainerData() const override;
   void SetSnapContainerData(base::Optional<cc::SnapContainerData>) override;
-  bool SetTargetSnapAreaElementIds(cc::TargetSnapAreaElementIds) override;
-
-  base::Optional<FloatPoint> GetSnapPositionAndSetTarget(
-      const cc::SnapSelectionStrategy& strategy) override;
 
   void DisposeImpl() override;
 
@@ -614,6 +590,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
   bool SetHasHorizontalScrollbar(bool has_scrollbar);
   bool SetHasVerticalScrollbar(bool has_scrollbar);
 
+  void SnapAfterScrollbarScrolling(ScrollbarOrientation) override;
+
   void UpdateScrollCornerStyle();
   LayoutSize MinimumSizeForResizing(float zoom_factor);
   PhysicalRect LayoutContentRect(IncludeScrollbarsInRect) const;
@@ -637,6 +615,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
     return *rare_data_.get();
   }
 
+  bool ComputeNeedsCompositedScrolling(const bool, const PaintLayer*);
+
   IntRect CornerRect(const IntRect& bounds) const;
 
   void ScrollControlWasSetNeedsPaintInvalidation() override;
@@ -644,8 +624,6 @@ class CORE_EXPORT PaintLayerScrollableArea final
   void SetHorizontalScrollbarVisualRect(const IntRect&);
   void SetVerticalScrollbarVisualRect(const IntRect&);
   void SetScrollCornerAndResizerVisualRect(const IntRect&);
-
-  bool HasNonCompositedStickyDescendants() const;
 
   // PaintLayer is destructed before PaintLayerScrollable area, during this
   // time before PaintLayerScrollableArea has been collected layer_ will
@@ -704,11 +682,6 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // This is the offset from the beginning of content flow.
   ScrollOffset scroll_offset_;
 
-  // The last scroll offset that was committed during the main document
-  // lifecycle.
-  bool has_last_committed_scroll_offset_;
-  ScrollOffset last_committed_scroll_offset_;
-
   // LayoutObject to hold our custom scroll corner.
   LayoutCustomScrollbarPart* scroll_corner_;
 
@@ -747,27 +720,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
     Member<const PaintLayerScrollableArea> scrollable_area_;
   };
 
-  class ScrollCornerDisplayItemClient final : public DisplayItemClient {
-    DISALLOW_NEW();
-
-   public:
-    ScrollCornerDisplayItemClient(
-        const PaintLayerScrollableArea& scrollable_area)
-        : scrollable_area_(&scrollable_area) {}
-
-    void Trace(Visitor* visitor) { visitor->Trace(scrollable_area_); }
-
-   private:
-    IntRect VisualRect() const final;
-    String DebugName() const final;
-    DOMNodeId OwnerNodeId() const final;
-
-    Member<const PaintLayerScrollableArea> scrollable_area_;
-  };
-
   ScrollingBackgroundDisplayItemClient
-      scrolling_background_display_item_client_{*this};
-  ScrollCornerDisplayItemClient scroll_corner_display_item_client_{*this};
+      scrolling_background_display_item_client_;
 };
 
 DEFINE_TYPE_CASTS(PaintLayerScrollableArea,

@@ -14,32 +14,32 @@
 
 namespace blink {
 
-class ExceptionState;
+class XRHitTestOptions;
 class XRHitTestResult;
-class XRSession;
 
 class XRHitTestSource : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRHitTestSource(uint64_t id, XRSession* xr_session);
+  XRHitTestSource(uint32_t id, XRHitTestOptions* options);
 
-  uint64_t id() const;
+  uint32_t id() const;
 
-  void cancel(ExceptionState& exception_state);
+  XRHitTestOptions* hitTestOptions() const;
 
   // Returns a vector of XRHitTestResults that were obtained during last frame
   // update. This method is not exposed to JavaScript.
   HeapVector<Member<XRHitTestResult>> Results();
 
-  void Update(
-      const Vector<device::mojom::blink::XRHitResultPtr>& hit_test_results);
+  void Update(const WTF::Vector<device::mojom::blink::XRHitResultPtr>&
+                  hit_test_results);
 
   void Trace(blink::Visitor*) override;
 
  private:
-  const uint64_t id_;
-  Member<XRSession> xr_session_;
+  const uint32_t id_;
+
+  Member<XRHitTestOptions> options_;
 
   Vector<std::unique_ptr<TransformationMatrix>> last_frame_results_;
 };

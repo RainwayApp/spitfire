@@ -47,6 +47,7 @@ struct UrlOriginAdapter;
 namespace blink {
 
 class KURL;
+class URLSecurityOriginMap;
 struct SecurityOriginHash;
 
 // An identifier which defines the source of content (e.g. a document) and
@@ -93,6 +94,10 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
                                               uint16_t port);
   static scoped_refptr<SecurityOrigin> CreateFromUrlOrigin(const url::Origin&);
   url::Origin ToUrlOrigin() const;
+
+  // Sets the map to look up a SecurityOrigin instance serialized to "null" from
+  // a blob URL.
+  static void SetBlobURLNullOriginMap(URLSecurityOriginMap*);
 
   // Some URL schemes use nested URLs for their security context. For example,
   // filesystem URLs look like the following:
@@ -222,7 +227,6 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   bool CanAccessCookies() const { return !IsOpaque(); }
   bool CanAccessPasswordManager() const { return !IsOpaque(); }
   bool CanAccessFileSystem() const { return !IsOpaque(); }
-  bool CanAccessNativeFileSystem() const { return !IsOpaque(); }
   bool CanAccessCacheStorage() const { return !IsOpaque(); }
   bool CanAccessLocks() const { return !IsOpaque(); }
 
@@ -281,18 +285,12 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   // https://html.spec.whatwg.org/C/origin.html#same-origin-domain
   String ToTokenForFastCheck() const;
 
-  // This method implements HTML's "same origin" check, which verifies equality
-  // of opaque origins, or exact (scheme,host,port) matches. Note that
-  // `document.domain` does not come into play for this comparison.
-  //
-  // This method does not take the "universal access" flag into account. It does
-  // take the "local access" flag into account, considering `file:` origins that
-  // set the flag to be same-origin with all other `file:` origins that set the
-  // flag.
-  //
-  // https://html.spec.whatwg.org/#same-origin
-  bool IsSameOriginWith(const SecurityOrigin*) const;
-  static bool AreSameOrigin(const KURL& a, const KURL& b);
+  // This method checks for equality, ignoring the value of document.domain
+  // (and whether it was set) but considering the host. It is used for
+  // postMessage.
+  bool IsSameSchemeHostPort(const SecurityOrigin*) const;
+
+  static bool AreSameSchemeHostPort(const KURL& a, const KURL& b);
 
   static const KURL& UrlWithUniqueOpaqueOrigin();
 
@@ -347,9 +345,6 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   friend struct mojo::UrlOriginAdapter;
   friend struct blink::SecurityOriginHash;
 
-  // For calling GetNonceForSerialization().
-  friend class BlobURLOpaqueOriginNonceMap;
-
   // Creates a new opaque SecurityOrigin using the supplied |precursor| origin
   // and |nonce|.
   static scoped_refptr<SecurityOrigin> CreateOpaque(
@@ -375,9 +370,8 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   bool PassesFileCheck(const SecurityOrigin*) const;
   void BuildRawString(StringBuilder&) const;
 
-  // Get the nonce associated with this origin, if it is opaque. This should be
-  // used only when trying to send an Origin across an IPC pipe or comparing
-  // blob URL's opaque origins in the thread-safe way.
+  // Get the nonce associated with this origin, if it is unique. This should be
+  // used only when trying to send an Origin across an IPC pipe.
   base::Optional<base::UnguessableToken> GetNonceForSerialization() const;
 
   const String protocol_ = g_empty_string;

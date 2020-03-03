@@ -52,8 +52,6 @@ class PLATFORM_EXPORT ExceptionMessages {
 
   static String ArgumentNullOrIncorrectType(int argument_index,
                                             const String& expected_type);
-  static String ArgumentNotOfType(int argument_index,
-                                  const char* expected_type);
   static String ConstructorNotCallableAsFunction(const char* type);
 
   static String FailedToConvertJSValue(const char* type);

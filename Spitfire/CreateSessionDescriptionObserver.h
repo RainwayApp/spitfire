@@ -1,13 +1,10 @@
 #pragma once
 
-
 #include "api/peer_connection_interface.h"
 #include "api/jsep.h"
 
-
-
-namespace Spitfire {
-
+namespace Spitfire 
+{
 	class RtcConductor;
 
 	namespace Observers
@@ -15,12 +12,14 @@ namespace Spitfire {
 		class CreateSessionDescriptionObserver : public webrtc::CreateSessionDescriptionObserver
 		{
 		public:
-
+			explicit CreateSessionDescriptionObserver(RtcConductor* conductor) :
+				conductor_(conductor)
+			{
+			}
+			~CreateSessionDescriptionObserver() = default;
 
 			void OnSuccess(webrtc::SessionDescriptionInterface * desc) override;
 			void OnFailure(const std::string & error) override;
-			explicit CreateSessionDescriptionObserver(RtcConductor* manager);
-			~CreateSessionDescriptionObserver();
 
 			void AddRef() const override
 			{
@@ -38,7 +37,7 @@ namespace Spitfire {
 
 		private:
 			mutable webrtc::webrtc_impl::RefCounter ref_count_{ 0 };
-			RtcConductor * _manager;
+			RtcConductor* conductor_;
 		};
 	}
 }

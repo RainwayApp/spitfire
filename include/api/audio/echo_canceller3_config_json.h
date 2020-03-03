@@ -37,8 +37,7 @@ Aec3ConfigFromJsonString(absl::string_view json_string);
 
 // Encodes an Aec3 config in JSON format. Fields corresponds to substruct names,
 // with the addition that the top-level node is named "aec3".
-RTC_EXPORT std::string Aec3ConfigToJsonString(
-    const EchoCanceller3Config& config);
+std::string Aec3ConfigToJsonString(const EchoCanceller3Config& config);
 
 }  // namespace webrtc
 

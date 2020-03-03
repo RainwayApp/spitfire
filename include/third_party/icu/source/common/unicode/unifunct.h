@@ -13,9 +13,6 @@
 #define UNIFUNCT_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/uobject.h"
 
 /**
@@ -126,7 +123,5 @@ protected:
 /*inline UnicodeFunctor::UnicodeFunctor() {}*/
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

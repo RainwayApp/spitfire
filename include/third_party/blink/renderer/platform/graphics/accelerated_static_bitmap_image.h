@@ -29,9 +29,7 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
     : public StaticBitmapImage {
  public:
   ~AcceleratedStaticBitmapImage() override;
-
   // SkImage with a texture backing.
-  // DO NOT USE. This is in the process of being removed. See crbug.com/962630.
   static scoped_refptr<AcceleratedStaticBitmapImage> CreateFromSkImage(
       sk_sp<SkImage>,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>);

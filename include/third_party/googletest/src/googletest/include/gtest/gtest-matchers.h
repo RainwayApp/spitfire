@@ -474,13 +474,13 @@ class PolymorphicMatcher {
    public:
     explicit MonomorphicImpl(const Impl& impl) : impl_(impl) {}
 
-    void DescribeTo(::std::ostream* os) const override { impl_.DescribeTo(os); }
+    virtual void DescribeTo(::std::ostream* os) const { impl_.DescribeTo(os); }
 
-    void DescribeNegationTo(::std::ostream* os) const override {
+    virtual void DescribeNegationTo(::std::ostream* os) const {
       impl_.DescribeNegationTo(os);
     }
 
-    bool MatchAndExplain(T x, MatchResultListener* listener) const override {
+    virtual bool MatchAndExplain(T x, MatchResultListener* listener) const {
       return impl_.MatchAndExplain(x, listener);
     }
 

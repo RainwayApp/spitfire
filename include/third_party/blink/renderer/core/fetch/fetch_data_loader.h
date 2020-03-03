@@ -17,7 +17,6 @@ namespace blink {
 
 class BytesConsumer;
 class FormData;
-class TextResourceDecoderOptions;
 
 // FetchDataLoader subclasses
 // 1. take a BytesConsumer,
@@ -74,11 +73,7 @@ class CORE_EXPORT FetchDataLoader : public GarbageCollected<FetchDataLoader> {
   static FetchDataLoader* CreateLoaderAsFailure();
   static FetchDataLoader* CreateLoaderAsFormData(
       const String& multipart_boundary);
-  // The text resource decoder options should be created either by
-  // TextResourceDecoderOptions::CreateUTF8Decode() or
-  // TextResourceDecoderOptions::CreateUTF8DecodeWithoutBOM().
-  static FetchDataLoader* CreateLoaderAsString(
-      const TextResourceDecoderOptions&);
+  static FetchDataLoader* CreateLoaderAsString();
   // The mojo::DataPipe consumer handle is provided via the
   // Client::DidFetchStartedDataPipe() callback.
   static FetchDataLoader* CreateLoaderAsDataPipe(

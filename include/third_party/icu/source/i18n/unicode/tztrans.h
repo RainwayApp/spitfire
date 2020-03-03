@@ -16,8 +16,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/uobject.h"
@@ -70,7 +68,7 @@ public:
      * @return  A copy of the object.
      * @stable ICU 3.8
      */
-    TimeZoneTransition* clone() const;
+    TimeZoneTransition* clone(void) const;
 
     /**
      * Assignment operator.
@@ -193,8 +191,6 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // TZTRANS_H
 

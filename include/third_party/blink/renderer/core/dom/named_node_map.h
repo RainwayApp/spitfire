@@ -40,6 +40,10 @@ class NamedNodeMap final : public ScriptWrappable {
   friend class Element;
 
  public:
+  static NamedNodeMap* Create(Element* element) {
+    return MakeGarbageCollected<NamedNodeMap>(element);
+  }
+
   explicit NamedNodeMap(Element* element) : element_(element) {
     // Only supports NamedNodeMaps with Element associated.
     DCHECK(element_);

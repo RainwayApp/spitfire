@@ -37,7 +37,7 @@ class CORE_EXPORT TextElementTiming final
   static inline bool NeededForElementTiming(Node& node) {
     auto* element = DynamicTo<Element>(node);
     return !node.IsInShadowTree() && element &&
-           element->FastHasAttribute(html_names::kElementtimingAttr);
+           !element->FastGetAttribute(html_names::kElementtimingAttr).IsEmpty();
   }
 
   static FloatRect ComputeIntersectionRect(

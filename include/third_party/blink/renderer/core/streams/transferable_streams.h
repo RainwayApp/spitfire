@@ -13,22 +13,24 @@ namespace blink {
 
 class ExceptionState;
 class MessagePort;
-class ReadableStream;
+class ReadableStreamNative;
 class ScriptState;
-class WritableStream;
+class WritableStreamNative;
 
 // Creates the writable side of a cross-realm identity transform stream, using
 // |port| for communication. |port| must be entangled with another MessagePort
 // which is passed to CreateCrossRealmTransformReadable().
-CORE_EXPORT WritableStream* CreateCrossRealmTransformWritable(ScriptState*,
-                                                              MessagePort* port,
-                                                              ExceptionState&);
+CORE_EXPORT WritableStreamNative* CreateCrossRealmTransformWritable(
+    ScriptState*,
+    MessagePort* port,
+    ExceptionState&);
 
 // Creates the readable side of a cross-realm identity transform stream. |port|
 // is used symmetrically with CreateCrossRealmTransformWritable().
-CORE_EXPORT ReadableStream* CreateCrossRealmTransformReadable(ScriptState*,
-                                                              MessagePort* port,
-                                                              ExceptionState&);
+CORE_EXPORT ReadableStreamNative* CreateCrossRealmTransformReadable(
+    ScriptState*,
+    MessagePort* port,
+    ExceptionState&);
 
 }  // namespace blink
 

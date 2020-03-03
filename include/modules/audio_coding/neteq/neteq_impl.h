@@ -19,16 +19,15 @@
 
 #include "absl/types/optional.h"
 #include "api/audio/audio_frame.h"
-#include "api/neteq/neteq.h"
-#include "api/neteq/neteq_controller.h"
-#include "api/neteq/neteq_controller_factory.h"
-#include "api/neteq/tick_timer.h"
 #include "api/rtp_packet_info.h"
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
+#include "modules/audio_coding/neteq/defines.h"  // Modes, Operations
 #include "modules/audio_coding/neteq/expand_uma_logger.h"
+#include "modules/audio_coding/neteq/include/neteq.h"
 #include "modules/audio_coding/neteq/packet.h"
 #include "modules/audio_coding/neteq/random_vector.h"
 #include "modules/audio_coding/neteq/statistics_calculator.h"
+#include "modules/audio_coding/neteq/tick_timer.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/critical_section.h"
 #include "rtc_base/thread_annotations.h"
@@ -38,9 +37,13 @@ namespace webrtc {
 // Forward declarations.
 class Accelerate;
 class BackgroundNoise;
+class BufferLevelFilter;
 class Clock;
 class ComfortNoise;
+class DecisionLogic;
 class DecoderDatabase;
+class DelayManager;
+class DelayPeakDetector;
 class DtmfBuffer;
 class DtmfToneGenerator;
 class Expand;
@@ -96,20 +99,22 @@ class NetEqImpl : public webrtc::NetEq {
     // before sending the struct to the NetEqImpl constructor. However, there
     // are dependencies between some of the classes inside the struct, so
     // swapping out one may make it necessary to re-create another one.
-    Dependencies(const NetEq::Config& config,
-                 Clock* clock,
-                 const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory,
-                 const NetEqControllerFactory& controller_factory);
+    Dependencies(
+        const NetEq::Config& config,
+        Clock* clock,
+        const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory);
     ~Dependencies();
 
     Clock* const clock;
     std::unique_ptr<TickTimer> tick_timer;
     std::unique_ptr<StatisticsCalculator> stats;
+    std::unique_ptr<BufferLevelFilter> buffer_level_filter;
     std::unique_ptr<DecoderDatabase> decoder_database;
+    std::unique_ptr<DelayPeakDetector> delay_peak_detector;
+    std::unique_ptr<DelayManager> delay_manager;
     std::unique_ptr<DtmfBuffer> dtmf_buffer;
     std::unique_ptr<DtmfToneGenerator> dtmf_tone_generator;
     std::unique_ptr<PacketBuffer> packet_buffer;
-    std::unique_ptr<NetEqController> neteq_controller;
     std::unique_ptr<RedPayloadSplitter> red_payload_splitter;
     std::unique_ptr<TimestampScaler> timestamp_scaler;
     std::unique_ptr<AccelerateFactory> accelerate_factory;
@@ -133,7 +138,7 @@ class NetEqImpl : public webrtc::NetEq {
   int GetAudio(
       AudioFrame* audio_frame,
       bool* muted,
-      absl::optional<Operation> action_override = absl::nullopt) override;
+      absl::optional<Operations> action_override = absl::nullopt) override;
 
   void SetCodecs(const std::map<int, SdpAudioFormat>& codecs) override;
 
@@ -195,7 +200,7 @@ class NetEqImpl : public webrtc::NetEq {
 
   // This accessor method is only intended for testing purposes.
   const SyncBuffer* sync_buffer_for_test() const;
-  Operation last_operation_for_test() const;
+  Operations last_operation_for_test() const;
 
  protected:
   static const int kOutputSizeMs = 10;
@@ -216,7 +221,7 @@ class NetEqImpl : public webrtc::NetEq {
   // Returns 0 on success, otherwise an error code.
   int GetAudioInternal(AudioFrame* audio_frame,
                        bool* muted,
-                       absl::optional<Operation> action_override)
+                       absl::optional<Operations> action_override)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
 
   // Provides a decision to the GetAudioInternal method. The decision what to
@@ -224,11 +229,11 @@ class NetEqImpl : public webrtc::NetEq {
   // |packet_list|, and a DTMF event to play is written to |dtmf_event|. When
   // DTMF should be played, |play_dtmf| is set to true by the method.
   // Returns 0 on success, otherwise an error code.
-  int GetDecision(Operation* operation,
+  int GetDecision(Operations* operation,
                   PacketList* packet_list,
                   DtmfEvent* dtmf_event,
                   bool* play_dtmf,
-                  absl::optional<Operation> action_override)
+                  absl::optional<Operations> action_override)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
 
   // Decodes the speech packets in |packet_list|, and writes the results to
@@ -238,7 +243,7 @@ class NetEqImpl : public webrtc::NetEq {
   // to |speech_type|. If |packet_list| contains any SID frames for RFC 3389
   // comfort noise, those are not decoded.
   int Decode(PacketList* packet_list,
-             Operation* operation,
+             Operations* operation,
              int* decoded_length,
              AudioDecoder::SpeechType* speech_type)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
@@ -251,7 +256,7 @@ class NetEqImpl : public webrtc::NetEq {
 
   // Sub-method to Decode(). Performs the actual decoding.
   int DecodeLoop(PacketList* packet_list,
-                 const Operation& operation,
+                 const Operations& operation,
                  AudioDecoder* decoder,
                  int* decoded_length,
                  AudioDecoder::SpeechType* speech_type)
@@ -333,11 +338,19 @@ class NetEqImpl : public webrtc::NetEq {
   virtual void UpdatePlcComponents(int fs_hz, size_t channels)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
 
+  // Creates DecisionLogic object with the mode given by |playout_mode_|.
+  virtual void CreateDecisionLogic() RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
+
   Clock* const clock_;
 
   rtc::CriticalSection crit_sect_;
   const std::unique_ptr<TickTimer> tick_timer_ RTC_GUARDED_BY(crit_sect_);
+  const std::unique_ptr<BufferLevelFilter> buffer_level_filter_
+      RTC_GUARDED_BY(crit_sect_);
   const std::unique_ptr<DecoderDatabase> decoder_database_
+      RTC_GUARDED_BY(crit_sect_);
+  const std::unique_ptr<DelayManager> delay_manager_ RTC_GUARDED_BY(crit_sect_);
+  const std::unique_ptr<DelayPeakDetector> delay_peak_detector_
       RTC_GUARDED_BY(crit_sect_);
   const std::unique_ptr<DtmfBuffer> dtmf_buffer_ RTC_GUARDED_BY(crit_sect_);
   const std::unique_ptr<DtmfToneGenerator> dtmf_tone_generator_
@@ -357,7 +370,7 @@ class NetEqImpl : public webrtc::NetEq {
   const std::unique_ptr<StatisticsCalculator> stats_ RTC_GUARDED_BY(crit_sect_);
 
   std::unique_ptr<BackgroundNoise> background_noise_ RTC_GUARDED_BY(crit_sect_);
-  std::unique_ptr<NetEqController> controller_ RTC_GUARDED_BY(crit_sect_);
+  std::unique_ptr<DecisionLogic> decision_logic_ RTC_GUARDED_BY(crit_sect_);
   std::unique_ptr<AudioMultiVector> algorithm_buffer_
       RTC_GUARDED_BY(crit_sect_);
   std::unique_ptr<SyncBuffer> sync_buffer_ RTC_GUARDED_BY(crit_sect_);
@@ -374,8 +387,8 @@ class NetEqImpl : public webrtc::NetEq {
   int last_output_sample_rate_hz_ RTC_GUARDED_BY(crit_sect_);
   size_t output_size_samples_ RTC_GUARDED_BY(crit_sect_);
   size_t decoder_frame_length_ RTC_GUARDED_BY(crit_sect_);
-  Mode last_mode_ RTC_GUARDED_BY(crit_sect_);
-  Operation last_operation_ RTC_GUARDED_BY(crit_sect_);
+  Modes last_mode_ RTC_GUARDED_BY(crit_sect_);
+  Operations last_operation_ RTC_GUARDED_BY(crit_sect_);
   size_t decoded_buffer_length_ RTC_GUARDED_BY(crit_sect_);
   std::unique_ptr<int16_t[]> decoded_buffer_ RTC_GUARDED_BY(crit_sect_);
   uint32_t playout_timestamp_ RTC_GUARDED_BY(crit_sect_);

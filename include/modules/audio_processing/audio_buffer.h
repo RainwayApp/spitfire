@@ -124,8 +124,7 @@ class AudioBuffer {
   void MergeFrequencyBands();
 
   // Copies the split bands data into the integer two-dimensional array.
-  void ExportSplitChannelData(size_t channel,
-                              int16_t* const* split_band_data) const;
+  void ExportSplitChannelData(size_t channel, int16_t* const* split_band_data);
 
   // Copies the data in the integer two-dimensional array into the split_bands
   // data.

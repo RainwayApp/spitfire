@@ -42,8 +42,7 @@ constexpr int kMaxAdaptiveFilterLength = 50;
 constexpr int kRenderTransferQueueSizeFrames = 100;
 
 constexpr size_t kMaxNumBands = 3;
-constexpr size_t kFrameSize = 160;
-constexpr size_t kSubFrameLength = kFrameSize / 2;
+constexpr size_t kSubFrameLength = 80;
 
 constexpr size_t kBlockSize = kFftLengthBy2;
 constexpr size_t kBlockSizeLog2 = kFftLengthBy2Log2;

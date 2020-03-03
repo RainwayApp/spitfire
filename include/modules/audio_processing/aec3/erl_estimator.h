@@ -14,7 +14,6 @@
 #include <stddef.h>
 
 #include <array>
-#include <vector>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
@@ -32,11 +31,9 @@ class ErlEstimator {
   void Reset();
 
   // Updates the ERL estimate.
-  void Update(const std::vector<bool>& converged_filters,
-              rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
-                  render_spectra,
-              rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
-                  capture_spectra);
+  void Update(bool converged_filter,
+              rtc::ArrayView<const float> render_spectrum,
+              rtc::ArrayView<const float> capture_spectrum);
 
   // Returns the most recent ERL estimate.
   const std::array<float, kFftLengthBy2Plus1>& Erl() const { return erl_; }

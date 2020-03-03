@@ -201,11 +201,7 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
                                                  TraceEventHandle* handle);
   using OnFlushFunction = void (*)();
   using UpdateDurationFunction =
-      void (*)(const unsigned char* category_group_enabled,
-               const char* name,
-               TraceEventHandle handle,
-               int thread_id,
-               bool explicit_timestamps,
+      void (*)(TraceEventHandle handle,
                const TimeTicks& now,
                const ThreadTicks& thread_now,
                ThreadInstructionCount thread_instruction_now);
@@ -235,12 +231,6 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
   // Called by TRACE_EVENT* macros, don't call this directly.
   // If |copy| is set, |name|, |arg_name1| and |arg_name2| will be deep copied
   // into the event; see "Memory scoping note" and TRACE_EVENT_COPY_XXX above.
-  bool ShouldAddAfterUpdatingState(char phase,
-                                   const unsigned char* category_group_enabled,
-                                   const char* name,
-                                   unsigned long long id,
-                                   int thread_id,
-                                   TraceArguments* args);
   TraceEventHandle AddTraceEvent(char phase,
                                  const unsigned char* category_group_enabled,
                                  const char* name,
@@ -302,8 +292,6 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
       const unsigned char* category_group_enabled,
       const char* name,
       TraceEventHandle handle,
-      int thread_id,
-      bool explicit_timestamps,
       const TimeTicks& now,
       const ThreadTicks& thread_now,
       ThreadInstructionCount thread_instruction_now);

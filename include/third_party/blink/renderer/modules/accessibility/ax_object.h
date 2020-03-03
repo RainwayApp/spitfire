@@ -35,7 +35,6 @@
 #include <ostream>
 
 #include "base/macros.h"
-#include "third_party/blink/public/web/web_ax_enums.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker.h"
@@ -470,7 +469,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   }
 
   // Check object state.
-  virtual bool IsAutofillAvailable() const { return false; }
+  virtual bool IsAutofillAvailable() { return false; }
   virtual bool IsClickable() const;
   virtual AccessibilityExpanded IsExpanded() const {
     return kExpandedUndefined;
@@ -687,11 +686,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // The start and end character offset of each word in the object's text.
   virtual void GetWordBoundaries(Vector<int>& word_starts,
                                  Vector<int>& word_ends) const;
-  // Returns the text offset (text offset as in AXPosition, not as in
-  // pixel offset) in the container of an inline text box.
-  virtual unsigned TextOffsetInContainer(unsigned offset) const {
-    return offset;
-  }
 
   // Properties of interactive elements.
   ax::mojom::DefaultActionVerb Action() const;
@@ -1006,7 +1000,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // Notifications that this object may have changed.
   virtual void ChildrenChanged() {}
   virtual void HandleActiveDescendantChanged() {}
-  virtual void HandleAutofillStateChanged(WebAXAutofillState) {}
+  virtual void HandleAutofillStateChanged(bool) {}
   virtual void HandleAriaExpandedChanged() {}
   virtual void SelectionChanged();
   virtual void TextChanged() {}

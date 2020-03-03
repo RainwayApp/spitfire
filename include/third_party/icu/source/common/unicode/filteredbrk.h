@@ -11,9 +11,6 @@
 #define FILTEREDBRK_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/brkiter.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION && !UCONFIG_NO_FILTERED_BREAK_ITERATION
@@ -104,7 +101,6 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
    */
   virtual UBool unsuppressBreakAfter(const UnicodeString& string, UErrorCode& status) = 0;
 
-#ifndef U_FORCE_HIDE_DEPRECATED_API
   /**
    * This function has been deprecated in favor of wrapIteratorWithFilter()
    * The behavior is identical.
@@ -115,7 +111,6 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
    * @see wrapBreakIteratorWithFilter()
    */
   virtual BreakIterator *build(BreakIterator* adoptBreakIterator, UErrorCode& status) = 0;
-#endif  // U_FORCE_HIDE_DEPRECATED_API
 
   /**
    * Wrap (adopt) an existing break iterator in a new filtered instance.
@@ -146,7 +141,5 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
 U_NAMESPACE_END
 
 #endif // #if !UCONFIG_NO_BREAK_ITERATION && !UCONFIG_NO_FILTERED_BREAK_ITERATION
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // #ifndef FILTEREDBRK_H

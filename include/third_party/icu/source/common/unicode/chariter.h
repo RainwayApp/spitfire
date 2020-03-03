@@ -13,9 +13,6 @@
 #define CHARITER_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
 /**
@@ -380,7 +377,7 @@ public:
      * @return a pointer to a new CharacterIterator
      * @stable ICU 2.0
      */
-    virtual CharacterIterator* clone() const = 0;
+    virtual CharacterIterator* clone(void) const = 0;
 
     /**
      * Sets the iterator to refer to the first code unit in its
@@ -728,7 +725,4 @@ CharacterIterator::getLength(void) const {
 }
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

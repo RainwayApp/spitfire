@@ -61,11 +61,13 @@ class ClipboardPromise final : public GarbageCollected<ClipboardPromise>,
 
   // Checks for permissions (interacting with PermissionService).
   mojom::blink::PermissionService* GetPermissionService();
-  void RequestPermission(
-      mojom::blink::PermissionName permission,
-      base::OnceCallback<void(::blink::mojom::PermissionStatus)> callback);
+  void RequestReadPermission(
+      mojom::blink::PermissionService::RequestPermissionCallback);
+  void CheckWritePermission(
+      mojom::blink::PermissionService::HasPermissionCallback);
 
   scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner();
+  bool IsFocusedDocument(ExecutionContext*);
 
   Member<ScriptState> script_state_;
   Member<ScriptPromiseResolver> script_promise_resolver_;

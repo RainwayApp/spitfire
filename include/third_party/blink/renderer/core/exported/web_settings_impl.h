@@ -120,6 +120,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetImmersiveModeEnabled(bool) override;
   void SetMinimumFontSize(int) override;
   void SetMinimumLogicalFontSize(int) override;
+  void SetMockScrollbarsEnabled(bool) override;
   void SetHideScrollbars(bool) override;
   void SetOfflineWebApplicationCacheEnabled(bool) override;
   void SetPassiveEventListenerDefault(PassiveEventListenerDefault) override;
@@ -182,6 +183,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetBarrelButtonForDragEnabled(bool) override;
   void SetUseLegacyBackgroundSizeShorthandBehavior(bool) override;
   void SetViewportStyle(WebViewportStyle) override;
+  void SetUseSolidColorScrollbars(bool) override;
   void SetUseWideViewport(bool) override;
   void SetV8CacheOptions(V8CacheOptions) override;
   void SetValidationMessageTimerMagnification(int) override;
@@ -220,6 +222,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetLazyImageFirstKFullyLoad4G(int) override;
 
   void SetForceDarkModeEnabled(bool) override;
+  void SetPreferredColorScheme(PreferredColorScheme) override;
   void SetNavigationControls(NavigationControls) override;
 
   bool RenderVSyncNotificationEnabled() const {

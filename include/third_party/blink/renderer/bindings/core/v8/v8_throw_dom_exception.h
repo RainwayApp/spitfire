@@ -7,7 +7,6 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
-#include "third_party/blink/renderer/platform/bindings/v8_private_property.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "v8/include/v8.h"
@@ -33,8 +32,6 @@ class CORE_EXPORT V8ThrowDOMException {
       const String& sanitized_message,
       const String& unsanitized_message = String());
 };
-
-extern const V8PrivateProperty::SymbolKey kPrivatePropertyDOMExceptionError;
 
 }  // namespace blink
 

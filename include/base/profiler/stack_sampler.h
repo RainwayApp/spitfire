@@ -9,7 +9,6 @@
 
 #include "base/base_export.h"
 #include "base/macros.h"
-#include "base/profiler/sampling_profiler_thread_token.h"
 #include "base/threading/platform_thread.h"
 
 namespace base {
@@ -27,11 +26,10 @@ class BASE_EXPORT StackSampler {
  public:
   virtual ~StackSampler();
 
-  // Creates a stack sampler that records samples for thread with
-  // |thread_token|. Returns null if this platform does not support stack
-  // sampling.
+  // Creates a stack sampler that records samples for thread with |thread_id|.
+  // Returns null if this platform does not support stack sampling.
   static std::unique_ptr<StackSampler> Create(
-      SamplingProfilerThreadToken thread_token,
+      PlatformThreadId thread_id,
       ModuleCache* module_cache,
       StackSamplerTestDelegate* test_delegate);
 

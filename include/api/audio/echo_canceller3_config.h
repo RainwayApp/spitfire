@@ -25,7 +25,6 @@ struct RTC_EXPORT EchoCanceller3Config {
 
   EchoCanceller3Config();
   EchoCanceller3Config(const EchoCanceller3Config& e);
-  EchoCanceller3Config& operator=(const EchoCanceller3Config& other);
 
   struct Buffering {
     size_t excess_render_detection_interval_blocks = 250;
@@ -35,7 +34,6 @@ struct RTC_EXPORT EchoCanceller3Config {
   struct Delay {
     Delay();
     Delay(const Delay& e);
-    Delay& operator=(const Delay& e);
     size_t default_delay = 5;
     size_t down_sampling_factor = 4;
     size_t num_filters = 5;
@@ -49,15 +47,8 @@ struct RTC_EXPORT EchoCanceller3Config {
       int converged;
     } delay_selection_thresholds = {5, 20};
     bool use_external_delay_estimator = false;
+    bool downmix_before_delay_estimation = true;
     bool log_warning_on_delay_changes = false;
-    struct AlignmentMixing {
-      bool downmix;
-      bool adaptive_selection;
-      float activity_power_threshold;
-      bool prefer_first_two_channels;
-    };
-    AlignmentMixing render_alignment_mixing = {false, true, 10000.f, true};
-    AlignmentMixing capture_alignment_mixing = {false, true, 10000.f, false};
   } delay;
 
   struct Filter {
@@ -88,7 +79,6 @@ struct RTC_EXPORT EchoCanceller3Config {
     bool conservative_initial_phase = false;
     bool enable_shadow_filter_output_usage = true;
     bool use_linear_filter = true;
-    bool export_linear_aec_output = false;
   } filter;
 
   struct Erle {
@@ -123,7 +113,6 @@ struct RTC_EXPORT EchoCanceller3Config {
     float active_render_limit = 100.f;
     float poor_excitation_render_limit = 150.f;
     float poor_excitation_render_limit_ds8 = 20.f;
-    float render_power_gain_db = 0.f;
   } render_levels;
 
   struct EchoRemovalControl {
@@ -134,7 +123,6 @@ struct RTC_EXPORT EchoCanceller3Config {
   struct EchoModel {
     EchoModel();
     EchoModel(const EchoModel& e);
-    EchoModel& operator=(const EchoModel& e);
     size_t noise_floor_hold = 50;
     float min_noise_floor_power = 1638400.f;
     float stationary_gate_slope = 10.f;
@@ -147,7 +135,6 @@ struct RTC_EXPORT EchoCanceller3Config {
   struct Suppressor {
     Suppressor();
     Suppressor(const Suppressor& e);
-    Suppressor& operator=(const Suppressor& e);
 
     size_t nearend_average_blocks = 4;
 
@@ -156,7 +143,6 @@ struct RTC_EXPORT EchoCanceller3Config {
                         float enr_suppress,
                         float emr_transparent);
       MaskingThresholds(const MaskingThresholds& e);
-      MaskingThresholds& operator=(const MaskingThresholds& e);
       float enr_transparent;
       float enr_suppress;
       float emr_transparent;
@@ -168,7 +154,6 @@ struct RTC_EXPORT EchoCanceller3Config {
              float max_inc_factor,
              float max_dec_factor_lf);
       Tuning(const Tuning& e);
-      Tuning& operator=(const Tuning& e);
       MaskingThresholds mask_lf;
       MaskingThresholds mask_hf;
       float max_inc_factor;
@@ -193,28 +178,14 @@ struct RTC_EXPORT EchoCanceller3Config {
       bool use_during_initial_phase = true;
     } dominant_nearend_detection;
 
-    struct SubbandNearendDetection {
-      size_t nearend_average_blocks = 1;
-      struct SubbandRegion {
-        size_t low;
-        size_t high;
-      };
-      SubbandRegion subband1 = {1, 1};
-      SubbandRegion subband2 = {1, 1};
-      float nearend_threshold = 1.f;
-      float snr_threshold = 1.f;
-    } subband_nearend_detection;
-
-    bool use_subband_nearend_detection = false;
-
     struct HighBandsSuppression {
       float enr_threshold = 1.f;
       float max_gain_during_echo = 1.f;
-      float anti_howling_activation_threshold = 25.f;
-      float anti_howling_gain = 0.01f;
     } high_bands_suppression;
 
     float floor_first_increase = 0.00001f;
+    bool enforce_transparent = false;
+    bool enforce_empty_higher_bands = false;
   } suppressor;
 };
 }  // namespace webrtc

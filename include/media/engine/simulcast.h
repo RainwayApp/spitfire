@@ -47,8 +47,7 @@ std::vector<webrtc::VideoStream> GetNormalSimulcastLayers(
     int height,
     double bitrate_priority,
     int max_qp,
-    bool temporal_layers_supported,
-    bool base_heavy_tl3_rate_alloc);
+    bool temporal_layers_supported = true);
 
 // Gets simulcast config layers for screenshare settings.
 std::vector<webrtc::VideoStream> GetScreenshareLayers(
@@ -57,8 +56,7 @@ std::vector<webrtc::VideoStream> GetScreenshareLayers(
     int height,
     double bitrate_priority,
     int max_qp,
-    bool temporal_layers_supported,
-    bool base_heavy_tl3_rate_alloc);
+    bool temporal_layers_supported = true);
 
 }  // namespace cricket
 

@@ -29,8 +29,7 @@ class LocalFrame;
 class PortalActivateEventInit;
 class ScriptState;
 class ScriptValue;
-using OnPortalActivatedCallback =
-    base::OnceCallback<void(mojom::blink::PortalActivateResult)>;
+using OnPortalActivatedCallback = base::OnceCallback<void(bool)>;
 
 class CORE_EXPORT PortalActivateEvent : public Event {
   DEFINE_WRAPPERTYPEINFO();

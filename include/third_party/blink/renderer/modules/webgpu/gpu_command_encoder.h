@@ -23,7 +23,7 @@ class GPURenderPassEncoder;
 class GPUTextureCopyView;
 class UnsignedLongSequenceOrGPUExtent3DDict;
 
-class GPUCommandEncoder : public DawnObject<WGPUCommandEncoder> {
+class GPUCommandEncoder : public DawnObject<DawnCommandEncoder> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -31,7 +31,7 @@ class GPUCommandEncoder : public DawnObject<WGPUCommandEncoder> {
       GPUDevice* device,
       const GPUCommandEncoderDescriptor* webgpu_desc);
   explicit GPUCommandEncoder(GPUDevice* device,
-                             WGPUCommandEncoder command_encoder);
+                             DawnCommandEncoder command_encoder);
   ~GPUCommandEncoder() override;
 
   // gpu_command_encoder.idl

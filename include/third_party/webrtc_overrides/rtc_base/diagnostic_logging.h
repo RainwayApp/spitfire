@@ -10,7 +10,6 @@
 
 #include "third_party/webrtc/api/scoped_refptr.h"
 #include "third_party/webrtc/rtc_base/checks.h"
-#include "third_party/webrtc/rtc_base/system/rtc_export.h"
 
 namespace rtc {
 
@@ -61,7 +60,7 @@ enum LogErrorContext {
 
 // Class that writes a log message to the logging delegate ("WebRTC logging
 // stream" in Chrome) and to Chrome's logging stream.
-class RTC_EXPORT DiagnosticLogMessage {
+class DiagnosticLogMessage {
  public:
   DiagnosticLogMessage(const char* file,
                        int line,
@@ -115,7 +114,7 @@ class LogMessage {
 // TODO(grunell): Change name to InitDiagnosticLoggingDelegate or
 // InitDiagnosticLogging. Change also in init_webrtc.h/cc.
 // TODO(grunell): typedef the delegate function.
-RTC_EXPORT void InitDiagnosticLoggingDelegateFunction(
+void InitDiagnosticLoggingDelegateFunction(
     void (*delegate)(const std::string&));
 
 void SetExtraLoggingInit(

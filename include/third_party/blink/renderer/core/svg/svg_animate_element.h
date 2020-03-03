@@ -49,16 +49,14 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   bool IsSVGAnimationAttributeSettingJavaScriptURL(
       const Attribute&) const override;
 
-  const QualifiedName& AttributeName() const { return attribute_name_; }
   AnimatedPropertyType GetAnimatedPropertyType() const;
   bool AnimatedPropertyTypeSupportsAddition() const;
-  bool IsAdditive() const final;
 
  protected:
+  bool HasValidTarget() const override;
+
   void WillChangeAnimationTarget() final;
   void DidChangeAnimationTarget() final;
-
-  bool HasValidAnimation() const override;
 
   void ResetAnimatedType() final;
   void ClearAnimatedType() final;
@@ -71,10 +69,11 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
                                 const String& by_string) final;
   void CalculateAnimatedValue(float percentage,
                               unsigned repeat_count,
-                              SVGSMILElement* result_element) const final;
+                              SVGSMILElement* result_element) final;
   void ApplyResultsToTarget() final;
   float CalculateDistance(const String& from_string,
                           const String& to_string) final;
+  bool IsAdditive() const final;
 
   void ParseAttribute(const AttributeModificationParams&) override;
 
@@ -91,6 +90,10 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
                            stringsShouldNotSupportAddition);
 
  private:
+  void ResetCachedAnimationState();
+
+  bool ShouldApplyAnimation(const SVGElement& target_element) const;
+
   void SetAttributeType(const AtomicString&);
 
   InsertionNotificationRequest InsertedInto(ContainerNode&) final;
@@ -99,9 +102,6 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   virtual void ResolveTargetProperty();
   void ClearTargetProperty();
   void UpdateTargetProperty();
-
-  void WillChangeAnimatedType();
-  void DidChangeAnimatedType();
 
   virtual SVGPropertyBase* CreatePropertyForAnimation(const String&) const;
   SVGPropertyBase* CreatePropertyForAttributeAnimation(const String&) const;
@@ -117,7 +117,6 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
 
  protected:
   Member<SVGAnimatedPropertyBase> target_property_;
-  QualifiedName attribute_name_;
   AnimatedPropertyType type_;
   CSSPropertyID css_property_id_;
 

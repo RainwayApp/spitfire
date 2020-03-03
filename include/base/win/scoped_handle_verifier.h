@@ -21,7 +21,9 @@ namespace internal {
 
 struct HandleHash {
   size_t operator()(const HANDLE& handle) const {
-    return base::FastHash(as_bytes(make_span(&handle, 1)));
+    char buffer[sizeof(handle)];
+    memcpy(buffer, &handle, sizeof(handle));
+    return base::Hash(buffer, sizeof(buffer));
   }
 };
 

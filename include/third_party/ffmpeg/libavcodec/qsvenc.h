@@ -102,7 +102,7 @@ typedef struct QSVEncContext {
     QSVFrame *work_frames;
 
     mfxSession session;
-    QSVSession internal_qs;
+    mfxSession internal_session;
 
     int packet_size;
     int width_align;

@@ -62,10 +62,9 @@ class MappedOutputFile {
   const char* errmsg_;
   bool opened_;
   u1* buffer_;
-  size_t estimated_size_;
 
  public:
-  MappedOutputFile(const char* name, size_t estimated_size);
+  MappedOutputFile(const char* name, u8 estimated_size);
   virtual ~MappedOutputFile();
 
   // If opening the file succeeded or not.
@@ -76,7 +75,7 @@ class MappedOutputFile {
 
   // The mapped contents of the file.
   u1* Buffer() const { return buffer_; }
-  int Close(size_t size);
+  int Close(int size);
 };
 
 }  // namespace devtools_ijar

@@ -20,14 +20,42 @@
 #include "rtc_base/byte_order.h"
 #include "rtc_base/constructor_magic.h"
 
-// Reads/Writes from/to buffer using network byte order (big endian)
 namespace rtc {
 
-template <class BufferClassT>
-class ByteBufferWriterT {
+class ByteBuffer {
  public:
-  ByteBufferWriterT() { Construct(nullptr, kDefaultCapacity); }
-  ByteBufferWriterT(const char* bytes, size_t len) { Construct(bytes, len); }
+  enum ByteOrder {
+    ORDER_NETWORK = 0,  // Default, use network byte order (big endian).
+    ORDER_HOST,         // Use the native order of the host.
+  };
+
+  explicit ByteBuffer(ByteOrder byte_order) : byte_order_(byte_order) {}
+
+  ByteOrder Order() const { return byte_order_; }
+
+ private:
+  ByteOrder byte_order_;
+
+  RTC_DISALLOW_COPY_AND_ASSIGN(ByteBuffer);
+};
+
+template <class BufferClassT>
+class ByteBufferWriterT : public ByteBuffer {
+ public:
+  // |byte_order| defines order of bytes in the buffer.
+  ByteBufferWriterT() : ByteBuffer(ORDER_NETWORK) {
+    Construct(nullptr, kDefaultCapacity);
+  }
+  explicit ByteBufferWriterT(ByteOrder byte_order) : ByteBuffer(byte_order) {
+    Construct(nullptr, kDefaultCapacity);
+  }
+  ByteBufferWriterT(const char* bytes, size_t len) : ByteBuffer(ORDER_NETWORK) {
+    Construct(bytes, len);
+  }
+  ByteBufferWriterT(const char* bytes, size_t len, ByteOrder byte_order)
+      : ByteBuffer(byte_order) {
+    Construct(bytes, len);
+  }
 
   const char* Data() const { return buffer_.data(); }
   size_t Length() const { return buffer_.size(); }
@@ -39,21 +67,23 @@ class ByteBufferWriterT {
     WriteBytes(reinterpret_cast<const char*>(&val), 1);
   }
   void WriteUInt16(uint16_t val) {
-    uint16_t v = HostToNetwork16(val);
+    uint16_t v = (Order() == ORDER_NETWORK) ? HostToNetwork16(val) : val;
     WriteBytes(reinterpret_cast<const char*>(&v), 2);
   }
   void WriteUInt24(uint32_t val) {
-    uint32_t v = HostToNetwork32(val);
+    uint32_t v = (Order() == ORDER_NETWORK) ? HostToNetwork32(val) : val;
     char* start = reinterpret_cast<char*>(&v);
-    ++start;
+    if (Order() == ORDER_NETWORK || IsHostBigEndian()) {
+      ++start;
+    }
     WriteBytes(start, 3);
   }
   void WriteUInt32(uint32_t val) {
-    uint32_t v = HostToNetwork32(val);
+    uint32_t v = (Order() == ORDER_NETWORK) ? HostToNetwork32(val) : val;
     WriteBytes(reinterpret_cast<const char*>(&v), 4);
   }
   void WriteUInt64(uint64_t val) {
-    uint64_t v = HostToNetwork64(val);
+    uint64_t v = (Order() == ORDER_NETWORK) ? HostToNetwork64(val) : val;
     WriteBytes(reinterpret_cast<const char*>(&v), 8);
   }
   // Serializes an unsigned varint in the format described by
@@ -109,8 +139,11 @@ class ByteBufferWriterT {
 
 class ByteBufferWriter : public ByteBufferWriterT<BufferT<char>> {
  public:
+  // |byte_order| defines order of bytes in the buffer.
   ByteBufferWriter();
+  explicit ByteBufferWriter(ByteOrder byte_order);
   ByteBufferWriter(const char* bytes, size_t len);
+  ByteBufferWriter(const char* bytes, size_t len, ByteOrder byte_order);
 
  private:
   RTC_DISALLOW_COPY_AND_ASSIGN(ByteBufferWriter);
@@ -118,9 +151,10 @@ class ByteBufferWriter : public ByteBufferWriterT<BufferT<char>> {
 
 // The ByteBufferReader references the passed data, i.e. the pointer must be
 // valid during the lifetime of the reader.
-class ByteBufferReader {
+class ByteBufferReader : public ByteBuffer {
  public:
   ByteBufferReader(const char* bytes, size_t len);
+  ByteBufferReader(const char* bytes, size_t len, ByteOrder byte_order);
 
   // Initializes buffer from a zero-terminated string.
   explicit ByteBufferReader(const char* bytes);

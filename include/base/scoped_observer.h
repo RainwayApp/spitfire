@@ -17,29 +17,7 @@
 // ScopedObserver is used to keep track of the set of sources an object has
 // attached itself to as an observer. When ScopedObserver is destroyed it
 // removes the object as an observer from all sources it has been added to.
-// Basic example (as a member variable):
-//
-//   class MyFooObserver : public FooObserver {
-//     ...
-//    private:
-//     ScopedObserver<Foo, FooObserver> observed_foo_{this};
-//   };
-//
-// For cases with methods not named AddObserver/RemoveObserver:
-//
-//   class MyFooStateObserver : public FooStateObserver {
-//     ...
-//    private:
-//     ScopedObserver<Foo,
-//                    FooStateObserver,
-//                    &Foo::AddStateObserver,
-//                    &Foo::RemoveStateObserver>
-//       observed_foo_{this};
-//   };
-template <class Source,
-          class Observer,
-          void (Source::*AddObsFn)(Observer*) = &Source::AddObserver,
-          void (Source::*RemoveObsFn)(Observer*) = &Source::RemoveObserver>
+template <class Source, class Observer>
 class ScopedObserver {
  public:
   explicit ScopedObserver(Observer* observer) : observer_(observer) {}
@@ -51,7 +29,7 @@ class ScopedObserver {
   // Adds the object passed to the constructor as an observer on |source|.
   void Add(Source* source) {
     sources_.push_back(source);
-    (source->*AddObsFn)(observer_);
+    source->AddObserver(observer_);
   }
 
   // Remove the object passed to the constructor as an observer from |source|.
@@ -59,12 +37,12 @@ class ScopedObserver {
     auto it = std::find(sources_.begin(), sources_.end(), source);
     DCHECK(it != sources_.end());
     sources_.erase(it);
-    (source->*RemoveObsFn)(observer_);
+    source->RemoveObserver(observer_);
   }
 
   void RemoveAll() {
     for (size_t i = 0; i < sources_.size(); ++i)
-      (sources_[i]->*RemoveObsFn)(observer_);
+      sources_[i]->RemoveObserver(observer_);
     sources_.clear();
   }
 

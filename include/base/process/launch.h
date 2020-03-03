@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/command_line.h"
 #include "base/environment.h"
 #include "base/macros.h"
 #include "base/process/process.h"
@@ -38,6 +37,8 @@
 #endif
 
 namespace base {
+
+class CommandLine;
 
 #if defined(OS_WIN)
 typedef std::vector<HANDLE> HandlesToInheritVector;
@@ -320,7 +321,7 @@ BASE_EXPORT Process LaunchProcess(const CommandLine& cmdline,
 //
 // Example (including literal quotes)
 //  cmdline = "c:\windows\explorer.exe" -foo "c:\bar\"
-BASE_EXPORT Process LaunchProcess(const CommandLine::StringType& cmdline,
+BASE_EXPORT Process LaunchProcess(const string16& cmdline,
                                   const LaunchOptions& options);
 
 // Launches a process with elevated privileges.  This does not behave exactly
@@ -378,8 +379,7 @@ BASE_EXPORT bool GetAppOutputWithExitCode(const CommandLine& cl,
 // A Windows-specific version of GetAppOutput that takes a command line string
 // instead of a CommandLine object. Useful for situations where you need to
 // control the command line arguments directly.
-BASE_EXPORT bool GetAppOutput(CommandLine::StringPieceType cl,
-                              std::string* output);
+BASE_EXPORT bool GetAppOutput(const StringPiece16& cl, std::string* output);
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 // A POSIX-specific version of GetAppOutput that takes an argv array
 // instead of a CommandLine.  Useful for situations where you need to

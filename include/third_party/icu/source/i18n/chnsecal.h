@@ -144,7 +144,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
   virtual ~ChineseCalendar();
 
   // clone
-  virtual ChineseCalendar* clone() const;
+  virtual Calendar* clone() const;
 
  private:
 

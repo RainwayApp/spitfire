@@ -25,8 +25,7 @@ namespace webrtc {
 class RenderDelayController {
  public:
   static RenderDelayController* Create(const EchoCanceller3Config& config,
-                                       int sample_rate_hz,
-                                       size_t num_capture_channels);
+                                       int sample_rate_hz);
   virtual ~RenderDelayController() = default;
 
   // Resets the delay controller. If the delay confidence is reset, the reset

@@ -33,16 +33,13 @@
 
 namespace blink {
 
-class ScriptState;
-class ScriptValue;
-
 class RTCLegacyStatsReport final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   RTCLegacyStatsReport(const String& id, const String& type, double timestamp);
 
-  ScriptValue timestamp(ScriptState* script_state) const;
+  double timestamp() const { return timestamp_; }
   String id() { return id_; }
   String type() { return type_; }
   String stat(const String& name) { return stats_.at(name); }

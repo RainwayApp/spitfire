@@ -19,7 +19,6 @@
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/shared_desktop_frame.h"
 #include "modules/desktop_capture/shared_memory.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
@@ -31,9 +30,8 @@ namespace webrtc {
 //
 // This class marks entire frame as updated if the frame size or frame stride
 // has been changed.
-class RTC_EXPORT DesktopCapturerDifferWrapper
-    : public DesktopCapturer,
-      public DesktopCapturer::Callback {
+class DesktopCapturerDifferWrapper : public DesktopCapturer,
+                                     public DesktopCapturer::Callback {
  public:
   // Creates a DesktopCapturerDifferWrapper with a DesktopCapturer
   // implementation, and takes its ownership.

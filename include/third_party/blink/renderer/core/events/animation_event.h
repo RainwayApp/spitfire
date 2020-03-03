@@ -26,7 +26,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EVENTS_ANIMATION_EVENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EVENTS_ANIMATION_EVENT_H_
 
-#include "third_party/blink/renderer/core/animation/animation_time_delta.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/events/animation_event_init.h"
 
@@ -41,7 +40,7 @@ class AnimationEvent final : public Event {
   }
   static AnimationEvent* Create(const AtomicString& type,
                                 const String& animation_name,
-                                const AnimationTimeDelta& elapsed_time,
+                                double elapsed_time,
                                 const String& pseudo_element) {
     return MakeGarbageCollected<AnimationEvent>(type, animation_name,
                                                 elapsed_time, pseudo_element);
@@ -54,7 +53,7 @@ class AnimationEvent final : public Event {
   AnimationEvent();
   AnimationEvent(const AtomicString& type,
                  const String& animation_name,
-                 const AnimationTimeDelta& elapsed_time,
+                 double elapsed_time,
                  const String& pseudo_element);
   AnimationEvent(const AtomicString&, const AnimationEventInit*);
   ~AnimationEvent() override;
@@ -69,7 +68,7 @@ class AnimationEvent final : public Event {
 
  private:
   String animation_name_;
-  AnimationTimeDelta elapsed_time_;
+  double elapsed_time_;
   String pseudo_element_;
 };
 

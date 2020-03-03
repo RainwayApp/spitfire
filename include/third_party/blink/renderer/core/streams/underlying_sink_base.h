@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/streams/writable_stream_default_controller.h"
+#include "third_party/blink/renderer/core/streams/writable_stream_default_controller_interface.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
 
@@ -24,17 +24,18 @@ class CORE_EXPORT UnderlyingSinkBase : public ScriptWrappable {
 
   // We define non-virtual |start| and |write| which take ScriptValue for
   // |controller| and are called from IDL. Also we define virtual |start| and
-  // |write| which take WritableStreamDefaultController.
+  // |write| which take WritableStreamDefaultControllerInterface. This is needed
+  // because we have two streams implementations.
   virtual ScriptPromise start(ScriptState*,
-                              WritableStreamDefaultController*) = 0;
+                              WritableStreamDefaultControllerInterface*) = 0;
   virtual ScriptPromise write(ScriptState*,
                               ScriptValue chunk,
-                              WritableStreamDefaultController*) = 0;
+                              WritableStreamDefaultControllerInterface*) = 0;
   virtual ScriptPromise close(ScriptState*) = 0;
   virtual ScriptPromise abort(ScriptState*, ScriptValue reason) = 0;
 
   ScriptPromise start(ScriptState* script_state, ScriptValue controller) {
-    controller_ = WritableStreamDefaultController::From(controller);
+    controller_ = WritableStreamDefaultControllerInterface::Create(controller);
     return start(script_state, controller_);
   }
   ScriptPromise write(ScriptState* script_state,
@@ -50,10 +51,12 @@ class CORE_EXPORT UnderlyingSinkBase : public ScriptWrappable {
   }
 
  protected:
-  WritableStreamDefaultController* Controller() const { return controller_; }
+  WritableStreamDefaultControllerInterface* Controller() const {
+    return controller_;
+  }
 
  private:
-  Member<WritableStreamDefaultController> controller_;
+  Member<WritableStreamDefaultControllerInterface> controller_;
 };
 
 }  // namespace blink

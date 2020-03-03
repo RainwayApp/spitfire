@@ -18,7 +18,7 @@
 #include "fphdlimp.h"
 #include "util.h"
 #include "uvectr32.h"
-#include "formatted_string_builder.h"
+#include "number_stringbuilder.h"
 
 
 /**
@@ -67,9 +67,7 @@ typedef enum UCFPosConstraintType {
 U_NAMESPACE_BEGIN
 
 
-/**
- * Implementation of FormattedValue using FieldPositionHandler to accept fields.
- */
+/** Implementation using FieldPositionHandler to accept fields. */
 class FormattedValueFieldPositionIteratorImpl : public UMemory, public FormattedValue {
 public:
 
@@ -114,21 +112,12 @@ private:
 };
 
 
-/**
- * Implementation of FormattedValue based on FormattedStringBuilder.
- *
- * The implementation currently revolves around numbers and number fields.
- * However, it can be generalized in the future when there is a need.
- *
- * @author sffc (Shane Carr)
- */
-// Exported as U_I18N_API for tests
-class U_I18N_API FormattedValueStringBuilderImpl : public UMemory, public FormattedValue {
+class FormattedValueNumberStringBuilderImpl : public UMemory, public FormattedValue {
 public:
 
-    FormattedValueStringBuilderImpl(FormattedStringBuilder::Field numericField);
+    FormattedValueNumberStringBuilderImpl(number::impl::Field numericField);
 
-    virtual ~FormattedValueStringBuilderImpl();
+    virtual ~FormattedValueNumberStringBuilderImpl();
 
     // Implementation of FormattedValue (const):
 
@@ -137,25 +126,17 @@ public:
     Appendable& appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
     UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
 
-    // Additional helper functions:
-    UBool nextFieldPosition(FieldPosition& fp, UErrorCode& status) const;
-    void getAllFieldPositions(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
-    inline FormattedStringBuilder& getStringRef() {
+    inline number::impl::NumberStringBuilder& getStringRef() {
         return fString;
     }
-    inline const FormattedStringBuilder& getStringRef() const {
+
+    inline const number::impl::NumberStringBuilder& getStringRef() const {
         return fString;
     }
 
 private:
-    FormattedStringBuilder fString;
-    FormattedStringBuilder::Field fNumericField;
-
-    bool nextPositionImpl(ConstrainedFieldPosition& cfpos, FormattedStringBuilder::Field numericField, UErrorCode& status) const;
-    static bool isIntOrGroup(FormattedStringBuilder::Field field);
-    static bool isNumericField(FormattedStringBuilder::Field field);
-    int32_t trimBack(int32_t limit) const;
-    int32_t trimFront(int32_t start) const;
+    number::impl::NumberStringBuilder fString;
+    number::impl::Field fNumericField;
 };
 
 

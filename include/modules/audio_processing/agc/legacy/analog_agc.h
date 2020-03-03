@@ -12,6 +12,9 @@
 #define MODULES_AUDIO_PROCESSING_AGC_LEGACY_ANALOG_AGC_H_
 
 //#define MIC_LEVEL_FEEDBACK
+#ifdef WEBRTC_AGC_DEBUG_DUMP
+#include <stdio.h>
+#endif
 
 #include "modules/audio_processing/agc/legacy/digital_agc.h"
 #include "modules/audio_processing/agc/legacy/gain_control.h"
@@ -115,6 +118,12 @@ typedef struct {
   // Structs for VAD and digital_agc
   AgcVad vadMic;
   DigitalAgc digitalAgc;
+
+#ifdef WEBRTC_AGC_DEBUG_DUMP
+  FILE* fpt;
+  FILE* agcLog;
+  int32_t fcount;
+#endif
 
   int16_t lowLevelSignal;
 } LegacyAgc;

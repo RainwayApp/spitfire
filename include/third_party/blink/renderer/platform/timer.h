@@ -85,6 +85,8 @@ class PLATFORM_EXPORT TimerBase {
  private:
   virtual void Fired() = 0;
 
+  virtual scoped_refptr<base::SingleThreadTaskRunner> TimerTaskRunner() const;
+
   NO_SANITIZE_ADDRESS
   virtual bool CanFire() const { return true; }
 

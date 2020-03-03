@@ -71,6 +71,7 @@ class SerializedScriptValue;
 class SourceLocation;
 class StyleMedia;
 class TrustedTypePolicyFactory;
+class USVStringOrTrustedURL;
 class V8FrameRequestCallback;
 class V8IdleRequestCallback;
 class V8VoidFunction;
@@ -264,7 +265,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   Element* frameElement() const;
 
   DOMWindow* open(v8::Isolate*,
-                  const String& url_string,
+                  const USVStringOrTrustedURL& string_or_url,
                   const AtomicString& target,
                   const String& features,
                   ExceptionState&);
@@ -276,14 +277,12 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void DispatchPostMessage(
       MessageEvent* event,
       scoped_refptr<const SecurityOrigin> intended_target_origin,
-      std::unique_ptr<SourceLocation> location,
-      const base::UnguessableToken& source_agent_cluster_id);
+      std::unique_ptr<SourceLocation> location);
 
   void DispatchMessageEventWithOriginCheck(
       const SecurityOrigin* intended_target_origin,
-      MessageEvent*,
-      std::unique_ptr<SourceLocation>,
-      const base::UnguessableToken& source_agent_cluster_id);
+      Event*,
+      std::unique_ptr<SourceLocation>);
 
   // Events
   // EventTarget API
@@ -300,7 +299,7 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   void EnqueueWindowEvent(Event&, TaskType);
   void EnqueueDocumentEvent(Event&, TaskType);
-  void EnqueueNonPersistedPageshowEvent();
+  void EnqueuePageshowEvent(PageTransitionEventPersistence);
   void EnqueueHashchangeEvent(const String& old_url, const String& new_url);
   void EnqueuePopstateEvent(scoped_refptr<SerializedScriptValue>);
   void DispatchWindowLoadEvent();
@@ -311,7 +310,11 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   TrustedTypePolicyFactory* trustedTypes() const;
 
-  void DispatchPersistedPageshowEvent(base::TimeTicks navigation_start);
+  void DispatchPageshowEvent(PageTransitionEventPersistence persistence) {
+    DispatchEvent(
+        *PageTransitionEvent::Create(event_type_names::kPageshow, persistence),
+        document_.Get());
+  }
 
   void DispatchPagehideEvent(PageTransitionEventPersistence persistence) {
     DispatchEvent(

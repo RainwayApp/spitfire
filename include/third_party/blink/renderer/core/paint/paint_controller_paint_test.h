@@ -44,7 +44,7 @@ class PaintControllerPaintTestBase : public RenderingTest {
       const base::Optional<IntRect>& interest_rect = base::nullopt) {
     GetDocument().View()->Lifecycle().AdvanceTo(DocumentLifecycle::kInPaint);
     if (RuntimeEnabledFeatures::CompositeAfterPaintEnabled()) {
-      if (GetLayoutView().Layer()->SelfOrDescendantNeedsRepaint()) {
+      if (GetLayoutView().Layer()->NeedsRepaint()) {
         GraphicsContext graphics_context(RootPaintController());
         GetDocument().View()->Paint(
             graphics_context, kGlobalPaintNormalPhase,

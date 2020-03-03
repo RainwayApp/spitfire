@@ -84,12 +84,10 @@ class AndroidVideoTrackSource : public rtc::AdaptedVideoTrackSource {
                          const JavaRef<jobject>& j_max_portrait_pixel_count,
                          const JavaRef<jobject>& j_max_fps);
 
-  void SetIsScreencast(JNIEnv* env, jboolean j_is_screencast);
-
  private:
   rtc::Thread* signaling_thread_;
   std::atomic<SourceState> state_;
-  std::atomic<bool> is_screencast_;
+  const bool is_screencast_;
   rtc::TimestampAligner timestamp_aligner_;
   const bool align_timestamps_;
 };

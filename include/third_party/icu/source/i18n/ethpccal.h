@@ -141,7 +141,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual EthiopicCalendar* clone() const;
+    virtual Calendar* clone() const;
 
     /**
      * return the calendar type, "ethiopic"

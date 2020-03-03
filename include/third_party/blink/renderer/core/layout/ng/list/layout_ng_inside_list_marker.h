@@ -22,8 +22,8 @@ class CORE_EXPORT LayoutNGInsideListMarker final : public LayoutInline {
 
 #if DCHECK_IS_ON()
   void AddChild(LayoutObject* new_child, LayoutObject* before_child) override {
-    // Anonymous list marker should have at most one child.
-    DCHECK(GetNode() || !FirstChild());
+    // List marker should have at most one child.
+    DCHECK(!FirstChild());
     LayoutInline::AddChild(new_child, before_child);
   }
 #endif

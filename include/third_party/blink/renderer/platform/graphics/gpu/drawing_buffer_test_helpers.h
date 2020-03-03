@@ -18,7 +18,6 @@
 #include "third_party/blink/renderer/platform/graphics/gpu/drawing_buffer.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/extensions_3d_util.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-#include "ui/gl/gpu_preference.h"
 
 namespace blink {
 
@@ -43,9 +42,7 @@ class WebGraphicsContext3DProviderForTests
       std::unique_ptr<gpu::webgpu::WebGPUInterface> webgpu)
       : webgpu_(std::move(webgpu)) {}
 
-  gpu::InterfaceBase* InterfaceBase() override { return gl_.get(); }
   gpu::gles2::GLES2Interface* ContextGL() override { return gl_.get(); }
-  gpu::raster::RasterInterface* RasterInterface() override { return nullptr; }
   GrContext* GetGrContext() override { return nullptr; }
   gpu::webgpu::WebGPUInterface* WebGPUInterface() override {
     return webgpu_.get();
@@ -331,13 +328,6 @@ class GLES2InterfaceForTests : public gpu::gles2::GLES2InterfaceStub,
   void DrawingBufferClientRestorePixelPackBufferBinding() override {
     state_.pixel_pack_buffer_binding = saved_state_.pixel_pack_buffer_binding;
   }
-  bool DrawingBufferClientUserAllocatedMultisampledRenderbuffers() override {
-    // Not unit tested yet. Tested with end-to-end tests.
-    return false;
-  }
-  void DrawingBufferClientForceLostContextWithAutoRecovery() override {
-    // Not unit tested yet. Tested with end-to-end tests.
-  }
 
   // Testing methods.
   gpu::SyncToken MostRecentlyWaitedSyncToken() const {
@@ -470,8 +460,7 @@ class DrawingBufferForTests : public DrawingBuffer {
             false /* wantDepth */,
             false /* wantStencil */,
             DrawingBuffer::kAllowChromiumImage /* ChromiumImageUsage */,
-            CanvasColorParams(),
-            gl::GpuPreference::kHighPerformance),
+            CanvasColorParams()),
         live_(nullptr) {}
 
   ~DrawingBufferForTests() override {

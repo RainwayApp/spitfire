@@ -32,7 +32,6 @@
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_VIEW_H_
 
 #include "base/time/time.h"
-#include "third_party/blink/public/common/page/page_visibility_state.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
 #include "third_party/blink/public/platform/web_drag_operation.h"
 #include "third_party/blink/public/platform/web_focus_type.h"
@@ -157,6 +156,12 @@ class WebView {
 
   virtual WebLocalFrame* FocusedFrame() = 0;
   virtual void SetFocusedFrame(WebFrame*) = 0;
+
+  // Sets the provided frame as focused and fires blur/focus events on any
+  // currently focused elements in old/new focused documents.  Note that this
+  // is different from setFocusedFrame, which does not fire events on focused
+  // elements.
+  virtual void FocusDocumentView(WebFrame*) = 0;
 
   // Focus the first (last if reverse is true) focusable node.
   virtual void SetInitialFocus(bool reverse) = 0;
@@ -401,9 +406,8 @@ class WebView {
   // Visibility -----------------------------------------------------------
 
   // Sets the visibility of the WebView.
-  virtual void SetVisibilityState(PageVisibilityState visibility_state,
-                                  bool is_initial_state) = 0;
-  virtual PageVisibilityState GetVisibilityState() = 0;
+  virtual void SetIsHidden(bool hidden, bool is_initial_state) = 0;
+  virtual bool IsHidden() = 0;
 
   // FrameOverlay ----------------------------------------------------------
 
@@ -430,8 +434,7 @@ class WebView {
   virtual void PutPageIntoBackForwardCache() = 0;
 
   // Unhooks eviction, resumes a page and dispatches a pageshow event.
-  virtual void RestorePageFromBackForwardCache(
-      base::TimeTicks navigation_start) = 0;
+  virtual void RestorePageFromBackForwardCache() = 0;
 
   // Testing functionality for TestRunner ---------------------------------
 

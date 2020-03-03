@@ -8,12 +8,11 @@
 #include "base/macros.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_restrictions.h"
-#include "third_party/webrtc/rtc_base/system/rtc_export.h"
 
 namespace rtc {
 
 // Overrides WebRTC's internal event implementation to use Chromium's.
-class RTC_EXPORT Event {
+class Event {
  public:
   static const int kForever = -1;
 

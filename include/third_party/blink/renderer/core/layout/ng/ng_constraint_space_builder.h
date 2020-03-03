@@ -182,12 +182,6 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
     space_.bitfields_.is_restricted_block_size_table_cell = b;
   }
 
-  void SetHideTableCellIfEmpty(bool b) {
-    DCHECK(space_.bitfields_.is_table_cell);
-    if (b)
-      space_.EnsureRareData()->hide_table_cell_if_empty = b;
-  }
-
   void SetIsAnonymous(bool b) { space_.bitfields_.is_anonymous = b; }
 
   void SetUseFirstLineStyle(bool b) {
@@ -251,8 +245,8 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
     DCHECK(!is_forced_bfc_block_offset_set_);
     is_forced_bfc_block_offset_set_ = true;
 #endif
-    DCHECK(!is_new_fc_);
-    space_.EnsureRareData()->SetForcedBfcBlockOffset(forced_bfc_block_offset);
+    if (LIKELY(!is_new_fc_))
+      space_.EnsureRareData()->SetForcedBfcBlockOffset(forced_bfc_block_offset);
   }
 
   void SetClearanceOffset(LayoutUnit clearance_offset) {

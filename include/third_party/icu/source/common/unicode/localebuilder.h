@@ -3,14 +3,12 @@
 #ifndef __LOCALEBUILDER_H__
 #define __LOCALEBUILDER_H__
 
-#include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/locid.h"
 #include "unicode/localematcher.h"
 #include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
+#include "unicode/utypes.h"
+
 
 #ifndef U_HIDE_DRAFT_API
 /**
@@ -279,19 +277,6 @@ public:
      */
     Locale build(UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
-    /**
-     * Sets the UErrorCode if an error occurred while recording sets.
-     * Preserves older error codes in the outErrorCode.
-     * @param outErrorCode Set to an error code that occurred while setting subtags.
-     *                  Unchanged if there is no such error or if outErrorCode
-     *                  already contained an error.
-     * @return TRUE if U_FAILURE(outErrorCode)
-     * @draft ICU 65
-     */
-    UBool copyErrorTo(UErrorCode &outErrorCode) const;
-#endif  /* U_HIDE_DRAFT_API */
-
 private:
     friend class LocaleMatcher::Result;
 
@@ -309,7 +294,4 @@ private:
 U_NAMESPACE_END
 
 #endif  // U_HIDE_DRAFT_API
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif  // __LOCALEBUILDER_H__

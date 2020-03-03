@@ -128,14 +128,14 @@ class BASE_EXPORT File {
 #endif
 
     // The size of the file in bytes.  Undefined when is_directory is true.
-    int64_t size = 0;
+    int64_t size;
 
     // True if the file corresponds to a directory.
-    bool is_directory = false;
+    bool is_directory;
 
     // True if the file corresponds to a symbolic link.  For Windows currently
     // not supported and thus always false.
-    bool is_symbolic_link = false;
+    bool is_symbolic_link;
 
     // The last modified time of a file.
     Time last_modified;
@@ -154,13 +154,11 @@ class BASE_EXPORT File {
   File(const FilePath& path, uint32_t flags);
 
   // Takes ownership of |platform_file| and sets async to false.
-  explicit File(ScopedPlatformFile platform_file);
   explicit File(PlatformFile platform_file);
 
   // Takes ownership of |platform_file| and sets async to the given value.
   // This constructor exists because on Windows you can't check if platform_file
   // is async or not.
-  File(ScopedPlatformFile platform_file, bool async);
   File(PlatformFile platform_file, bool async);
 
   // Creates an object with a specific error_details code.
@@ -365,13 +363,6 @@ class BASE_EXPORT File {
   // Converts an error value to a human-readable form. Used for logging.
   static std::string ErrorToString(Error error);
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
-  // Wrapper for stat() or stat64().
-  static int Stat(const char* path, stat_wrapper_t* sb);
-  static int Fstat(int fd, stat_wrapper_t* sb);
-  static int Lstat(const char* path, stat_wrapper_t* sb);
-#endif
-
  private:
   friend class FileTracing::ScopedTrace;
 
@@ -390,9 +381,9 @@ class BASE_EXPORT File {
   // Object tied to the lifetime of |this| that enables/disables tracing.
   FileTracing::ScopedEnabler trace_enabler_;
 
-  Error error_details_ = FILE_ERROR_FAILED;
-  bool created_ = false;
-  bool async_ = false;
+  Error error_details_;
+  bool created_;
+  bool async_;
 
   DISALLOW_COPY_AND_ASSIGN(File);
 };

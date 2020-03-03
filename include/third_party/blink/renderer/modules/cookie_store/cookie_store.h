@@ -9,6 +9,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/restricted_cookie_manager.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/cookie_store/cookie_store.mojom-blink.h"
+#include "third_party/blink/public/platform/web_canonical_cookie.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
@@ -20,7 +21,6 @@
 
 namespace blink {
 
-class CanonicalCookie;
 class CookieStoreDeleteOptions;
 class CookieStoreGetOptions;
 class CookieStoreSetOptions;
@@ -37,7 +37,8 @@ class CookieStore final : public EventTargetWithInlineData,
  public:
   CookieStore(
       ExecutionContext*,
-      mojo::Remote<network::mojom::blink::RestrictedCookieManager> backend);
+      mojo::Remote<network::mojom::blink::RestrictedCookieManager> backend,
+      mojo::Remote<blink::mojom::blink::CookieStore> subscription_backend);
   // Needed because of the
   // mojo::Remote<network::mojom::blink::RestrictedCookieManager>
   ~CookieStore() override;
@@ -63,9 +64,17 @@ class CookieStore final : public EventTargetWithInlineData,
   ScriptPromise Delete(ScriptState*,
                        const CookieStoreDeleteOptions*,
                        ExceptionState&);
+  ScriptPromise subscribeToChanges(
+      ScriptState*,
+      const HeapVector<Member<CookieStoreGetOptions>>& subscriptions,
+      ExceptionState&);
+  ScriptPromise getChangeSubscriptions(ScriptState*, ExceptionState&);
 
   // GarbageCollected
-  void Trace(blink::Visitor* visitor) override;
+  void Trace(blink::Visitor* visitor) override {
+    EventTargetWithInlineData::Trace(visitor);
+    ContextLifecycleObserver::Trace(visitor);
+  }
 
   // ContextLifecycleObserver
   void ContextDestroyed(ExecutionContext*) override;
@@ -77,8 +86,8 @@ class CookieStore final : public EventTargetWithInlineData,
   void RemoveAllEventListeners() override;
 
   // RestrictedCookieChangeListener
-  void OnCookieChange(
-      network::mojom::blink::CookieChangeInfoPtr change) override;
+  void OnCookieChange(const WebCanonicalCookie&,
+                      network::mojom::blink::CookieChangeCause) override;
 
  protected:
   // EventTarget overrides.
@@ -88,8 +97,8 @@ class CookieStore final : public EventTargetWithInlineData,
                             const RegisteredEventListener&) final;
 
  private:
-  using DoReadBackendResultConverter = void (*)(ScriptPromiseResolver*,
-                                                const Vector<CanonicalCookie>&);
+  using DoReadBackendResultConverter =
+      void (*)(ScriptPromiseResolver*, const Vector<WebCanonicalCookie>&);
 
   // Common code in CookieStore::{get,getAll}.
   //
@@ -106,13 +115,13 @@ class CookieStore final : public EventTargetWithInlineData,
   // the promise result expected by CookieStore.getAll.
   static void GetAllForUrlToGetAllResult(
       ScriptPromiseResolver*,
-      const Vector<CanonicalCookie>& backend_result);
+      const Vector<WebCanonicalCookie>& backend_result);
 
   // Converts the result of a RestrictedCookieManager::GetAllForUrl mojo call to
   // the promise result expected by CookieStore.get.
   static void GetAllForUrlToGetResult(
       ScriptPromiseResolver*,
-      const Vector<CanonicalCookie>& backend_result);
+      const Vector<WebCanonicalCookie>& backend_result);
 
   // Common code in CookieStore::delete and CookieStore::set.
   ScriptPromise DoWrite(ScriptState*,
@@ -121,6 +130,13 @@ class CookieStore final : public EventTargetWithInlineData,
 
   static void OnSetCanonicalCookieResult(ScriptPromiseResolver*,
                                          bool backend_result);
+
+  static void OnSubscribeToCookieChangesResult(ScriptPromiseResolver*,
+                                               bool backend_result);
+  static void OnGetCookieChangeSubscriptionResult(
+      ScriptPromiseResolver*,
+      Vector<blink::mojom::blink::CookieChangeSubscriptionPtr> backend_result,
+      bool backend_success);
 
   // Called when a change event listener is added.
   //
@@ -132,6 +148,12 @@ class CookieStore final : public EventTargetWithInlineData,
 
   // Wraps an always-on Mojo pipe for sending requests to the Network Service.
   mojo::Remote<network::mojom::blink::RestrictedCookieManager> backend_;
+
+  // Wraps a Mojo pipe for managing service worker cookie change subscriptions.
+  //
+  // This pipe is always connected in service worker execution contexts, and
+  // never connected in document contexts.
+  mojo::Remote<blink::mojom::blink::CookieStore> subscription_backend_;
 
   // Wraps a Mojo pipe used to receive cookie change notifications.
   //

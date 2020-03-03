@@ -70,8 +70,6 @@ class MODULES_EXPORT OfflineAudioContext final : public BaseAudioContext {
 
   bool HasRealtimeConstraint() final { return false; }
 
-  bool IsPullingAudioGraph() const final;
-
   DEFINE_ATTRIBUTE_EVENT_LISTENER(complete, kComplete)
 
   // Fire completion event when the rendering is finished.

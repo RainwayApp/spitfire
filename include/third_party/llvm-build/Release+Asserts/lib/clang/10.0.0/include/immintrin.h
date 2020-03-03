@@ -64,8 +64,9 @@
 #include <vpclmulqdqintrin.h>
 #endif
 
-/* No feature check desired due to internal checks */
+#if !defined(_MSC_VER) || __has_feature(modules) || defined(__BMI__)
 #include <bmiintrin.h>
+#endif
 
 #if !defined(_MSC_VER) || __has_feature(modules) || defined(__BMI2__)
 #include <bmi2intrin.h>

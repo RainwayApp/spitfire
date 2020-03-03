@@ -187,15 +187,16 @@ using MakeUnwrappedTypeList =
 // well-formed. Using `Invoker::Run` with a OnceCallback triggers a
 // static_assert, which is why the ternary expression does not compile.
 // TODO(crbug.com/752720): Remove this indirection once we have `if constexpr`.
-template <typename Invoker>
-constexpr auto GetInvokeFunc(std::true_type) {
-  return Invoker::RunOnce;
-}
+template <bool is_once, typename Invoker>
+struct InvokeFuncImpl;
 
 template <typename Invoker>
-constexpr auto GetInvokeFunc(std::false_type) {
-  return Invoker::Run;
-}
+struct InvokeFuncImpl<true, Invoker>
+    : std::integral_constant<decltype(&Invoker::RunOnce), &Invoker::RunOnce> {};
+
+template <typename Invoker>
+struct InvokeFuncImpl<false, Invoker>
+    : std::integral_constant<decltype(&Invoker::Run), &Invoker::Run> {};
 
 template <template <typename> class CallbackT,
           typename Functor,
@@ -226,8 +227,7 @@ decltype(auto) BindImpl(Functor&& functor, Args&&... args) {
   // InvokeFuncStorage, so that we can ensure its type matches to
   // PolymorphicInvoke, to which CallbackType will cast back.
   using PolymorphicInvoke = typename CallbackType::PolymorphicInvoke;
-  PolymorphicInvoke invoke_func =
-      GetInvokeFunc<Invoker>(std::integral_constant<bool, kIsOnce>());
+  PolymorphicInvoke invoke_func = InvokeFuncImpl<kIsOnce, Invoker>::value;
 
   using InvokeFuncStorage = internal::BindStateBase::InvokeFuncStorage;
   return CallbackType(BindState::Create(

@@ -15,11 +15,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <memory>
-#include <set>
 #include <string>
 #include <vector>
-
+#include <set>
+#include <memory>
 
 // Platform detection.
 #ifdef __linux__

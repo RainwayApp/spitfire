@@ -13,9 +13,6 @@
 #define INDEXCHARS_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/uobject.h"
 #include "unicode/locid.h"
 #include "unicode/unistr.h"
@@ -760,7 +757,4 @@ private:
 U_NAMESPACE_END
 
 #endif  // !UCONFIG_NO_COLLATION
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

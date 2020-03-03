@@ -75,6 +75,7 @@ class MODULES_EXPORT ThreadSafeScriptContainer
     std::unique_ptr<CrossThreadHTTPHeaderMapData> headers_;
   };
 
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
   ThreadSafeScriptContainer();
 
   enum class ScriptStatus {

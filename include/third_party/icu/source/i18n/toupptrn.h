@@ -50,7 +50,7 @@ class UppercaseTransliterator : public CaseMapTransliterator {
      * Transliterator API.
      * @return a copy of the object.
      */
-    virtual UppercaseTransliterator* clone() const;
+    virtual Transliterator* clone(void) const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

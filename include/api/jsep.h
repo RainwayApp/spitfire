@@ -112,7 +112,7 @@ enum class SdpType {
 
 // Returns the string form of the given SDP type. String forms are defined in
 // SessionDescriptionInterface.
-RTC_EXPORT const char* SdpTypeToString(SdpType type);
+const char* SdpTypeToString(SdpType type);
 
 // Returns the SdpType from its string form. The string form can be one of the
 // constants defined in SessionDescriptionInterface. Passing in any other string

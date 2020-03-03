@@ -12,12 +12,11 @@
 #define MEDIA_ENGINE_WEBRTC_MEDIA_ENGINE_DEFAULTS_H_
 
 #include "media/engine/webrtc_media_engine.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 // Sets required but null dependencies with default factories.
-RTC_EXPORT void SetMediaEngineDefaults(cricket::MediaEngineDependencies* deps);
+void SetMediaEngineDefaults(cricket::MediaEngineDependencies* deps);
 
 }  // namespace webrtc
 

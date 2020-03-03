@@ -20,9 +20,8 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/function_view.h"
-#include "api/neteq/neteq.h"
-#include "api/neteq/neteq_factory.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
+#include "modules/audio_coding/neteq/include/neteq.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -69,7 +68,6 @@ class AudioCodingModule {
     NetEq::Config neteq_config;
     Clock* clock;
     rtc::scoped_refptr<AudioDecoderFactory> decoder_factory;
-    NetEqFactory* neteq_factory = nullptr;
   };
 
   static AudioCodingModule* Create(const Config& config);

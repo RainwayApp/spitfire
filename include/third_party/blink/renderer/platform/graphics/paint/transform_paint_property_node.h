@@ -368,11 +368,6 @@ class PLATFORM_EXPORT TransformPaintPropertyNode
     return state_.direct_compositing_reasons &
            CompositingReason::kActiveTransformAnimation;
   }
-
-  CompositingReasons DirectCompositingReasonsForDebugging() const {
-    return DirectCompositingReasons();
-  }
-
   bool TransformAnimationIsAxisAligned() const {
     return state_.flags.animation_is_axis_aligned;
   }

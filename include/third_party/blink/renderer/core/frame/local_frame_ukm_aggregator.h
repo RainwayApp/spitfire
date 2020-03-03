@@ -226,7 +226,7 @@ class CORE_EXPORT LocalFrameUkmAggregator
 
   // Record a main frame time metric, that also computes the ratios for the
   // sub-metrics and generates UMA samples. UKM is only reported when
-  // BeginMainFrame() had been called. All counters are cleared when this method
+  // BeginMainFrame() returned true. All counters are cleared when this method
   // is called.
   void RecordEndOfFrameMetrics(base::TimeTicks start, base::TimeTicks end);
 
@@ -240,12 +240,7 @@ class CORE_EXPORT LocalFrameUkmAggregator
   // Mark the beginning of a main frame update.
   void BeginMainFrame();
 
-  // Inform the aggregator that we have reached First Contentful Paint.
-  // The UKM event reports this and UMA for aggregated contributions to
-  // FCP are reported if are_painting_main_frame is true.
-  void DidReachFirstContentfulPaint(bool are_painting_main_frame);
-
-  bool InMainFrameUpdate() { return in_main_frame_update_; }
+  bool InMainFrame() { return in_main_frame_update_; }
 
   // Populate a BeginMainFrameMetrics structure with the latency numbers for
   // the most recent frame. Must be called when within a main frame update.
@@ -253,17 +248,17 @@ class CORE_EXPORT LocalFrameUkmAggregator
   // RecordEndOfFrameMetrics.
   std::unique_ptr<cc::BeginMainFrameMetrics> GetBeginMainFrameMetrics();
 
+  // The caller is the owner of the |clock|. The |clock| must outlive the
+  // LocalFrameUkmAggregator.
+  void SetTickClockForTesting(const base::TickClock* clock);
+
  private:
   struct AbsoluteMetricRecord {
     std::unique_ptr<CustomCountHistogram> uma_counter;
-    std::unique_ptr<CustomCountHistogram> pre_fcp_uma_counter;
-    std::unique_ptr<CustomCountHistogram> post_fcp_uma_counter;
-    std::unique_ptr<CustomCountHistogram> uma_aggregate_counter;
 
     // Accumulated at each sample, then reset with a call to
     // RecordEndOfFrameMetrics.
     base::TimeDelta interval_duration;
-    base::TimeDelta pre_fcp_aggregate;
 
     void reset() { interval_duration = base::TimeDelta(); }
   };
@@ -292,13 +287,6 @@ class CORE_EXPORT LocalFrameUkmAggregator
     frames_to_next_event_for_test_ = num_frames;
   }
 
-  // Used to check that we only for the MainFrame of a document.
-  bool AllMetricsAreZero();
-
-  // The caller is the owner of the |clock|. The |clock| must outlive the
-  // LocalFrameUkmAggregator.
-  void SetTickClockForTesting(const base::TickClock* clock);
-
   // UKM system data
   const int64_t source_id_;
   ukm::UkmRecorder* const recorder_;
@@ -310,17 +298,10 @@ class CORE_EXPORT LocalFrameUkmAggregator
   Vector<AbsoluteMetricRecord> absolute_metric_records_;
   Vector<MainFramePercentageRecord> main_frame_percentage_records_;
 
-  // Sampling control. We use a Poisson process with an exponential decay
-  // multiplier. The goal is to get many randomly distributed samples early
-  // during page load and initial interaction, then samples at an exponentially
-  // decreasing rate to effectively cap the number of samples. The particular
-  // parameters chosen here give roughly 10-15 samples in the first 100 frames,
-  // decaying to several hours between samples by the 40th sample. The
-  // multiplier value should be tuned to achieve a total sample count that
-  // avoids throttling by the UKM system.
-  double sample_decay_rate_ = 3;
-  double sample_rate_multiplier_ = 1;
-  unsigned samples_so_far_ = 0;
+  // Sampling control. Currently we sample a bit more than every 30s assuming we
+  // are achieving 60fps. Better to sample less rather than more given our data
+  // is already beyond the throtting threshold.
+  unsigned mean_frames_between_samples_ = 2000;
   unsigned frames_to_next_event_ = 0;
 
   // Control for the ForcedStyleAndUpdate UMA metric sampling
@@ -333,9 +314,6 @@ class CORE_EXPORT LocalFrameUkmAggregator
   // Set by BeginMainFrame() and cleared in RecordMEndOfFrameMetrics.
   // Main frame metrics are only recorded if this is true.
   bool in_main_frame_update_ = false;
-
-  // Record whether or not it is before the First Contentful Paint.
-  bool is_before_fcp_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(LocalFrameUkmAggregator);
 };

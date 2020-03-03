@@ -49,12 +49,14 @@ class BASE_EXPORT Environment {
 };
 
 #if defined(OS_WIN)
-using NativeEnvironmentString = std::wstring;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-using NativeEnvironmentString = std::string;
-#endif
+using NativeEnvironmentString = string16;
 using EnvironmentMap =
     std::map<NativeEnvironmentString, NativeEnvironmentString>;
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+using NativeEnvironmentString = std::string;
+using EnvironmentMap =
+    std::map<NativeEnvironmentString, NativeEnvironmentString>;
+#endif
 
 }  // namespace base
 

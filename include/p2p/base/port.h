@@ -22,7 +22,6 @@
 #include "api/candidate.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
-#include "api/transport/stun.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
@@ -31,6 +30,7 @@
 #include "p2p/base/connection_info.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/port_interface.h"
+#include "p2p/base/stun.h"
 #include "p2p/base/stun_request.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
@@ -56,6 +56,11 @@ extern const int DISCARD_PORT;
 extern const char TCPTYPE_ACTIVE_STR[];
 extern const char TCPTYPE_PASSIVE_STR[];
 extern const char TCPTYPE_SIMOPEN_STR[];
+
+enum RelayType {
+  RELAY_GTURN,  // Legacy google relay service.
+  RELAY_TURN    // Standard (TURN) relay service.
+};
 
 enum IcePriorityValue {
   ICE_TYPE_PREFERENCE_RELAY_TLS = 0,
@@ -128,19 +133,16 @@ struct ProtocolAddress {
 
 struct IceCandidateErrorEvent {
   IceCandidateErrorEvent() = default;
-  IceCandidateErrorEvent(std::string address,
-                         int port,
+  IceCandidateErrorEvent(std::string host_candidate,
                          std::string url,
                          int error_code,
                          std::string error_text)
-      : address(std::move(address)),
-        port(port),
+      : host_candidate(std::move(host_candidate)),
         url(std::move(url)),
         error_code(error_code),
         error_text(std::move(error_text)) {}
 
-  std::string address;
-  int port = 0;
+  std::string host_candidate;
   std::string url;
   int error_code = 0;
   std::string error_text;
@@ -290,7 +292,11 @@ class Port : public PortInterface,
   virtual bool CanHandleIncomingPacketsFrom(
       const rtc::SocketAddress& remote_addr) const;
 
-  // Sends a response error to the given request.
+  // Sends a response message (normal or error) to the given request.  One of
+  // these methods should be called as a response to SignalUnknownAddress.
+  // NOTE: You MUST call CreateConnection BEFORE SendBindingResponse.
+  void SendBindingResponse(StunMessage* request,
+                           const rtc::SocketAddress& addr) override;
   void SendBindingErrorResponse(StunMessage* request,
                                 const rtc::SocketAddress& addr,
                                 int error_code,

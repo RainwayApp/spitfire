@@ -43,8 +43,7 @@ class CORE_EXPORT LinkHighlight final : public GarbageCollected<LinkHighlight> {
     return impl_ && NeedsHighlightEffectInternal(object);
   }
 
-  void UpdateBeforePrePaint();
-  void UpdateAfterPrePaint();
+  void UpdatePrePaint();
   void Paint(GraphicsContext&) const;
 
  private:

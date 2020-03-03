@@ -11,13 +11,13 @@ namespace blink {
 
 class GPUDevice;
 
-class GPURenderBundle : public DawnObject<WGPURenderBundle> {
+class GPURenderBundle : public DawnObject<DawnRenderBundle> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static GPURenderBundle* Create(GPUDevice* device,
-                                 WGPURenderBundle render_bundle);
-  explicit GPURenderBundle(GPUDevice* device, WGPURenderBundle render_bundle);
+                                 DawnRenderBundle render_bundle);
+  explicit GPURenderBundle(GPUDevice* device, DawnRenderBundle render_bundle);
   ~GPURenderBundle() override;
 
   DISALLOW_COPY_AND_ASSIGN(GPURenderBundle);

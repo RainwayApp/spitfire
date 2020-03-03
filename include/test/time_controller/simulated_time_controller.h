@@ -16,7 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include "api/test/time_controller.h"
 #include "api/units/timestamp.h"
 #include "modules/include/module.h"
 #include "modules/utility/include/process_thread.h"
@@ -25,6 +24,7 @@
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/synchronization/yield_policy.h"
 #include "rtc_base/thread_checker.h"
+#include "test/time_controller/time_controller.h"
 
 namespace webrtc {
 
@@ -78,9 +78,9 @@ class SimulatedTimeControllerImpl : public TaskQueueFactory,
 
 // TimeController implementation using completely simulated time. Task queues
 // and process threads created by this controller will run delayed activities
-// when AdvanceTime() is called. Overrides the global clock backing
-// rtc::TimeMillis() and rtc::TimeMicros(). Note that this is not thread safe
-// since it modifies global state.
+// when Sleep() is called. Overrides the global clock backing rtc::TimeMillis()
+// and rtc::TimeMicros(). Note that this is not thread safe since it modifies
+// global state.
 class GlobalSimulatedTimeController : public TimeController {
  public:
   explicit GlobalSimulatedTimeController(Timestamp start_time);
@@ -90,14 +90,14 @@ class GlobalSimulatedTimeController : public TimeController {
   TaskQueueFactory* GetTaskQueueFactory() override;
   std::unique_ptr<ProcessThread> CreateProcessThread(
       const char* thread_name) override;
-  void AdvanceTime(TimeDelta duration) override;
+  void Sleep(TimeDelta duration) override;
+  void InvokeWithControlledYield(std::function<void()> closure) override;
 
  private:
   rtc::ScopedBaseFakeClock global_clock_;
   // Provides simulated CurrentNtpInMilliseconds()
   SimulatedClock sim_clock_;
   sim_time_impl::SimulatedTimeControllerImpl impl_;
-  rtc::ScopedYieldPolicy yield_policy_;
 };
 }  // namespace webrtc
 

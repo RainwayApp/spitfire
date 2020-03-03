@@ -60,12 +60,11 @@ class ProcStatReader {
 
   //! \brief Determines the target thread’s start time.
   //!
-  //! \param[in] boot_time The kernel boot time.
   //! \param[out] start_time The time that the thread started.
   //!
   //! \return `true` on success, with \a start_time set. Otherwise, `false` with
   //!     a message logged.
-  bool StartTime(const timeval& boot_time, timeval* start_time) const;
+  bool StartTime(timeval* start_time) const;
 
  private:
   bool FindColumn(int index, const char** column) const;

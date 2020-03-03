@@ -9,7 +9,6 @@
 
 #include "base/base_export.h"
 #include "base/profiler/register_context.h"
-#include "base/threading/platform_thread.h"
 
 namespace base {
 
@@ -24,9 +23,6 @@ class BASE_EXPORT ThreadDelegate {
 
   ThreadDelegate(const ThreadDelegate&) = delete;
   ThreadDelegate& operator=(const ThreadDelegate&) = delete;
-
-  // Gets the platform-specific id for the thread.
-  virtual PlatformThreadId GetThreadId() const = 0;
 
   // Gets the base address of the thread's stack.
   virtual uintptr_t GetStackBaseAddress() const = 0;

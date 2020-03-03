@@ -14,7 +14,6 @@
 
 namespace blink {
 
-class WeakCallbackInfo;
 class MarkingVisitor;
 class Visitor;
 
@@ -24,7 +23,7 @@ using FinalizationCallback = void (*)(void*);
 using VisitorCallback = void (*)(Visitor*, void*);
 using MarkingVisitorCallback = void (*)(MarkingVisitor*, void*);
 using TraceCallback = VisitorCallback;
-using WeakCallback = void (*)(const WeakCallbackInfo&, void*);
+using WeakCallback = VisitorCallback;
 using EphemeronCallback = VisitorCallback;
 
 // Simple alias to avoid heap compaction type signatures turning into
@@ -48,7 +47,11 @@ using MovingObjectCallback = void (*)(MovableReference from,
   H(NormalPage2)          \
   H(NormalPage3)          \
   H(NormalPage4)          \
-  H(Vector)               \
+  H(Vector1)              \
+  H(Vector2)              \
+  H(Vector3)              \
+  H(Vector4)              \
+  H(InlineVector)         \
   H(HashTable)            \
   H(Node)                 \
   H(CSSValue)             \

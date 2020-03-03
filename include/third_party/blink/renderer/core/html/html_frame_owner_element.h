@@ -105,13 +105,12 @@ class CORE_EXPORT HTMLFrameOwnerElement : public HTMLElement,
   void IntrinsicSizingInfoChanged() override {}
   void SetNeedsOcclusionTracking(bool) override {}
   AtomicString BrowsingContextContainerName() const override {
-    return FastGetAttribute(html_names::kNameAttr);
+    return getAttribute(html_names::kNameAttr);
   }
   ScrollbarMode ScrollingMode() const override { return ScrollbarMode::kAuto; }
   int MarginWidth() const override { return -1; }
   int MarginHeight() const override { return -1; }
   bool AllowFullscreen() const override { return false; }
-  bool DisallowDocumentAccess() const override { return false; }
   bool AllowPaymentRequest() const override { return false; }
   bool IsDisplayNone() const override { return !embedded_content_view_; }
   AtomicString RequiredCsp() const override { return g_null_atom; }
@@ -130,8 +129,8 @@ class CORE_EXPORT HTMLFrameOwnerElement : public HTMLElement,
   HTMLFrameOwnerElement(const QualifiedName& tag_name, Document&);
 
   void SetSandboxFlags(WebSandboxFlags);
-  void SetAllowedToDownload(bool allowed) {
-    frame_policy_.allowed_to_download = allowed;
+  void SetAllowedToDownloadWithoutUserActivation(bool allowed) {
+    frame_policy_.allowed_to_download_without_user_activation = allowed;
   }
 
   bool LoadOrRedirectSubframe(const KURL&,

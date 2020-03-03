@@ -210,15 +210,6 @@ int ARGBToJ400(const uint8_t* src_argb,
                int width,
                int height);
 
-// Convert RGBA to J400. (JPeg full range).
-LIBYUV_API
-int RGBAToJ400(const uint8_t* src_rgba,
-               int src_stride_rgba,
-               uint8_t* dst_yj,
-               int dst_stride_yj,
-               int width,
-               int height);
-
 // Convert ARGB to I400.
 LIBYUV_API
 int ARGBToI400(const uint8_t* src_argb,
@@ -252,28 +243,6 @@ int ARGBToNV12(const uint8_t* src_argb,
 LIBYUV_API
 int ARGBToNV21(const uint8_t* src_argb,
                int src_stride_argb,
-               uint8_t* dst_y,
-               int dst_stride_y,
-               uint8_t* dst_vu,
-               int dst_stride_vu,
-               int width,
-               int height);
-
-// Convert ABGR To NV12.
-LIBYUV_API
-int ABGRToNV12(const uint8_t* src_abgr,
-               int src_stride_abgr,
-               uint8_t* dst_y,
-               int dst_stride_y,
-               uint8_t* dst_uv,
-               int dst_stride_uv,
-               int width,
-               int height);
-
-// Convert ABGR To NV21.
-LIBYUV_API
-int ABGRToNV21(const uint8_t* src_abgr,
-               int src_stride_abgr,
                uint8_t* dst_y,
                int dst_stride_y,
                uint8_t* dst_vu,

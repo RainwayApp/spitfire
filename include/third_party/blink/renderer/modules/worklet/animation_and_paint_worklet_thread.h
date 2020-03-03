@@ -50,8 +50,8 @@ class MODULES_EXPORT AnimationAndPaintWorkletThread final
 
   bool IsOwningBackingThread() const override { return false; }
 
-  ThreadType GetThreadType() const override {
-    return ThreadType::kAnimationAndPaintWorkletThread;
+  WebThreadType GetThreadType() const override {
+    return WebThreadType::kAnimationAndPaintWorkletThread;
   }
 
   void EnsureSharedBackingThread();

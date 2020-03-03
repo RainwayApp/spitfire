@@ -13,7 +13,7 @@ namespace blink {
 
 class RTCPeerConnection;
 class ScriptPromiseResolver;
-class RTCSessionDescriptionPlatform;
+class WebRTCSessionDescription;
 
 // TODO(https://crbug.com/908468): Split up the operation-specific codepaths
 // into separate request implementations and find a way to consolidate the
@@ -36,7 +36,7 @@ class RTCSessionDescriptionRequestPromiseImpl final
   ~RTCSessionDescriptionRequestPromiseImpl() override;
 
   // RTCSessionDescriptionRequest
-  void RequestSucceeded(RTCSessionDescriptionPlatform*) override;
+  void RequestSucceeded(const WebRTCSessionDescription&) override;
   void RequestFailed(const webrtc::RTCError& error) override;
 
   void Trace(blink::Visitor*) override;

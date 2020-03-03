@@ -15,6 +15,9 @@
 #include "FuzzerDefs.h"
 
 #if LIBFUZZER_MSVC
+#if !defined(_M_ARM) && !defined(_M_X64)
+#error "_BitScanReverse64 unavailable on this platform so MSVC is unsupported."
+#endif
 #include <intrin.h>
 #include <cstdint>
 #include <cstdlib>
@@ -37,18 +40,7 @@ inline uint64_t Bswap(uint64_t x) { return _byteswap_uint64(x); }
 // outside of Windows.
 inline uint32_t Clzll(uint64_t X) {
   unsigned long LeadZeroIdx = 0;
-
-#if !defined(_M_ARM) && !defined(_M_X64)
-  // Scan the high 32 bits.
-  if (_BitScanReverse(&LeadZeroIdx, static_cast<unsigned long>(X >> 32)))
-    return static_cast<int>(63 - (LeadZeroIdx + 32)); // Create a bit offset from the MSB.
-  // Scan the low 32 bits.
-  if (_BitScanReverse(&LeadZeroIdx, static_cast<unsigned long>(X)))
-    return static_cast<int>(63 - LeadZeroIdx);
-
-#else
   if (_BitScanReverse64(&LeadZeroIdx, X)) return 63 - LeadZeroIdx;
-#endif
   return 64;
 }
 
@@ -58,13 +50,7 @@ inline uint32_t Clz(uint32_t X) {
   return 32;
 }
 
-inline int Popcountll(unsigned long long X) {
-#if !defined(_M_ARM) && !defined(_M_X64)
-  return __popcnt(X) + __popcnt(X >> 32);
-#else
-  return __popcnt64(X);
-#endif
-}
+inline int Popcountll(unsigned long long X) { return __popcnt64(X); }
 
 }  // namespace fuzzer
 

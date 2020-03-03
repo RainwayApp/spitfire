@@ -1,40 +1,26 @@
-
-
 #include "CreateSessionDescriptionObserver.h"
 #include "RtcConductor.h"
 
-Spitfire::Observers::CreateSessionDescriptionObserver::~CreateSessionDescriptionObserver()
-{
-
-}
-
-
-Spitfire::Observers::CreateSessionDescriptionObserver::CreateSessionDescriptionObserver(RtcConductor * manager)
-{
-	this->_manager = manager;
-}
-
 void Spitfire::Observers::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface * desc)
 {
-	if (!_manager->peerObserver->peerConnection.get())
+	if (!conductor_->peerObserver->peerConnection.get())
 	{
 		return;
 	}
-	_manager->peerObserver->peerConnection->SetLocalDescription(_manager->setSessionObserver.get(), desc);
+	conductor_->peerObserver->peerConnection->SetLocalDescription(conductor_->setSessionObserver.get(), desc);
 	std::string sdp;
 	desc->ToString(&sdp);
-	if (_manager->onSuccess != nullptr)
+	if (conductor_->onSuccess)
 	{
-		_manager->onSuccess(desc->type().c_str(), sdp.c_str());
+		conductor_->onSuccess(desc->type().c_str(), sdp.c_str());
 	}
-
 }
 
 void Spitfire::Observers::CreateSessionDescriptionObserver::OnFailure(const std::string & error)
 {
 	RTC_LOG(LERROR) << error;
-	if (_manager->onFailure != nullptr)
+	if (conductor_->onFailure)
 	{
-		_manager->onFailure(error.c_str());
+		conductor_->onFailure(error.c_str());
 	}
 }

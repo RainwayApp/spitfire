@@ -56,15 +56,9 @@ class Worklist {
 
     // Returns true if the worklist is empty. Can only be used from the main
     // thread without concurrent access.
-    bool IsGlobalEmpty() const { return worklist_->IsGlobalEmpty(); }
+    bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
 
-    bool IsGlobalPoolEmpty() const { return worklist_->IsGlobalPoolEmpty(); }
-
-    // Returns true if the local portion and the global pool are empty (i.e.
-    // whether the current view cannot pop anymore).
-    bool IsLocalViewEmpty() const {
-      return worklist_->IsLocalViewEmpty(task_id_);
-    }
+    bool IsGlobalPoolEmpty() { return worklist_->IsGlobalPoolEmpty(); }
 
     void FlushToGlobal() { worklist_->FlushToGlobal(task_id_); }
 
@@ -134,18 +128,14 @@ class Worklist {
            private_push_segment(task_id)->IsEmpty();
   }
 
-  bool IsGlobalPoolEmpty() const { return global_pool_.IsEmpty(); }
+  bool IsGlobalPoolEmpty() { return global_pool_.IsEmpty(); }
 
-  bool IsGlobalEmpty() const {
+  bool IsGlobalEmpty() {
     for (int i = 0; i < num_tasks_; i++) {
       if (!IsLocalEmpty(i))
         return false;
     }
     return global_pool_.IsEmpty();
-  }
-
-  bool IsLocalViewEmpty(int task_id) const {
-    return IsLocalEmpty(task_id) && IsGlobalPoolEmpty();
   }
 
   size_t LocalSize(int task_id) const {
@@ -296,9 +286,9 @@ class Worklist {
       return false;
     }
 
-    inline bool IsEmpty() const {
+    inline bool IsEmpty() {
       return base::subtle::NoBarrier_Load(
-                 reinterpret_cast<const base::subtle::AtomicWord*>(&top_)) == 0;
+                 reinterpret_cast<base::subtle::AtomicWord*>(&top_)) == 0;
     }
 
     void Clear() {

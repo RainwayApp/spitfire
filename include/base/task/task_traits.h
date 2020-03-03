@@ -191,9 +191,6 @@ struct ThreadPool {};
 // (e.g. base::TaskPriority or content::BrowserTaskType) as long as those traits
 // are compatible with the current thread (e.g. cannot specify base::MayBlock()
 // on a non-blocking thread or alter base::TaskShutdownBehavior).
-//
-// Experimental: Further discussions are in progress for this API. Please
-// continue using SequencedTaskRunnerHandle::Get() in the mean time.
 struct CurrentThread {};
 
 // Describes metadata for a single task or a group of tasks.
@@ -307,7 +304,11 @@ class BASE_EXPORT TaskTraits {
   }
 
   // Sets the priority to |priority| if it wasn't explicitly set before.
-  void InheritPriority(TaskPriority priority);
+  void InheritPriority(TaskPriority priority) {
+    if (priority_set_explicitly())
+      return;
+    priority_ = static_cast<uint8_t>(priority);
+  }
 
   // Returns true if the priority was set explicitly.
   constexpr bool priority_set_explicitly() const {
@@ -416,13 +417,6 @@ BASE_EXPORT std::ostream& operator<<(std::ostream& os,
 BASE_EXPORT std::ostream& operator<<(
     std::ostream& os,
     const TaskShutdownBehavior& shutdown_behavior);
-
-namespace internal {
-// Enables the kNoPriorityInheritanceFromThreadPool experimental feature. Must
-// be done statically when the ThreadPoolImpl is initialized because it's racy
-// to check the state later.
-void SetNoPriorityInheritanceFromThreadPool();
-}  // namespace internal
 
 }  // namespace base
 

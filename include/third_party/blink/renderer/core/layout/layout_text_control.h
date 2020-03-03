@@ -60,9 +60,14 @@ class CORE_EXPORT LayoutTextControl : public LayoutBlockFlow {
                              const HitTestLocation&,
                              const PhysicalOffset& accumulated_offset);
 
+  int TextBlockLogicalWidth() const;
+  int TextBlockLogicalHeight() const;
+
+  float ScaleEmToUnits(int x) const;
+
   static bool HasValidAvgCharWidth(const SimpleFontData*,
                                    const AtomicString& family);
-  float GetAvgCharWidth(const AtomicString& family) const;
+  virtual float GetAvgCharWidth(const AtomicString& family) const;
   virtual LayoutUnit PreferredContentLogicalWidth(float char_width) const = 0;
   virtual LayoutUnit ComputeControlLogicalHeight(
       LayoutUnit line_height,

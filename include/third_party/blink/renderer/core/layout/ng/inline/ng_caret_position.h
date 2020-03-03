@@ -8,11 +8,11 @@
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
+class NGPaintFragment;
 class LayoutBlockFlow;
 
 // An NGCaretPosition indicates a caret position relative to an inline
@@ -27,15 +27,14 @@ class LayoutBlockFlow;
 
 enum class NGCaretPositionType { kBeforeBox, kAfterBox, kAtTextOffset };
 struct NGCaretPosition {
-  STACK_ALLOCATED();
+  DISALLOW_NEW();
 
- public:
-  bool IsNull() const { return cursor.IsNull(); }
+  bool IsNull() const { return !fragment; }
 
   Position ToPositionInDOMTree() const;
   PositionWithAffinity ToPositionInDOMTreeWithAffinity() const;
 
-  NGInlineCursor cursor;
+  const NGPaintFragment* fragment = nullptr;  // owned by root LayoutNGMixin
   NGCaretPositionType position_type;
   base::Optional<unsigned> text_offset;
 };

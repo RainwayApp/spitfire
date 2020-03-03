@@ -114,26 +114,20 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   // NGOutOfFlowLayoutPart(container_style, builder).Run();
   //
   // See layout part for builder interaction.
-  void AddOutOfFlowChildCandidate(NGBlockNode,
-                                  const LogicalOffset& child_offset,
-                                  NGLogicalStaticPosition::InlineEdge =
-                                      NGLogicalStaticPosition::kInlineStart,
-                                  NGLogicalStaticPosition::BlockEdge =
-                                      NGLogicalStaticPosition::kBlockStart);
-
-  // This should only be used for inline-level OOF-positioned nodes.
-  // |inline_container_direction| is the current text direction for determining
-  // the correct static-position.
-  void AddOutOfFlowInlineChildCandidate(
+  //
+  // @param direction: default candidate direction is builder's direction.
+  // Pass in direction if candidates direction does not match.
+  void AddOutOfFlowChildCandidate(
       NGBlockNode,
       const LogicalOffset& child_offset,
-      TextDirection inline_container_direction);
+      base::Optional<TextDirection> container_direction = base::nullopt);
 
   void AddOutOfFlowDescendant(
       const NGLogicalOutOfFlowPositionedNode& descendant);
 
   void SwapOutOfFlowPositionedCandidates(
-      Vector<NGLogicalOutOfFlowPositionedNode>* candidates);
+      Vector<NGLogicalOutOfFlowPositionedNode>* candidates,
+      const LayoutObject* current_container);
 
   bool HasOutOfFlowPositionedCandidates() const {
     return !oof_positioned_candidates_.IsEmpty();
@@ -146,7 +140,9 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   // position OOF candidates yet, (as a containing box may be split over
   // multiple lines), instead we bubble all the descendants up to the parent
   // block layout algorithm, to perform the final OOF layout and positioning.
-  void MoveOutOfFlowDescendantCandidatesToDescendants();
+  void MoveOutOfFlowDescendantCandidatesToDescendants() {
+    SwapOutOfFlowPositionedCandidates(&oof_positioned_descendants_, nullptr);
+  }
 
   void SetIsSelfCollapsing() { is_self_collapsing_ = true; }
 
@@ -197,10 +193,6 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
     layout_object_ = node.GetLayoutBox();
   }
 
-  void PropagateChildData(const NGPhysicalContainerFragment& child,
-                          const LogicalOffset& child_offset,
-                          const LayoutInline* inline_container = nullptr);
-
   void AddChildInternal(scoped_refptr<const NGPhysicalFragment>,
                         const LogicalOffset&);
 
@@ -234,7 +226,7 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   bool is_pushed_by_floats_ = false;
   bool is_legacy_layout_root_ = false;
 
-  bool has_floating_descendants_for_paint_ = false;
+  bool has_floating_descendants_ = false;
   bool has_orthogonal_flow_roots_ = false;
   bool has_descendant_that_depends_on_percentage_block_size_ = false;
   bool has_block_fragmentation_ = false;

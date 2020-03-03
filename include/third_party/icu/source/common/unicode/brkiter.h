@@ -29,10 +29,6 @@
  * \brief C++ API: Break Iterator.
  */
 
-#include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #if UCONFIG_NO_BREAK_ITERATION
 
 U_NAMESPACE_BEGIN
@@ -139,7 +135,7 @@ public:
      * method which subclasses implement.
      * @stable ICU 2.0
      */
-    virtual BreakIterator* clone() const = 0;
+    virtual BreakIterator* clone(void) const = 0;
 
     /**
      * Return a polymorphic class ID for this object. Different subclasses
@@ -497,7 +493,6 @@ public:
     static UnicodeString& U_EXPORT2 getDisplayName(const Locale& objectLocale,
                                          UnicodeString& name);
 
-#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Deprecated functionality. Use clone() instead.
      *
@@ -520,7 +515,6 @@ public:
     virtual BreakIterator *  createBufferClone(void *stackBuffer,
                                                int32_t &BufferSize,
                                                UErrorCode &status) = 0;
-#endif  // U_FORCE_HIDE_DEPRECATED_API
 
 #ifndef U_HIDE_DEPRECATED_API
 
@@ -663,8 +657,6 @@ inline UBool BreakIterator::isBufferClone()
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_BREAK_ITERATION */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // BRKITER_H
 //eof

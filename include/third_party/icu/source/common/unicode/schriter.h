@@ -21,9 +21,6 @@
 #define SCHRITER_H
 
 #include "unicode/utypes.h"
-
-#if U_SHOW_CPLUSPLUS_API
-
 #include "unicode/chariter.h"
 #include "unicode/uchriter.h"
 
@@ -133,7 +130,7 @@ public:
    * @return the newly cloned object.
    * @stable ICU 2.0
    */
-  virtual StringCharacterIterator* clone() const;
+  virtual CharacterIterator* clone(void) const;
 
   /**
    * Sets the iterator to iterate over the provided string.
@@ -189,7 +186,4 @@ protected:
 };
 
 U_NAMESPACE_END
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif

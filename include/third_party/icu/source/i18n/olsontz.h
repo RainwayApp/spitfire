@@ -151,7 +151,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * TimeZone API.
      */
-    virtual OlsonTimeZone* clone() const;
+    virtual TimeZone* clone() const;
 
     /**
      * TimeZone API.
@@ -398,7 +398,7 @@ private:
     TimeArrayTimeZoneRule   **historicRules;
     int16_t             historicRuleCount;
     SimpleTimeZone      *finalZoneWithStartYear; // hack
-    UInitOnce           transitionRulesInitOnce = U_INITONCE_INITIALIZER;
+    UInitOnce           transitionRulesInitOnce;
 };
 
 inline int16_t

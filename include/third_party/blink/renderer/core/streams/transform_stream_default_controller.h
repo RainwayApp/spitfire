@@ -15,7 +15,7 @@ namespace blink {
 class ExceptionState;
 class ScriptState;
 class StreamAlgorithm;
-class TransformStream;
+class TransformStreamNative;
 class Visitor;
 
 class CORE_EXPORT TransformStreamDefaultController : public ScriptWrappable {
@@ -42,12 +42,12 @@ class CORE_EXPORT TransformStreamDefaultController : public ScriptWrappable {
   void Trace(Visitor*) override;
 
  private:
-  friend class TransformStream;
+  friend class TransformStreamNative;
 
   class DefaultTransformAlgorithm;
 
   // https://streams.spec.whatwg.org/#set-up-transform-stream-default-controller
-  static void SetUp(TransformStream*,
+  static void SetUp(TransformStreamNative*,
                     TransformStreamDefaultController*,
                     StreamAlgorithm* transform_algorithm,
                     StreamAlgorithm* flush_algorithm);
@@ -55,7 +55,7 @@ class CORE_EXPORT TransformStreamDefaultController : public ScriptWrappable {
   // https://streams.spec.whatwg.org/#set-up-transform-stream-default-controller-from-transformer
   static v8::Local<v8::Value> SetUpFromTransformer(
       ScriptState*,
-      TransformStream*,
+      TransformStreamNative*,
       v8::Local<v8::Object> transformer,
       ExceptionState&);
 
@@ -82,7 +82,7 @@ class CORE_EXPORT TransformStreamDefaultController : public ScriptWrappable {
   // https://streams.spec.whatwg.org/#transform-stream-default-controller-terminate
   static void Terminate(ScriptState*, TransformStreamDefaultController*);
 
-  Member<TransformStream> controlled_transform_stream_;
+  Member<TransformStreamNative> controlled_transform_stream_;
   Member<StreamAlgorithm> flush_algorithm_;
   Member<StreamAlgorithm> transform_algorithm_;
 };

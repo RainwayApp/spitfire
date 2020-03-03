@@ -28,8 +28,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/calendar.h"
@@ -303,7 +301,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @stable ICU 2.0
      */
-    virtual GregorianCalendar* clone() const;
+    virtual Calendar* clone(void) const;
 
     /**
      * Sets the GregorianCalendar change date. This is the point when the switch from
@@ -352,7 +350,6 @@ public:
      */
     virtual UBool isEquivalentTo(const Calendar& other) const;
 
-#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * (Overrides Calendar) Rolls up or down by the given amount in the specified field.
      * For more information, see the documentation for Calendar::roll().
@@ -365,7 +362,6 @@ public:
      * @deprecated ICU 2.6. Use roll(UCalendarDateFields field, int32_t amount, UErrorCode& status) instead.
      */
     virtual void roll(EDateFields field, int32_t amount, UErrorCode& status);
-#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * (Overrides Calendar) Rolls up or down by the given amount in the specified field.
@@ -777,8 +773,6 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _GREGOCAL
 //eof

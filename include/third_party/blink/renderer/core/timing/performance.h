@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
 #include "third_party/blink/renderer/core/timing/performance_navigation_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_paint_timing.h"
+#include "third_party/blink/renderer/core/timing/sub_task_attribution.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -78,6 +79,7 @@ class ScriptState;
 class ScriptValue;
 class SecurityOrigin;
 class StringOrPerformanceMeasureOptions;
+class SubTaskAttribution;
 class UserTiming;
 class V8ObjectBuilder;
 
@@ -134,9 +136,8 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   PerformanceEntryVector getBufferedEntriesByType(
       const AtomicString& entry_type);
   PerformanceEntryVector getEntriesByType(const AtomicString& entry_type);
-  PerformanceEntryVector getEntriesByName(
-      const AtomicString& name,
-      const AtomicString& entry_type = g_null_atom);
+  PerformanceEntryVector getEntriesByName(const AtomicString& name,
+                                          const AtomicString& entry_type);
 
   void clearResourceTimings();
   void setResourceTimingBufferSize(unsigned);
@@ -144,13 +145,14 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   DEFINE_ATTRIBUTE_EVENT_LISTENER(resourcetimingbufferfull,
                                   kResourcetimingbufferfull)
 
-  void AddLongTaskTiming(base::TimeTicks start_time,
-                         base::TimeTicks end_time,
-                         const AtomicString& name,
-                         const AtomicString& container_type,
-                         const String& container_src,
-                         const String& container_id,
-                         const String& container_name);
+  void AddLongTaskTiming(
+      base::TimeTicks start_time,
+      base::TimeTicks end_time,
+      const AtomicString& name,
+      const String& culprit_frame_src,
+      const String& culprit_frame_id,
+      const String& culprit_frame_name,
+      const SubTaskAttribution::EntriesVector& sub_task_attributions);
 
   // Generates and add a performance entry for the given ResourceTimingInfo.
   // |overridden_initiator_type| allows the initiator type to be overridden to
@@ -165,11 +167,8 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
       const SecurityOrigin& destination_origin,
       const ResourceTimingInfo&,
       ExecutionContext& context_for_use_counter);
-  void AddResourceTiming(
-      const WebResourceTimingInfo&,
-      const AtomicString& initiator_type,
-      mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
-          worker_timing_receiver);
+  void AddResourceTiming(const WebResourceTimingInfo&,
+                         const AtomicString& initiator_type);
 
   void NotifyNavigationTimingToObservers();
 
@@ -265,23 +264,11 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
 
   bool HasObserverFor(PerformanceEntry::EntryType) const;
 
-  // Checks whether the single ResourceResponse passes the Timing-Allow-Origin
-  // check. The first parameter is the ResourceResponse being checked. The
-  // second parameter is the next ResourceResponse in the redirect chain, or is
-  // equal to the first parameter if there is no such response. This parameter
-  // is only introduced temporarily to enable computing a UseCounter within this
-  // method. The first bool parameter is
-  // https://fetch.spec.whatwg.org/#concept-request-response-tainting, while the
-  // second bool is
-  // https://fetch.spec.whatwg.org/#concept-request-tainted-origin.
-  // The next ResourceResponse and tainted origin flag are currently only being
-  // used in a UseCounter.
-  static bool PassesTimingAllowCheck(const ResourceResponse& response,
-                                     const ResourceResponse& next_response,
+  // TODO(npm): is the AtomicString parameter here actually needed?
+  static bool PassesTimingAllowCheck(const ResourceResponse&,
                                      const SecurityOrigin&,
                                      ExecutionContext*,
-                                     bool* response_tainting_not_basic,
-                                     bool* tainted_origin_flag);
+                                     bool* tainted);
 
   static bool AllowsTimingRedirect(const Vector<ResourceResponse>&,
                                    const ResourceResponse&,

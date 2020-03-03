@@ -49,7 +49,6 @@ class WorkerResourceFetcherProperties final : public ResourceFetcherProperties {
   scheduler::FrameStatus GetFrameStatus() const override {
     return scheduler::FrameStatus::kNone;
   }
-  const KURL& WebBundlePhysicalUrl() const override;
 
  private:
   const Member<WorkerOrWorkletGlobalScope> global_scope_;

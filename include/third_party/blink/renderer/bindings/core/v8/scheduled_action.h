@@ -52,13 +52,20 @@ class ScheduledAction final : public GarbageCollected<ScheduledAction>,
   DISALLOW_COPY_AND_ASSIGN(ScheduledAction);
 
  public:
-  ScheduledAction(ScriptState*,
-                  ExecutionContext* target,
-                  V8Function* handler,
-                  const HeapVector<ScriptValue>& arguments);
-  ScheduledAction(ScriptState*,
-                  ExecutionContext* target,
-                  const String& handler);
+  static ScheduledAction* Create(ScriptState*,
+                                 ExecutionContext* target,
+                                 V8Function* handler,
+                                 const HeapVector<ScriptValue>& arguments);
+  static ScheduledAction* Create(ScriptState*,
+                                 ExecutionContext* target,
+                                 const String& handler);
+
+  explicit ScheduledAction(ScriptState*,
+                           V8Function* handler,
+                           const HeapVector<ScriptValue>& arguments);
+  explicit ScheduledAction(ScriptState*, const String& handler);
+  // Creates an empty ScheduledAction.
+  explicit ScheduledAction(ScriptState*);
 
   ~ScheduledAction();
 

@@ -143,7 +143,6 @@
   X("vk")                                                                \
   X("wayland")                                                           \
   X("webaudio")                                                          \
-  X("weblayer")                                                          \
   X("WebCore")                                                           \
   X("webrtc")                                                            \
   X("xr")                                                                \

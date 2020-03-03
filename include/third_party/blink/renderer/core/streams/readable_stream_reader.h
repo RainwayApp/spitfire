@@ -16,6 +16,7 @@ class ExceptionState;
 class ScriptPromise;
 class ScriptState;
 class ReadableStream;
+class ReadableStreamNative;
 class StreamPromiseResolver;
 class Visitor;
 
@@ -34,7 +35,9 @@ class CORE_EXPORT ReadableStreamReader : public ScriptWrappable {
                                       ExceptionState&);
 
   // https://streams.spec.whatwg.org/#default-reader-constructor
-  ReadableStreamReader(ScriptState*, ReadableStream* stream, ExceptionState&);
+  ReadableStreamReader(ScriptState*,
+                       ReadableStreamNative* stream,
+                       ExceptionState&);
   ~ReadableStreamReader() override;
 
   // https://streams.spec.whatwg.org/#default-reader-closed
@@ -67,7 +70,7 @@ class CORE_EXPORT ReadableStreamReader : public ScriptWrappable {
 
  private:
   friend class ReadableStreamDefaultController;
-  friend class ReadableStream;
+  friend class ReadableStreamNative;
 
   // https://streams.spec.whatwg.org/#readable-stream-reader-generic-cancel
   static v8::Local<v8::Promise> GenericCancel(ScriptState*,
@@ -77,11 +80,11 @@ class CORE_EXPORT ReadableStreamReader : public ScriptWrappable {
   // https://streams.spec.whatwg.org/#readable-stream-reader-generic-initialize
   static void GenericInitialize(ScriptState*,
                                 ReadableStreamReader*,
-                                ReadableStream*);
+                                ReadableStreamNative*);
 
   Member<StreamPromiseResolver> closed_promise_;
   bool for_author_code_ = true;
-  Member<ReadableStream> owner_readable_stream_;
+  Member<ReadableStreamNative> owner_readable_stream_;
   HeapDeque<Member<StreamPromiseResolver>> read_requests_;
 };
 

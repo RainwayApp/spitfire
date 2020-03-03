@@ -192,7 +192,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual HebrewCalendar* clone() const;
+    virtual Calendar* clone(void) const;
     
 public:
     /**

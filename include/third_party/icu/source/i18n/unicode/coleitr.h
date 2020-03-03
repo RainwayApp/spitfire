@@ -35,8 +35,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_COLLATION
 
 #include "unicode/unistr.h"
@@ -405,7 +403,5 @@ inline UBool CollationElementIterator::isIgnorable(int32_t order)
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_COLLATION */
-
-#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

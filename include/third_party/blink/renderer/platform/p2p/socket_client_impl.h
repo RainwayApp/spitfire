@@ -10,10 +10,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/binding.h"
 #include "net/base/ip_endpoint.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/p2p_socket_type.h"
@@ -91,9 +88,8 @@ class P2PSocketClientImpl : public blink::P2PSocketClient,
   void SendComplete(const network::P2PSendPacketMetrics& send_metrics) override;
   void IncomingTcpConnection(
       const net::IPEndPoint& socket_address,
-      mojo::PendingRemote<network::mojom::blink::P2PSocket> socket,
-      mojo::PendingReceiver<network::mojom::blink::P2PSocketClient>
-          client_receiver) override;
+      network::mojom::blink::P2PSocketPtr socket,
+      network::mojom::blink::P2PSocketClientRequest client_request) override;
   void DataReceived(const net::IPEndPoint& socket_address,
                     const Vector<int8_t>& data,
                     base::TimeTicks timestamp) override;
@@ -111,8 +107,8 @@ class P2PSocketClientImpl : public blink::P2PSocketClient,
   uint32_t random_socket_id_;
   uint32_t next_packet_id_;
 
-  mojo::Remote<network::mojom::blink::P2PSocket> socket_;
-  mojo::Receiver<network::mojom::blink::P2PSocketClient> receiver_{this};
+  network::mojom::blink::P2PSocketPtr socket_;
+  mojo::Binding<network::mojom::blink::P2PSocketClient> binding_;
 
   DISALLOW_COPY_AND_ASSIGN(P2PSocketClientImpl);
 };

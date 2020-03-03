@@ -11,18 +11,17 @@
 #ifndef MODULES_AUDIO_DEVICE_AUDIO_DEVICE_NAME_H_
 #define MODULES_AUDIO_DEVICE_AUDIO_DEVICE_NAME_H_
 
-#include <deque>
 #include <string>
+#include <vector>
 
 namespace webrtc {
 
 struct AudioDeviceName {
-  // Represents a default device. Note that, on Windows there are two different
-  // types of default devices (Default and Default Communication). They can
-  // either be two different physical devices or be two different roles for one
-  // single device. Hence, this id must be combined with a "role parameter" on
-  // Windows to uniquely identify a default device.
+  // Unique ID of the generic default device.
   static const char kDefaultDeviceId[];
+
+  // Unique ID of the generic default communications device.
+  static const char kDefaultCommunicationsDeviceId[];
 
   AudioDeviceName() = default;
   AudioDeviceName(std::string device_name, std::string unique_id);
@@ -41,7 +40,7 @@ struct AudioDeviceName {
   std::string unique_id;    // Unique identifier for the device.
 };
 
-typedef std::deque<AudioDeviceName> AudioDeviceNames;
+typedef std::vector<AudioDeviceName> AudioDeviceNames;
 
 }  // namespace webrtc
 

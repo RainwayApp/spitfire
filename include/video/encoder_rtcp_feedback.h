@@ -12,6 +12,7 @@
 
 #include <vector>
 
+#include "api/transport/media/media_transport_interface.h"
 #include "api/video/video_stream_encoder_interface.h"
 #include "call/rtp_video_sender_interface.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -23,9 +24,12 @@ namespace webrtc {
 class VideoStreamEncoderInterface;
 
 // This class passes feedback (such as key frame requests or loss notifications)
-// from the RtpRtcp module.
+// from either Mediatransport or the RtpRtcp module.
+// TODO(bugs.webrtc.org/9719): Should be eliminated when RtpMediaTransport is
+// implemented.
 class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
-                            public RtcpLossNotificationObserver {
+                            public RtcpLossNotificationObserver,
+                            public MediaTransportKeyFrameRequestCallback {
  public:
   EncoderRtcpFeedback(Clock* clock,
                       const std::vector<uint32_t>& ssrcs,
@@ -35,6 +39,9 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
   void SetRtpVideoSender(const RtpVideoSenderInterface* rtp_video_sender);
 
   void OnReceivedIntraFrameRequest(uint32_t ssrc) override;
+
+  // Implements MediaTransportKeyFrameRequestCallback
+  void OnKeyFrameRequested(uint64_t channel_id) override;
 
   // Implements RtcpLossNotificationObserver.
   void OnReceivedLossNotification(uint32_t ssrc,

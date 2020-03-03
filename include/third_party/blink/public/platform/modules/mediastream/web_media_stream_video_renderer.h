@@ -20,8 +20,7 @@ namespace blink {
 class WebMediaStreamVideoRenderer
     : public base::RefCountedThreadSafe<WebMediaStreamVideoRenderer> {
  public:
-  typedef base::RepeatingCallback<void(scoped_refptr<media::VideoFrame>)>
-      RepaintCB;
+  typedef base::Callback<void(scoped_refptr<media::VideoFrame>)> RepaintCB;
 
   // Start to provide video frames to the caller.
   virtual void Start() = 0;

@@ -15,8 +15,6 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
-
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/measunit.h"
@@ -96,7 +94,7 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual CurrencyUnit* clone() const;
+    virtual UObject* clone() const;
 
     /**
      * Destructor
@@ -142,7 +140,4 @@ inline const char16_t* CurrencyUnit::getISOCurrency() const {
 U_NAMESPACE_END
 
 #endif // !UCONFIG_NO_FORMATTING
-
-#endif /* U_SHOW_CPLUSPLUS_API */
-
 #endif // __CURRENCYUNIT_H__

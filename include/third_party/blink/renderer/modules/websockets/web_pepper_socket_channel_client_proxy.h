@@ -26,6 +26,10 @@ class WebPepperSocketChannelClientProxy final
   USING_GARBAGE_COLLECTED_MIXIN(WebPepperSocketChannelClientProxy);
 
  public:
+  static WebPepperSocketChannelClientProxy* Create(WebPepperSocketImpl* impl) {
+    return MakeGarbageCollected<WebPepperSocketChannelClientProxy>(impl);
+  }
+
   explicit WebPepperSocketChannelClientProxy(WebPepperSocketImpl* impl)
       : impl_(impl) {}
 

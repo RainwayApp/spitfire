@@ -18,13 +18,12 @@
 #include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_format.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 // iSAC encoder API (fixed-point implementation) for use as a template
 // parameter to CreateAudioEncoderFactory<...>().
-struct RTC_EXPORT AudioEncoderIsacFix {
+struct AudioEncoderIsacFix {
   struct Config {
     bool IsOk() const { return frame_size_ms == 30 || frame_size_ms == 60; }
     int frame_size_ms = 30;

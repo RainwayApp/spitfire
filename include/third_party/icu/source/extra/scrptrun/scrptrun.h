@@ -20,8 +20,6 @@
 #include "unicode/uobject.h"
 #include "unicode/uscript.h"
 
-U_NAMESPACE_BEGIN
-
 struct ScriptRecord
 {
     UChar32 startChar;
@@ -154,6 +152,5 @@ inline void ScriptRun::reset(const UChar chars[], int32_t start, int32_t length)
     reset(start, length);
 }
 
-U_NAMESPACE_END
 
 #endif

@@ -60,6 +60,7 @@ class CORE_EXPORT HTMLElement : public Element {
   }
 
   String title() const final;
+  int tabIndex() const override;
 
   void setInnerText(const String&, ExceptionState&);
   virtual void setInnerText(const StringOrTrustedScript&, ExceptionState&);
