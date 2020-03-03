@@ -61,4 +61,4 @@ If you're looking to maximize speed for your application, we recommend pairing S
 
 If you wish to contribute documentation, code examples or fixes we are more than happy to accept pull request.
 
-To build the C++, you can find the precompiled WebRTC libraries on the release page [here](https://github.com/RainwayApp/spitfire/releases). Building WebRTC itself can be quite the headache so we provide scripts for that as well.
+To build the C++, you can find the precompiled WebRTC libraries on the release page [here](https://github.com/RainwayApp/spitfire/releases). Building WebRTC itself can be quite the headache so we provide scripts for that as well located [here](https://github.com/RainwayApp/webrtc-build-scripts/).

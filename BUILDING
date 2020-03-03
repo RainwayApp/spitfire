@@ -1,3 +1,0 @@
-1. Follow the Google Chrome depot tools guide http://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html
-2. Run scripts/downloadprep.bat scripts
-3. Run build_xXX_YYYYY.bat scripts
