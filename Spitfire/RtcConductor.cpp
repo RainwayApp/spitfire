@@ -98,9 +98,6 @@ namespace Spitfire
 					if(default_relay_port_factory_)
 					{
 						webrtc::PeerConnectionFactoryInterface::Options opt;
-						//opt.disable_encryption = true;
-						//opt.disable_network_monitor = true;
-						//opt.disable_sctp_data_channels = true;
 						pc_factory_->SetOptions(opt);
 						if(CreatePeerConnection(min_port, max_port))
 						{
@@ -181,7 +178,7 @@ namespace Spitfire
 		}
 		peerObserver->peerConnection->SetRemoteDescription(setSessionObserver, session_description);
 	}
-
+	
 	void RtcConductor::OnOfferRequest(std::string sdp)
 	{
 		if (!peerObserver->peerConnection)

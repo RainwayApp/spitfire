@@ -711,6 +711,7 @@ namespace Spitfire
 			if(conductor_)
 			{
 				conductor_->release();
+				delete conductor_;
 			}
 		}
 	};
