@@ -10,6 +10,8 @@
 #include "api/peer_connection_interface.h"
 #include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/base/basic_packet_socket_factory.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/log_sinks.h"
 
 namespace Spitfire
 {
@@ -94,7 +96,6 @@ namespace Spitfire
 
 		std::unordered_map<std::string, Observers::DataChannelObserver*> dataObservers;
 
-		
 		void DeletePeerConnection();
 
 	protected:

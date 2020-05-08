@@ -61,6 +61,18 @@ namespace Spitfire
 	};
 
 	/// <summary>
+	/// WebRTC logging verbosity
+	/// </summary>
+	public enum class RtcLogVerbosity
+	{
+		Verbose = 0,
+		Info = 1,
+		Warning = 2,
+		Error = 3,
+		None = 4
+	};
+
+	/// <summary>
 	/// <seealso href="http://www.w3.org/TR/webrtc/#rtciceconnectionstate-enum"/>
 	/// </summary>
 	public enum class IceConnectionState
@@ -505,15 +517,20 @@ namespace Spitfire
 		}
 
 		/// <summary>
-		/// Enables logging of WebRTC verbosely 
-		/// You'll likely want to do this for debugging WebRTC itself.
+		/// Enables logging of WebRTC.
+		/// the max log size indicates how big a single log file can be before splitting.
 		/// </summary>
-		static void EnableLogging()
+		static void EnableLogging(RtcLogVerbosity verbosity, String^ logDirectory, unsigned long maxLogSize, unsigned long maxNumberOfSplits)
 		{
-			rtc::LogMessage::LogTimestamps();
-			rtc::LogMessage::LogThreads();
-			rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
-			rtc::LogMessage::SetLogToStderr(true);
+			const auto directory = marshal_as<std::string>(logDirectory);
+			if (!directory.empty()) {
+				static rtc::FileRotatingLogSink sink(directory, "spitfire", maxLogSize, maxNumberOfSplits);
+				sink.Init();
+				rtc::LogMessage::LogTimestamps();
+				rtc::LogMessage::LogThreads();
+				const auto log_severity = static_cast<rtc::LoggingSeverity>(verbosity);
+				rtc::LogMessage::AddLogToStream(&sink, log_severity);
+			}
 		}
 
 		/// <summary>
