@@ -8,12 +8,11 @@ namespace Spitfire
 {
 	RtcConductor::RtcConductor()
 	{
-		onError = nullptr;
 		onSuccess = nullptr;
 		onFailure = nullptr;
 		onIceCandidate = nullptr;
 		onDataChannelState = nullptr;
-		onDataMessage = nullptr;
+		onMessage = nullptr;
 		//dataObserver = new Observers::DataChannelObserver(this);
 		peerObserver = new Observers::PeerConnectionObserver(this);
 		sessionObserver = new Observers::CreateSessionDescriptionObserver(this);
@@ -72,26 +71,33 @@ namespace Spitfire
 		RTC_DCHECK(peerObserver && !peerObserver->peerConnection);
 
 		RTC_DCHECK(!network_thread_ && !worker_thread_ && !signaling_thread_);
-		network_thread_ = rtc::Thread::CreateWithSocketServer().release();
-		worker_thread_ = rtc::Thread::Create().release();
-		signaling_thread_ = rtc::Thread::Create().release();
-
-		network_thread_->Start();
-		worker_thread_->Start();
-		signaling_thread_->Start();
+		
+		network_thread_ = rtc::Thread::CreateWithSocketServer();
+		network_thread_->SetName("network_thread", nullptr);
+		RTC_CHECK(network_thread_->Start()) << "Failed to start network thread";
+		
+		worker_thread_ = rtc::Thread::Create();
+		worker_thread_->SetName("worker_thread", nullptr);
+		RTC_CHECK(worker_thread_->Start()) << "Failed to start worker thread";
+		
+		signaling_thread_ = rtc::Thread::Create();
+		signaling_thread_->SetName("signaling_thread", nullptr);
+		RTC_CHECK(signaling_thread_->Start()) << "Failed to start signaling thread";
+		
+		
 
 		webrtc::PeerConnectionFactoryDependencies factory_deps;
-		factory_deps.network_thread = network_thread_;
-		factory_deps.worker_thread = worker_thread_;
-		factory_deps.signaling_thread = signaling_thread_;
+		factory_deps.network_thread = network_thread_.get();
+		factory_deps.worker_thread = worker_thread_.get();
+		factory_deps.signaling_thread = signaling_thread_.get();
 
-		pc_factory_ = webrtc::CreateModularPeerConnectionFactory(std::move(factory_deps));
+		pc_factory_ = CreateModularPeerConnectionFactory(std::move(factory_deps));
 		if(pc_factory_)
 		{
 			default_network_manager_.reset(new rtc::BasicNetworkManager());
 			if(default_network_manager_)
 			{
-				default_socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_));
+				default_socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_.get()));
 				if(default_socket_factory_)
 				{
 					default_relay_port_factory_.reset(new cricket::TurnPortFactory());
@@ -103,7 +109,9 @@ namespace Spitfire
 						{
 							RTC_DCHECK(peerObserver->peerConnection);
 							if(peerObserver->peerConnection)
-								return true;
+							{
+								return peerObserver->peerConnection != nullptr;
+							}
 						}
 					}
 				}
@@ -124,6 +132,7 @@ namespace Spitfire
 		//no clue why this was set to true
 		config.disable_ipv6 = false;
 		config.disable_ipv6_on_wifi = false;
+		config.candidate_network_policy = webrtc::PeerConnectionInterface::kCandidateNetworkPolicyLowCost;
 		config.network_preference = absl::optional<rtc::AdapterType>(rtc::AdapterType::ADAPTER_TYPE_ETHERNET);
 		
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
@@ -133,16 +142,18 @@ namespace Spitfire
 			config.servers.push_back(server);
 		}	
 
-		std::unique_ptr<cricket::PortAllocator> allocator = std::unique_ptr<cricket::PortAllocator>(new cricket::BasicPortAllocator(
+		std::unique_ptr<cricket::PortAllocator> allocator = std::make_unique<cricket::BasicPortAllocator>(
 			default_network_manager_.get(),
 			default_socket_factory_.get(),
 			config.turn_customizer,
-			default_relay_port_factory_.get()));
+			default_relay_port_factory_.get());
 		allocator->SetPortRange(minPort, maxPort);
 
 		peerObserver->peerConnection = pc_factory_->CreatePeerConnection(config, std::move(allocator), nullptr, peerObserver.get());
 		return peerObserver->peerConnection != nullptr;
 	}
+
+	
 
 	void RtcConductor::AddServerConfig(std::string uri, std::string username, std::string password)
 	{
@@ -170,7 +181,7 @@ namespace Spitfire
 			return;
 
 		webrtc::SdpParseError error;
-		webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription(type, sdp, &error));
+		webrtc::SessionDescriptionInterface* session_description(CreateSessionDescription(type, sdp, &error));
 		if (!session_description)
 		{
 			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
@@ -185,7 +196,7 @@ namespace Spitfire
 			return;
 
 		webrtc::SdpParseError error;
-		webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("offer", sdp, &error));
+		webrtc::SessionDescriptionInterface* session_description(CreateSessionDescription("offer", sdp, &error));
 		if (!session_description)
 		{
 			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
@@ -205,7 +216,7 @@ namespace Spitfire
 	bool RtcConductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp)
 	{
 		webrtc::SdpParseError error;
-		webrtc::IceCandidateInterface * candidate = webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
+		webrtc::IceCandidateInterface * candidate = CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
 		if (!candidate)
 		{
 			RTC_LOG(WARNING) << "Can't parse received candidate message. "
@@ -238,19 +249,18 @@ namespace Spitfire
 
 	void RtcConductor::DataChannelSendText(const std::string & label, const std::string & text)
 	{
-		auto observer = dataObservers.find(label);
-		if (observer != dataObservers.end()) {
-			observer->second->dataChannel->Send(webrtc::DataBuffer(text));
+		if (dataObservers.find(label) != dataObservers.end()) {
+			dataObservers[label]->dataChannel->Send(webrtc::DataBuffer(text));
 		}
 	}
 
 	RtcDataChannelInfo RtcConductor::GetDataChannelInfo(const std::string& label)
 	{
 		auto info = RtcDataChannelInfo();
-		const auto observer = dataObservers.find(label);
-		if (observer != dataObservers.end()) {
 
-			const auto dataChannel = observer->second->dataChannel;
+		if (dataObservers.find(label) != dataObservers.end()) {
+
+			const auto dataChannel = dataObservers[label]->dataChannel;
 
 			info.id = dataChannel->id();
 			info.currentBuffer = dataChannel->buffered_amount();
@@ -278,18 +288,27 @@ namespace Spitfire
 
 	webrtc::DataChannelInterface::DataState RtcConductor::GetDataChannelState(const std::string& label)
 	{
-		const auto observer = dataObservers.find(label);
-		if (observer != dataObservers.end()) {
+		if (dataObservers.find(label) != dataObservers.end()) {
 			return dataObservers[label]->dataChannel->state();
 		}
 		return {};
 	}
 
-	void RtcConductor::DataChannelSendData(const std::string & label, const webrtc::DataBuffer & data)
+	
+	void RtcConductor::DataChannelSendData(const std::string& label, unsigned char* data, const int length)
 	{
-		auto observer = dataObservers.find(label);
-		if (observer != dataObservers.end()) {
-			dataObservers[label]->dataChannel->Send(data);
+		if (dataObservers.find(label) != dataObservers.end()) {
+			const rtc::CopyOnWriteBuffer write_buffer(data, length);
+			dataObservers[label]->dataChannel->Send(webrtc::DataBuffer(write_buffer, true));
+		}
+	}
+	
+	void RtcConductor::CloseDataChannel(const std::string & label)
+	{
+		if (dataObservers.find(label) != dataObservers.end()) {
+			dataObservers[label]->dataChannel->Close();
+			dataObservers[label]->dataChannel->UnregisterObserver();
+			dataObservers.erase(label);
 		}
 	}
 

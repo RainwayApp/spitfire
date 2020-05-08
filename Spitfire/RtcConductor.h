@@ -45,8 +45,7 @@ namespace Spitfire
 	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdpMid, int sdpIndex, const char * sdp);
 	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frameBuffer, uint32_t w, uint32_t h);
-	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * label, const char * msg);
-	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const char * label, const uint8_t * msg, uint32_t size);
+	typedef void(__stdcall *OnMessageCallbackNative)(const char* label, const uint8_t* msg, uint32_t size, bool is_binary);
 	typedef void(__stdcall *OnIceStateChangeCallbackNative)(webrtc::PeerConnectionInterface::IceConnectionState state);
 	typedef void(__stdcall* OnIceGatheringStateCallbackNative)(webrtc::PeerConnectionInterface::IceGatheringState state);
 	typedef void(__stdcall *OnDataChannelStateCallbackNative)(const char * label, webrtc::DataChannelInterface::DataState state);
@@ -71,22 +70,22 @@ namespace Spitfire
 
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
-		void CreateDataChannel(const std::string & label, const webrtc::DataChannelInit dc_options);
+		void CreateDataChannel(const std::string & label, webrtc::DataChannelInit dc_options);
 		void DataChannelSendText(const std::string & label, const std::string & text);
 		RtcDataChannelInfo GetDataChannelInfo(const std::string& label);
 		webrtc::DataChannelInterface::DataState GetDataChannelState(const std::string& label);
-		void DataChannelSendData(const std::string & label, const webrtc::DataBuffer & data);
+		void CloseDataChannel(const std::string& label);
+		void DataChannelSendData(const std::string& label, unsigned char* data, int length);
 
-		OnErrorCallbackNative onError;
+		
 		OnSuccessCallbackNative onSuccess;
 		OnFailureCallbackNative onFailure;
-		OnIceStateChangeCallbackNative onIceStateChange;
-		OnIceGatheringStateCallbackNative onIceGatheringStateChange;
+		OnIceStateChangeCallbackNative onIceStateChange{};
+		OnIceGatheringStateCallbackNative onIceGatheringStateChange{};
 		OnIceCandidateCallbackNative onIceCandidate;
 		OnDataChannelStateCallbackNative onDataChannelState;
-		OnBufferAmountCallbackNative onBufferAmountChange;
-		OnDataMessageCallbackNative onDataMessage;
-		OnDataBinaryMessageCallbackNative onDataBinaryMessage;
+		OnBufferAmountCallbackNative onBufferAmountChange{};
+		OnMessageCallbackNative onMessage;
 
 		//rtc::scoped_refptr<Observers::DataChannelObserver> dataObserver;
 		rtc::scoped_refptr<Observers::PeerConnectionObserver> peerObserver;
@@ -108,9 +107,9 @@ namespace Spitfire
 		};
 
 	private:
-		rtc::Thread* worker_thread_;
-		rtc::Thread* signaling_thread_;
-		rtc::Thread* network_thread_;
+		std::unique_ptr<rtc::Thread> worker_thread_;
+		std::unique_ptr<rtc::Thread> signaling_thread_;
+		std::unique_ptr<rtc::Thread> network_thread_;
 		std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
