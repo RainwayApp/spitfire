@@ -25,13 +25,13 @@ using namespace System::Reflection;
 using namespace System;
 using namespace System::IO;
 using namespace System::Diagnostics;
-using namespace msclr::interop;	
-
-[assembly:System::Runtime::Versioning::TargetFrameworkAttribute(L".NETFramework,Version=v4.0", FrameworkDisplayName = L".NET Framework 4")];
+using namespace msclr::interop;
 
 namespace Spitfire
 {
+
 	
+
 	/// <summary>
 	/// <seealso href="http://w3c.github.io/webrtc-pc/#idl-def-RTCDataChannelState"/>
 	/// </summary>
@@ -41,23 +41,23 @@ namespace Spitfire
 		/// Attempting to establish the underlying data transport. 
 		/// This is the initial state of a RTCDataChannel object created with createDataChannel().
 		/// </summary>
-		Connecting,
+		Connecting = 0,
 
 		/// <summary>
 		/// The underlying data transport is established and communication is possible. 
 		/// This is the initial state of a RTCDataChannel object dispatched as a part of a RTCDataChannelEvent.
 		/// </summary>
-		Open,
+		Open = 1,
 
 		/// <summary>
 		/// The procedure to close down the underlying data transport has started.
 		/// </summary>
-		Closing,
+		Closing = 2,
 
 		/// <summary>
 		/// The underlying data transport has been closed or could not be established.
 		/// </summary>
-		Closed
+		Closed = 3
 	};
 
 	/// <summary>
@@ -155,14 +155,6 @@ namespace Spitfire
 		String^ Password;
 	};
 
-	public ref class DataMessage
-	{
-	public:
-		bool IsBinary;
-		bool IsText;
-		array<System::Byte>^ RawData;
-		String^ Data;
-	};
 
 	public ref class DataChannelInfo
 	{
@@ -268,58 +260,44 @@ namespace Spitfire
 		int min_port_;
 		int max_port_;
 
-		delegate void _OnErrorCallback();
-		_OnErrorCallback^ onError;
-		GCHandle^ onErrorHandle;
-
 		delegate void _OnSuccessCallback(String^ type, String^ sdp);
 		_OnSuccessCallback^ onSuccess;
-		GCHandle^ onSuccessHandle;
+		GCHandle^ on_success_handle_;
 
 		delegate void _OnFailureCallback(String^ error);
 		_OnFailureCallback^ onFailure;
-		GCHandle^ onFailureHandle;
-
-		delegate void _OnDataMessageCallback(String^ label, String^ msg);
-		_OnDataMessageCallback^ onDataMessage;
-		GCHandle^ onDataMessageHandle;
-
-		delegate void _OnDataBinaryMessageCallback(String^ label, uint8_t* msg, uint32_t size);
-		_OnDataBinaryMessageCallback^ onDataBinaryMessage;
-		GCHandle^ onDataBinaryMessageHandle;
+		GCHandle^ on_failure_handle_;
+		
+		delegate void _OnMessageCallback(String^ label, uint8_t* msg, uint32_t size, bool is_binary);
+		_OnMessageCallback^ onMessage;
+		GCHandle^ on_message_handle_;
 
 		delegate void _OnIceCandidateCallback(String^ sdp_mid, Int32 sdp_mline_index, String^ sdp);
 		_OnIceCandidateCallback^ onIceCandidate;
-		GCHandle^ onIceCandidateHandle;
+		GCHandle^ on_ice_candidate_handle_;
 
 		delegate void _OnDataChannelStateCallback(String^ label, webrtc::DataChannelInterface::DataState state);
 		_OnDataChannelStateCallback^ onDataChannelStateChange;
-		GCHandle^ onDataChannelStateHandle;
+		GCHandle^ on_data_channel_state_handle_;
 
 		delegate void _OnBufferChangeCallback(String^ label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived);
 		_OnBufferChangeCallback^ onBufferAmountChange;
-		GCHandle^ onBufferAmountChangeHandle;
+		GCHandle^ on_buffer_amount_change_handle_;
 
 		delegate void _OnIceStateCallback(webrtc::PeerConnectionInterface::IceConnectionState state);
 		_OnIceStateCallback^ onIceStateChange;
-		GCHandle^ onIceStateCallbackHandle;
+		GCHandle^ on_ice_state_callback_handle_;
 
 		delegate void _OnIceGatheringStateCallback(webrtc::PeerConnectionInterface::IceGatheringState state);
 		_OnIceGatheringStateCallback^ onIceGatheringStateChange;
-		GCHandle^ onIceGatheringStateCallbackHandle;
+		GCHandle^ on_ice_gathering_state_callback_handle_;
 
 		void FreeGCHandle(GCHandle^% g)
 		{
 			if(g != nullptr)
 			{
 				g->Free();
-				g = nullptr;
 			}
-		}
-
-		void _OnError()
-		{
-			OnError();
 		}
 
 		void _OnSuccess(String^ type, String^ sdp)
@@ -353,16 +331,7 @@ namespace Spitfire
 			OnFailure(error);
 		}
 
-		void _OnDataMessage(String^ label, String^ msg)
-		{
-			auto message = gcnew Spitfire::DataMessage();
-			message->IsBinary = false;
-			message->RawData = nullptr;
-			message->IsText = true;
-			message->Data = gcnew String(msg);
-			OnDataMessage(label, message);
-		}
-
+		
 		void _OnIceState(webrtc::PeerConnectionInterface::IceConnectionState state)
 		{
 
@@ -383,27 +352,17 @@ namespace Spitfire
 
 		void _OnDataChannelState(String^ label, webrtc::DataChannelInterface::DataState state)
 		{
-			if(state == webrtc::DataChannelInterface::DataState::kOpen)
-			{
-				OnDataChannelOpen(label);
-			}
-			else if(state == webrtc::DataChannelInterface::DataState::kClosed)
-			{
-				OnDataChannelClose(label);
-			}
+			DataChannelState managedState = static_cast<DataChannelState>(state);
+			OnDataChannelStateChange(label, managedState);
 		}
 
-		void _OnDataBinaryMessage(String^ label, uint8_t* data, uint32_t size)
+		void _OnMessage(String^ label, uint8_t* data, const uint32_t size, const bool is_binary)
 		{
-			array<Byte>^ data_array = gcnew array<Byte>(size);
-			IntPtr src(data);
-			Marshal::Copy(src, data_array, 0, size);
-			auto message = gcnew Spitfire::DataMessage();
-			message->IsBinary = true;
-			message->Data = nullptr;
-			message->IsText = false;
-			message->RawData = data_array;
-			OnDataMessage(label, message);
+			//auto buffer = gcnew array<Byte>(size);
+			//IntPtr src(data);
+			//Marshal::Copy(src, buffer, 0, size);
+			IntPtr managedPointer(data);
+			OnMessage(label, managedPointer, size, is_binary);
 		}
 
 		void Initialize(int min_port, int max_port)
@@ -413,97 +372,102 @@ namespace Spitfire
 			min_port_ = min_port;
 			max_port_ = max_port;
 
-			onError = gcnew _OnErrorCallback(this, &SpitfireRtc::_OnError);
-			onErrorHandle = GCHandle::Alloc(onError);
-			conductor_->get()->onError = static_cast<Spitfire::OnErrorCallbackNative>(Marshal::GetFunctionPointerForDelegate(onError).ToPointer());
-
 			onSuccess = gcnew _OnSuccessCallback(this, &SpitfireRtc::_OnSuccess);
-			onSuccessHandle = GCHandle::Alloc(onSuccess);
+			on_success_handle_ = GCHandle::Alloc(onSuccess);
 			conductor_->get()->onSuccess = static_cast<Spitfire::OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
 
 			onFailure = gcnew _OnFailureCallback(this, &SpitfireRtc::_OnFailure);
-			onFailureHandle = GCHandle::Alloc(onFailure);
+			on_failure_handle_ = GCHandle::Alloc(onFailure);
 			conductor_->get()->onFailure = static_cast<Spitfire::OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
 
-			onDataMessage = gcnew _OnDataMessageCallback(this, &SpitfireRtc::_OnDataMessage);
-			onDataMessageHandle = GCHandle::Alloc(onDataMessage);
-			conductor_->get()->onDataMessage = static_cast<Spitfire::OnDataMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataMessage).ToPointer());
+			onMessage = gcnew _OnMessageCallback(this, &SpitfireRtc::_OnMessage);
+			on_message_handle_ = GCHandle::Alloc(onMessage);
+			conductor_->get()->onMessage = static_cast<Spitfire::OnMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onMessage).ToPointer());
 
-			onDataBinaryMessage = gcnew _OnDataBinaryMessageCallback(this, &SpitfireRtc::_OnDataBinaryMessage);
-			onDataBinaryMessageHandle = GCHandle::Alloc(onDataBinaryMessage);
-			conductor_->get()->onDataBinaryMessage = static_cast<Spitfire::OnDataBinaryMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataBinaryMessage).ToPointer());
-
+			
 			onIceCandidate = gcnew _OnIceCandidateCallback(this, &SpitfireRtc::_OnIceCandidate);
-			onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
+			on_ice_candidate_handle_ = GCHandle::Alloc(onIceCandidate);
 			conductor_->get()->onIceCandidate = static_cast<Spitfire::OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
 
 			onDataChannelStateChange = gcnew _OnDataChannelStateCallback(this, &SpitfireRtc::_OnDataChannelState);
-			onDataChannelStateHandle = GCHandle::Alloc(onDataChannelStateChange);
+			on_data_channel_state_handle_ = GCHandle::Alloc(onDataChannelStateChange);
 			conductor_->get()->onDataChannelState = static_cast<Spitfire::OnDataChannelStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataChannelStateChange).ToPointer());
 
 			onIceStateChange = gcnew _OnIceStateCallback(this, &SpitfireRtc::_OnIceState);
-			onIceStateCallbackHandle = GCHandle::Alloc(onIceStateChange);
+			on_ice_state_callback_handle_ = GCHandle::Alloc(onIceStateChange);
 			conductor_->get()->onIceStateChange = static_cast<Spitfire::OnIceStateChangeCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceStateChange).ToPointer());
 
 			onIceGatheringStateChange = gcnew _OnIceGatheringStateCallback(this, &SpitfireRtc::_OnIceGatheringState);
-			onIceGatheringStateCallbackHandle = GCHandle::Alloc(onIceGatheringStateChange);
+			on_ice_gathering_state_callback_handle_ = GCHandle::Alloc(onIceGatheringStateChange);
 			conductor_->get()->onIceGatheringStateChange = static_cast<Spitfire::OnIceGatheringStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceGatheringStateChange).ToPointer());
 
 			onBufferAmountChange = gcnew _OnBufferChangeCallback(this, &SpitfireRtc::_OnBufferAmountChange);
-			onBufferAmountChangeHandle = GCHandle::Alloc(onBufferAmountChange);
+			on_buffer_amount_change_handle_ = GCHandle::Alloc(onBufferAmountChange);
 			conductor_->get()->onBufferAmountChange = static_cast<Spitfire::OnBufferAmountCallbackNative>(Marshal::GetFunctionPointerForDelegate(onBufferAmountChange).ToPointer());
 		}
-
+	
+		
 	public:
+		
+		/*delegate void DataChannelStateChange(String^ label, Spitfire::DataChannelState state);
+		delegate void OnCallbackError(String^ error);
+		delegate void OnCallbackMessage(String^ label, array<System::Byte>^ data, bool isBinary);
+		delegate void IceStateChange(IceConnectionState msg);
+		delegate void IceGatheringStateChange(IceGatheringState msg);
+		delegate void BufferChange(String^ label, long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);*/
+
+
 		delegate void OnCallbackSdp(SpitfireSdp^ sdp);
 		event OnCallbackSdp^ OnSuccessOffer;
 		event OnCallbackSdp^ OnSuccessAnswer;
-
+		
+		/// <summary>
+		/// This happens whenever the local ICE agent needs to deliver a message to the other peer through the signaling server.
+		/// This lets the ICE agent perform negotiation with the remote peer without the browser itself needing to know any specifics
+		/// about the technology being used for signaling; simply implement this method to use whatever messaging technology you choose to send the ICE candidate to the remote peer.
+		/// </summary>
 		delegate void OnCallbackIceCandidate(SpitfireIceCandidate^ iceCandidate);
 		event OnCallbackIceCandidate^ OnIceCandidate;
 
-		event Action^ OnError;
-
-		delegate void DataChannelOpen(String^ label);
 		/// <summary>
-		/// Signals that the data channel is opened and ready for interaction
+		/// indicates the state of the data channel's underlying data connection.
 		/// </summary>
-		event DataChannelOpen^ OnDataChannelOpen;
-
-		delegate void DataChannelClose(String^ label);
-		/// <summary>
-		/// Signals that the data channel has been closed, this is not
-		/// Guaranteed to fire at all, so trust it as far as you can throw it.
-		/// Best paired with OnIceStateChange for best results.
-		/// </summary>
-		event DataChannelClose^ OnDataChannelClose;
-
+		delegate void DataChannelStateChange(String^ label, Spitfire::DataChannelState state);
+		event DataChannelStateChange^ OnDataChannelStateChange;
+		
 		delegate void OnCallbackError(String^ error);
 		event OnCallbackError^ OnFailure;
 
-		delegate void OnCallbackDataMessage(String^ label, Spitfire::DataMessage^ msg);
-		event OnCallbackDataMessage^ OnDataMessage;
+		/// <summary>
+		/// Property stores an EventHandler which specifies a function to be called when the message event is fired on the channel.
+		/// </summary>
+		delegate void OnCallbackMessage(String^ label, IntPtr data, int length, bool isBinary);
+		event OnCallbackMessage^ OnMessage;
 
-		delegate void IceStateChange(IceConnectionState msg);
+		
+		
 		/// <summary>
 		/// Informs you have the latest changes to the active ICE candidates state. 
 		/// This will always provide you the best information of if a peer has been lost (albeit delayed).
 		/// </summary>
+		delegate void IceStateChange(IceConnectionState msg);
 		event IceStateChange^ OnIceStateChange;
 
-		delegate void IceGatheringStateChange(IceGatheringState msg);
+	
+		
 		/// <summary>
 		/// When ICE firststarts to gather connection candidates, the value changes from new to gathering to indicate that the process of collecting candidate 
 		/// configurations for the connection has begun. When the value changes to complete, 
 		/// all of the transports that make up the RTCPeerConnection have finished gathering ICE candidates.
 		/// </summary>
+		delegate void IceGatheringStateChange(IceGatheringState^ msg);
 		event IceGatheringStateChange^ OnIceGatheringStateChange;
-
-		delegate void BufferChange(String^ label, long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
+		
 		/// <summary>
 		/// Lets you know the buffer has changed and gives a snapshot of the current buffer
 		/// Along with the current amount of data that has been sent/received. 
 		/// </summary>
+		delegate void BufferChange(String^ label, long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
 		event BufferChange^ OnBufferAmountChange;
 
 		SpitfireRtc()
@@ -520,14 +484,16 @@ namespace Spitfire
 				return;
 
 			// dispose managed data
-			FreeGCHandle(onErrorHandle);
-			FreeGCHandle(onSuccessHandle);
-			FreeGCHandle(onFailureHandle);
-			FreeGCHandle(onIceCandidateHandle);
-			FreeGCHandle(onDataMessageHandle);
-			FreeGCHandle(onIceGatheringStateCallbackHandle);
-			FreeGCHandle(onDataBinaryMessageHandle);
-			FreeGCHandle(onDataChannelStateHandle);
+			FreeGCHandle(on_success_handle_);
+			FreeGCHandle(on_failure_handle_);
+			FreeGCHandle(on_message_handle_);
+			FreeGCHandle(on_ice_candidate_handle_);
+			FreeGCHandle(on_data_channel_state_handle_);
+			FreeGCHandle(on_buffer_amount_change_handle_);
+			FreeGCHandle(on_ice_state_callback_handle_);
+			FreeGCHandle(on_ice_gathering_state_callback_handle_);
+
+		
 			if(conductor_)
 			{
 				conductor_->get()->DeletePeerConnection();
@@ -549,6 +515,7 @@ namespace Spitfire
 			rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
 			rtc::LogMessage::SetLogToStderr(true);
 		}
+
 		/// <summary>
 		/// Setups and ensures SSL is working.
 		/// </summary>
@@ -689,10 +656,17 @@ namespace Spitfire
 		Spitfire::DataChannelState GetDataChannelState(String^ label)
 		{
 			auto state = conductor_->get()->GetDataChannelState(marshal_as<std::string>(label));
-			DataChannelState managedState = static_cast<DataChannelState>(state);
+			const auto managedState = static_cast<DataChannelState>(state);
 			return managedState;
 		}
-
+		
+		/// <summary>
+		/// Closes a data channel and disposes it's observers
+		/// </summary>
+		void CloseDataChannel(String^ label)
+		{
+			conductor_->get()->CloseDataChannel(marshal_as<std::string>(label));
+		}
 		/// <summary>
 		/// Send your binary data through the data channel
 		/// Be aware that channels have a 16KB limit and you should take advantage 
@@ -700,8 +674,7 @@ namespace Spitfire
 		/// </summary>
 		void DataChannelSendData(String^ label, Byte* array_data, int length)
 		{
-			rtc::CopyOnWriteBuffer writeBuffer(array_data, length);
-			conductor_->get()->DataChannelSendData(marshal_as<std::string>(label), webrtc::DataBuffer(writeBuffer, true));
+			conductor_->get()->DataChannelSendData(marshal_as<std::string>(label), array_data, length);
 		}
 
 	protected:

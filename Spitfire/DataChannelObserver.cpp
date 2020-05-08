@@ -20,20 +20,10 @@ void Spitfire::Observers::DataChannelObserver::OnBufferedAmountChange(uint64_t p
 
 void Spitfire::Observers::DataChannelObserver::OnMessage(const webrtc::DataBuffer & buffer)
 {
-	if (buffer.binary)
+
+	if (conductor_->onMessage)
 	{
-		if (conductor_->onDataBinaryMessage)
-		{
-			auto * data = buffer.data.data();
-			conductor_->onDataBinaryMessage(dataChannel->label().c_str(), data, static_cast<uint32_t>(buffer.size()));
-		}
-	}
-	else
-	{
-		if (conductor_->onDataMessage)
-		{
-			std::string msg(buffer.data.data<char>(), buffer.size());
-			conductor_->onDataMessage(dataChannel->label().c_str(), msg.c_str());
-		}
+		auto* data = buffer.data.data();
+		conductor_->onMessage(dataChannel->label().c_str(), data, static_cast<uint32_t>(buffer.size()), buffer.binary);
 	}
 }

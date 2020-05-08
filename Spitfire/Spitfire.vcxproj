@@ -19,11 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{5950B9B8-D486-4B8B-A3A1-53F1738F45ED}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Spitfire</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
