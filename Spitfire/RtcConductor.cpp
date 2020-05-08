@@ -43,13 +43,12 @@ namespace Spitfire
 
 		if (!dataObservers.empty())
 		{
-			for (auto const& pair : dataObservers)
+			// loop over all active data channel observers and close them
+			for (auto itr = dataObservers.begin(); itr != dataObservers.end(); )
 			{
-				if (pair.second->dataChannel)
-				{
-					pair.second->dataChannel->UnregisterObserver();
-					pair.second->dataChannel = nullptr;
-				}
+				const auto copy_itr = itr;
+				++itr;
+				FinalizeDataChannelClose(copy_itr->first, copy_itr->second);
 			}
 			dataObservers.clear();
 		}
@@ -62,6 +61,19 @@ namespace Spitfire
 		rtc::Thread* current_thread = rtc::ThreadManager::Instance()->CurrentThread();
 		if(current_thread)
 			current_thread->Stop();
+	}
+
+	void RtcConductor::FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer)
+	{
+		if (observer->dataChannel != nullptr)
+		{
+			// sends the close notification to the remote peer
+			observer->dataChannel->Close();
+			// unregisters the the observer which needs to be done before disposing 
+			observer->dataChannel->UnregisterObserver();
+			delete observer;
+		}
+		dataObservers.erase(label);
 	}
 
 	bool RtcConductor::InitializePeerConnection(int min_port, int max_port)
@@ -249,8 +261,9 @@ namespace Spitfire
 
 	void RtcConductor::DataChannelSendText(const std::string & label, const std::string & text)
 	{
-		if (dataObservers.find(label) != dataObservers.end()) {
-			dataObservers[label]->dataChannel->Send(webrtc::DataBuffer(text));
+		const auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+			observer->second->dataChannel->Send(webrtc::DataBuffer(text));
 		}
 	}
 
@@ -258,27 +271,29 @@ namespace Spitfire
 	{
 		auto info = RtcDataChannelInfo();
 
-		if (dataObservers.find(label) != dataObservers.end()) {
+		const auto observer = dataObservers.find(label);
+		
+		if (observer != dataObservers.end()) {
 
-			const auto dataChannel = dataObservers[label]->dataChannel;
+			const auto data_channel = observer->second->dataChannel;
 
-			info.id = dataChannel->id();
-			info.currentBuffer = dataChannel->buffered_amount();
-			info.bytesSent = dataChannel->bytes_sent();
-			info.bytesReceived = dataChannel->bytes_received();
+			info.id = data_channel->id();
+			info.currentBuffer = data_channel->buffered_amount();
+			info.bytesSent = data_channel->bytes_sent();
+			info.bytesReceived = data_channel->bytes_received();
 
-			info.reliable = dataChannel->reliable();
-			info.ordered = dataChannel->ordered();
-			info.negotiated = dataChannel->negotiated();
+			info.reliable = data_channel->reliable();
+			info.ordered = data_channel->ordered();
+			info.negotiated = data_channel->negotiated();
 
-			info.messagesSent = dataChannel->messages_sent();
-			info.messagesReceived = dataChannel->messages_received();
+			info.messagesSent = data_channel->messages_sent();
+			info.messagesReceived = data_channel->messages_received();
 
-			info.maxRetransmits = dataChannel->maxRetransmits();
-			info.maxRetransmitTime = dataChannel->maxRetransmitTime();
+			info.maxRetransmits = data_channel->maxRetransmits();
+			info.maxRetransmitTime = data_channel->maxRetransmitTime();
 
-			info.protocol = dataChannel->protocol();
-			info.state = dataChannel->state();
+			info.protocol = data_channel->protocol();
+			info.state = data_channel->state();
 
 			return info;
 		}
@@ -288,8 +303,9 @@ namespace Spitfire
 
 	webrtc::DataChannelInterface::DataState RtcConductor::GetDataChannelState(const std::string& label)
 	{
-		if (dataObservers.find(label) != dataObservers.end()) {
-			return dataObservers[label]->dataChannel->state();
+		const auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+			return observer->second->dataChannel->state();
 		}
 		return {};
 	}
@@ -297,18 +313,18 @@ namespace Spitfire
 	
 	void RtcConductor::DataChannelSendData(const std::string& label, unsigned char* data, const int length)
 	{
-		if (dataObservers.find(label) != dataObservers.end()) {
+		const auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
 			const rtc::CopyOnWriteBuffer write_buffer(data, length);
-			dataObservers[label]->dataChannel->Send(webrtc::DataBuffer(write_buffer, true));
+			observer->second->dataChannel->Send(webrtc::DataBuffer(write_buffer, true));
 		}
 	}
 	
 	void RtcConductor::CloseDataChannel(const std::string & label)
 	{
-		if (dataObservers.find(label) != dataObservers.end()) {
-			dataObservers[label]->dataChannel->Close();
-			dataObservers[label]->dataChannel->UnregisterObserver();
-			dataObservers.erase(label);
+		const auto observer = dataObservers.find(label);
+		if (observer != dataObservers.end()) {
+			FinalizeDataChannelClose(observer->first, observer->second);
 		}
 	}
 

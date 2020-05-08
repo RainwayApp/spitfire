@@ -94,6 +94,7 @@ namespace Spitfire
 
 		std::unordered_map<std::string, Observers::DataChannelObserver*> dataObservers;
 
+		
 		void DeletePeerConnection();
 
 	protected:
@@ -114,6 +115,7 @@ namespace Spitfire
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
 		bool CreatePeerConnection(int minPort, int maxPort);
+		void FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer);
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
