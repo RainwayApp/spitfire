@@ -347,7 +347,7 @@ namespace Spitfire
 
 		void _OnBufferAmountChange(String^ label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived)
 		{
-			OnBufferAmountChange(label, static_cast<long>(previousAmount), static_cast<long>(currentAmount), static_cast<long>(bytesSent), static_cast<long>(bytesReceived));
+			OnBufferAmountChange(label, static_cast<unsigned long>(previousAmount), static_cast<unsigned long>(currentAmount), static_cast<unsigned long>(bytesSent), static_cast<unsigned long>(bytesReceived));
 		}
 
 		void _OnDataChannelState(String^ label, webrtc::DataChannelInterface::DataState state)
@@ -467,7 +467,7 @@ namespace Spitfire
 		/// Lets you know the buffer has changed and gives a snapshot of the current buffer
 		/// Along with the current amount of data that has been sent/received. 
 		/// </summary>
-		delegate void BufferChange(String^ label, long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
+		delegate void BufferChange(String^ label, unsigned long previousBufferAmount, unsigned long currentBufferAmount, unsigned long bytesSent, unsigned long bytesReceived);
 		event BufferChange^ OnBufferAmountChange;
 
 		SpitfireRtc()
