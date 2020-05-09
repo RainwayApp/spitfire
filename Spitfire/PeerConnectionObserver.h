@@ -16,10 +16,8 @@ namespace Spitfire
 				conductor_(conductor)
 			{
 			}
-			~PeerConnectionObserver()
-			{
-				RTC_LOG(INFO) << __FUNCTION__ << " ";
-			}
+			
+			~PeerConnectionObserver() = default;
 
 			// Triggered when the SignalingState changed.
 			void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
