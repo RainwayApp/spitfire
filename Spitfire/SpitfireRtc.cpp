@@ -61,6 +61,18 @@ namespace Spitfire
 	};
 
 	/// <summary>
+	/// WebRTC logging verbosity
+	/// </summary>
+	public enum class RtcLogVerbosity
+	{
+		Verbose = 0,
+		Info = 1,
+		Warning = 2,
+		Error = 3,
+		None = 4
+	};
+
+	/// <summary>
 	/// <seealso href="http://www.w3.org/TR/webrtc/#rtciceconnectionstate-enum"/>
 	/// </summary>
 	public enum class IceConnectionState
@@ -159,19 +171,19 @@ namespace Spitfire
 	public ref class DataChannelInfo
 	{
 	public:
-		unsigned long CurrentBuffer;
-		unsigned long BytesSent;
-		unsigned long BytesReceived;
+		uint64_t CurrentBuffer;
+		uint64_t BytesSent;
+		uint64_t BytesReceived;
 
 		bool Reliable;
 		bool Ordered;
 		bool Negotiated;
 
-		unsigned int MessagesSent;
-		unsigned int MessagesReceived;
+		uint32_t MessagesSent;
+		uint32_t MessagesReceived;
 
-		int MaxRetransmits;
-		int MaxRetransmitTime;
+		int32_t MaxRetransmits;
+		int32_t MaxRetransmitTime;
 
 		String^ Protocol;
 
@@ -215,7 +227,7 @@ namespace Spitfire
 		 /// sent. After this time, no more retransmissions will be sent. -1 if unset.
 		 /// Cannot be set along with |MaxRetransmits|.
 		 /// </summary>
-		Nullable<int> MaxRetransmitTime;
+		Nullable<int32_t> MaxRetransmitTime;
 
 		/* 
 		 * The max number of retransmissions. -1 if unset.
@@ -225,7 +237,7 @@ namespace Spitfire
 		 /// The max number of retransmissions. -1 if unset.
 		 /// Cannot be set along with |MaxRetransmitTime|.
 		 /// </summary>
-		Nullable<int> MaxRetransmits;
+		Nullable<int32_t> MaxRetransmits;
 		 /// <summary>
 		 /// This is set by the application and opaque to the WebRTC implementation.
 		 /// </summary>
@@ -240,14 +252,14 @@ namespace Spitfire
 		 /// <summary>
 		 ///  The stream id, or SID, for SCTP data channels. -1 if unset (see Negotiated).
 		 /// </summary>
-		int Id = -1;
+		int32_t Id = -1;
 	};
 
 	public ref class SpitfireIceCandidate
 	{
 	public:
 		String^ SdpMid;
-		int SdpIndex;
+		int32_t SdpIndex;
 		String^ Sdp;
 	};
 
@@ -257,8 +269,8 @@ namespace Spitfire
 		std::unique_ptr<Spitfire::RtcConductor>* conductor_;
 
 		bool disposed_;
-		int min_port_;
-		int max_port_;
+		uint16_t min_port_;
+		uint16_t max_port_;
 
 		delegate void _OnSuccessCallback(String^ type, String^ sdp);
 		_OnSuccessCallback^ onSuccess;
@@ -272,7 +284,7 @@ namespace Spitfire
 		_OnMessageCallback^ onMessage;
 		GCHandle^ on_message_handle_;
 
-		delegate void _OnIceCandidateCallback(String^ sdp_mid, Int32 sdp_mline_index, String^ sdp);
+		delegate void _OnIceCandidateCallback(String^ sdp_mid, int32_t sdp_mline_index, String^ sdp);
 		_OnIceCandidateCallback^ onIceCandidate;
 		GCHandle^ on_ice_candidate_handle_;
 
@@ -317,7 +329,7 @@ namespace Spitfire
 			}
 		}
 
-		void _OnIceCandidate(String^ sdp_mid, Int32 sdp_mline_index, String^ sdp)
+		void _OnIceCandidate(String^ sdp_mid, int32_t sdp_mline_index, String^ sdp)
 		{
 			auto ice = gcnew SpitfireIceCandidate();
 			ice->Sdp = gcnew String(sdp);
@@ -345,9 +357,9 @@ namespace Spitfire
 			OnIceGatheringStateChange(managedState);
 		}
 
-		void _OnBufferAmountChange(String^ label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived)
+		void _OnBufferAmountChange(String^ label, const uint64_t previous_amount, const uint64_t current_amount, const uint64_t bytes_sent, const uint64_t bytes_received)
 		{
-			OnBufferAmountChange(label, static_cast<long>(previousAmount), static_cast<long>(currentAmount), static_cast<long>(bytesSent), static_cast<long>(bytesReceived));
+			OnBufferAmountChange(label, previous_amount, current_amount, bytes_sent, bytes_received);
 		}
 
 		void _OnDataChannelState(String^ label, webrtc::DataChannelInterface::DataState state)
@@ -365,7 +377,7 @@ namespace Spitfire
 			OnMessage(label, managedPointer, size, is_binary);
 		}
 
-		void Initialize(int min_port, int max_port)
+		void Initialize(uint16_t min_port, uint16_t max_port)
 		{
 			disposed_ = false;
 			conductor_ = new std::unique_ptr<Spitfire::RtcConductor>(new Spitfire::RtcConductor());
@@ -441,7 +453,7 @@ namespace Spitfire
 		/// <summary>
 		/// Property stores an EventHandler which specifies a function to be called when the message event is fired on the channel.
 		/// </summary>
-		delegate void OnCallbackMessage(String^ label, IntPtr data, int length, bool isBinary);
+		delegate void OnCallbackMessage(String^ label, IntPtr data, uint32_t length, bool isBinary);
 		event OnCallbackMessage^ OnMessage;
 
 		
@@ -467,16 +479,16 @@ namespace Spitfire
 		/// Lets you know the buffer has changed and gives a snapshot of the current buffer
 		/// Along with the current amount of data that has been sent/received. 
 		/// </summary>
-		delegate void BufferChange(String^ label, long previousBufferAmount, long currentBufferAmount, long bytesSent, long bytesReceived);
+		delegate void BufferChange(String^ label, uint64_t previous_buffer_amount, uint64_t current_buffer_amount, uint64_t bytes_sent, uint64_t bytes_received);
 		event BufferChange^ OnBufferAmountChange;
 
 		SpitfireRtc()
 		{
 			Initialize(1025, 65535);
 		}
-		SpitfireRtc(int MinPort, int MaxPort)
+		SpitfireRtc(const uint16_t min_port, const uint16_t max_port)
 		{
-			Initialize(MinPort, MaxPort);
+			Initialize(min_port, max_port);
 		}
 		~SpitfireRtc()
 		{
@@ -505,15 +517,20 @@ namespace Spitfire
 		}
 
 		/// <summary>
-		/// Enables logging of WebRTC verbosely 
-		/// You'll likely want to do this for debugging WebRTC itself.
+		/// Enables logging of WebRTC.
+		/// the max log size indicates how big a single log file can be before splitting.
 		/// </summary>
-		static void EnableLogging()
+		static void EnableLogging(RtcLogVerbosity verbosity, String^ log_directory, const uint64_t max_log_size, const uint16_t max_number_of_splits)
 		{
-			rtc::LogMessage::LogTimestamps();
-			rtc::LogMessage::LogThreads();
-			rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
-			rtc::LogMessage::SetLogToStderr(true);
+			const auto directory = marshal_as<std::string>(log_directory);
+			if (!directory.empty()) {
+				static rtc::FileRotatingLogSink sink(directory, "spitfire", max_log_size, max_number_of_splits);
+				sink.Init();
+				rtc::LogMessage::LogTimestamps();
+				rtc::LogMessage::LogThreads();
+				const auto log_severity = static_cast<rtc::LoggingSeverity>(verbosity);
+				rtc::LogMessage::AddLogToStream(&sink, log_severity);
+			}
 		}
 
 		/// <summary>
@@ -525,6 +542,7 @@ namespace Spitfire
 			rtc::InitializeSSL();
 			rtc::InitRandom(static_cast<int>(rtc::Time()));
 		}
+		
 		/// <summary>
 		/// Attempts to clean up SSL threads.
 		/// </summary>
@@ -568,7 +586,7 @@ namespace Spitfire
 			conductor_->get()->OnOfferRequest(marshal_as<std::string>(sdp));
 		}
 
-		bool AddIceCandidate(String^ sdp_mid, Int32 sdp_mlineindex, String^ sdp)
+		bool AddIceCandidate(String^ sdp_mid, int32_t sdp_mlineindex, String^ sdp)
 		{
 			return conductor_->get()->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
 		}
@@ -622,30 +640,29 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelInfo^ GetDataChannelInfo(String^ label)
 		{
-			auto rtcInfo = conductor_->get()->GetDataChannelInfo(marshal_as<std::string>(label));
-			if(rtcInfo.protocol != "unknown")
+			auto rtc_info = conductor_->get()->GetDataChannelInfo(marshal_as<std::string>(label));
+			if(rtc_info.protocol != "unknown")
 			{
-				auto managedInfo = gcnew Spitfire::DataChannelInfo();
-				managedInfo->CurrentBuffer = static_cast<unsigned long>(rtcInfo.currentBuffer);
-				managedInfo->BytesSent = static_cast<unsigned long>(rtcInfo.bytesSent);
-				managedInfo->BytesReceived = static_cast<unsigned long>(rtcInfo.bytesReceived);
+				const auto managed_info = gcnew Spitfire::DataChannelInfo();
+				managed_info->CurrentBuffer = rtc_info.currentBuffer;
+				managed_info->BytesSent = rtc_info.bytesSent;
+				managed_info->BytesReceived = rtc_info.bytesReceived;
 
-				managedInfo->Reliable = rtcInfo.reliable;
-				managedInfo->Ordered = rtcInfo.ordered;
-				managedInfo->Negotiated = rtcInfo.negotiated;
+				managed_info->Reliable = rtc_info.reliable;
+				managed_info->Ordered = rtc_info.ordered;
+				managed_info->Negotiated = rtc_info.negotiated;
 
-				managedInfo->MessagesSent = rtcInfo.messagesSent;
-				managedInfo->MessagesReceived = rtcInfo.messagesReceived;
-				managedInfo->MaxRetransmits = rtcInfo.maxRetransmits;
-				managedInfo->MaxRetransmitTime = rtcInfo.maxRetransmitTime;
+				managed_info->MessagesSent = rtc_info.messagesSent;
+				managed_info->MessagesReceived = rtc_info.messagesReceived;
+				managed_info->MaxRetransmits = rtc_info.maxRetransmits;
+				managed_info->MaxRetransmitTime = rtc_info.maxRetransmitTime;
 
-				if(!rtcInfo.protocol.empty())
+				if(!rtc_info.protocol.empty())
 				{
-					managedInfo->Protocol = gcnew String(rtcInfo.protocol.c_str());
+					managed_info->Protocol = gcnew String(rtc_info.protocol.c_str());
 				}
-
-				managedInfo->State = static_cast<DataChannelState>(rtcInfo.state);
-				return managedInfo;
+				managed_info->State = static_cast<DataChannelState>(rtc_info.state);
+				return managed_info;
 			}
 			return nullptr;
 		}
@@ -656,8 +673,8 @@ namespace Spitfire
 		Spitfire::DataChannelState GetDataChannelState(String^ label)
 		{
 			auto state = conductor_->get()->GetDataChannelState(marshal_as<std::string>(label));
-			const auto managedState = static_cast<DataChannelState>(state);
-			return managedState;
+			const auto managed_state = static_cast<DataChannelState>(state);
+			return managed_state;
 		}
 		
 		/// <summary>
@@ -672,7 +689,7 @@ namespace Spitfire
 		/// Be aware that channels have a 16KB limit and you should take advantage 
 		/// Of the provided utilties to chunk messages quickly.
 		/// </summary>
-		void DataChannelSendData(String^ label, Byte* array_data, int length)
+		void DataChannelSendData(String^ label, Byte* array_data, uint32_t length)
 		{
 			conductor_->get()->DataChannelSendData(marshal_as<std::string>(label), array_data, length);
 		}

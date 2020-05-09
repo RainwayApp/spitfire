@@ -28,8 +28,6 @@ namespace Spitfire
 			void OnBufferedAmountChange(uint64_t previous_amount) override;
 
 			rtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel;
-			//gcroot<WebRtcInterop::RtcDataChannel ^> _dataChannel;
-			//rtc::scoped_refptr<webrtc::DataChannelInterface> _nativeDataChannel;
 
 			int AddRef() const
 			{

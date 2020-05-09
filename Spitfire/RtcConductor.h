@@ -10,6 +10,8 @@
 #include "api/peer_connection_interface.h"
 #include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/base/basic_packet_socket_factory.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/log_sinks.h"
 
 namespace Spitfire
 {
@@ -28,7 +30,7 @@ namespace Spitfire
 		bool reliable;
 		bool ordered;
 		bool negotiated;
-		int id;
+		int32_t id;
 
 		uint32_t messagesSent;
 		uint32_t messagesReceived;
@@ -36,15 +38,14 @@ namespace Spitfire
 		int16_t maxRetransmitTime;
 
 		std::string protocol;
-
+		
 		webrtc::DataChannelInterface::DataState state;
 	};
 
 	typedef void(__stdcall *OnErrorCallbackNative)();
 	typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
-	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdpMid, int sdpIndex, const char * sdp);
-	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frameBuffer, uint32_t w, uint32_t h);
+	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdpMid, int32_t sdpIndex, const char * sdp);
 	typedef void(__stdcall *OnMessageCallbackNative)(const char* label, const uint8_t* msg, uint32_t size, bool is_binary);
 	typedef void(__stdcall *OnIceStateChangeCallbackNative)(webrtc::PeerConnectionInterface::IceConnectionState state);
 	typedef void(__stdcall* OnIceGatheringStateCallbackNative)(webrtc::PeerConnectionInterface::IceGatheringState state);
@@ -57,13 +58,13 @@ namespace Spitfire
 		RtcConductor();
 		~RtcConductor();
 
-		bool InitializePeerConnection(int min_port, int max_port);
+		bool InitializePeerConnection(uint16_t min_port, uint16_t max_port);
 		void CreateOffer();
 		void OnOfferReply(std::string type, std::string sdp);
 		void OnOfferRequest(std::string sdp);
-		bool AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp);
+		bool AddIceCandidate(std::string sdp_mid, int32_t sdp_mlineindex, std::string sdp);
 
-		bool ProcessMessages(int delay)
+		bool ProcessMessages(int32_t delay)
 		{
 			return rtc::ThreadManager::Instance()->WrapCurrentThread()->ProcessMessages(delay);
 		}
@@ -75,7 +76,7 @@ namespace Spitfire
 		RtcDataChannelInfo GetDataChannelInfo(const std::string& label);
 		webrtc::DataChannelInterface::DataState GetDataChannelState(const std::string& label);
 		void CloseDataChannel(const std::string& label);
-		void DataChannelSendData(const std::string& label, unsigned char* data, int length);
+		void DataChannelSendData(const std::string& label, uint8_t* data, uint32_t length);
 
 		
 		OnSuccessCallbackNative onSuccess;
@@ -113,7 +114,8 @@ namespace Spitfire
 		std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
-		bool CreatePeerConnection(int minPort, int maxPort);
+		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
+		void FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer);
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;

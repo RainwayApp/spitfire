@@ -3,7 +3,7 @@
 
 void Spitfire::Observers::DataChannelObserver::OnStateChange()
 {
-	auto state = dataChannel->state();
+	const auto state = dataChannel->state();
 	if (conductor_->onDataChannelState)
 	{
 		conductor_->onDataChannelState(dataChannel->label().c_str(), state);
@@ -20,10 +20,8 @@ void Spitfire::Observers::DataChannelObserver::OnBufferedAmountChange(uint64_t p
 
 void Spitfire::Observers::DataChannelObserver::OnMessage(const webrtc::DataBuffer & buffer)
 {
-
 	if (conductor_->onMessage)
 	{
-		auto* data = buffer.data.data();
-		conductor_->onMessage(dataChannel->label().c_str(), data, static_cast<uint32_t>(buffer.size()), buffer.binary);
+		conductor_->onMessage(dataChannel->label().c_str(), buffer.data.data(), static_cast<uint32_t>(buffer.size()), buffer.binary);
 	}
 }
