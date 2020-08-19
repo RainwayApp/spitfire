@@ -35,12 +35,25 @@ class PLATFORM_EXPORT AudioDelayDSPKernel : public AudioDSPKernel {
  public:
   AudioDelayDSPKernel(double max_delay_time, float sample_rate);
 
+  // Process the delay.  Basically dispatches to either ProcessKRate or
+  // ProcessARate.
   void Process(const float* source,
                float* destination,
                uint32_t frames_to_process) override;
+
+  // Handles k-rate processing
+  void ProcessKRate(const float* source,
+                    float* destination,
+                    uint32_t frames_to_process);
+
+  // Handles a-rate processing
+  void ProcessARate(const float* source,
+                    float* destination,
+                    uint32_t frames_to_process);
+
   void Reset() override;
 
-  double MaxDelayTime() const { return max_delay_time_; }
+  float MaxDelayTime() const { return max_delay_time_; }
 
   void SetDelayFrames(double number_of_frames) {
     desired_delay_frames_ = number_of_frames;
@@ -58,9 +71,14 @@ class PLATFORM_EXPORT AudioDelayDSPKernel : public AudioDSPKernel {
   virtual void CalculateSampleAccurateValues(float* delay_times,
                                              uint32_t frames_to_process);
   virtual double DelayTime(float sample_rate);
+  virtual bool IsAudioRate();
 
   AudioFloatArray buffer_;
-  double max_delay_time_;
+
+  // Time is usually best kept as a double, but AudioParams are inherently
+  // floats, so make this a float to keep everything consistent.
+  float max_delay_time_;
+
   int write_index_;
   double desired_delay_frames_;
 

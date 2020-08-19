@@ -32,20 +32,21 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_RESOURCE_TIMING_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_RESOURCE_TIMING_H_
 
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/performance_mark_or_measure.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/worker_timing_container.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
 #include "third_party/blink/renderer/core/timing/performance_server_timing.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
 
 class ResourceLoadTiming;
-struct WebResourceTimingInfo;
 
 class CORE_EXPORT PerformanceResourceTiming
     : public PerformanceEntry,
@@ -56,16 +57,19 @@ class CORE_EXPORT PerformanceResourceTiming
  public:
   // This constructor is for PerformanceNavigationTiming.
   // Related doc: https://goo.gl/uNecAj.
-  PerformanceResourceTiming(const AtomicString& name,
-                            base::TimeTicks time_origin,
-                            bool is_secure_context,
-                            const WebVector<WebServerTimingInfo>&);
   PerformanceResourceTiming(
-      const WebResourceTimingInfo&,
+      const AtomicString& name,
+      base::TimeTicks time_origin,
+      bool is_secure_context,
+      HeapVector<Member<PerformanceServerTiming>> server_timing,
+      ExecutionContext* context);
+  PerformanceResourceTiming(
+      const mojom::blink::ResourceTimingInfo&,
       base::TimeTicks time_origin,
       const AtomicString& initiator_type,
       mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
-          worker_timing_receiver);
+          worker_timing_receiver,
+      ExecutionContext* context);
   ~PerformanceResourceTiming() override;
 
   AtomicString entryType() const override;
@@ -95,7 +99,7 @@ class CORE_EXPORT PerformanceResourceTiming
   // Implements blink::mojom::blink::WorkerTimingContainer
   void AddPerformanceEntry(
       mojom::blink::PerformanceMarkOrMeasurePtr entry) override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   void BuildJSONValue(V8ObjectBuilder&) const override;
@@ -106,9 +110,8 @@ class CORE_EXPORT PerformanceResourceTiming
   base::TimeTicks TimeOrigin() const { return time_origin_; }
 
  private:
-  static AtomicString GetNextHopProtocol(
-      const AtomicString& alpn_negotiated_protocol,
-      const AtomicString& connection_info);
+  AtomicString GetNextHopProtocol(const AtomicString& alpn_negotiated_protocol,
+                                  const AtomicString& connection_info) const;
 
   double WorkerReady() const;
 
@@ -128,10 +131,14 @@ class CORE_EXPORT PerformanceResourceTiming
   base::TimeTicks response_end_;
   mojom::RequestContextType context_type_ =
       mojom::RequestContextType::UNSPECIFIED;
+  network::mojom::RequestDestination request_destination_ =
+      network::mojom::RequestDestination::kEmpty;
   uint64_t transfer_size_ = 0;
   uint64_t encoded_body_size_ = 0;
   uint64_t decoded_body_size_ = 0;
   bool did_reuse_connection_ = false;
+  // Do not access allow_timing_details_ directly.  Instead use the
+  // AllowTimingDetails() method which is overridden by some sub-classes.
   bool allow_timing_details_ = false;
   bool allow_redirect_details_ = false;
   bool allow_negative_value_ = false;
@@ -142,7 +149,9 @@ class CORE_EXPORT PerformanceResourceTiming
   // Used for getting entries from a service worker to add to
   // PerformanceResourceTiming#workerTiming. Null when no service worker handles
   // a request for the resource.
-  mojo::Receiver<mojom::blink::WorkerTimingContainer> worker_timing_receiver_;
+  HeapMojoReceiver<mojom::blink::WorkerTimingContainer,
+                   PerformanceResourceTiming>
+      worker_timing_receiver_;
 };
 
 }  // namespace blink

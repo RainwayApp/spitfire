@@ -30,22 +30,21 @@
 
 namespace blink {
 
-class CustomScrollbar;
 class LayoutCustomScrollbarPart;
 class WebMouseEvent;
-struct PhysicalOffset;
 struct PhysicalRect;
 
 class CustomScrollbarTheme final : public ScrollbarTheme {
  public:
   ~CustomScrollbarTheme() override = default;
 
-  int ScrollbarThickness(ScrollbarControlSize control_size) override {
+  int ScrollbarThickness(
+      ScrollbarControlSize control_size = kRegularScrollbar) override {
     return GetTheme().ScrollbarThickness(control_size);
   }
 
-  WebScrollbarButtonsPlacement ButtonsPlacement() const override {
-    return GetTheme().ButtonsPlacement();
+  bool NativeThemeHasButtons() override {
+    return GetTheme().NativeThemeHasButtons();
   }
 
   void PaintScrollCorner(GraphicsContext&,
@@ -84,16 +83,16 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
 
   static void PaintIntoRect(const LayoutCustomScrollbarPart&,
                             GraphicsContext&,
-                            const PhysicalOffset& paint_offset,
-                            const PhysicalRect&,
-                            const CustomScrollbar* = nullptr);
+                            const PhysicalRect&);
 
  protected:
+  ScrollbarPart HitTest(const Scrollbar&, const IntPoint&) override;
+
   bool HasButtons(const Scrollbar&) override;
   bool HasThumb(const Scrollbar&) override;
 
-  IntRect BackButtonRect(const Scrollbar&, ScrollbarPart) override;
-  IntRect ForwardButtonRect(const Scrollbar&, ScrollbarPart) override;
+  IntRect BackButtonRect(const Scrollbar&) override;
+  IntRect ForwardButtonRect(const Scrollbar&) override;
   IntRect TrackRect(const Scrollbar&) override;
 
   void PaintTrackAndButtons(GraphicsContext&,
@@ -112,6 +111,7 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
                                           const IntRect&) override;
 
  private:
+  IntRect ButtonRect(const Scrollbar&, ScrollbarPart);
   void PaintScrollbarBackground(GraphicsContext&, const Scrollbar&);
   void PaintTrackBackground(GraphicsContext&, const Scrollbar&, const IntRect&);
   void PaintTrackPiece(GraphicsContext&,

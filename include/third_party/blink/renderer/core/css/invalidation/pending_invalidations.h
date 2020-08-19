@@ -81,7 +81,7 @@ class CORE_EXPORT PendingInvalidations {
   PendingInvalidationMap& GetPendingInvalidationMap() {
     return pending_invalidation_map_;
   }
-  void Trace(blink::Visitor* visitor) {
+  void Trace(Visitor* visitor) const {
     visitor->Trace(pending_invalidation_map_);
   }
 

@@ -20,7 +20,6 @@
 #include "api/rtc_event_log/rtc_event_log_factory_interface.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
-#include "api/transport/media/media_transport_interface.h"
 #include "api/transport/network_control.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -47,7 +46,7 @@ struct PeerConnectionFactoryComponents {
   std::unique_ptr<RtcEventLogFactoryInterface> event_log_factory;
   std::unique_ptr<FecControllerFactoryInterface> fec_controller_factory;
   std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
-  std::unique_ptr<MediaTransportFactory> media_transport_factory;
+  std::unique_ptr<NetEqFactory> neteq_factory;
 
   // Will be passed to MediaEngineInterface, that will be used in
   // PeerConnectionFactory.
@@ -74,6 +73,7 @@ struct PeerConnectionComponents {
   std::unique_ptr<webrtc::AsyncResolverFactory> async_resolver_factory;
   std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator;
   std::unique_ptr<rtc::SSLCertificateVerifier> tls_cert_verifier;
+  std::unique_ptr<IceTransportFactory> ice_transport_factory;
 };
 
 // Contains all components, that can be overridden in peer connection. Also
@@ -98,6 +98,8 @@ struct InjectableComponents {
 // unlimited amount of video streams) and rtc configuration, that will be used
 // to set up peer connection.
 struct Params {
+  // Peer name. If empty - default one will be set by the fixture.
+  absl::optional<std::string> name;
   // If |video_configs| is empty - no video should be added to the test call.
   std::vector<PeerConnectionE2EQualityTestFixture::VideoConfig> video_configs;
   // If |audio_config| is set audio stream will be configured
@@ -110,7 +112,7 @@ struct Params {
   absl::optional<std::string> aec_dump_path;
 
   PeerConnectionInterface::RTCConfiguration rtc_configuration;
-  PeerConnectionInterface::BitrateParameters bitrate_params;
+  BitrateSettings bitrate_settings;
 };
 
 }  // namespace webrtc_pc_e2e

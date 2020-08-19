@@ -60,7 +60,7 @@ class ChildNodeList final : public NodeList {
                                  Node& current_node,
                                  unsigned& current_offset) const;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   bool IsChildNodeList() const override { return true; }
@@ -70,11 +70,12 @@ class ChildNodeList final : public NodeList {
   mutable CollectionIndexCache<ChildNodeList, Node> collection_index_cache_;
 };
 
-DEFINE_TYPE_CASTS(ChildNodeList,
-                  NodeList,
-                  nodeList,
-                  nodeList->IsChildNodeList(),
-                  nodeList.IsChildNodeList());
+template <>
+struct DowncastTraits<ChildNodeList> {
+  static bool AllowFrom(const NodeList& nodeList) {
+    return nodeList.IsChildNodeList();
+  }
+};
 
 }  // namespace blink
 

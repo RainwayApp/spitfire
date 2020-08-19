@@ -111,7 +111,7 @@ class CORE_EXPORT AutoplayPolicy final
   // avoid false positives.
   void EnsureAutoplayInitiatedSet();
 
-  virtual void Trace(Visitor*);
+  virtual void Trace(Visitor*) const;
 
  private:
   friend class AutoplayUmaHelper;
@@ -130,10 +130,6 @@ class CORE_EXPORT AutoplayPolicy final
   // this with isGestureNeededForPlayback().  The latter is usually what one
   // should use, if checking to see if an action is allowed.
   bool IsLockedPendingUserGesture() const;
-
-  // Return true if and only if the settings allow autoplay of media on this
-  // frame.
-  bool IsAutoplayAllowedPerSettings() const;
 
   bool IsAutoplayingMutedInternal(bool muted) const;
   bool IsOrWillBeAutoplayingMutedInternal(bool muted) const;

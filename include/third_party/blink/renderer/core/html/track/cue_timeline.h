@@ -47,7 +47,7 @@ class CueTimeline final : public GarbageCollected<CueTimeline> {
 
   const CueList& CurrentlyActiveCues() const { return currently_active_cues_; }
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   HTMLMediaElement& MediaElement() const { return *media_element_; }
@@ -69,8 +69,8 @@ class TrackDisplayUpdateScope {
   STACK_ALLOCATED();
 
  public:
-  TrackDisplayUpdateScope(CueTimeline& cue_timeline) {
-    cue_timeline_ = &cue_timeline;
+  TrackDisplayUpdateScope(CueTimeline& cue_timeline)
+      : cue_timeline_(&cue_timeline) {
     cue_timeline_->BeginIgnoringUpdateRequests();
   }
   ~TrackDisplayUpdateScope() {
@@ -79,7 +79,7 @@ class TrackDisplayUpdateScope {
   }
 
  private:
-  Member<CueTimeline> cue_timeline_;
+  CueTimeline* cue_timeline_;
 };
 
 }  // namespace blink

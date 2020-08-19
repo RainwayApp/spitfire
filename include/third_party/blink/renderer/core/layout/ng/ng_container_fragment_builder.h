@@ -88,10 +88,6 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
 
   const ChildrenVector& Children() const { return children_; }
 
-  // Returns offset for given child. DCHECK if child not found.
-  // Warning: Do not call unless necessary.
-  LogicalOffset GetChildOffset(const LayoutObject* child) const;
-
   // Builder has non-trivial OOF-positioned methods.
   // They are intended to be used by a layout algorithm like this:
   //
@@ -114,12 +110,13 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   // NGOutOfFlowLayoutPart(container_style, builder).Run();
   //
   // See layout part for builder interaction.
-  void AddOutOfFlowChildCandidate(NGBlockNode,
-                                  const LogicalOffset& child_offset,
-                                  NGLogicalStaticPosition::InlineEdge =
-                                      NGLogicalStaticPosition::kInlineStart,
-                                  NGLogicalStaticPosition::BlockEdge =
-                                      NGLogicalStaticPosition::kBlockStart);
+  void AddOutOfFlowChildCandidate(
+      NGBlockNode,
+      const LogicalOffset& child_offset,
+      NGLogicalStaticPosition::InlineEdge =
+          NGLogicalStaticPosition::kInlineStart,
+      NGLogicalStaticPosition::BlockEdge = NGLogicalStaticPosition::kBlockStart,
+      bool needs_block_offset_adjustment = true);
 
   // This should only be used for inline-level OOF-positioned nodes.
   // |inline_container_direction| is the current text direction for determining
@@ -176,6 +173,16 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
     is_fragmentation_context_root_ = true;
   }
 
+  // See NGLayoutResult::AnnotationOverflow().
+  void SetAnnotationOverflow(LayoutUnit overflow) {
+    annotation_overflow_ = overflow;
+  }
+
+  // See NGLayoutRsult::BlockEndAnnotatioSpace().
+  void SetBlockEndAnnotationSpace(LayoutUnit space) {
+    block_end_annotation_space_ = space;
+  }
+
   const NGConstraintSpace* ConstraintSpace() const { return space_; }
 
 #if DCHECK_IS_ON()
@@ -183,8 +190,9 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
 #endif
 
  protected:
-  friend class NGPhysicalContainerFragment;
+  friend class NGInlineLayoutStateStack;
   friend class NGLayoutResult;
+  friend class NGPhysicalContainerFragment;
 
   NGContainerFragmentBuilder(NGLayoutInputNode node,
                              scoped_refptr<const ComputedStyle> style,
@@ -227,6 +235,11 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   scoped_refptr<const NGEarlyBreak> early_break_;
   NGBreakAppeal break_appeal_ = kBreakAppealLastResort;
 
+  // See NGLayoutResult::AnnotationOverflow().
+  LayoutUnit annotation_overflow_;
+  // See NGLayoutResult::BlockEndAnotationSpace().
+  LayoutUnit block_end_annotation_space_;
+
   NGAdjoiningObjectTypes adjoining_object_types_ = kAdjoiningNone;
   bool has_adjoining_object_descendants_ = false;
 
@@ -240,6 +253,8 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   bool has_block_fragmentation_ = false;
   bool is_fragmentation_context_root_ = false;
   bool may_have_descendant_above_block_start_ = false;
+
+  bool has_oof_candidate_that_needs_block_offset_adjustment_ = false;
 };
 
 }  // namespace blink

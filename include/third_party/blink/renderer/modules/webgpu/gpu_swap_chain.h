@@ -16,25 +16,26 @@ namespace blink {
 
 class GPUCanvasContext;
 class GPUDevice;
-class GPUSwapChainDescriptor;
 class GPUTexture;
 
 class GPUSwapChain : public ScriptWrappable,
-                     public DawnObjectBase,
+                     public DeviceTreeObject,
                      public WebGPUSwapBufferProvider::Client {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static GPUSwapChain* Create(GPUCanvasContext* context,
-                              const GPUSwapChainDescriptor* descriptor);
-  explicit GPUSwapChain(GPUCanvasContext* context,
-                        const GPUSwapChainDescriptor* descriptor);
+  explicit GPUSwapChain(GPUCanvasContext*,
+                        GPUDevice*,
+                        WGPUTextureUsage,
+                        WGPUTextureFormat,
+                        SkFilterQuality);
   ~GPUSwapChain() override;
 
-  void Trace(blink::Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
   void Neuter();
   cc::Layer* CcLayer();
+  void SetFilterQuality(SkFilterQuality);
 
   // gpu_swap_chain.idl
   GPUTexture* getCurrentTexture();
@@ -50,6 +51,7 @@ class GPUSwapChain : public ScriptWrappable,
   Member<GPUDevice> device_;
   Member<GPUCanvasContext> context_;
   WGPUTextureUsage usage_;
+  WGPUTextureFormat format_;
 
   Member<GPUTexture> texture_;
 };

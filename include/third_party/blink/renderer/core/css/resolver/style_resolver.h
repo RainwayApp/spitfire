@@ -87,7 +87,9 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
       const ComputedStyle* parent_style,
       const ComputedStyle* layout_parent_style);
 
-  scoped_refptr<const ComputedStyle> StyleForPage(int page_index);
+  scoped_refptr<const ComputedStyle> StyleForPage(
+      int page_index,
+      const AtomicString& page_name);
   scoped_refptr<const ComputedStyle> StyleForText(Text*);
 
   static scoped_refptr<ComputedStyle> StyleForViewport(Document&);
@@ -132,22 +134,33 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
 
   static bool HasAuthorBackground(const StyleResolverState&);
 
-  void Trace(blink::Visitor*);
+  scoped_refptr<ComputedStyle> StyleForInterpolations(
+      Element& target,
+      ActiveInterpolationsMap& animations);
+
+  void Trace(Visitor*) const;
 
  private:
+  void InitStyleAndApplyInheritance(Element& element,
+                                    StyleResolverState& state);
+  void ApplyBaseComputedStyle(Element* element,
+                              StyleResolverState& state,
+                              StyleCascade* cascade,
+                              MatchResult& match_result,
+                              RuleMatchingBehavior matching_behavior,
+                              bool can_cache_animation_base_computed_style);
+
   // FIXME: This should probably go away, folded into FontBuilder.
   void UpdateFont(StyleResolverState&);
 
   void AddMatchedRulesToTracker(const ElementRuleCollector&);
-
-  void LoadPendingResources(StyleResolverState&);
 
   void CollectPseudoRulesForElement(const Element&,
                                     ElementRuleCollector&,
                                     PseudoId,
                                     unsigned rules_to_include);
   void MatchRuleSet(ElementRuleCollector&, RuleSet*);
-  void MatchUARules(ElementRuleCollector&);
+  void MatchUARules(const Element&, ElementRuleCollector&);
   void MatchUserRules(ElementRuleCollector&);
   // This matches `::part` selectors. It looks in ancestor scopes as far as
   // part mapping requires.
@@ -170,16 +183,16 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
    public:
     bool is_inherited_cache_hit;
     bool is_non_inherited_cache_hit;
-    unsigned cache_hash;
-    Member<const CachedMatchedProperties> cached_matched_properties;
+    MatchedPropertiesCache::Key key;
+    const CachedMatchedProperties* cached_matched_properties;
 
     CacheSuccess(bool is_inherited_cache_hit,
                  bool is_non_inherited_cache_hit,
-                 unsigned cache_hash,
+                 MatchedPropertiesCache::Key key,
                  const CachedMatchedProperties* cached_matched_properties)
         : is_inherited_cache_hit(is_inherited_cache_hit),
           is_non_inherited_cache_hit(is_non_inherited_cache_hit),
-          cache_hash(cache_hash),
+          key(key),
           cached_matched_properties(cached_matched_properties) {}
 
     bool IsFullCacheHit() const {
@@ -192,6 +205,9 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
       is_inherited_cache_hit = false;
       is_non_inherited_cache_hit = false;
     }
+    bool EffectiveZoomChanged(const ComputedStyle&) const;
+    bool FontChanged(const ComputedStyle&) const;
+    bool EffectiveZoomOrFontChanged(const ComputedStyle&) const;
   };
 
   // These flags indicate whether an apply pass for a given CSSPropertyPriority
@@ -221,6 +237,10 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
   };
 
   CacheSuccess ApplyMatchedCache(StyleResolverState&, const MatchResult&);
+  void MaybeAddToMatchedPropertiesCache(StyleResolverState&,
+                                        const CacheSuccess&,
+                                        const MatchResult&);
+
   void ApplyCustomProperties(StyleResolverState&,
                              const MatchResult&,
                              const CacheSuccess&,
@@ -252,23 +272,12 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
                            NeedsApplyPass& needs_apply_pass);
 
   void CascadeAndApplyMatchedProperties(StyleResolverState&,
-                                        const MatchResult&);
-  void CascadeMatchResult(StyleResolverState&,
-                          StyleCascade&,
-                          const MatchResult&);
-  void CascadeRange(StyleResolverState&,
-                    StyleCascade&,
-                    const MatchedPropertiesRange&,
-                    StyleCascade::Origin);
-  void CascadeTransitions(StyleResolverState&, StyleCascade&);
-  void CascadeAnimations(StyleResolverState&, StyleCascade&);
-  void CascadeInterpolations(StyleCascade&,
-                             const ActiveInterpolationsMap&,
-                             StyleCascade::Origin);
+                                        StyleCascade& cascade);
 
   void CalculateAnimationUpdate(StyleResolverState&);
 
-  bool ApplyAnimatedStandardProperties(StyleResolverState&);
+  bool ApplyAnimatedStandardProperties(StyleResolverState&,
+                                       StyleCascade* cascade = nullptr);
 
   void ApplyCallbackSelectors(StyleResolverState&);
 
@@ -311,6 +320,7 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
   bool WasViewportResized() const { return was_viewport_resized_; }
 
   bool IsForcedColorsModeEnabled() const;
+  bool IsForcedColorsModeEnabled(const StyleResolverState&) const;
 
   MatchedPropertiesCache matched_properties_cache_;
   Member<Document> document_;

@@ -13,8 +13,8 @@
 namespace blink {
 namespace scheduler {
 
-// WakeUpBudgetPool represents a collection of task queues which share a limit
-// on total cpu time.
+// WakeUpBudgetPool represents a collection of task queues which run for a
+// limited time at regular intervals.
 class PLATFORM_EXPORT WakeUpBudgetPool : public BudgetPool {
  public:
   WakeUpBudgetPool(const char* name,
@@ -22,12 +22,14 @@ class PLATFORM_EXPORT WakeUpBudgetPool : public BudgetPool {
                    base::TimeTicks now);
   ~WakeUpBudgetPool() override;
 
-  // Note: this does not have an immediate effect and should be called only
-  // during initialization of a WakeUpBudgetPool.
-  void SetWakeUpRate(double wake_ups_per_second);
+  // Sets the interval between wake ups. This can be invoked at any time. If a
+  // next wake up is already scheduled, it is rescheduled only if the new
+  // |interval| is smaller than the old interval. Wake ups after that will be
+  // scheduled according to |interval|.
+  void SetWakeUpInterval(base::TimeTicks now, base::TimeDelta interval);
 
-  // Note: this does not have an immediate effect and should be called only
-  // during initialization of a WakeUpBudgetPool.
+  // Sets the duration of wake ups. This does not have an immediate effect and
+  // should be called only during initialization of a WakeUpBudgetPool.
   void SetWakeUpDuration(base::TimeDelta duration);
 
   // BudgetPool implementation:
@@ -35,9 +37,8 @@ class PLATFORM_EXPORT WakeUpBudgetPool : public BudgetPool {
                          base::TimeTicks start_time,
                          base::TimeTicks end_time) final;
   bool CanRunTasksAt(base::TimeTicks moment, bool is_wake_up) const final;
-  base::Optional<base::TimeTicks> GetTimeTasksCanRunUntil(
-      base::TimeTicks now,
-      bool is_wake_up) const final;
+  base::TimeTicks GetTimeTasksCanRunUntil(base::TimeTicks now,
+                                          bool is_wake_up) const final;
   base::TimeTicks GetNextAllowedRunTime(
       base::TimeTicks desired_run_time) const final;
   void OnQueueNextWakeUpChanged(base::sequence_manager::TaskQueue* queue,

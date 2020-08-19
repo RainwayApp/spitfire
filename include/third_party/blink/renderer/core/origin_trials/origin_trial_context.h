@@ -17,6 +17,7 @@
 namespace blink {
 
 class ExecutionContext;
+class ScriptState;
 
 // The Origin Trials Framework provides limited access to experimental features,
 // on a per-origin basis (origin trials). This class provides the implementation
@@ -72,6 +73,11 @@ class CORE_EXPORT OriginTrialContext final
       const Vector<OriginTrialFeature>*);
 
   void AddToken(const String& token);
+  // Add Token injected from external script. The token may be a third-party
+  // token, which will be validated against the given origin of the injecting
+  // script.
+  void AddTokenFromExternalScript(const String& token,
+                                  const SecurityOrigin* origin);
   void AddTokens(const Vector<String>& tokens);
   void AddTokens(const SecurityOrigin* origin,
                  bool is_secure,
@@ -84,9 +90,19 @@ class CORE_EXPORT OriginTrialContext final
   // and immediately adds required bindings to already initialized JS contexts.
   void AddFeature(OriginTrialFeature feature);
 
+  // Forces given trials to be enabled in this context and immediately adds
+  // required bindings to already initialized JS contexts.
+  void AddForceEnabledTrials(const Vector<String>& trial_names);
+
   // Returns true if the feature should be considered enabled for the current
   // execution context.
   bool IsFeatureEnabled(OriginTrialFeature feature) const;
+
+  // Gets the latest expiry time of all valid tokens that enable |feature|. If
+  // there are no valid tokens enabling the feature, this will return the null
+  // time (base::Time()). Note: This will only find expiry times for features
+  // backed by a token, so will not work for features enabled via |AddFeature|.
+  base::Time GetFeatureExpiry(OriginTrialFeature feature);
 
   std::unique_ptr<Vector<OriginTrialFeature>> GetEnabledNavigationFeatures()
       const;
@@ -109,15 +125,45 @@ class CORE_EXPORT OriginTrialContext final
   // enabled.
   void InitializePendingFeatures();
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
+  // Handle token from document origin or third party origins, initialize
+  // features if the token is valid.
+  void AddTokenInternal(const String& token,
+                        const SecurityOrigin* origin,
+                        bool is_origin_secure,
+                        const SecurityOrigin* script_origin,
+                        bool is_script_origin_secure);
+
+  // If this returns false, the trial cannot be enabled (e.g. due to it is
+  // invalid in the browser's present configuration).
+  bool CanEnableTrialFromName(const StringView& trial_name);
+
+  // Enable features by trial name. Returns true or false to indicate whether
+  // some features are enabled as the result.
+  bool EnableTrialFromName(const String& trial_name, base::Time expiry_time);
+
   // Validate the trial token. If valid, the trial named in the token is
   // added to the list of enabled trials. Returns true or false to indicate if
   // the token is valid.
   bool EnableTrialFromToken(const SecurityOrigin* origin,
                             bool is_secure,
                             const String& token);
+  // Validate the trial token injected by external script from script_origin.
+  // If is_third_party flag is set on the token, script_origin will be used for
+  // validation. Otherwise it's the same as above.
+  bool EnableTrialFromToken(const SecurityOrigin* origin,
+                            bool is_origin_secure,
+                            const SecurityOrigin* script_origin,
+                            bool is_script_origin_secure,
+                            const String& token);
+
+  // Validate the token result returned from token validator.
+  OriginTrialTokenStatus ValidateTokenResult(const String& trial_name,
+                                             bool is_secure,
+                                             bool is_secure_script_origin,
+                                             bool is_third_party);
 
   // Installs JavaScript bindings on the relevant objects for the specified
   // OriginTrialFeature.
@@ -130,8 +176,11 @@ class CORE_EXPORT OriginTrialContext final
   HashSet<OriginTrialFeature> enabled_features_;
   HashSet<OriginTrialFeature> installed_features_;
   HashSet<OriginTrialFeature> navigation_activated_features_;
+  WTF::HashMap<OriginTrialFeature, base::Time> feature_expiry_times_;
   std::unique_ptr<TrialTokenValidator> trial_token_validator_;
   Member<ExecutionContext> context_;
+
+  friend class OriginTrialContextTest;
 };
 
 }  // namespace blink

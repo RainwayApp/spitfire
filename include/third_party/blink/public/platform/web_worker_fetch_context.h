@@ -10,9 +10,11 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/unguessable_token.h"
+#include "services/network/public/mojom/url_loader_factory.mojom-shared.h"
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker_mode.mojom-shared.h"
+#include "third_party/blink/public/mojom/timing/worker_timing_container.mojom-shared.h"
 #include "third_party/blink/public/platform/code_cache_loader.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/web_document_subresource_filter.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -23,6 +25,10 @@
 namespace base {
 class WaitableEvent;
 }  // namespace base
+
+namespace net {
+class SiteForCookies;
+}  // namespace net
 
 namespace blink {
 
@@ -71,7 +77,8 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
   // Returns a new WebURLLoaderFactory that wraps the given
   // network::mojom::URLLoaderFactory.
   virtual std::unique_ptr<WebURLLoaderFactory> WrapURLLoaderFactory(
-      mojo::ScopedMessagePipeHandle url_loader_factory_handle) = 0;
+      CrossVariantMojoRemote<network::mojom::URLLoaderFactoryInterfaceBase>
+          url_loader_factory) = 0;
 
   // Returns a CodeCacheLoader that fetches data from code caches. If
   // a nullptr is returned then data would not be fetched from the code
@@ -99,11 +106,11 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
   virtual void SetIsOnSubframe(bool) {}
   virtual bool IsOnSubframe() const { return false; }
 
-  // The URL that should be consulted for the third-party cookie blocking
-  // policy, as defined in Section 2.1.1 and 2.1.2 of
+  // Will be consulted for the third-party cookie blocking policy, as defined in
+  // Section 2.1.1 and 2.1.2 of
   // https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site.
   // See content::URLRequest::site_for_cookies() for details.
-  virtual WebURL SiteForCookies() const = 0;
+  virtual net::SiteForCookies SiteForCookies() const = 0;
 
   // The top-frame-origin for the worker. For a dedicated worker this is the
   // top-frame origin of the page that created the worker. For a shared worker
@@ -145,11 +152,15 @@ class WebWorkerFetchContext : public base::RefCounted<WebWorkerFetchContext> {
   // Returns the current list of user prefered languages.
   virtual blink::WebString GetAcceptLanguages() const = 0;
 
-  // Returns mojo::PendingReceiver<blink::mojom::blink::WorkerTimingContainer>
-  // for the blink::ResourceResponse with the given |request_id|. Null if the
+  // Returns the blink::mojom::WorkerTimingContainer receiver for the
+  // blink::ResourceResponse with the given |request_id|. Null if the
   // request has not been intercepted by a service worker.
-  virtual mojo::ScopedMessagePipeHandle TakePendingWorkerTimingReceiver(
-      int request_id) = 0;
+  virtual CrossVariantMojoReceiver<mojom::WorkerTimingContainerInterfaceBase>
+  TakePendingWorkerTimingReceiver(int request_id) = 0;
+
+  // This flag is set to disallow all network accesses in the context. Used for
+  // offline capability detection in service workers.
+  virtual void SetIsOfflineMode(bool is_offline_mode) = 0;
 };
 
 }  // namespace blink

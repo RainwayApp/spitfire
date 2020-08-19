@@ -35,6 +35,9 @@ enum LibraryProcessType {
   PROCESS_WEBLAYER_CHILD = 6,
 };
 
+// Returns the library process type this library was loaded for.
+BASE_EXPORT LibraryProcessType GetLibraryProcessType();
+
 // Whether fewer code should be prefetched, and no-readahead should be set.
 // Returns true on low-end devices, where this speeds up startup, and false
 // elsewhere, where it slows it down. See
@@ -45,6 +48,11 @@ typedef bool NativeInitializationHook(LibraryProcessType library_process_type);
 
 BASE_EXPORT void SetNativeInitializationHook(
     NativeInitializationHook native_initialization_hook);
+
+typedef void NonMainDexJniRegistrationHook();
+
+BASE_EXPORT void SetNonMainDexJniRegistrationHook(
+    NonMainDexJniRegistrationHook jni_registration_hook);
 
 // Record any pending renderer histogram value as histograms.  Pending values
 // are set by

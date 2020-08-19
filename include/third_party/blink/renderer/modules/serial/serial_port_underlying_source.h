@@ -23,12 +23,12 @@ class SerialPortUnderlyingSource : public UnderlyingSourceBase {
   // UnderlyingSourceBase
   ScriptPromise pull(ScriptState*) override;
   ScriptPromise Cancel(ScriptState*, ScriptValue reason) override;
-  void ContextDestroyed(ExecutionContext*) override;
+  void ContextDestroyed() override;
 
   void SignalErrorImmediately(DOMException*);
   void SignalErrorOnClose(DOMException*);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // Reads data from |data_pipe_|. Returns true if data was enqueued to

@@ -17,6 +17,7 @@
 namespace blink {
 
 class CharacterData;
+class ComputedStyle;
 class Document;
 class Element;
 class InspectedFrames;
@@ -26,16 +27,9 @@ class PaintLayer;
 class CORE_EXPORT InspectorDOMSnapshotAgent final
     : public InspectorBaseAgent<protocol::DOMSnapshot::Metainfo> {
  public:
-  static InspectorDOMSnapshotAgent* Create(
-      InspectedFrames* inspected_frames,
-      InspectorDOMDebuggerAgent* dom_debugger_agent) {
-    return MakeGarbageCollected<InspectorDOMSnapshotAgent>(inspected_frames,
-                                                           dom_debugger_agent);
-  }
-
   InspectorDOMSnapshotAgent(InspectedFrames*, InspectorDOMDebuggerAgent*);
   ~InspectorDOMSnapshotAgent() override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   void Restore() override;
 
@@ -64,14 +58,6 @@ class CORE_EXPORT InspectorDOMSnapshotAgent final
   void CharacterDataModified(CharacterData*);
   void DidInsertDOMNode(Node*);
 
-  // Helpers for traversal.
-  static bool HasChildren(const Node& node,
-                          bool include_user_agent_shadow_tree);
-  static Node* FirstChild(const Node& node,
-                          bool include_user_agent_shadow_tree);
-  static Node* NextSibling(const Node& node,
-                           bool include_user_agent_shadow_tree);
-
   // Helpers for rects
   static PhysicalRect RectInDocument(const LayoutObject* layout_object);
   static PhysicalRect TextFragmentRectInDocument(
@@ -95,19 +81,18 @@ class CORE_EXPORT InspectorDOMSnapshotAgent final
                const String& value);
   void SetRare(protocol::DOMSnapshot::RareBooleanData* data, int index);
   void VisitDocument(Document*);
-  int VisitNode(Node*, int parent_index);
+
+  void VisitNode(Node*, int parent_index);
   void VisitContainerChildren(Node* container, int parent_index);
   void VisitPseudoElements(Element* parent, int parent_index);
   std::unique_ptr<protocol::Array<int>> BuildArrayForElementAttributes(Node*);
   int BuildLayoutTreeNode(LayoutObject*, Node*, int node_index);
   std::unique_ptr<protocol::Array<int>> BuildStylesForNode(Node*);
 
-  void GetOriginUrl(String*, const Node*);
-
   static void TraversePaintLayerTree(Document*, PaintOrderMap* paint_order_map);
   static void VisitPaintLayer(PaintLayer*, PaintOrderMap* paint_order_map);
 
-  using CSSPropertyFilter = Vector<std::pair<String, CSSPropertyID>>;
+  using CSSPropertyFilter = Vector<const CSSProperty*>;
   using OriginUrlMap = WTF::HashMap<DOMNodeId, String>;
 
   // State of current snapshot.
@@ -119,6 +104,10 @@ class CORE_EXPORT InspectorDOMSnapshotAgent final
 
   std::unique_ptr<protocol::Array<String>> strings_;
   WTF::HashMap<String, int> string_table_;
+
+  HeapHashMap<Member<const CSSValue>, int> css_value_cache_;
+  HashMap<scoped_refptr<const ComputedStyle>, protocol::Array<int>*>
+      style_cache_;
 
   std::unique_ptr<protocol::Array<protocol::DOMSnapshot::DocumentSnapshot>>
       documents_;
@@ -136,6 +125,7 @@ class CORE_EXPORT InspectorDOMSnapshotAgent final
   Member<InspectedFrames> inspected_frames_;
   Member<InspectorDOMDebuggerAgent> dom_debugger_agent_;
   InspectorAgentState::Boolean enabled_;
+
   DISALLOW_COPY_AND_ASSIGN(InspectorDOMSnapshotAgent);
 };
 

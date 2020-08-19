@@ -73,6 +73,7 @@
 #include <string>
 #include <vector>
 
+#include "api/adaptation/resource.h"
 #include "api/async_resolver_factory.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -102,7 +103,6 @@
 #include "api/task_queue/task_queue_factory.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/enums.h"
-#include "api/transport/media/media_transport_interface.h"
 #include "api/transport/network_control.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/turn_customizer.h"
@@ -570,12 +570,6 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // binding requests to keep NAT bindings open.
     absl::optional<int> stun_candidate_keepalive_interval;
 
-    // ICE Periodic Regathering
-    // If set, WebRTC will periodically create and propose candidates without
-    // starting a new ICE generation. The regathering happens continuously with
-    // interval specified in milliseconds by the uniform distribution [a, b].
-    absl::optional<rtc::IntervalRange> ice_regather_interval_range;
-
     // Optional TurnCustomizer.
     // With this class one can modify outgoing TURN messages.
     // The object passed in must remain valid until PeerConnection::Close() is
@@ -618,34 +612,6 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // WARNING: This would cause RTP/RTCP packets decryption failure if not used
     // correctly. This flag will be deprecated soon. Do not rely on it.
     bool active_reset_srtp_params = false;
-
-    // DEPRECATED.  Do not use.  This option is ignored by peer connection.
-    // TODO(webrtc:9719):  Delete this option.
-    bool use_media_transport = false;
-
-    // DEPRECATED.  Do not use.  This option is ignored by peer connection.
-    // TODO(webrtc:9719):  Delete this option.
-    bool use_media_transport_for_data_channels = false;
-
-    // If MediaTransportFactory is provided in PeerConnectionFactory, this flag
-    // informs PeerConnection that it should use the DatagramTransportInterface
-    // for packets instead DTLS. It's invalid to set it to |true| if the
-    // MediaTransportFactory wasn't provided.
-    absl::optional<bool> use_datagram_transport;
-
-    // If MediaTransportFactory is provided in PeerConnectionFactory, this flag
-    // informs PeerConnection that it should use the DatagramTransport's
-    // implementation of DataChannelTransportInterface for data channels instead
-    // of SCTP-DTLS.
-    absl::optional<bool> use_datagram_transport_for_data_channels;
-
-    // If true, this PeerConnection will only use datagram transport for data
-    // channels when receiving an incoming offer that includes datagram
-    // transport parameters.  It will not request use of a datagram transport
-    // when it creates the initial, outgoing offer.
-    // This setting only applies when |use_datagram_transport_for_data_channels|
-    // is true.
-    absl::optional<bool> use_datagram_transport_for_data_channels_receive_only;
 
     // Defines advanced optional cryptographic settings related to SRTP and
     // frame encryption for native WebRTC. Setting this will overwrite any
@@ -1115,6 +1081,21 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   virtual IceGatheringState ice_gathering_state() = 0;
 
+  // Returns the current state of canTrickleIceCandidates per
+  // https://w3c.github.io/webrtc-pc/#attributes-1
+  virtual absl::optional<bool> can_trickle_ice_candidates() {
+    // TODO(crbug.com/708484): Remove default implementation.
+    return absl::nullopt;
+  }
+
+  // When a resource is overused, the PeerConnection will try to reduce the load
+  // on the sysem, for example by reducing the resolution or frame rate of
+  // encoded streams. The Resource API allows injecting platform-specific usage
+  // measurements. The conditions to trigger kOveruse or kUnderuse are up to the
+  // implementation.
+  // TODO(hbos): Make pure virtual when implemented by downstream projects.
+  virtual void AddAdaptationResource(rtc::scoped_refptr<Resource> resource) {}
+
   // Start RtcEventLog using an existing output-sink. Takes ownership of
   // |output| and passes it on to Call, which will take the ownership. If the
   // operation fails the output will be closed and deallocated. The event log
@@ -1329,7 +1310,6 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
   std::unique_ptr<NetworkStatePredictorFactoryInterface>
       network_state_predictor_factory;
   std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
-  std::unique_ptr<MediaTransportFactory> media_transport_factory;
   std::unique_ptr<NetEqFactory> neteq_factory;
   std::unique_ptr<WebRtcKeyValueConfig> trials;
 };

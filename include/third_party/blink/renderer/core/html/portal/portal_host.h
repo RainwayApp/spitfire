@@ -9,12 +9,11 @@
 #include "third_party/blink/public/mojom/portal/portal.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
-#include "third_party/blink/renderer/core/messaging/blink_transferable_message.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
-class Document;
+struct BlinkTransferableMessage;
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptValue;
@@ -29,7 +28,7 @@ class CORE_EXPORT PortalHost : public EventTargetWithInlineData,
  public:
   explicit PortalHost(LocalDOMWindow& window);
 
-  void Trace(Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
   static const char kSupplementName[];
   static PortalHost& From(LocalDOMWindow& window);
@@ -38,8 +37,6 @@ class CORE_EXPORT PortalHost : public EventTargetWithInlineData,
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override;
   PortalHost* ToPortalHost() override;
-
-  Document* GetDocument() const;
 
   // Called immediately before dispatching the onactivate event.
   void OnPortalActivated();

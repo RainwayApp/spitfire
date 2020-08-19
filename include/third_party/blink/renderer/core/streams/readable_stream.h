@@ -49,7 +49,7 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
     bool PreventCancel() const { return prevent_cancel_; }
     AbortSignal* Signal() const { return signal_; }
 
-    void Trace(Visitor*);
+    void Trace(Visitor*) const;
 
    private:
     bool GetBoolean(ScriptState* script_state,
@@ -102,7 +102,7 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
   ~ReadableStream() override;
 
   // https://streams.spec.whatwg.org/#rs-constructor
-  bool locked(ScriptState*, ExceptionState&) const;
+  bool locked() const;
 
   ScriptPromise cancel(ScriptState*, ExceptionState&);
 
@@ -143,25 +143,15 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
            ReadableStream** branch2,
            ExceptionState&);
 
-  base::Optional<bool> IsLocked(ScriptState*, ExceptionState&) const {
-    return IsLocked(this);
-  }
+  bool IsLocked() const { return IsLocked(this); }
 
-  base::Optional<bool> IsDisturbed(ScriptState*, ExceptionState&) const {
-    return IsDisturbed(this);
-  }
+  bool IsDisturbed() const { return IsDisturbed(this); }
 
-  base::Optional<bool> IsReadable(ScriptState*, ExceptionState&) const {
-    return IsReadable(this);
-  }
+  bool IsReadable() const { return IsReadable(this); }
 
-  base::Optional<bool> IsClosed(ScriptState*, ExceptionState&) const {
-    return IsClosed(this);
-  }
+  bool IsClosed() const { return IsClosed(this); }
 
-  base::Optional<bool> IsErrored(ScriptState*, ExceptionState&) const {
-    return IsErrored(this);
-  }
+  bool IsErrored() const { return IsErrored(this); }
 
   void LockAndDisturb(ScriptState*, ExceptionState&);
 
@@ -177,8 +167,6 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
   // specification language.
   ReadableStreamDefaultReader* GetReaderNotForAuthorCode(ScriptState*,
                                                          ExceptionState&);
-
-  bool IsBroken() const { return false; }
 
   //
   // Readable stream abstract operations
@@ -220,7 +208,7 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
 
   v8::Local<v8::Value> GetStoredError(v8::Isolate*) const;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   friend class ReadableStreamDefaultController;
@@ -284,29 +272,6 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
   static void GetReaderValidateOptions(ScriptState*,
                                        ScriptValue options,
                                        ExceptionState&);
-
-  // Verifies that |destination_value| is a WritableStream and that both it and
-  // |source| are unlocked. Returns the WritableStream that was wrapped by
-  // |destination_value|.
-  static WritableStream* PipeToCheckSourceAndDestination(
-      ScriptState*,
-      ReadableStream* source,
-      ScriptValue destination_value,
-      ExceptionState&);
-
-  // Extracts the "readable" and "writable" streams from the |transform_stream|
-  // dictionary, validates them, and returns them via the |readable_stream| and
-  // |writable_stream| out parameters. The types of |readable_stream| and
-  // |writable_stream| are asymmetric because |readable_stream| is returned
-  // directly to JavaScript and so there is no point in converting it to an
-  // internal type.
-  static void PipeThroughExtractReadableWritable(
-      ScriptState*,
-      const ReadableStream* stream,
-      ScriptValue transform_stream,
-      ScriptValue* readable_stream,
-      WritableStream** writable_stream,
-      ExceptionState&);
 
   // Calls Tee() on |readable|, converts the two branches to a JavaScript array
   // and returns them.

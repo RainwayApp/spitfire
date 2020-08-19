@@ -30,7 +30,7 @@ class MODULES_EXPORT MediaKeysController final
 
   MediaKeysController();
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     Supplement<Page>::Trace(visitor);
   }
 };

@@ -39,15 +39,18 @@ class MockFetchContext : public FetchContext {
       const ResourceRequest&,
       const KURL&,
       const ResourceLoaderOptions&,
-      SecurityViolationReportingPolicy,
-      ResourceRequest::RedirectStatus redirect_status) const override {
+      ReportingDisposition,
+      const base::Optional<ResourceRequest::RedirectInfo>& redirect_info)
+      const override {
     return base::nullopt;
   }
   base::Optional<ResourceRequestBlockedReason> CheckCSPForRequest(
       mojom::RequestContextType,
+      network::mojom::RequestDestination request_destination,
       const KURL& url,
       const ResourceLoaderOptions& options,
-      SecurityViolationReportingPolicy reporting_policy,
+      ReportingDisposition reporting_disposition,
+      const KURL& url_before_redirects,
       ResourceRequest::RedirectStatus redirect_status) const override {
     return base::nullopt;
   }

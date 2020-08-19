@@ -54,12 +54,14 @@ class MODULES_EXPORT MediaStreamTrack
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static MediaStreamTrack* Create(ExecutionContext*, MediaStreamComponent*);
-
   MediaStreamTrack(ExecutionContext*, MediaStreamComponent*);
   MediaStreamTrack(ExecutionContext*,
                    MediaStreamComponent*,
-                   MediaStreamSource::ReadyState);
+                   bool pan_tilt_zoom_allowed);
+  MediaStreamTrack(ExecutionContext*,
+                   MediaStreamComponent*,
+                   MediaStreamSource::ReadyState,
+                   bool pan_tilt_zoom_allowed);
   ~MediaStreamTrack() override;
 
   String kind() const;
@@ -81,7 +83,7 @@ class MODULES_EXPORT MediaStreamTrack
 
   // This function is called when constrains have been successfully applied.
   // Called from UserMediaRequest when it succeeds. It is not IDL-exposed.
-  void SetConstraints(const WebMediaConstraints&);
+  void SetConstraints(const MediaConstraints&);
 
   MediaTrackCapabilities* getCapabilities() const;
   MediaTrackConstraints* getConstraints() const;
@@ -108,7 +110,9 @@ class MODULES_EXPORT MediaStreamTrack
   std::unique_ptr<AudioSourceProvider> CreateWebAudioSource(
       int context_sample_rate);
 
-  void Trace(blink::Visitor*) override;
+  ImageCapture* GetImageCapture() { return image_capture_; }
+
+  void Trace(Visitor*) const override;
 
  private:
   friend class CanvasCaptureMediaStreamTrack;
@@ -119,6 +123,8 @@ class MODULES_EXPORT MediaStreamTrack
   void PropagateTrackEnded();
   void applyConstraintsImageCapture(ScriptPromiseResolver*,
                                     const MediaTrackConstraints*);
+
+  std::string GetTrackLogString() const;
 
   MediaStreamSource::ReadyState ready_state_;
   HeapHashSet<Member<MediaStream>> registered_media_streams_;

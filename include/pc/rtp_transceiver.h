@@ -64,11 +64,14 @@ class RtpTransceiver final
   // Construct a Unified Plan-style RtpTransceiver with the given sender and
   // receiver. The media type will be derived from the media types of the sender
   // and receiver. The sender and receiver should have the same media type.
+  // |HeaderExtensionsToOffer| is used for initializing the return value of
+  // HeaderExtensionsToOffer().
   RtpTransceiver(
       rtc::scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> sender,
       rtc::scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>
           receiver,
-      cricket::ChannelManager* channel_manager);
+      cricket::ChannelManager* channel_manager,
+      std::vector<RtpHeaderExtensionCapability> HeaderExtensionsToOffer);
   ~RtpTransceiver() override;
 
   // Returns the Voice/VideoChannel set for this transceiver. May be null if
@@ -190,6 +193,11 @@ class RtpTransceiver final
   std::vector<RtpCodecCapability> codec_preferences() const override {
     return codec_preferences_;
   }
+  std::vector<RtpHeaderExtensionCapability> HeaderExtensionsToOffer()
+      const override;
+  RTCError SetOfferedRtpHeaderExtensions(
+      rtc::ArrayView<const RtpHeaderExtensionCapability>
+          header_extensions_to_offer) override;
 
  private:
   void OnFirstPacketReceived(cricket::ChannelInterface* channel);
@@ -215,6 +223,7 @@ class RtpTransceiver final
   cricket::ChannelInterface* channel_ = nullptr;
   cricket::ChannelManager* channel_manager_ = nullptr;
   std::vector<RtpCodecCapability> codec_preferences_;
+  std::vector<RtpHeaderExtensionCapability> header_extensions_to_offer_;
 };
 
 BEGIN_SIGNALING_PROXY_MAP(RtpTransceiver)
@@ -233,6 +242,11 @@ PROXY_METHOD1(webrtc::RTCError,
               SetCodecPreferences,
               rtc::ArrayView<RtpCodecCapability>)
 PROXY_CONSTMETHOD0(std::vector<RtpCodecCapability>, codec_preferences)
+PROXY_CONSTMETHOD0(std::vector<RtpHeaderExtensionCapability>,
+                   HeaderExtensionsToOffer)
+PROXY_METHOD1(webrtc::RTCError,
+              SetOfferedRtpHeaderExtensions,
+              rtc::ArrayView<const RtpHeaderExtensionCapability>)
 END_PROXY_MAP()
 
 }  // namespace webrtc

@@ -16,6 +16,7 @@
 #define WEBRTC_USE_EPOLL 1
 #endif
 
+#include <array>
 #include <memory>
 #include <set>
 #include <vector>
@@ -24,6 +25,7 @@
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/thread_annotations.h"
 
 #if defined(WEBRTC_POSIX)
 typedef int SOCKET;
@@ -41,9 +43,6 @@ enum DispatcherEvent {
 };
 
 class Signaler;
-#if defined(WEBRTC_POSIX)
-class PosixSignalDispatcher;
-#endif
 
 class Dispatcher {
  public:
@@ -82,33 +81,16 @@ class RTC_EXPORT PhysicalSocketServer : public SocketServer {
   void Remove(Dispatcher* dispatcher);
   void Update(Dispatcher* dispatcher);
 
-#if defined(WEBRTC_POSIX)
-  // Sets the function to be executed in response to the specified POSIX signal.
-  // The function is executed from inside Wait() using the "self-pipe trick"--
-  // regardless of which thread receives the signal--and hence can safely
-  // manipulate user-level data structures.
-  // "handler" may be SIG_IGN, SIG_DFL, or a user-specified function, just like
-  // with signal(2).
-  // Only one PhysicalSocketServer should have user-level signal handlers.
-  // Dispatching signals on multiple PhysicalSocketServers is not reliable.
-  // The signal mask is not modified. It is the caller's responsibily to
-  // maintain it as desired.
-  virtual bool SetPosixSignalHandler(int signum, void (*handler)(int));
-
- protected:
-  Dispatcher* signal_dispatcher();
-#endif
-
  private:
+  // The number of events to process with one call to "epoll_wait".
+  static constexpr size_t kNumEpollEvents = 128;
+
   typedef std::set<Dispatcher*> DispatcherSet;
 
-  void AddRemovePendingDispatchers();
+  void AddRemovePendingDispatchers() RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
 #if defined(WEBRTC_POSIX)
   bool WaitSelect(int cms, bool process_io);
-  static bool InstallSignal(int signum, void (*handler)(int));
-
-  std::unique_ptr<PosixSignalDispatcher> signal_dispatcher_;
 #endif  // WEBRTC_POSIX
 #if defined(WEBRTC_USE_EPOLL)
   void AddEpoll(Dispatcher* dispatcher);
@@ -117,19 +99,23 @@ class RTC_EXPORT PhysicalSocketServer : public SocketServer {
   bool WaitEpoll(int cms);
   bool WaitPoll(int cms, Dispatcher* dispatcher);
 
-  int epoll_fd_ = INVALID_SOCKET;
-  std::vector<struct epoll_event> epoll_events_;
+  // This array is accessed in isolation by a thread calling into Wait().
+  // It's useless to use a SequenceChecker to guard it because a socket
+  // server can outlive the thread it's bound to, forcing the Wait call
+  // to have to reset the sequence checker on Wait calls.
+  std::array<epoll_event, kNumEpollEvents> epoll_events_;
+  const int epoll_fd_ = INVALID_SOCKET;
 #endif  // WEBRTC_USE_EPOLL
-  DispatcherSet dispatchers_;
-  DispatcherSet pending_add_dispatchers_;
-  DispatcherSet pending_remove_dispatchers_;
-  bool processing_dispatchers_ = false;
-  Signaler* signal_wakeup_;
+  DispatcherSet dispatchers_ RTC_GUARDED_BY(crit_);
+  DispatcherSet pending_add_dispatchers_ RTC_GUARDED_BY(crit_);
+  DispatcherSet pending_remove_dispatchers_ RTC_GUARDED_BY(crit_);
+  bool processing_dispatchers_ RTC_GUARDED_BY(crit_) = false;
+  Signaler* signal_wakeup_;  // Assigned in constructor only
   CriticalSection crit_;
-  bool fWait_;
 #if defined(WEBRTC_WIN)
-  WSAEVENT socket_ev_;
+  const WSAEVENT socket_ev_;
 #endif
+  bool fWait_;
 };
 
 class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
@@ -199,11 +185,12 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
   virtual void EnableEvents(uint8_t events);
   virtual void DisableEvents(uint8_t events);
 
-  static int TranslateOption(Option opt, int* slevel, int* sopt);
+  int TranslateOption(Option opt, int* slevel, int* sopt);
 
   PhysicalSocketServer* ss_;
   SOCKET s_;
   bool udp_;
+  int family_ = 0;
   CriticalSection crit_;
   int error_ RTC_GUARDED_BY(crit_);
   ConnState state_;

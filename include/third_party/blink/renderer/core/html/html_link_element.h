@@ -73,10 +73,10 @@ class CORE_EXPORT HTMLLinkElement final : public HTMLElement,
 
   const AtomicString& GetType() const;
 
-  IconType GetIconType() const;
+  mojom::blink::FaviconIconType GetIconType() const;
 
   // the icon sizes as parsed from the HTML attribute
-  const Vector<IntSize>& IconSizes() const;
+  const Vector<gfx::Size>& IconSizes() const;
 
   bool Async() const;
 
@@ -110,14 +110,21 @@ class CORE_EXPORT HTMLLinkElement final : public HTMLElement,
                       FetchParameters::DeferOption,
                       ResourceClient*);
   bool IsAlternate() const {
-    return GetLinkStyle()->IsUnset() && rel_attribute_.IsAlternate();
+    // TODO(crbug.com/1087043): Remove this if() condition once the feature has
+    // landed and no compat issues are reported.
+    bool not_explicitly_enabled =
+        !GetLinkStyle()->IsExplicitlyEnabled() ||
+        !RuntimeEnabledFeatures::LinkDisabledNewSpecBehaviorEnabled(
+            &GetDocument());
+    return GetLinkStyle()->IsUnset() && rel_attribute_.IsAlternate() &&
+           not_explicitly_enabled;
   }
   bool ShouldProcessStyle() {
     return LinkResourceToProcess() && GetLinkStyle();
   }
   bool IsCreatedByParser() const { return created_by_parser_; }
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   LinkStyle* GetLinkStyle() const;
@@ -162,9 +169,10 @@ class CORE_EXPORT HTMLLinkElement final : public HTMLElement,
   String media_;
   String integrity_;
   String importance_;
+  String resources_;
   network::mojom::ReferrerPolicy referrer_policy_;
   Member<DOMTokenList> sizes_;
-  Vector<IntSize> icon_sizes_;
+  Vector<gfx::Size> icon_sizes_;
   Member<RelList> rel_list_;
   LinkRelAttribute rel_attribute_;
   String scope_;

@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_controller.h"
+#include "third_party/blink/renderer/platform/graphics/paint/raster_invalidator.h"
 #include "third_party/blink/renderer/platform/graphics/paint_invalidation_reason.h"
 #include "third_party/blink/renderer/platform/graphics/squashing_disallowed_reasons.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -57,13 +58,11 @@
 #include "third_party/skia/include/core/SkRefCnt.h"
 
 namespace cc {
-class PictureImageLayer;
 class PictureLayer;
 }  // namespace cc
 
 namespace blink {
 
-class Image;
 class PaintController;
 class RasterInvalidationTracking;
 class RasterInvalidator;
@@ -113,9 +112,6 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   void RemoveAllChildren();
   void RemoveFromParent();
 
-  GraphicsLayer* MaskLayer() const { return mask_layer_; }
-  void SetMaskLayer(GraphicsLayer*);
-
   // The offset is the origin of the layoutObject minus the origin of the
   // graphics layer (so either zero or negative).
   IntSize OffsetFromLayoutObject() const { return offset_from_layout_object_; }
@@ -125,17 +121,12 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   const gfx::Size& Size() const;
   void SetSize(const gfx::Size&);
 
-  void SetRenderingContext(int id);
-
-  bool MasksToBounds() const;
-  void SetMasksToBounds(bool);
-
   bool DrawsContent() const { return draws_content_; }
   void SetDrawsContent(bool);
 
-  // False if no hit test display items will be painted onto this GraphicsLayer.
-  // This is different from |DrawsContent| because hit test display items are
-  // internal to blink and are not copied to the cc::Layer's display list.
+  // False if no hit test data will be recorded onto this GraphicsLayer.
+  // This is different from |DrawsContent| because hit test data are internal
+  // to blink and are not copied to the cc::Layer's display list.
   bool PaintsHitTest() const { return paints_hit_test_; }
   void SetPaintsHitTest(bool paints) { paints_hit_test_ = paints; }
 
@@ -155,13 +146,10 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   // Opaque means that we know the layer contents have no alpha.
   bool ContentsOpaque() const;
   void SetContentsOpaque(bool);
-
-  bool BackfaceVisibility() const;
+  void SetContentsOpaqueForText(bool);
 
   void SetHitTestable(bool);
   bool GetHitTestable() const { return hit_testable_; }
-
-  void SetFilterQuality(SkFilterQuality);
 
   // Some GraphicsLayers paint only the foreground or the background content
   GraphicsLayerPaintingPhase PaintingPhase() const { return painting_phase_; }
@@ -173,23 +161,14 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   // Set that the position/size of the contents (image or video).
   void SetContentsRect(const IntRect&);
 
-  // Layer contents
-  void SetContentsToImage(
-      Image*,
-      Image::ImageDecodingMode decode_mode,
-      RespectImageOrientationEnum = kDoNotRespectImageOrientation);
   // If |prevent_contents_opaque_changes| is set to true, then calls to
-  // SetContentsOpaque() will not be passed on to the |layer|. Use when
-  // the client wants to have control of the opaqueness of the contents
-  // |layer| independently of what outcome painting produces.
-  void SetContentsToCcLayer(cc::Layer* layer,
-                            bool prevent_contents_opaque_changes) {
-    SetContentsTo(layer, prevent_contents_opaque_changes);
-  }
+  // SetContentsOpaque() will not be passed on to |contents_layer|. Use when
+  // the client wants to have control of the opaqueness of |contents_layer|
+  // independently of what outcome painting produces.
+  void SetContentsToCcLayer(scoped_refptr<cc::Layer> contents_layer,
+                            bool prevent_contents_opaque_changes);
   bool HasContentsLayer() const { return ContentsLayer(); }
-  cc::Layer* ContentsLayer() const {
-    return const_cast<GraphicsLayer*>(this)->ContentsLayerIfRegistered();
-  }
+  cc::Layer* ContentsLayer() const { return contents_layer_.get(); }
 
   const IntRect& ContentsRect() const { return contents_rect_; }
 
@@ -204,13 +183,10 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
                                const IntRect&,
                                PaintInvalidationReason);
 
-  static void RegisterContentsLayer(cc::Layer*);
-  static void UnregisterContentsLayer(cc::Layer*);
-
   IntRect InterestRect();
   bool PaintRecursively();
   // Returns true if this layer is repainted.
-  bool Paint(GraphicsContext::DisabledMode = GraphicsContext::kNothingDisabled);
+  bool Paint();
 
   PaintController& GetPaintController() const;
 
@@ -225,8 +201,6 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   void AppendAdditionalInfoAsJSON(LayerTreeFlags,
                                   const cc::Layer&,
                                   JSONObject&) const override;
-
-  void SetHasWillChangeTransformHint(bool);
 
   bool HasLayerState() const { return layer_state_.get(); }
   void SetLayerState(const PropertyTreeState&, const IntPoint& layer_offset);
@@ -275,12 +249,10 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   void UpdateSafeOpaqueBackgroundColor();
 
   // Returns true if PaintController::PaintArtifact() changed and needs commit.
-  bool PaintWithoutCommit(
-      GraphicsContext::DisabledMode = GraphicsContext::kNothingDisabled,
-      const IntRect* interest_rect = nullptr);
+  bool PaintWithoutCommit(const IntRect* interest_rect = nullptr);
 
-  // Adds a child without calling updateChildList(), so that adding children
-  // can be batched before updating.
+  // Adds a child without calling NotifyChildListChange(), so that adding
+  // children can be batched before updating.
   void AddChildInternal(GraphicsLayer*);
 
 #if DCHECK_IS_ON()
@@ -288,15 +260,12 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
 #endif
 
   // Helper functions used by settors to keep layer's the state consistent.
-  void UpdateChildList();
+  void NotifyChildListChange();
   void UpdateLayerIsDrawable();
-  void UpdateContentsRect();
+  void UpdateContentsLayerBounds();
 
-  void SetContentsTo(cc::Layer*, bool prevent_contents_opaque_changes);
-  void SetupContentsLayer(cc::Layer*);
-  void ClearContentsLayerIfUnregistered();
-  cc::Layer* ContentsLayerIfRegistered();
-  void SetContentsLayer(cc::Layer*);
+  void SetContentsTo(scoped_refptr<cc::Layer>,
+                     bool prevent_contents_opaque_changes);
 
   RasterInvalidator& EnsureRasterInvalidator();
   void SetNeedsDisplayInRect(const IntRect&);
@@ -317,28 +286,15 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   bool hit_testable_ : 1;
   bool needs_check_raster_invalidation_ : 1;
 
-  bool painted_ : 1;
-
   GraphicsLayerPaintingPhase painting_phase_;
 
   Vector<GraphicsLayer*> children_;
   GraphicsLayer* parent_;
 
-  // Reference to mask layer. We don't own this.
-  GraphicsLayer* mask_layer_;
-
   IntRect contents_rect_;
 
   scoped_refptr<cc::PictureLayer> layer_;
-  scoped_refptr<cc::PictureImageLayer> image_layer_;
-  IntSize image_size_;
-  cc::Layer* contents_layer_;
-  // We don't have ownership of contents_layer_, but we do want to know if a
-  // given layer is the same as our current layer in SetContentsTo(). Since
-  // |contents_layer_| may be deleted at this point, we stash an ID away when we
-  // know |contents_layer_| is alive and use that for comparisons from that
-  // point on.
-  int contents_layer_id_;
+  scoped_refptr<cc::Layer> contents_layer_;
 
   SquashingDisallowedReasons squashing_disallowed_reasons_ =
       SquashingDisallowedReason::kNone;
@@ -355,11 +311,10 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   std::unique_ptr<LayerState> contents_layer_state_;
 
   std::unique_ptr<RasterInvalidator> raster_invalidator_;
+  RasterInvalidator::RasterInvalidationFunction raster_invalidation_function_;
 
   DOMNodeId owner_node_id_ = kInvalidDOMNodeId;
   CompositingReasons compositing_reasons_ = CompositingReason::kNone;
-
-  FRIEND_TEST_ALL_PREFIXES(CompositingLayerPropertyUpdaterTest, MaskLayerState);
 
   DISALLOW_COPY_AND_ASSIGN(GraphicsLayer);
 };

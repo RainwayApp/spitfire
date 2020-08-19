@@ -25,7 +25,7 @@ class CORE_EXPORT NthIndexData final : public GarbageCollected<NthIndexData> {
   unsigned NthOfTypeIndex(Element&) const;
   unsigned NthLastOfTypeIndex(Element&) const;
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   HeapHashMap<Member<Element>, unsigned> element_index_map_;
@@ -55,9 +55,9 @@ class CORE_EXPORT NthIndexCache final {
   IndexByType& EnsureTypeIndexMap(ContainerNode&);
   NthIndexData* NthTypeIndexDataForParent(Element&) const;
 
-  Member<Document> document_;
-  Member<ParentMap> parent_map_;
-  Member<ParentMapForType> parent_map_for_type_;
+  Document* document_ = nullptr;
+  ParentMap* parent_map_ = nullptr;
+  ParentMapForType* parent_map_for_type_ = nullptr;
 
 #if DCHECK_IS_ON()
   uint64_t dom_tree_version_;

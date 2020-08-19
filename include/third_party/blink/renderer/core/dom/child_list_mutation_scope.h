@@ -66,7 +66,7 @@ class ChildListMutationAccumulator final
   void EnterMutationScope() { mutation_scopes_++; }
   void LeaveMutationScope();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   void EnqueueMutationRecord();
@@ -119,7 +119,7 @@ class ChildListMutationScope final {
   }
 
  private:
-  Member<ChildListMutationAccumulator> accumulator_;
+  ChildListMutationAccumulator* accumulator_ = nullptr;
   DISALLOW_COPY_AND_ASSIGN(ChildListMutationScope);
 };
 

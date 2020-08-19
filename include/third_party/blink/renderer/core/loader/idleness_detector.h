@@ -42,7 +42,7 @@ class CORE_EXPORT IdlenessDetector
   base::TimeTicks GetNetworkIdleTime();
   bool NetworkIsAlmostIdle();
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   friend class IdlenessDetectorTest;

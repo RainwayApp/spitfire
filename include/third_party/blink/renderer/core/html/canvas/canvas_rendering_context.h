@@ -46,11 +46,11 @@ class HTMLCanvasElement;
 class ImageBitmap;
 
 constexpr const char* kSRGBCanvasColorSpaceName = "srgb";
-constexpr const char* kLinearRGBCanvasColorSpaceName = "linear-rgb";
 constexpr const char* kRec2020CanvasColorSpaceName = "rec2020";
 constexpr const char* kP3CanvasColorSpaceName = "p3";
 
 constexpr const char* kRGBA8CanvasPixelFormatName = "uint8";
+constexpr const char* kBGRA8CanvasPixelFormatName = "uint8";
 constexpr const char* kF16CanvasPixelFormatName = "float16";
 
 class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
@@ -98,7 +98,17 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
     return !IsAccelerated();
   }
   virtual bool ShouldAntialias() const { return false; }
-  virtual void SetIsHidden(bool) = 0;
+  // Indicates whether the entire tab is backgrounded. Passing false
+  // to this method may cause some canvas context implementations to
+  // aggressively discard resources, which is not desired for canvases
+  // which are being rendered to, just not being displayed in the
+  // page.
+  virtual void SetIsInHiddenPage(bool) = 0;
+  // Indicates whether the canvas is being displayed in the page;
+  // i.e., doesn't have display:none, and is visible. The initial
+  // value for all context types is assumed to be false; this will be
+  // called when the context is first displayed.
+  virtual void SetIsBeingDisplayed(bool) = 0;
   virtual bool isContextLost() const { return true; }
   // TODO(fserb): remove SetCanvasGetContextResult.
   virtual void SetCanvasGetContextResult(RenderingContext&) { NOTREACHED(); }
@@ -190,8 +200,10 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
     return creation_attributes_;
   }
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   virtual void Stop() = 0;
+
+  virtual uint64_t IdentifiabilityTextDigest() { return 0; }
 
  protected:
   CanvasRenderingContext(CanvasRenderingContextHost*,

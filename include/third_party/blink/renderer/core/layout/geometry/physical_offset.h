@@ -9,8 +9,7 @@
 #include "third_party/blink/renderer/platform/geometry/layout_point.h"
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
-#include "third_party/blink/renderer/platform/text/text_direction.h"
-#include "third_party/blink/renderer/platform/text/writing_mode.h"
+#include "third_party/blink/renderer/platform/text/writing_direction_mode.h"
 
 namespace blink {
 
@@ -38,8 +37,11 @@ struct CORE_EXPORT PhysicalOffset {
   // https://drafts.csswg.org/css-writing-modes-3/#logical-to-physical
   // @param outer_size the size of the rect (typically a fragment).
   // @param inner_size the size of the inner rect (typically a child fragment).
-  LogicalOffset ConvertToLogical(WritingMode,
-                                 TextDirection,
+  LogicalOffset ConvertToLogical(WritingDirectionMode writing_direction,
+                                 PhysicalSize outer_size,
+                                 PhysicalSize inner_size) const;
+  LogicalOffset ConvertToLogical(WritingMode writing_mode,
+                                 TextDirection direction,
                                  PhysicalSize outer_size,
                                  PhysicalSize inner_size) const;
 
@@ -96,6 +98,8 @@ struct CORE_EXPORT PhysicalOffset {
       : left(point.X()), top(point.Y()) {}
   explicit PhysicalOffset(const IntSize& size)
       : left(size.Width()), top(size.Height()) {}
+  explicit PhysicalOffset(const gfx::Point& point)
+      : left(point.x()), top(point.y()) {}
 
   static PhysicalOffset FromFloatPointFloor(const FloatPoint& point) {
     return {LayoutUnit::FromFloatFloor(point.X()),
@@ -112,6 +116,11 @@ struct CORE_EXPORT PhysicalOffset {
   static PhysicalOffset FromFloatSizeRound(const FloatSize& size) {
     return {LayoutUnit::FromFloatRound(size.Width()),
             LayoutUnit::FromFloatRound(size.Height())};
+  }
+
+  void Scale(float s) {
+    left *= s;
+    top *= s;
   }
 
   constexpr explicit operator FloatPoint() const { return {left, top}; }

@@ -11,6 +11,7 @@
 #include "base/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_streamer.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/core_probe_sink.h"
 #include "third_party/blink/renderer/core/css/css_selector.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -70,6 +71,7 @@ class StyleChangeReasonForTracing;
 class StyleImage;
 class XMLHttpRequest;
 enum class ResourceType : uint8_t;
+enum StyleChangeType : uint32_t;
 
 namespace probe {
 class CallFunction;
@@ -108,9 +110,12 @@ class CORE_EXPORT InspectorTraceEvents
                         int64_t encoded_data_length,
                         int64_t decoded_body_length,
                         bool should_report_corb_blocking);
-  void DidFailLoading(uint64_t identifier,
-                      DocumentLoader*,
-                      const ResourceError&);
+  void DidFailLoading(
+      CoreProbeSink* sink,
+      uint64_t identifier,
+      DocumentLoader*,
+      const ResourceError&,
+      const base::UnguessableToken& devtools_frame_or_worker_token);
   void MarkResourceAsCached(DocumentLoader* loader, uint64_t identifier);
 
   void Will(const probe::ExecuteScript&);
@@ -126,7 +131,7 @@ class CORE_EXPORT InspectorTraceEvents
 
   void FrameStartedLoading(LocalFrame*);
 
-  void Trace(blink::Visitor*) {}
+  void Trace(Visitor*) const {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(InspectorTraceEvents);
@@ -169,7 +174,9 @@ std::unique_ptr<TracedValue> RuleSetInvalidation(ContainerNode&,
           (element), (invalidationSet), ##__VA_ARGS__));
 
 namespace inspector_style_recalc_invalidation_tracking_event {
-std::unique_ptr<TracedValue> Data(Node*, const StyleChangeReasonForTracing&);
+std::unique_ptr<TracedValue> Data(Node*,
+                                  StyleChangeType,
+                                  const StyleChangeReasonForTracing&);
 }
 
 String DescendantInvalidationSetToIdString(const InvalidationSet&);
@@ -225,6 +232,7 @@ extern const char kAttributeChanged[];
 extern const char kColumnsChanged[];
 extern const char kChildAnonymousBlockChanged[];
 extern const char kAnonymousBlockChange[];
+extern const char kFontsChanged[];
 extern const char kFullscreen[];
 extern const char kChildChanged[];
 extern const char kListValueChange[];

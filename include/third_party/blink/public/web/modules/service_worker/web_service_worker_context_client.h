@@ -35,12 +35,14 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
-#include "mojo/public/cpp/system/message_pipe.h"
+#include "services/network/public/mojom/url_loader.mojom-shared.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
+#include "third_party/blink/public/mojom/devtools/devtools_agent.mojom-shared.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_event_status.mojom-shared.h"
 #include "third_party/blink/public/mojom/web_feature/web_feature.mojom-shared.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
+#include "third_party/blink/public/platform/modules/service_worker/web_service_worker_fetch_context.h"
 #include "third_party/blink/public/platform/web_url.h"
-#include "third_party/blink/public/platform/web_worker_fetch_context.h"
 #include "v8/include/v8.h"
 
 namespace base {
@@ -55,10 +57,9 @@ class WebString;
 // Used to pass the mojom struct blink.mojom.FetchEventPreloadHandle across the
 // boundary between //content and Blink.
 struct WebFetchEventPreloadHandle {
-  // For mojo::PendingRemote<network::mojom::URLLoader>.
-  mojo::ScopedMessagePipeHandle url_loader;
-  // For mojo::PendingReceiver<network::mojom::URLLoaderClient>.
-  mojo::ScopedMessagePipeHandle url_loader_client_receiver;
+  CrossVariantMojoRemote<network::mojom::URLLoaderInterfaceBase> url_loader;
+  CrossVariantMojoReceiver<network::mojom::URLLoaderClientInterfaceBase>
+      url_loader_client_receiver;
 };
 
 // WebServiceWorkerContextClient is a "client" of a service worker execution
@@ -78,8 +79,10 @@ class WebServiceWorkerContextClient {
   // ServiceWorker has prepared everything for script loading and is now ready
   // for DevTools inspection. Called on the initiator thread.
   virtual void WorkerReadyForInspectionOnInitiatorThread(
-      mojo::ScopedMessagePipeHandle devtools_agent_ptr_info,
-      mojo::ScopedMessagePipeHandle devtools_agent_host_request) {}
+      CrossVariantMojoRemote<mojom::DevToolsAgentInterfaceBase>
+          devtools_agent_remote,
+      CrossVariantMojoReceiver<mojom::DevToolsAgentHostInterfaceBase>
+          devtools_agent_host_receiver) {}
 
   // The worker started but it could not execute because fetching the classic
   // script failed on the worker thread.
@@ -173,7 +176,7 @@ class WebServiceWorkerContextClient {
   // Off-main-thread start up:
   // Creates a WebWorkerFetchContext for subresource fetches on a service
   // worker. This is called on the initiator thread.
-  virtual scoped_refptr<blink::WebWorkerFetchContext>
+  virtual scoped_refptr<blink::WebServiceWorkerFetchContext>
   CreateWorkerFetchContextOnInitiatorThread() = 0;
 };
 

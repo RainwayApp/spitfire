@@ -30,10 +30,12 @@
   X("accessibility")                                                     \
   X("AccountFetcherService")                                             \
   X("android_webview")                                                   \
+  X("aogh")                                                              \
   X("audio")                                                             \
   X("base")                                                              \
   X("benchmark")                                                         \
   X("blink")                                                             \
+  X("blink.bindings")                                                    \
   X("blink.animations")                                                  \
   X("blink.console")                                                     \
   X("blink_gc")                                                          \
@@ -45,8 +47,13 @@
   X("browser")                                                           \
   X("browsing_data")                                                     \
   X("CacheStorage")                                                      \
+  X("Calculators")                                                       \
+  X("CameraStream")                                                      \
   X("camera")                                                            \
+  X("cast_app")                                                          \
   X("cast_perf_test")                                                    \
+  X("cast.mdns")                                                         \
+  X("cast.mdns.socket")                                                  \
   X("cast.stream")                                                       \
   X("cc")                                                                \
   X("cc.debug")                                                          \
@@ -59,13 +66,13 @@
   X("devtools")                                                          \
   X("devtools.timeline")                                                 \
   X("devtools.timeline.async")                                           \
+  X("disk_cache")                                                        \
   X("download")                                                          \
   X("download_service")                                                  \
   X("drm")                                                               \
   X("drmcursor")                                                         \
   X("dwrite")                                                            \
   X("DXVA Decoding")                                                     \
-  X("EarlyJava")                                                         \
   X("evdev")                                                             \
   X("event")                                                             \
   X("exo")                                                               \
@@ -106,11 +113,15 @@
   X("omnibox")                                                           \
   X("oobe")                                                              \
   X("ozone")                                                             \
+  X("passwords")                                                         \
   X("p2p")                                                               \
   X("page-serialization")                                                \
+  X("paint_preview")                                                     \
   X("pepper")                                                            \
+  X("PlatformMalloc")                                                    \
   X("ppapi")                                                             \
   X("ppapi proxy")                                                       \
+  X("print")                                                             \
   X("rail")                                                              \
   X("renderer")                                                          \
   X("renderer_host")                                                     \
@@ -121,11 +132,15 @@
   X("sequence_manager")                                                  \
   X("service_manager")                                                   \
   X("ServiceWorker")                                                     \
+  X("sharing")                                                           \
   X("shell")                                                             \
   X("shortcut_viewer")                                                   \
   X("shutdown")                                                          \
   X("SiteEngagement")                                                    \
   X("skia")                                                              \
+  X("sql")                                                               \
+  X("stadia_media")                                                      \
+  X("stadia_rtc")                                                        \
   X("startup")                                                           \
   X("sync")                                                              \
   X("sync_lock_contention")                                              \
@@ -133,9 +148,11 @@
   X("test_gpu")                                                          \
   X("test_tracing")                                                      \
   X("toplevel")                                                          \
+  X("toplevel.flow")                                                     \
   X("ui")                                                                \
   X("v8")                                                                \
   X("v8.execute")                                                        \
+  X("v8.wasm")                                                           \
   X("ValueStoreFrontend::Backend")                                       \
   X("views")                                                             \
   X("views.frame")                                                       \
@@ -148,6 +165,7 @@
   X("webrtc")                                                            \
   X("xr")                                                                \
   X(TRACE_DISABLED_BY_DEFAULT("animation-worklet"))                      \
+  X(TRACE_DISABLED_BY_DEFAULT("audio"))                                  \
   X(TRACE_DISABLED_BY_DEFAULT("audio-worklet"))                          \
   X(TRACE_DISABLED_BY_DEFAULT("blink.debug"))                            \
   X(TRACE_DISABLED_BY_DEFAULT("blink.debug.display_lock"))               \
@@ -170,6 +188,7 @@
   X(TRACE_DISABLED_BY_DEFAULT("devtools.screenshot"))                    \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"))                      \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline.frame"))                \
+  X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline.inputs"))               \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline.invalidationTracking")) \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline.layers"))               \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline.picture"))              \
@@ -178,14 +197,17 @@
   X(TRACE_DISABLED_BY_DEFAULT("gpu_cmd_queue"))                          \
   X(TRACE_DISABLED_BY_DEFAULT("gpu.dawn"))                               \
   X(TRACE_DISABLED_BY_DEFAULT("gpu.debug"))                              \
-  X(TRACE_DISABLED_BY_DEFAULT("gpu_decoder"))                            \
+  X(TRACE_DISABLED_BY_DEFAULT("gpu.decoder"))                            \
   X(TRACE_DISABLED_BY_DEFAULT("gpu.device"))                             \
   X(TRACE_DISABLED_BY_DEFAULT("gpu.service"))                            \
-  X(TRACE_DISABLED_BY_DEFAULT("ipc.flow"))                               \
+  X(TRACE_DISABLED_BY_DEFAULT("gpu.vulkan.vma"))                         \
+  X(TRACE_DISABLED_BY_DEFAULT("histogram_samples"))                      \
   X(TRACE_DISABLED_BY_DEFAULT("java-heap-profiler"))                     \
   X(TRACE_DISABLED_BY_DEFAULT("layer-element"))                          \
+  X(TRACE_DISABLED_BY_DEFAULT("layout_shift.debug"))                     \
   X(TRACE_DISABLED_BY_DEFAULT("lifecycles"))                             \
   X(TRACE_DISABLED_BY_DEFAULT("loading"))                                \
+  X(TRACE_DISABLED_BY_DEFAULT("mediastream"))                            \
   X(TRACE_DISABLED_BY_DEFAULT("memory-infra"))                           \
   X(TRACE_DISABLED_BY_DEFAULT("memory-infra.v8.code_stats"))             \
   X(TRACE_DISABLED_BY_DEFAULT("net"))                                    \
@@ -194,6 +216,7 @@
   X(TRACE_DISABLED_BY_DEFAULT("power"))                                  \
   X(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"))                     \
   X(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler.debug"))               \
+  X(TRACE_DISABLED_BY_DEFAULT("sandbox"))                                \
   X(TRACE_DISABLED_BY_DEFAULT("sequence_manager"))                       \
   X(TRACE_DISABLED_BY_DEFAULT("sequence_manager.debug"))                 \
   X(TRACE_DISABLED_BY_DEFAULT("sequence_manager.verbose_snapshots"))     \
@@ -203,11 +226,10 @@
   X(TRACE_DISABLED_BY_DEFAULT("SyncFileSystem"))                         \
   X(TRACE_DISABLED_BY_DEFAULT("system_stats"))                           \
   X(TRACE_DISABLED_BY_DEFAULT("thread_pool_diagnostics"))                \
-  X(TRACE_DISABLED_BY_DEFAULT("toplevel.flow"))                          \
   X(TRACE_DISABLED_BY_DEFAULT("toplevel.ipc"))                           \
+  X(TRACE_DISABLED_BY_DEFAULT("user_action_samples"))                    \
   X(TRACE_DISABLED_BY_DEFAULT("v8.compile"))                             \
   X(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"))                        \
-  X(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"))                  \
   X(TRACE_DISABLED_BY_DEFAULT("v8.gc"))                                  \
   X(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"))                            \
   X(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"))                            \
@@ -215,7 +237,7 @@
   X(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"))                       \
   X(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"))              \
   X(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"))                            \
-  X(TRACE_DISABLED_BY_DEFAULT("v8.wasm"))                                \
+  X(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"))                       \
   X(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"))                \
   X(TRACE_DISABLED_BY_DEFAULT("viz.debug.overlay_planes"))               \
   X(TRACE_DISABLED_BY_DEFAULT("viz.hit_testing_flow"))                   \
@@ -224,6 +246,8 @@
   X(TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"))                    \
   X(TRACE_DISABLED_BY_DEFAULT("viz.surface_lifetime"))                   \
   X(TRACE_DISABLED_BY_DEFAULT("viz.triangles"))                          \
+  X(TRACE_DISABLED_BY_DEFAULT("webaudio.audionode"))                     \
+  X(TRACE_DISABLED_BY_DEFAULT("webrtc"))                                 \
   X(TRACE_DISABLED_BY_DEFAULT("worker.scheduler"))
 
 #define INTERNAL_TRACE_INIT_CATEGORY_NAME(name) name,

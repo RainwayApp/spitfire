@@ -189,6 +189,7 @@ class PeerConnection : public PeerConnectionInternal,
   IceConnectionState standardized_ice_connection_state() override;
   PeerConnectionState peer_connection_state() override;
   IceGatheringState ice_gathering_state() override;
+  absl::optional<bool> can_trickle_ice_candidates() override;
 
   const SessionDescriptionInterface* local_description() const override;
   const SessionDescriptionInterface* remote_description() const override;
@@ -236,6 +237,8 @@ class PeerConnection : public PeerConnectionInternal,
 
   rtc::scoped_refptr<SctpTransportInterface> GetSctpTransport() const override;
 
+  void AddAdaptationResource(rtc::scoped_refptr<Resource> resource) override;
+
   bool StartRtcEventLog(std::unique_ptr<RtcEventLogOutput> output,
                         int64_t output_period_ms) override;
   bool StartRtcEventLog(std::unique_ptr<RtcEventLogOutput> output) override;
@@ -277,16 +280,7 @@ class PeerConnection : public PeerConnectionInternal,
     return data_channel_controller_.rtp_data_channel();
   }
 
-  std::vector<rtc::scoped_refptr<DataChannel>> sctp_data_channels()
-      const override {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    return *data_channel_controller_.sctp_data_channels();
-  }
-
-  absl::optional<std::string> sctp_content_name() const override {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    return sctp_mid_;
-  }
+  std::vector<DataChannel::Stats> GetDataChannelStats() const override;
 
   absl::optional<std::string> sctp_transport_name() const override;
 
@@ -324,6 +318,10 @@ class PeerConnection : public PeerConnectionInternal,
     return_histogram_very_quickly_ = true;
   }
   void RequestUsagePatternReportForTesting();
+  absl::optional<std::string> sctp_mid() {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    return sctp_mid_s_;
+  }
 
  protected:
   ~PeerConnection() override;
@@ -358,57 +356,6 @@ class PeerConnection : public PeerConnectionInternal,
     // An RtpSender can have many SSRCs. The first one is used as a sort of ID
     // for communicating with the lower layers.
     uint32_t first_ssrc;
-  };
-
-  // Field-trial based configuration for datagram transport.
-  struct DatagramTransportConfig {
-    explicit DatagramTransportConfig(const std::string& field_trial)
-        : enabled("enabled", true), default_value("default_value", false) {
-      ParseFieldTrial({&enabled, &default_value}, field_trial);
-    }
-
-    // Whether datagram transport support is enabled at all.  Defaults to true,
-    // allowing datagram transport to be used if (a) the application provides a
-    // factory for it and (b) the configuration specifies its use.  This flag
-    // provides a kill-switch to force-disable datagram transport across all
-    // applications, without code changes.
-    FieldTrialFlag enabled;
-
-    // Whether the datagram transport is enabled or disabled by default.
-    // Defaults to false, meaning that applications must configure use of
-    // datagram transport through RTCConfiguration.  If set to true,
-    // applications will use the datagram transport by default (but may still
-    // explicitly configure themselves not to use it through RTCConfiguration).
-    FieldTrialFlag default_value;
-  };
-
-  // Field-trial based configuration for datagram transport data channels.
-  struct DatagramTransportDataChannelConfig {
-    explicit DatagramTransportDataChannelConfig(const std::string& field_trial)
-        : enabled("enabled", true),
-          default_value("default_value", false),
-          receive_only("receive_only", false) {
-      ParseFieldTrial({&enabled, &default_value, &receive_only}, field_trial);
-    }
-
-    // Whether datagram transport data channel support is enabled at all.
-    // Defaults to true, allowing datagram transport to be used if (a) the
-    // application provides a factory for it and (b) the configuration specifies
-    // its use.  This flag provides a kill-switch to force-disable datagram
-    // transport across all applications, without code changes.
-    FieldTrialFlag enabled;
-
-    // Whether the datagram transport data channels are enabled or disabled by
-    // default. Defaults to false, meaning that applications must configure use
-    // of datagram transport through RTCConfiguration.  If set to true,
-    // applications will use the datagram transport by default (but may still
-    // explicitly configure themselves not to use it through RTCConfiguration).
-    FieldTrialFlag default_value;
-
-    // Whether the datagram transport is enabled in receive-only mode.  If true,
-    // and if the datagram transport is enabled, it will only be used when
-    // receiving incoming calls, not when placing outgoing calls.
-    FieldTrialFlag receive_only;
   };
 
   // Captures partial state to be used for rollback. Applicable only in
@@ -1214,25 +1161,6 @@ class PeerConnection : public PeerConnectionInternal,
   PeerConnectionInterface::RTCConfiguration configuration_
       RTC_GUARDED_BY(signaling_thread());
 
-  // Field-trial based configuration for datagram transport.
-  const DatagramTransportConfig datagram_transport_config_;
-
-  // Field-trial based configuration for datagram transport data channels.
-  const DatagramTransportDataChannelConfig
-      datagram_transport_data_channel_config_;
-
-  // Final, resolved value for whether datagram transport is in use.
-  bool use_datagram_transport_ RTC_GUARDED_BY(signaling_thread()) = false;
-
-  // Equivalent of |use_datagram_transport_|, but for its use with data
-  // channels.
-  bool use_datagram_transport_for_data_channels_
-      RTC_GUARDED_BY(signaling_thread()) = false;
-
-  // Resolved value of whether to use data channels only for incoming calls.
-  bool use_datagram_transport_for_data_channels_receive_only_
-      RTC_GUARDED_BY(signaling_thread()) = false;
-
   // TODO(zstein): |async_resolver_factory_| can currently be nullptr if it
   // is not injected. It should be required once chromium supplies it.
   std::unique_ptr<AsyncResolverFactory> async_resolver_factory_
@@ -1240,6 +1168,7 @@ class PeerConnection : public PeerConnectionInternal,
   std::unique_ptr<cricket::PortAllocator>
       port_allocator_;  // TODO(bugs.webrtc.org/9987): Accessed on both
                         // signaling and network thread.
+  std::unique_ptr<rtc::PacketSocketFactory> packet_socket_factory_;
   std::unique_ptr<webrtc::IceTransportFactory>
       ice_transport_factory_;  // TODO(bugs.webrtc.org/9987): Accessed on the
                                // signaling thread but the underlying raw
@@ -1295,6 +1224,9 @@ class PeerConnection : public PeerConnectionInternal,
   std::map<rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>,
            TransceiverStableState>
       transceiver_stable_states_by_transceivers_;
+  // Used when rolling back RTP data channels.
+  bool have_pending_rtp_data_channel_ RTC_GUARDED_BY(signaling_thread()) =
+      false;
   // Holds remote stream ids for transceivers from stable state.
   std::map<rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>,
            std::vector<std::string>>
@@ -1331,9 +1263,11 @@ class PeerConnection : public PeerConnectionInternal,
   // Note: this is used as the data channel MID by both SCTP and data channel
   // transports.  It is set when either transport is initialized and unset when
   // both transports are deleted.
-  absl::optional<std::string>
-      sctp_mid_;  // TODO(bugs.webrtc.org/9987): Accessed on both signaling
-                  // and network thread.
+  // There is one copy on the signaling thread and another copy on the
+  // networking thread. Changes are always initiated from the signaling
+  // thread, but applied first on the networking thread via an invoke().
+  absl::optional<std::string> sctp_mid_s_ RTC_GUARDED_BY(signaling_thread());
+  absl::optional<std::string> sctp_mid_n_ RTC_GUARDED_BY(network_thread());
 
   // Whether this peer is the caller. Set when the local description is applied.
   absl::optional<bool> is_caller_ RTC_GUARDED_BY(signaling_thread());

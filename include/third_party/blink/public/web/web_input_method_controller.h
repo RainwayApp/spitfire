@@ -6,8 +6,8 @@
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_INPUT_METHOD_CONTROLLER_H_
 
 #include "third_party/blink/public/platform/web_text_input_info.h"
-#include "third_party/blink/public/web/web_ime_text_span.h"
 #include "third_party/blink/public/web/web_widget.h"
+#include "ui/base/ime/ime_text_span.h"
 
 namespace blink {
 
@@ -33,7 +33,7 @@ class WebInputMethodController {
   // current text which should be replaced by |text|. Returns true if the
   // composition text was set successfully.
   virtual bool SetComposition(const WebString& text,
-                              const WebVector<WebImeTextSpan>& ime_text_spans,
+                              const WebVector<ui::ImeTextSpan>& ime_text_spans,
                               const WebRange& replacement_range,
                               int selection_start,
                               int selection_end) = 0;
@@ -43,7 +43,7 @@ class WebInputMethodController {
   // |replacementRange| (when not null) is the range in current text which
   // should be replaced by |text|.
   virtual bool CommitText(const WebString& text,
-                          const WebVector<WebImeTextSpan>& ime_text_spans,
+                          const WebVector<ui::ImeTextSpan>& ime_text_spans,
                           const WebRange& replacement_range,
                           int relative_caret_position) = 0;
 
@@ -82,11 +82,23 @@ class WebInputMethodController {
   }
 
   // Populate |control_bounds| and |selection_bounds| with the bounds fetched
-  // from the active EditContext
-  virtual void GetLayoutBounds(WebRect& control_bounds,
-                               WebRect& selection_bounds) = 0;
-  // Returns true if there is an active EditContext
+  // from the active EditContext. If there isn't any active |EditContext|, then
+  // these bounds are empty.
+  virtual void GetLayoutBounds(WebRect* control_bounds,
+                               WebRect* selection_bounds) = 0;
+  // Returns true if the inputPanelPolicy flag is set as manual in
+  // |EditContext|, which indicates that the software input panel(Virtual
+  // Keyboard) shouldn't come up on focus of the EditControl.
+  virtual bool IsVirtualKeyboardPolicyManual() const = 0;
+  // Returns true if there is an active |EditContext|.
   virtual bool IsEditContextActive() const = 0;
+
+  // Returns whether show()/hide() API is called from virtualkeyboard or not.
+  virtual ui::mojom::VirtualKeyboardVisibilityRequest
+  GetLastVirtualKeyboardVisibilityRequest() const = 0;
+  // Sets the VirtualKeyboard visibility request(show/hide/none).
+  virtual void SetVirtualKeyboardVisibilityRequest(
+      ui::mojom::VirtualKeyboardVisibilityRequest vk_visibility_request) = 0;
 };
 
 }  // namespace blink

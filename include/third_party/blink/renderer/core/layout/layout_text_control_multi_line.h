@@ -61,9 +61,10 @@ class LayoutTextControlMultiLine final : public LayoutTextControl {
 
   LayoutObject* LayoutSpecialExcludedChild(bool relayout_children,
                                            SubtreeLayoutScope&) override;
-};
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutTextControlMultiLine, IsTextArea());
+  LayoutUnit ScrollWidth() const override;
+  LayoutUnit ScrollHeight() const override;
+};
 
 }  // namespace blink
 

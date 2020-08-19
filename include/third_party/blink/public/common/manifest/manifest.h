@@ -61,6 +61,19 @@ struct BLINK_COMMON_EXPORT Manifest {
     std::vector<Purpose> purpose;
   };
 
+  // Structure representing a shortcut as per the Manifest specification, see:
+  // https://w3c.github.io/manifest/#shortcuts-member
+  struct BLINK_COMMON_EXPORT ShortcutItem {
+    ShortcutItem();
+    ~ShortcutItem();
+
+    base::string16 name;
+    base::NullableString16 short_name;
+    base::NullableString16 description;
+    GURL url;
+    std::vector<ImageResource> icons;
+  };
+
   struct BLINK_COMMON_EXPORT FileFilter {
     base::string16 name;
     std::vector<base::string16> accept;
@@ -113,6 +126,12 @@ struct BLINK_COMMON_EXPORT Manifest {
     std::map<base::string16, std::vector<base::string16>> accept;
   };
 
+  // Structure representing a Protocol Handler.
+  struct BLINK_COMMON_EXPORT ProtocolHandler {
+    base::string16 protocol;
+    GURL url;
+  };
+
   // Structure representing a related application.
   struct BLINK_COMMON_EXPORT RelatedApplication {
     RelatedApplication();
@@ -162,14 +181,25 @@ struct BLINK_COMMON_EXPORT Manifest {
   // icons inside the JSON array were invalid.
   std::vector<ImageResource> icons;
 
+  // Empty if the parsing failed, the field was not present, or all the
+  // icons inside the JSON array were invalid.
+  std::vector<ShortcutItem> shortcuts;
+
   // Null if parsing failed or the field was not present.
   base::Optional<ShareTarget> share_target;
 
   // Empty if parsing failed or the field was not present.
-  // TODO(harrisjay): This field is non-standard and part of a Chrome
+  // TODO(crbug.com/829689): This field is non-standard and part of a Chrome
   // experiment. See:
   // https://github.com/WICG/file-handling/blob/master/explainer.md
   std::vector<FileHandler> file_handlers;
+
+  // Empty if parsing failed or the field was not present.
+  // TODO(crbug.com/1019239): This is going into the mainline manifest spec,
+  // remove the TODO once that PR goes in.
+  // The URLProtocolHandler explainer can be found here:
+  // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/master/URLProtocolHandler/explainer.md
+  std::vector<ProtocolHandler> protocol_handlers;
 
   // Empty if the parsing failed, the field was not present, empty or all the
   // applications inside the array were invalid. The order of the array

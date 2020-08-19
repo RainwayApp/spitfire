@@ -29,6 +29,12 @@ class DataChannelController : public DataChannelProviderInterface,
  public:
   explicit DataChannelController(PeerConnection* pc) : pc_(pc) {}
 
+  // Not copyable or movable.
+  DataChannelController(DataChannelController&) = delete;
+  DataChannelController& operator=(const DataChannelController& other) = delete;
+  DataChannelController(DataChannelController&&) = delete;
+  DataChannelController& operator=(DataChannelController&& other) = delete;
+
   // Implements DataChannelProviderInterface.
   bool SendData(const cricket::SendDataParams& params,
                 const rtc::CopyOnWriteBuffer& payload,
@@ -46,6 +52,7 @@ class DataChannelController : public DataChannelProviderInterface,
   void OnChannelClosing(int channel_id) override;
   void OnChannelClosed(int channel_id) override;
   void OnReadyToSend() override;
+  void OnTransportClosed() override;
 
   // Called from PeerConnection::SetupDataChannelTransport_n
   void SetupDataChannelTransport_n();
@@ -56,6 +63,9 @@ class DataChannelController : public DataChannelProviderInterface,
   // to make required changes to datachannels' transports.
   void OnTransportChanged(
       DataChannelTransportInterface* data_channel_transport);
+
+  // Called from PeerConnection::GetDataChannelStats on the signaling thread.
+  std::vector<DataChannel::Stats> GetDataChannelStats() const;
 
   // Creates channel and adds it to the collection of DataChannels that will
   // be offered in a SessionDescription.
@@ -82,34 +92,18 @@ class DataChannelController : public DataChannelProviderInterface,
   void UpdateRemoteRtpDataChannels(const cricket::StreamParamsVec& streams);
 
   // Accessors
-  cricket::DataChannelType data_channel_type() const {
-    return data_channel_type_;
-  }
-  void set_data_channel_type(cricket::DataChannelType type) {
-    data_channel_type_ = type;
-  }
+  cricket::DataChannelType data_channel_type() const;
+  void set_data_channel_type(cricket::DataChannelType type);
   cricket::RtpDataChannel* rtp_data_channel() const {
     return rtp_data_channel_;
   }
   void set_rtp_data_channel(cricket::RtpDataChannel* channel) {
     rtp_data_channel_ = channel;
   }
-  DataChannelTransportInterface* data_channel_transport() const {
-    return data_channel_transport_;
-  }
-  void set_data_channel_transport(DataChannelTransportInterface* transport) {
-    data_channel_transport_ = transport;
-  }
+  DataChannelTransportInterface* data_channel_transport() const;
+  void set_data_channel_transport(DataChannelTransportInterface* transport);
   const std::map<std::string, rtc::scoped_refptr<DataChannel>>*
-  rtp_data_channels() const {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    return &rtp_data_channels_;
-  }
-  const std::vector<rtc::scoped_refptr<DataChannel>>* sctp_data_channels()
-      const {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    return &sctp_data_channels_;
-  }
+  rtp_data_channels() const;
 
   sigslot::signal1<DataChannel*>& SignalDataChannelCreated() {
     RTC_DCHECK_RUN_ON(signaling_thread());
@@ -138,6 +132,15 @@ class DataChannelController : public DataChannelProviderInterface,
   void UpdateClosingRtpDataChannels(
       const std::vector<std::string>& active_channels,
       bool is_local_update) RTC_RUN_ON(signaling_thread());
+
+  // Called from SendData when data_channel_transport() is true.
+  bool DataChannelSendData(const cricket::SendDataParams& params,
+                           const rtc::CopyOnWriteBuffer& payload,
+                           cricket::SendDataResult* result);
+
+  // Called when all data channels need to be notified of a transport channel
+  // (calls OnTransportChannelCreated on the signaling thread).
+  void NotifyDataChannelsOfTransportCreated();
 
   rtc::Thread* network_thread() const;
   rtc::Thread* signaling_thread() const;
@@ -182,6 +185,8 @@ class DataChannelController : public DataChannelProviderInterface,
 
   // Signals from |data_channel_transport_|.  These are invoked on the
   // signaling thread.
+  // TODO(bugs.webrtc.org/11547): These '_s' signals likely all belong on the
+  // network thread.
   sigslot::signal1<bool> SignalDataChannelTransportWritable_s
       RTC_GUARDED_BY(signaling_thread());
   sigslot::signal2<const cricket::ReceiveDataParams&,

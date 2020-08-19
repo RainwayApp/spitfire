@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/core/html/parser/html_token.h"
 #include "third_party/blink/renderer/core/html/parser/preload_request.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/text/segmented_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -50,6 +51,7 @@ typedef wtf_size_t TokenPreloadScannerCheckpoint;
 
 class HTMLParserOptions;
 class HTMLTokenizer;
+class LazyLoadImageObserver;
 class SegmentedString;
 
 struct CORE_EXPORT CachedDocumentParameters {
@@ -65,8 +67,8 @@ struct CORE_EXPORT CachedDocumentParameters {
   bool viewport_meta_enabled;
   network::mojom::ReferrerPolicy referrer_policy;
   SubresourceIntegrity::IntegrityFeatures integrity_features;
-  bool lazyload_policy_enforced;
   LocalFrame::LazyLoadImageSetting lazy_load_image_setting;
+  WeakPersistent<LazyLoadImageObserver> lazy_load_image_observer;
 };
 
 class TokenPreloadScanner {

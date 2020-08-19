@@ -97,6 +97,11 @@ struct BLINK_COMMON_EXPORT
     return manifest.icons;
   }
 
+  static const std::vector<::blink::Manifest::ShortcutItem>& shortcuts(
+      const ::blink::Manifest& manifest) {
+    return manifest.shortcuts;
+  }
+
   static const base::Optional<::blink::Manifest::ShareTarget>& share_target(
       const ::blink::Manifest& manifest) {
     return manifest.share_target;
@@ -105,6 +110,11 @@ struct BLINK_COMMON_EXPORT
   static const std::vector<::blink::Manifest::FileHandler>& file_handlers(
       const ::blink::Manifest& manifest) {
     return manifest.file_handlers;
+  }
+
+  static const std::vector<::blink::Manifest::ProtocolHandler>&
+  protocol_handlers(const ::blink::Manifest& manifest) {
+    return manifest.protocol_handlers;
   }
 
   static const std::vector<::blink::Manifest::RelatedApplication>&
@@ -143,6 +153,38 @@ struct BLINK_COMMON_EXPORT
 
   static bool Read(blink::mojom::ManifestImageResourceDataView data,
                    ::blink::Manifest::ImageResource* out);
+};
+
+template <>
+struct BLINK_COMMON_EXPORT
+    StructTraits<blink::mojom::ManifestShortcutItemDataView,
+                 ::blink::Manifest::ShortcutItem> {
+  static base::StringPiece16 name(
+      const ::blink::Manifest::ShortcutItem& shortcut) {
+    return internal::TruncateString16(shortcut.name);
+  }
+
+  static base::Optional<base::StringPiece16> short_name(
+      const ::blink::Manifest::ShortcutItem& shortcut) {
+    return internal::TruncateNullableString16(shortcut.short_name);
+  }
+
+  static base::Optional<base::StringPiece16> description(
+      const ::blink::Manifest::ShortcutItem& shortcut) {
+    return internal::TruncateNullableString16(shortcut.description);
+  }
+
+  static const GURL& url(const ::blink::Manifest::ShortcutItem& shortcut) {
+    return shortcut.url;
+  }
+
+  static const std::vector<::blink::Manifest::ImageResource>& icons(
+      const ::blink::Manifest::ShortcutItem& shortcut) {
+    return shortcut.icons;
+  }
+
+  static bool Read(blink::mojom::ManifestShortcutItemDataView data,
+                   ::blink::Manifest::ShortcutItem* out);
 };
 
 template <>
@@ -260,6 +302,21 @@ struct BLINK_COMMON_EXPORT
 
   static bool Read(blink::mojom::ManifestFileHandlerDataView data,
                    ::blink::Manifest::FileHandler* out);
+};
+
+template <>
+struct BLINK_COMMON_EXPORT
+    StructTraits<blink::mojom::ManifestProtocolHandlerDataView,
+                 ::blink::Manifest::ProtocolHandler> {
+  static base::StringPiece16 protocol(
+      const ::blink::Manifest::ProtocolHandler& protocol) {
+    return internal::TruncateString16(protocol.protocol);
+  }
+  static const GURL& url(const ::blink::Manifest::ProtocolHandler& protocol) {
+    return protocol.url;
+  }
+  static bool Read(blink::mojom::ManifestProtocolHandlerDataView data,
+                   ::blink::Manifest::ProtocolHandler* out);
 };
 
 template <>

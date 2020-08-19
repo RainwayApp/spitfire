@@ -24,7 +24,7 @@ class InObjectContainer {
 
   virtual ~InObjectContainer() {}
 
-  virtual void Trace(Visitor* visitor) { visitor->Trace(dependency_); }
+  virtual void Trace(Visitor* visitor) const { visitor->Trace(dependency_); }
 
  private:
   Member<DeathAwareScriptWrappable> dependency_;
@@ -43,10 +43,6 @@ class DeathAwareScriptWrappable : public ScriptWrappable {
  public:
   typedef Member<DeathAwareScriptWrappable> Wrapper;
 
-  static DeathAwareScriptWrappable* Create() {
-    return MakeGarbageCollected<DeathAwareScriptWrappable>();
-  }
-
   static bool HasDied() { return has_died_; }
   static void ObserveDeathsOf(DeathAwareScriptWrappable* instance) {
     has_died_ = false;
@@ -60,7 +56,7 @@ class DeathAwareScriptWrappable : public ScriptWrappable {
     }
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(wrapped_dependency_);
     visitor->Trace(wrapped_vector_dependency_);
     visitor->Trace(wrapped_hash_map_dependency_);

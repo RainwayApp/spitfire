@@ -39,7 +39,7 @@ class GPUCanvasContext : public CanvasRenderingContext {
                    const CanvasContextCreationAttributesCore&);
   ~GPUCanvasContext() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
   const IntSize& CanvasSize() const;
 
   // CanvasRenderingContext implementation
@@ -48,36 +48,31 @@ class GPUCanvasContext : public CanvasRenderingContext {
   scoped_refptr<StaticBitmapImage> GetImage(AccelerationHint) final {
     return nullptr;
   }
-  void SetIsHidden(bool) override {}
+  void SetIsInHiddenPage(bool) override {}
+  void SetIsBeingDisplayed(bool) override {}
   bool isContextLost() const override { return false; }
   bool IsComposited() const final { return true; }
   bool IsAccelerated() const final { return true; }
   bool IsOriginTopLeft() const final { return true; }
   bool Is3d() const final { return true; }
-  void SetFilterQuality(SkFilterQuality) final {}
+  void SetFilterQuality(SkFilterQuality) override;
   bool IsPaintable() const final { return true; }
   int ExternallyAllocatedBufferCountPerPixel() final { return 1; }
   void Stop() final;
   cc::Layer* CcLayer() const final;
 
   // gpu_canvas_context.idl
-  GPUSwapChain* configureSwapChain(const GPUSwapChainDescriptor* descriptor);
+  GPUSwapChain* configureSwapChain(const GPUSwapChainDescriptor* descriptor,
+                                   ExceptionState&);
   ScriptPromise getSwapChainPreferredFormat(ScriptState* script_state,
                                             const GPUDevice* device);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GPUCanvasContext);
+  SkFilterQuality filter_quality_ = kLow_SkFilterQuality;
   Member<GPUSwapChain> swapchain_;
   bool stopped_ = false;
 };
-
-DEFINE_TYPE_CASTS(GPUCanvasContext,
-                  CanvasRenderingContext,
-                  context,
-                  context->GetContextType() ==
-                      CanvasRenderingContext::kContextGPUPresent,
-                  context.GetContextType() ==
-                      CanvasRenderingContext::kContextGPUPresent);
 
 }  // namespace blink
 

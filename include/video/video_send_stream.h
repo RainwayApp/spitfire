@@ -58,7 +58,7 @@ class VideoSendStream : public webrtc::VideoSendStream {
       int num_cpu_cores,
       ProcessThread* module_process_thread,
       TaskQueueFactory* task_queue_factory,
-      CallStats* call_stats,
+      RtcpRttStats* call_stats,
       RtpTransportControllerSendInterface* transport,
       BitrateAllocatorInterface* bitrate_allocator,
       SendDelayStats* send_delay_stats,
@@ -78,6 +78,9 @@ class VideoSendStream : public webrtc::VideoSendStream {
       const std::vector<bool> active_layers) override;
   void Start() override;
   void Stop() override;
+
+  void AddAdaptationResource(rtc::scoped_refptr<Resource> resource) override;
+  std::vector<rtc::scoped_refptr<Resource>> GetAdaptationResources() override;
 
   void SetSource(rtc::VideoSourceInterface<webrtc::VideoFrame>* source,
                  const DegradationPreference& degradation_preference) override;

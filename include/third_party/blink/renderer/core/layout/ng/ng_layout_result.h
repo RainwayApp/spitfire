@@ -41,6 +41,8 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     kSuccess = 0,
     kBfcBlockOffsetResolved = 1,
     kNeedsEarlierBreak = 2,
+    kOutOfFragmentainerSpace = 3,
+    kNeedsRelayoutWithNoForcedTruncateAtLineClamp = 4,
     // When adding new values, make sure the bit size of |Bitfields::status| is
     // large enough to store.
   };
@@ -60,6 +62,28 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     DCHECK(physical_fragment_);
     DCHECK_EQ(kSuccess, Status());
     return *physical_fragment_;
+  }
+
+  int LinesUntilClamp() const {
+    return HasRareData() ? rare_data_->lines_until_clamp : 0;
+  }
+
+  // How much an annotation box overflow from this box.
+  // This is for LayoutNGRubyRun and line boxes.
+  // 0 : No overflow
+  // -N : Overflowing by N px at block-start side
+  //      This happens only for LayoutRubyRun.
+  // N : Overflowing by N px at block-end side
+  LayoutUnit AnnotationOverflow() const {
+    return HasRareData() ? rare_data_->annotation_overflow : LayoutUnit();
+  }
+
+  // The amount of available space for block-start side annotations of the
+  // next box.
+  // This never be negative.
+  LayoutUnit BlockEndAnnotationSpace() const {
+    return HasRareData() ? rare_data_->block_end_annotation_space
+                         : LayoutUnit();
   }
 
   LogicalOffset OutOfFlowPositionedOffset() const {
@@ -140,16 +164,13 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
   }
 
   const LayoutUnit IntrinsicBlockSize() const {
-    DCHECK(physical_fragment_->Type() == NGPhysicalFragment::kFragmentBox ||
-           physical_fragment_->Type() ==
-               NGPhysicalFragment::kFragmentRenderedLegend);
+    DCHECK(physical_fragment_->IsBox());
     return intrinsic_block_size_;
   }
 
-  LayoutUnit UnconstrainedIntrinsicBlockSize() const {
-    return HasRareData() && rare_data_->unconstrained_intrinsic_block_size_ !=
-                                kIndefiniteSize
-               ? rare_data_->unconstrained_intrinsic_block_size_
+  LayoutUnit OverflowBlockSize() const {
+    return HasRareData() && rare_data_->overflow_block_size != kIndefiniteSize
+               ? rare_data_->overflow_block_size
                : intrinsic_block_size_;
   }
 
@@ -171,6 +192,14 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     DCHECK(rare_data_->has_tallest_unbreakable_block_size);
 #endif
     return rare_data_->tallest_unbreakable_block_size;
+  }
+
+  // Return whether this result is single-use only (true), or if it is allowed
+  // to be involved in cache hits in future layout passes (false).
+  // For example, this happens when a block is fragmented, since we don't yet
+  // support caching of block-fragmented results.
+  bool IsSingleUse() const {
+    return HasRareData() && rare_data_->is_single_use;
   }
 
   SerializedScriptValue* CustomLayoutData() const {
@@ -285,21 +314,24 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
                                     bool check_same_block_size = true) const;
 #endif
 
- private:
-  friend class NGBoxFragmentBuilder;
-  friend class NGLineBoxFragmentBuilder;
-  friend class MutableForOutOfFlow;
-
+  using NGBoxFragmentBuilderPassKey = util::PassKey<NGBoxFragmentBuilder>;
+  // This constructor is for a non-success status.
+  NGLayoutResult(NGBoxFragmentBuilderPassKey, EStatus, NGBoxFragmentBuilder*);
   // This constructor requires a non-null fragment and sets a success status.
   NGLayoutResult(
+      NGBoxFragmentBuilderPassKey,
       scoped_refptr<const NGPhysicalContainerFragment> physical_fragment,
       NGBoxFragmentBuilder*);
+  using NGLineBoxFragmentBuilderPassKey =
+      util::PassKey<NGLineBoxFragmentBuilder>;
   // This constructor requires a non-null fragment and sets a success status.
   NGLayoutResult(
+      NGLineBoxFragmentBuilderPassKey,
       scoped_refptr<const NGPhysicalContainerFragment> physical_fragment,
       NGLineBoxFragmentBuilder*);
-  // This constructor is for a non-success status.
-  NGLayoutResult(EStatus, NGBoxFragmentBuilder*);
+
+ private:
+  friend class MutableForOutOfFlow;
 
   // We don't need the copy constructor, move constructor, copy
   // assigmnment-operator, or move assignment-operator today.
@@ -358,10 +390,14 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     };
     NGExclusionSpace exclusion_space;
     scoped_refptr<SerializedScriptValue> custom_layout_data;
-    LayoutUnit unconstrained_intrinsic_block_size_ = kIndefiniteSize;
+    LayoutUnit overflow_block_size = kIndefiniteSize;
+    LayoutUnit annotation_overflow;
+    LayoutUnit block_end_annotation_space;
 #if DCHECK_IS_ON()
     bool has_tallest_unbreakable_block_size = false;
 #endif
+    bool is_single_use = false;
+    int lines_until_clamp = 0;
   };
 
   bool HasRareData() const { return bitfields_.has_rare_data; }
@@ -421,7 +457,7 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     unsigned initial_break_before : 4;  // EBreakBetween
     unsigned final_break_after : 4;     // EBreakBetween
 
-    unsigned status : 2;  // EStatus
+    unsigned status : 3;  // EStatus
   };
 
   // The constraint space which generated this layout result, may not be valid

@@ -35,7 +35,7 @@
 
 namespace blink {
 
-class LayoutRubyText final : public LayoutBlockFlow {
+class LayoutRubyText : public LayoutBlockFlow {
  public:
   LayoutRubyText(Element*);
   ~LayoutRubyText() override;
@@ -48,19 +48,15 @@ class LayoutRubyText final : public LayoutBlockFlow {
 
   bool IsChildAllowed(LayoutObject*, const ComputedStyle&) const override;
 
+  void StyleDidChange(StyleDifference diff,
+                      const ComputedStyle* old_style) override;
+
   bool CreatesNewFormattingContext() const final {
     // Ruby text objects are pushed around after layout, to become flush with
     // the associated ruby base. As such, we cannot let floats leak out from
     // ruby text objects.
     return true;
   }
-
- private:
-  ETextAlign TextAlignmentForLine(bool ends_with_soft_break) const override;
-  void AdjustInlineDirectionLineBounds(
-      unsigned expansion_opportunity_count,
-      LayoutUnit& logical_left,
-      LayoutUnit& logical_width) const override;
 };
 
 DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutRubyText, IsRubyText());

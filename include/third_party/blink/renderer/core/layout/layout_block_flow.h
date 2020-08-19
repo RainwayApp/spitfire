@@ -105,7 +105,6 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   static LayoutBlockFlow* CreateAnonymous(Document*,
                                           scoped_refptr<ComputedStyle>,
                                           LegacyLayout);
-  bool BeingDestroyed() const { return being_destroyed_; }
 
   bool IsLayoutBlockFlow() const final { return true; }
 
@@ -357,6 +356,9 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   }
   void SetFirstForcedBreakOffset(LayoutUnit);
 
+  const AtomicString StartPageName() const final;
+  const AtomicString EndPageName() const final;
+
   void PositionSpannerDescendant(LayoutMultiColumnSpannerPlaceholder& child);
 
   bool CreatesNewFormattingContext() const override;
@@ -454,6 +456,7 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   // These functions are only public so we can call it from NGBlockNode while
   // we're still working on LayoutNG.
   void AddVisualOverflowFromFloats();
+  void AddVisualOverflowFromFloats(const NGPhysicalContainerFragment& fragment);
   void AddLayoutOverflowFromFloats();
 
   virtual NGInlineNodeData* TakeNGInlineNodeData() { return nullptr; }
@@ -464,9 +467,6 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   virtual void WillCollectInlines() {}
   virtual void SetPaintFragment(const NGBlockBreakToken*,
                                 scoped_refptr<const NGPhysicalFragment>);
-  virtual const NGPhysicalBoxFragment* CurrentFragment() const {
-    return nullptr;
-  }
   const NGFragmentItems* FragmentItems() const;
 
 #if DCHECK_IS_ON()
@@ -530,7 +530,6 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
                        const PhysicalOffset& additional_offset,
                        NGOutlineType) const override;
 
-  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const override;
   void InvalidateDisplayItemClients(PaintInvalidationReason) const override;
 
   Node* NodeForHitTest() const final;
@@ -539,7 +538,7 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
                        const PhysicalOffset& accumulated_offset,
                        HitTestAction) override;
 
-  PhysicalOffset AccumulateInFlowPositionOffsets() const override;
+  PhysicalOffset AccumulateRelativePositionOffsets() const override;
 
  private:
   void ResetLayout();
@@ -673,6 +672,16 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
     return rare_data_ && rare_data_->did_break_at_line_to_avoid_widow_;
   }
 
+  // Start page name propagated from the first child, if there are children, and
+  // the first child has a start page name associated with it.
+  const AtomicString PropagatedStartPageName() const;
+  void SetPropagatedStartPageName(const AtomicString&);
+
+  // End page name propagated from the last child, if there are children, and
+  // the last child has a end page name associated with it.
+  const AtomicString PropagatedEndPageName() const;
+  void SetPropagatedEndPageName(const AtomicString&);
+
  public:
   struct FloatWithRect {
     DISALLOW_NEW();
@@ -736,9 +745,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   MarginValues MarginValuesForChild(LayoutBox& child) const;
 
   // Allocated only when some of these fields have non-default values
-  struct LayoutBlockFlowRareData {
-    USING_FAST_MALLOC(LayoutBlockFlowRareData);
-
+  struct LayoutBlockFlowRareData final
+      : public GarbageCollected<LayoutBlockFlowRareData> {
    public:
     explicit LayoutBlockFlowRareData(const LayoutBlockFlow* block);
     ~LayoutBlockFlowRareData();
@@ -758,6 +766,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
       return (-block->MarginAfter()).ClampNegativeToZero();
     }
 
+    void Trace(Visitor*) const {}
+
     MarginValues margins_;
     LayoutUnit pagination_strut_propagated_from_child_;
 
@@ -771,12 +781,18 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
     // |offset_mapping_| here.
     std::unique_ptr<NGOffsetMapping> offset_mapping_;
 
+    // Name of the start page for this object, if propagated from a descendant;
+    // see https://drafts.csswg.org/css-page-3/#start-page-value
+    AtomicString propagated_start_page_name_;
+
+    // Name of the end page for this object, if propagated from a descendant;
+    // see https://drafts.csswg.org/css-page-3/#end-page-value
+    AtomicString propagated_end_page_name_;
+
     unsigned break_before_ : 4;
     unsigned break_after_ : 4;
     int line_break_to_avoid_widow_;
     bool did_break_at_line_to_avoid_widow_ : 1;
-    bool discard_margin_before_ : 1;
-    bool discard_margin_after_ : 1;
     DISALLOW_COPY_AND_ASSIGN(LayoutBlockFlowRareData);
   };
 
@@ -823,18 +839,6 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   void SetMaxMarginBeforeValues(LayoutUnit pos, LayoutUnit neg);
   void SetMaxMarginAfterValues(LayoutUnit pos, LayoutUnit neg);
 
-  void SetMustDiscardMarginBefore(bool = true);
-  void SetMustDiscardMarginAfter(bool = true);
-
-  bool MustDiscardMarginBefore() const;
-  bool MustDiscardMarginAfter() const;
-
-  bool MustDiscardMarginBeforeForChild(const LayoutBox&) const;
-  bool MustDiscardMarginAfterForChild(const LayoutBox&) const;
-
-  bool MustSeparateMarginBeforeForChild(const LayoutBox&) const;
-  bool MustSeparateMarginAfterForChild(const LayoutBox&) const;
-
   void InitMaxMarginValues() {
     if (rare_data_) {
       rare_data_->margins_ = MarginValues(
@@ -842,13 +846,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
           LayoutBlockFlowRareData::NegativeMarginBeforeDefault(this),
           LayoutBlockFlowRareData::PositiveMarginAfterDefault(this),
           LayoutBlockFlowRareData::NegativeMarginAfterDefault(this));
-
-      rare_data_->discard_margin_before_ = false;
-      rare_data_->discard_margin_after_ = false;
     }
   }
-
-  virtual ETextAlign TextAlignmentForLine(bool ends_with_soft_break) const;
 
  private:
   LayoutUnit CollapsedMarginBefore() const final {
@@ -866,24 +865,18 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
 
   LayoutUnit CollapseMargins(LayoutBox& child,
                              BlockChildrenLayoutInfo&,
-                             bool child_is_self_collapsing,
-                             bool child_discard_margin_before,
-                             bool child_discard_margin_after);
+                             bool child_is_self_collapsing);
   LayoutUnit ClearFloatsIfNeeded(LayoutBox& child,
                                  MarginInfo&,
                                  LayoutUnit old_top_pos_margin,
                                  LayoutUnit old_top_neg_margin,
                                  LayoutUnit y_pos,
-                                 bool child_is_self_collapsing,
-                                 bool child_discard_margin);
+                                 bool child_is_self_collapsing);
   LayoutUnit EstimateLogicalTopPosition(
       LayoutBox& child,
       const BlockChildrenLayoutInfo&,
       LayoutUnit& estimate_without_pagination);
-  void MarginBeforeEstimateForChild(LayoutBox&,
-                                    LayoutUnit&,
-                                    LayoutUnit&,
-                                    bool&) const;
+  void MarginBeforeEstimateForChild(LayoutBox&, LayoutUnit&, LayoutUnit&) const;
   void HandleAfterSideOfBlock(LayoutBox* last_child,
                               LayoutUnit top,
                               LayoutUnit bottom,
@@ -937,7 +930,7 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   bool CheckIfIsSelfCollapsingBlock() const;
 
  protected:
-  std::unique_ptr<LayoutBlockFlowRareData> rare_data_;
+  Persistent<LayoutBlockFlowRareData> rare_data_;
   std::unique_ptr<FloatingObjects> floating_objects_;
 
   friend class MarginInfo;

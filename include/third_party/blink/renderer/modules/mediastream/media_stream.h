@@ -27,7 +27,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASTREAM_MEDIA_STREAM_H_
 
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -49,12 +49,12 @@ class MODULES_EXPORT MediaStreamObserver : public GarbageCollectedMixin {
   // Invoked when |MediaStream::removeTrack| is called.
   virtual void OnStreamRemoveTrack(MediaStream*, MediaStreamTrack*) = 0;
 
-  void Trace(blink::Visitor* visitor) override {}
+  void Trace(Visitor* visitor) const override {}
 };
 
 class MODULES_EXPORT MediaStream final
     : public EventTargetWithInlineData,
-      public ContextClient,
+      public ExecutionContextClient,
       public ActiveScriptWrappable<MediaStream>,
       public MediaStreamDescriptorClient {
   USING_GARBAGE_COLLECTED_MIXIN(MediaStream);
@@ -67,6 +67,9 @@ class MODULES_EXPORT MediaStream final
   // Creates a MediaStream matching the MediaStreamDescriptor. MediaStreamTracks
   // are created for any MediaStreamComponents attached to the descriptor.
   static MediaStream* Create(ExecutionContext*, MediaStreamDescriptor*);
+  static MediaStream* Create(ExecutionContext*,
+                             MediaStreamDescriptor*,
+                             bool pan_tilt_zoom_allowed);
   // Creates a MediaStream with the specified MediaStreamDescriptor and
   // MediaStreamTracks. The tracks must match the MediaStreamComponents attached
   // to the descriptor (or else a DCHECK fails). This allows you to create
@@ -81,7 +84,9 @@ class MODULES_EXPORT MediaStream final
                              const MediaStreamTrackVector& audio_tracks,
                              const MediaStreamTrackVector& video_tracks);
 
-  MediaStream(ExecutionContext*, MediaStreamDescriptor*);
+  MediaStream(ExecutionContext*,
+              MediaStreamDescriptor*,
+              bool pan_tilt_zoom_allowed);
   MediaStream(ExecutionContext*,
               MediaStreamDescriptor*,
               const MediaStreamTrackVector& audio_tracks,
@@ -135,13 +140,13 @@ class MODULES_EXPORT MediaStream final
   // EventTarget
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override {
-    return ContextClient::GetExecutionContext();
+    return ExecutionContextClient::GetExecutionContext();
   }
 
   // ActiveScriptWrappable
   bool HasPendingActivity() const override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   bool AddEventListenerInternal(

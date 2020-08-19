@@ -55,12 +55,12 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 #include "api/scoped_refptr.h"
 #include "rtc_base/event.h"
 #include "rtc_base/message_handler.h"
-#include "rtc_base/message_queue.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
@@ -395,6 +395,16 @@ class ConstMethodCall : public rtc::Message, public rtc::MessageHandler {
     ConstMethodCall<C, r, t1, t2, t3> call(c_, &C::method, std::move(a1), \
                                            std::move(a2), std::move(a3)); \
     return call.Marshal(RTC_FROM_HERE, worker_thread_);                   \
+  }
+
+// For use when returning purely const state (set during construction).
+// Use with caution. This method should only be used when the return value will
+// always be the same.
+#define BYPASS_PROXY_CONSTMETHOD0(r, method)                            \
+  r method() const override {                                           \
+    static_assert(!std::is_pointer<r>::value, "Type is a pointer");     \
+    static_assert(!std::is_reference<r>::value, "Type is a reference"); \
+    return c_->method();                                                \
   }
 
 }  // namespace webrtc

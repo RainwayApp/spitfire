@@ -51,18 +51,18 @@ class CORE_EXPORT WritableStreamDefaultWriter final : public ScriptWrappable {
   // Methods
 
   // https://streams.spec.whatwg.org/#default-writer-abort
-  ScriptPromise abort(ScriptState*);
-  ScriptPromise abort(ScriptState*, ScriptValue reason);
+  ScriptPromise abort(ScriptState*, ExceptionState&);
+  ScriptPromise abort(ScriptState*, ScriptValue reason, ExceptionState&);
 
   // https://streams.spec.whatwg.org/#default-writer-close
-  ScriptPromise close(ScriptState*);
+  ScriptPromise close(ScriptState*, ExceptionState&);
 
   // https://streams.spec.whatwg.org/#default-writer-release-lock
   void releaseLock(ScriptState*);
 
   // https://streams.spec.whatwg.org/#default-writer-write
-  ScriptPromise write(ScriptState*);
-  ScriptPromise write(ScriptState*, ScriptValue chunk);
+  ScriptPromise write(ScriptState*, ExceptionState&);
+  ScriptPromise write(ScriptState*, ScriptValue chunk, ExceptionState&);
 
   //
   // Methods used by WritableStream
@@ -106,7 +106,7 @@ class CORE_EXPORT WritableStreamDefaultWriter final : public ScriptWrappable {
 
   void SetReadyPromise(StreamPromiseResolver*);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // https://streams.spec.whatwg.org/#writable-stream-default-writer-abort

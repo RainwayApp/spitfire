@@ -50,7 +50,7 @@ class DocumentStyleSheetCollection final
                           DocumentStyleSheetCollector&);
   void CollectViewportRules(ViewportStyleResolver&);
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     TreeScopeStyleSheetCollection::Trace(visitor);
   }
 

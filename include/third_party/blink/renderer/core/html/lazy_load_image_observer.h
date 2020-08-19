@@ -49,7 +49,7 @@ class LazyLoadImageObserver final
 
   bool IsFullyLoadableFirstKImageAndDecrementCount();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   void LoadIfNearViewport(const HeapVector<Member<IntersectionObserverEntry>>&);
@@ -69,7 +69,6 @@ class LazyLoadImageObserver final
 
   // Used to show the intervention console message one time only.
   bool is_load_event_deferred_intervention_shown_ = false;
-  bool is_missing_dimension_intervention_shown_ = false;
 };
 
 }  // namespace blink

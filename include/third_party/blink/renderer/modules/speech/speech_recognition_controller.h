@@ -30,24 +30,27 @@
 
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/speech/speech_recognizer.mojom-blink.h"
-#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
+class LocalDOMWindow;
 class SpeechGrammarList;
 
 class SpeechRecognitionController final
     : public GarbageCollected<SpeechRecognitionController>,
-      public Supplement<LocalFrame> {
+      public Supplement<LocalDOMWindow> {
   USING_GARBAGE_COLLECTED_MIXIN(SpeechRecognitionController);
 
  public:
   static const char kSupplementName[];
 
-  explicit SpeechRecognitionController(LocalFrame& frame);
+  explicit SpeechRecognitionController(LocalDOMWindow&);
   virtual ~SpeechRecognitionController();
 
   void Start(mojo::PendingReceiver<mojom::blink::SpeechRecognitionSession>
@@ -60,18 +63,25 @@ class SpeechRecognitionController final
              bool interim_results,
              uint32_t max_alternatives);
 
-  static SpeechRecognitionController* Create(LocalFrame& frame);
-  static SpeechRecognitionController* From(LocalFrame* frame) {
-    return Supplement<LocalFrame>::From<SpeechRecognitionController>(frame);
-  }
+  static SpeechRecognitionController* From(LocalDOMWindow&);
+
+  void Trace(Visitor* visitor) const override;
 
  private:
-  mojo::Remote<mojom::blink::SpeechRecognizer>& GetSpeechRecognizer();
+  mojom::blink::SpeechRecognizer* GetSpeechRecognizer();
 
-  mojo::Remote<mojom::blink::SpeechRecognizer> speech_recognizer_;
+  HeapMojoRemote<mojom::blink::SpeechRecognizer,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      speech_recognizer_;
+
+  // Disable BackForwardCache when using the SpeechRecognition feature, because
+  // currently we do not handle speech recognition after placing the page in
+  // BackForwardCache.
+  // TODO(sreejakshetty): Make SpeechRecognition compatile with
+  // BackForwardCache.
+  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
 };
-
-MODULES_EXPORT void ProvideSpeechRecognitionTo(LocalFrame& frame);
 
 }  // namespace blink
 

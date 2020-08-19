@@ -30,6 +30,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBAUDIO_AUDIO_SCHEDULED_SOURCE_NODE_H_
 
 #include <atomic>
+#include "base/memory/weak_ptr.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node.h"
 
@@ -38,7 +39,9 @@ namespace blink {
 class BaseAudioContext;
 class AudioBus;
 
-class AudioScheduledSourceHandler : public AudioHandler {
+class AudioScheduledSourceHandler
+    : public AudioHandler,
+      public base::SupportsWeakPtr<AudioScheduledSourceHandler> {
  public:
   // These are the possible states an AudioScheduledSourceNode can be in:
   //
@@ -91,6 +94,15 @@ class AudioScheduledSourceHandler : public AudioHandler {
   // stop time has arrived.  Nodes that are not reachable from the destination
   // don't progress in time so we need to handle this specially.
   virtual void HandleStoppableSourceNode() = 0;
+
+  // Returns true if the onended event has not been sent (is pending).
+  bool IsOnEndedNotificationPending() const {
+    return on_ended_notification_pending_;
+  }
+
+  void SetOnEndedNotificationPending() {
+    on_ended_notification_pending_ = true;
+  }
 
  protected:
   // Get frame information for the current time quantum.
@@ -156,6 +168,10 @@ class AudioScheduledSourceHandler : public AudioHandler {
   std::atomic<PlaybackState> playback_state_;
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
+  // Onended event is pending.  Becomes true when the node is started,
+  // and is false when the onended event is fired.
+  bool on_ended_notification_pending_ = false;
 };
 
 class AudioScheduledSourceNode
@@ -176,7 +192,7 @@ class AudioScheduledSourceNode
   // ScriptWrappable:
   bool HasPendingActivity() const final;
 
-  void Trace(blink::Visitor* visitor) override { AudioNode::Trace(visitor); }
+  void Trace(Visitor* visitor) const override { AudioNode::Trace(visitor); }
 
   AudioScheduledSourceHandler& GetAudioScheduledSourceHandler() const;
 

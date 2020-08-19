@@ -11,6 +11,9 @@
 
 namespace blink {
 
+template <typename OffsetMappingBuilder>
+class NGInlineItemsBuilderTemplate;
+
 // Data which is required for inline nodes.
 struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
  public:
@@ -18,6 +21,8 @@ struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
   TextDirection BaseDirection() const {
     return static_cast<TextDirection>(base_direction_);
   }
+
+  bool HasRuby() const { return has_ruby_; }
 
   bool IsEmptyInline() const { return is_empty_inline_; }
 
@@ -40,6 +45,9 @@ struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
   friend class NGInlineNodeForTest;
   friend class NGOffsetMappingTest;
 
+  template <typename OffsetMappingBuilder>
+  friend class NGInlineItemsBuilderTemplate;
+
   // Items to use for the first line, when the node has :first-line rules.
   //
   // Items have different ComputedStyle, and may also have different
@@ -49,6 +57,9 @@ struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
 
   unsigned is_bidi_enabled_ : 1;
   unsigned base_direction_ : 1;  // TextDirection
+
+  // The node contains <ruby>.
+  unsigned has_ruby_ : 1;
 
   // We use this flag to determine if the inline node is empty, and will
   // produce a single zero block-size line box. If the node has text, atomic

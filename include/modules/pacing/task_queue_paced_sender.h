@@ -30,6 +30,7 @@
 #include "modules/pacing/rtp_packet_pacer.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/critical_section.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/thread_annotations.h"
@@ -42,11 +43,18 @@ class TaskQueuePacedSender : public RtpPacketPacer,
                              public RtpPacketSender,
                              private PacingController::PacketSender {
  public:
-  TaskQueuePacedSender(Clock* clock,
-                       PacketRouter* packet_router,
-                       RtcEventLog* event_log,
-                       const WebRtcKeyValueConfig* field_trials,
-                       TaskQueueFactory* task_queue_factory);
+  // The |hold_back_window| parameter sets a lower bound on time to sleep if
+  // there is currently a pacer queue and packets can't immediately be
+  // processed. Increasing this reduces thread wakeups at the expense of higher
+  // latency.
+  // TODO(bugs.webrtc.org/10809): Remove default value for hold_back_window.
+  TaskQueuePacedSender(
+      Clock* clock,
+      PacketRouter* packet_router,
+      RtcEventLog* event_log,
+      const WebRtcKeyValueConfig* field_trials,
+      TaskQueueFactory* task_queue_factory,
+      TimeDelta hold_back_window = PacingController::kMinSleepTime);
 
   ~TaskQueuePacedSender() override;
 
@@ -79,6 +87,9 @@ class TaskQueuePacedSender : public RtpPacketPacer,
   // at high priority.
   void SetAccountForAudioPackets(bool account_for_audio) override;
 
+  void SetIncludeOverhead() override;
+  void SetTransportOverhead(DataSize overhead_per_packet) override;
+
   // Returns the time since the oldest queued packet was enqueued.
   TimeDelta OldestPacketWaitTime() const override;
 
@@ -96,7 +107,8 @@ class TaskQueuePacedSender : public RtpPacketPacer,
   // specified by SetPacingRates() if needed to achieve this goal.
   void SetQueueTimeLimit(TimeDelta limit) override;
 
- private:
+ protected:
+  // Exposed as protected for test.
   struct Stats {
     Stats()
         : oldest_packet_wait_time(TimeDelta::Zero()),
@@ -107,7 +119,9 @@ class TaskQueuePacedSender : public RtpPacketPacer,
     TimeDelta expected_queue_time;
     absl::optional<Timestamp> first_sent_packet_time;
   };
+  virtual void OnStatsUpdated(const Stats& stats);
 
+ private:
   // Check if it is time to send packets, or schedule a delayed task if not.
   // Use Timestamp::MinusInfinity() to indicate that this call has _not_
   // been scheduled by the pacing controller. If this is the case, check if
@@ -128,6 +142,7 @@ class TaskQueuePacedSender : public RtpPacketPacer,
   Stats GetStats() const;
 
   Clock* const clock_;
+  const TimeDelta hold_back_window_;
   PacketRouter* const packet_router_ RTC_GUARDED_BY(task_queue_);
   PacingController pacing_controller_ RTC_GUARDED_BY(task_queue_);
 
@@ -153,8 +168,8 @@ class TaskQueuePacedSender : public RtpPacketPacer,
   // never drain.
   bool is_shutdown_ RTC_GUARDED_BY(task_queue_);
 
-  rtc::CriticalSection stats_crit_;
-  Stats current_stats_ RTC_GUARDED_BY(stats_crit_);
+  mutable Mutex stats_mutex_;
+  Stats current_stats_ RTC_GUARDED_BY(stats_mutex_);
 
   rtc::TaskQueue task_queue_;
 };

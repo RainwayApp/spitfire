@@ -39,6 +39,7 @@
 namespace blink {
 
 class Document;
+class ExecutionContext;
 class HTMLLinkElement;
 class LocalFrame;
 
@@ -58,7 +59,7 @@ class CORE_EXPORT LinkResource : public GarbageCollected<LinkResource> {
   virtual void OwnerInserted() {}
   virtual bool HasLoaded() const = 0;
 
-  virtual void Trace(Visitor*);
+  virtual void Trace(Visitor*) const;
 
  protected:
   void Load();
@@ -66,6 +67,7 @@ class CORE_EXPORT LinkResource : public GarbageCollected<LinkResource> {
   Document& GetDocument();
   const Document& GetDocument() const;
   WTF::TextEncoding GetCharset() const;
+  ExecutionContext* GetExecutionContext();
 
   Member<HTMLLinkElement> owner_;
 

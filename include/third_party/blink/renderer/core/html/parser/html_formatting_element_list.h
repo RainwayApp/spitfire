@@ -42,7 +42,6 @@ class HTMLFormattingElementList {
 
  public:
   HTMLFormattingElementList();
-  ~HTMLFormattingElementList();
 
   // Ideally Entry would be private, but HTMLTreeBuilder has to coordinate
   // between the HTMLFormattingElementList and HTMLElementStack and needs access
@@ -76,7 +75,7 @@ class HTMLFormattingElementList {
       return !item_ ? !!element : item_->GetElement() != element;
     }
 
-    void Trace(Visitor* visitor) { visitor->Trace(item_); }
+    void Trace(Visitor* visitor) const { visitor->Trace(item_); }
 
    private:
     Member<HTMLStackItem> item_;
@@ -121,7 +120,7 @@ class HTMLFormattingElementList {
   const Entry& at(wtf_size_t i) const { return entries_[i]; }
   Entry& at(wtf_size_t i) { return entries_[i]; }
 
-  void Trace(Visitor* visitor) { visitor->Trace(entries_); }
+  void Trace(Visitor* visitor) const { visitor->Trace(entries_); }
 
 #ifndef NDEBUG
   void Show();

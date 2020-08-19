@@ -35,8 +35,8 @@ enum class DataMessageType {
 // sent reliably and in-order, even if the data channel is configured for
 // unreliable delivery.
 struct SendDataParams {
-  SendDataParams();
-  SendDataParams(const SendDataParams&);
+  SendDataParams() = default;
+  SendDataParams(const SendDataParams&) = default;
 
   DataMessageType type = DataMessageType::kText;
 
@@ -84,6 +84,11 @@ class DataChannelSink {
   // invoked again following send errors (eg. due to the transport being
   // temporarily blocked or unavailable).
   virtual void OnReadyToSend() = 0;
+
+  // Callback issued when the data channel becomes unusable (closed).
+  // TODO(https://crbug.com/webrtc/10360): Make pure virtual when all
+  // consumers updated.
+  virtual void OnTransportClosed() {}
 };
 
 // Transport for data channels.

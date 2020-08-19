@@ -40,17 +40,21 @@ class BASE_EXPORT PowerMonitor {
   // from which it was registered.
   // Must not be called from within a notification callback.
   //
-  // AddObserver() fails and returns false if PowerMonitor::Initialize() has not
-  // been invoked. Failure should only happen in unit tests, where the
-  // PowerMonitor is generally not initialized. It is safe to call
-  // RemoveObserver with a PowerObserver that was not successfully added as an
+  // It is safe to add observers before the PowerMonitor is initialized. It is
+  // safe to call RemoveObserver with a PowerObserver that was not added as an
   // observer.
-  static bool AddObserver(PowerObserver* observer);
+  static void AddObserver(PowerObserver* observer);
   static void RemoveObserver(PowerObserver* observer);
 
   // Is the computer currently on battery power. May only be called if the
   // PowerMonitor has been initialized.
   static bool IsOnBatteryPower();
+
+  // Is the computer currently in suspend mode. Safe to call on any thread. Safe
+  // to call even if the PowerMonitor hasn't been initialized. When called
+  // before initialisation, the process is assumed to not be suspended no matter
+  // what is the real power state.
+  static bool IsProcessSuspended();
 
   // Uninitializes the PowerMonitor. Should be called at the end of any unit
   // test that mocks out the PowerMonitor, to avoid affecting subsequent tests.
@@ -70,6 +74,8 @@ class BASE_EXPORT PowerMonitor {
   static void NotifyPowerStateChange(bool battery_in_use);
   static void NotifySuspend();
   static void NotifyResume();
+  static void NotifyThermalStateChange(
+      PowerObserver::DeviceThermalState new_state);
 
   static PowerMonitor* GetInstance();
 

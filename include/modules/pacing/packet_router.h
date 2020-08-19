@@ -27,11 +27,12 @@
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/critical_section.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
-class RtpRtcp;
+class RtpRtcpInterface;
 
 // PacketRouter keeps track of rtp send modules to support the pacer.
 // In addition, it handles feedback messages, which are sent on a send
@@ -45,8 +46,8 @@ class PacketRouter : public RemoteBitrateObserver,
   explicit PacketRouter(uint16_t start_transport_seq);
   ~PacketRouter() override;
 
-  void AddSendRtpModule(RtpRtcp* rtp_module, bool remb_candidate);
-  void RemoveSendRtpModule(RtpRtcp* rtp_module);
+  void AddSendRtpModule(RtpRtcpInterface* rtp_module, bool remb_candidate);
+  void RemoveSendRtpModule(RtpRtcpInterface* rtp_module);
 
   void AddReceiveRtpModule(RtcpFeedbackSenderInterface* rtcp_sender,
                            bool remb_candidate);
@@ -82,48 +83,49 @@ class PacketRouter : public RemoteBitrateObserver,
  private:
   void AddRembModuleCandidate(RtcpFeedbackSenderInterface* candidate_module,
                               bool media_sender)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_crit_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_mutex_);
   void MaybeRemoveRembModuleCandidate(
       RtcpFeedbackSenderInterface* candidate_module,
-      bool media_sender) RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_crit_);
-  void UnsetActiveRembModule() RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_crit_);
-  void DetermineActiveRembModule() RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_crit_);
-  void AddSendRtpModuleToMap(RtpRtcp* rtp_module, uint32_t ssrc)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_crit_);
+      bool media_sender) RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_mutex_);
+  void UnsetActiveRembModule() RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_mutex_);
+  void DetermineActiveRembModule() RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_mutex_);
+  void AddSendRtpModuleToMap(RtpRtcpInterface* rtp_module, uint32_t ssrc)
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_mutex_);
   void RemoveSendRtpModuleFromMap(uint32_t ssrc)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_crit_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(modules_mutex_);
 
-  rtc::CriticalSection modules_crit_;
-  // Ssrc to RtpRtcp module;
-  std::unordered_map<uint32_t, RtpRtcp*> send_modules_map_
-      RTC_GUARDED_BY(modules_crit_);
-  std::list<RtpRtcp*> send_modules_list_ RTC_GUARDED_BY(modules_crit_);
+  mutable Mutex modules_mutex_;
+  // Ssrc to RtpRtcpInterface module;
+  std::unordered_map<uint32_t, RtpRtcpInterface*> send_modules_map_
+      RTC_GUARDED_BY(modules_mutex_);
+  std::list<RtpRtcpInterface*> send_modules_list_
+      RTC_GUARDED_BY(modules_mutex_);
   // The last module used to send media.
-  RtpRtcp* last_send_module_ RTC_GUARDED_BY(modules_crit_);
+  RtpRtcpInterface* last_send_module_ RTC_GUARDED_BY(modules_mutex_);
   // Rtcp modules of the rtp receivers.
   std::vector<RtcpFeedbackSenderInterface*> rtcp_feedback_senders_
-      RTC_GUARDED_BY(modules_crit_);
+      RTC_GUARDED_BY(modules_mutex_);
 
-  // TODO(eladalon): remb_crit_ only ever held from one function, and it's not
+  // TODO(eladalon): remb_mutex_ only ever held from one function, and it's not
   // clear if that function can actually be called from more than one thread.
-  rtc::CriticalSection remb_crit_;
+  Mutex remb_mutex_;
   // The last time a REMB was sent.
-  int64_t last_remb_time_ms_ RTC_GUARDED_BY(remb_crit_);
-  int64_t last_send_bitrate_bps_ RTC_GUARDED_BY(remb_crit_);
+  int64_t last_remb_time_ms_ RTC_GUARDED_BY(remb_mutex_);
+  int64_t last_send_bitrate_bps_ RTC_GUARDED_BY(remb_mutex_);
   // The last bitrate update.
-  int64_t bitrate_bps_ RTC_GUARDED_BY(remb_crit_);
-  int64_t max_bitrate_bps_ RTC_GUARDED_BY(remb_crit_);
+  int64_t bitrate_bps_ RTC_GUARDED_BY(remb_mutex_);
+  int64_t max_bitrate_bps_ RTC_GUARDED_BY(remb_mutex_);
 
   // Candidates for the REMB module can be RTP sender/receiver modules, with
   // the sender modules taking precedence.
   std::vector<RtcpFeedbackSenderInterface*> sender_remb_candidates_
-      RTC_GUARDED_BY(modules_crit_);
+      RTC_GUARDED_BY(modules_mutex_);
   std::vector<RtcpFeedbackSenderInterface*> receiver_remb_candidates_
-      RTC_GUARDED_BY(modules_crit_);
+      RTC_GUARDED_BY(modules_mutex_);
   RtcpFeedbackSenderInterface* active_remb_module_
-      RTC_GUARDED_BY(modules_crit_);
+      RTC_GUARDED_BY(modules_mutex_);
 
-  uint64_t transport_seq_ RTC_GUARDED_BY(modules_crit_);
+  uint64_t transport_seq_ RTC_GUARDED_BY(modules_mutex_);
 
   RTC_DISALLOW_COPY_AND_ASSIGN(PacketRouter);
 };

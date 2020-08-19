@@ -29,16 +29,15 @@
 #include <memory>
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/single_thread_task_runner.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/parser_content_policy.h"
 #include "third_party/blink/renderer/core/dom/scriptable_document_parser.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/core/html/parser/background_html_input_stream.h"
 #include "third_party/blink/renderer/core/html/parser/html_input_stream.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_options.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_reentry_permit.h"
 #include "third_party/blink/renderer/core/html/parser/html_preload_scanner.h"
-#include "third_party/blink/renderer/core/html/parser/html_source_tracker.h"
 #include "third_party/blink/renderer/core/html/parser/html_token.h"
 #include "third_party/blink/renderer/core/html/parser/html_tokenizer.h"
 #include "third_party/blink/renderer/core/html/parser/html_tree_builder_simulator.h"
@@ -47,6 +46,7 @@
 #include "third_party/blink/renderer/core/html/parser/text_resource_decoder.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/core/script/html_parser_script_runner_host.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_position.h"
 
@@ -59,14 +59,21 @@ class DocumentEncodingData;
 class DocumentFragment;
 class Element;
 class HTMLDocument;
+class HTMLParserMetrics;
 class HTMLParserScheduler;
 class HTMLParserScriptRunner;
 class HTMLPreloadScanner;
 class HTMLResourcePreloader;
 class HTMLTreeBuilder;
+class HTMLDocumentParserState;
+
+// TODO(https://crbug.com/1049898): These are only exposed to make it possible
+// to delete an expired histogram. The test should be rewritten to test at a
+// different level, so it won't have to make assertions about internal state.
+void CORE_EXPORT ResetDiscardedTokenCountForTesting();
+size_t CORE_EXPORT GetDiscardedTokenCountForTesting();
 
 class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
-                                       public ContextLifecycleStateObserver,
                                        private HTMLParserScriptRunnerHost {
   USING_GARBAGE_COLLECTED_MIXIN(HTMLDocumentParser);
   USING_PRE_FINALIZER(HTMLDocumentParser, Dispose);
@@ -77,7 +84,7 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
                      Element* context_element,
                      ParserContentPolicy);
   ~HTMLDocumentParser() override;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // TODO(alexclarke): Remove when background parser goes away.
   void Dispose();
@@ -101,8 +108,6 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   TextPosition GetTextPosition() const final;
   bool IsParsingAtLineNumber() const final;
   OrdinalNumber LineNumber() const final;
-
-  void ContextLifecycleStateChanged(mojom::FrameLifecycleState) final;
 
   HTMLParserReentryPermit* ReentryPermit() { return reentry_permit_.get(); }
 
@@ -159,14 +164,14 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   void ExecuteScriptsWaitingForResources() final;
   void DidAddPendingParserBlockingStylesheet() final;
   void DidLoadAllPendingParserBlockingStylesheets() final;
-  void CheckIfBodyStylesheetAdded();
+  void CheckIfBlockingStylesheetAdded();
   void DocumentElementAvailable() override;
 
   // HTMLParserScriptRunnerHost
   void NotifyScriptLoaded(PendingScript*) final;
   HTMLInputStream& InputStream() final { return input_; }
   bool HasPreloadScanner() const final {
-    return preload_scanner_.get() && !ShouldUseThreading();
+    return preload_scanner_.get() && !CanParseAsynchronously();
   }
   void AppendCurrentInputStreamToPreloadScannerAndScan() final;
 
@@ -178,12 +183,14 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
       std::unique_ptr<HTMLToken>,
       std::unique_ptr<HTMLTokenizer>);
   size_t ProcessTokenizedChunkFromBackgroundParser(
-      std::unique_ptr<TokenizedChunk>);
+      std::unique_ptr<TokenizedChunk>,
+      bool*);
   void PumpPendingSpeculations();
 
   bool CanTakeNextToken();
-  void PumpTokenizer();
+  bool PumpTokenizer();
   void PumpTokenizerIfPossible();
+  void DeferredPumpTokenizerIfPossible();
   void ConstructTreeFromHTMLToken();
   void ConstructTreeFromCompactHTMLToken(const CompactHTMLToken&);
 
@@ -195,15 +202,12 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   void AttemptToRunDeferredScriptsAndEnd();
   void end();
 
-  bool ShouldUseThreading() const { return should_use_threading_; }
+  bool CanParseAsynchronously() const { return can_parse_asynchronously_; }
 
   bool IsParsingFragment() const;
   bool IsScheduledForUnpause() const;
   bool InPumpSession() const { return pump_session_nesting_level_ > 0; }
-  bool ShouldDelayEnd() const {
-    return InPumpSession() || IsPaused() || IsScheduledForUnpause() ||
-           IsExecutingScript();
-  }
+  bool ShouldDelayEnd() const;
 
   std::unique_ptr<HTMLPreloadScanner> CreatePreloadScanner(
       TokenPreloadScanner::ScannerType);
@@ -230,7 +234,6 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
 
   scoped_refptr<base::SingleThreadTaskRunner> loading_task_runner_;
   Member<HTMLParserScheduler> parser_scheduler_;
-  HTMLSourceTracker source_tracker_;
   TextPosition text_position_;
 
   // FIXME: last_chunk_before_pause_, tokenizer_, token_, and input_ should be
@@ -243,7 +246,13 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   // finalizer.
   base::WeakPtr<BackgroundHTMLParser> background_parser_;
   Member<HTMLResourcePreloader> preloader_;
+  Member<HTMLDocumentParserState> task_runner_state_;
   PreloadRequestStream queued_preloads_;
+
+  // Metrics gathering and reporting
+  std::unique_ptr<HTMLParserMetrics> metrics_reporter_;
+  // A timer for how long we are inactive after yielding
+  std::unique_ptr<base::ElapsedTimer> yield_timer_;
 
   // If this is non-null, then there is a meta CSP token somewhere in the
   // speculation buffer. Preloads will be deferred until a token matching this
@@ -253,9 +262,7 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   // would require keeping track of token positions of preload requests.
   CompactHTMLToken* pending_csp_meta_token_;
 
-  TaskHandle resume_parsing_task_handle_;
-
-  bool should_use_threading_;
+  bool can_parse_asynchronously_;
   bool end_was_delayed_;
   bool have_background_parser_;
   unsigned pump_session_nesting_level_;
@@ -264,8 +271,7 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   bool tried_loading_link_headers_;
   bool added_pending_parser_blocking_stylesheet_;
   bool is_waiting_for_stylesheets_;
-
-  base::WeakPtrFactory<HTMLDocumentParser> weak_factory_{this};
+  ThreadScheduler* scheduler_;
 };
 
 }  // namespace blink

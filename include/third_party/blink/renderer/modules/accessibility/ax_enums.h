@@ -63,12 +63,12 @@ enum class AXStringAttribute {
 
 enum class AXObjectAttribute {
   kAriaActiveDescendant,
-  kAriaDetails,
   kAriaErrorMessage,
 };
 
 enum class AXObjectVectorAttribute {
   kAriaControls,
+  kAriaDetails,
   kAriaFlowTo,
 };
 
@@ -100,6 +100,7 @@ enum AXTextFromNativeHTML {
 
 enum AXIgnoredReason {
   kAXActiveModalDialog,
+  kAXAriaModalDialog,
   kAXAncestorIsLeafNode,
   kAXAriaHiddenElement,
   kAXAriaHiddenSubtree,

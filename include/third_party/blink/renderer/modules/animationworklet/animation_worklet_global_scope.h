@@ -37,7 +37,7 @@ class MODULES_EXPORT AnimationWorkletGlobalScope : public WorkletGlobalScope {
                               WorkerThread*);
   ~AnimationWorkletGlobalScope() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
   void Dispose() override;
   bool IsAnimationWorkletGlobalScope() const final { return true; }
 

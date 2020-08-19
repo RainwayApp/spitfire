@@ -69,11 +69,10 @@ class UserActionElementSet final {
   }
 
   UserActionElementSet();
-  ~UserActionElementSet();
 
   void DidDetach(Element&);
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   enum ElementFlags {

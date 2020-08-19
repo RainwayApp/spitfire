@@ -45,8 +45,10 @@ class TextFieldInputType : public InputType,
   USING_GARBAGE_COLLECTED_MIXIN(TextFieldInputType);
 
  public:
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   using InputType::GetElement;
+
+  String RawValue() const override;
 
  protected:
   TextFieldInputType(HTMLInputElement&);
@@ -68,6 +70,8 @@ class TextFieldInputType : public InputType,
                 TextFieldEventBehavior,
                 TextControlSetValueSelection) override;
   void UpdateView() override;
+  void CustomStyleForLayoutObject(ComputedStyle& style) override;
+  bool TypeShouldForceLegacyLayout() const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&,
                                    LegacyLayout) const override;
 

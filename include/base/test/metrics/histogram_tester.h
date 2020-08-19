@@ -54,6 +54,9 @@ class HistogramTester {
     ExpectUniqueSample(name, static_cast<HistogramBase::Sample>(sample),
                        expected_count);
   }
+  void ExpectUniqueTimeSample(StringPiece name,
+                              TimeDelta sample,
+                              HistogramBase::Count expected_count) const;
 
   // We know the exact number of samples in a bucket, but other buckets may
   // have samples as well. Measures the diff from the snapshot taken when this
@@ -101,6 +104,10 @@ class HistogramTester {
   // Returns the value of the |sample| bucket for ths histogram |name|.
   HistogramBase::Count GetBucketCount(StringPiece name,
                                       HistogramBase::Sample sample) const;
+  template <typename T>
+  HistogramBase::Count GetBucketCount(StringPiece name, T sample) const {
+    return GetBucketCount(name, static_cast<HistogramBase::Sample>(sample));
+  }
 
   // Finds histograms whose names start with |prefix|, and returns them along
   // with the counts of any samples added since the creation of this object.

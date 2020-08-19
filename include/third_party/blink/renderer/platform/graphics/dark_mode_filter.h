@@ -21,6 +21,8 @@ namespace blink {
 
 class DarkModeColorClassifier;
 class DarkModeColorFilter;
+class ScopedDarkModeElementRoleOverride;
+class DarkModeInvertedColorCache;
 
 class PLATFORM_EXPORT DarkModeFilter {
  public:
@@ -37,8 +39,8 @@ class PLATFORM_EXPORT DarkModeFilter {
   // TODO(gilmanmh): Add a role for shadows. In general, we don't want to
   // invert shadows, but we may need to do some other kind of processing for
   // them.
-  enum class ElementRole { kText, kBackground, kSVG };
-  Color InvertColorIfNeeded(const Color& color, ElementRole element_role);
+  enum class ElementRole { kText, kListSymbol, kBackground, kSVG };
+  SkColor InvertColorIfNeeded(SkColor color, ElementRole element_role);
   base::Optional<cc::PaintFlags> ApplyToFlagsIfNeeded(
       const cc::PaintFlags& flags,
       ElementRole element_role);
@@ -50,16 +52,34 @@ class PLATFORM_EXPORT DarkModeFilter {
                                  cc::PaintFlags* flags);
 
   SkColorFilter* GetImageFilterForTesting() { return image_filter_.get(); }
+  size_t GetInvertedColorCacheSizeForTesting();
 
  private:
+  friend class ScopedDarkModeElementRoleOverride;
+
   DarkModeSettings settings_;
 
-  bool ShouldApplyToColor(const Color& color, ElementRole role);
+  bool ShouldApplyToColor(SkColor color, ElementRole role);
 
   std::unique_ptr<DarkModeColorClassifier> text_classifier_;
   std::unique_ptr<DarkModeColorClassifier> background_classifier_;
   std::unique_ptr<DarkModeColorFilter> color_filter_;
   sk_sp<SkColorFilter> image_filter_;
+  base::Optional<ElementRole> role_override_;
+  std::unique_ptr<DarkModeInvertedColorCache> inverted_color_cache_;
+};
+
+// Temporarily override the element role for the scope of this object's
+// lifetime - for example when drawing symbols that play the role of text.
+class PLATFORM_EXPORT ScopedDarkModeElementRoleOverride {
+ public:
+  ScopedDarkModeElementRoleOverride(GraphicsContext* graphics_context,
+                                    DarkModeFilter::ElementRole role);
+  ~ScopedDarkModeElementRoleOverride();
+
+ private:
+  GraphicsContext* graphics_context_;
+  base::Optional<DarkModeFilter::ElementRole> previous_role_override_;
 };
 
 }  // namespace blink

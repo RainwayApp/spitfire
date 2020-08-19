@@ -44,12 +44,13 @@ class CORE_EXPORT HTMLStyleElement final : public HTMLElement,
   bool disabled() const;
   void setDisabled(bool);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // Always call this asynchronously because this can cause synchronous
   // Document load event and JavaScript execution.
-  void DispatchPendingEvent(std::unique_ptr<IncrementLoadEventDelayCount>);
+  void DispatchPendingEvent(std::unique_ptr<IncrementLoadEventDelayCount>,
+                            bool is_load_event);
 
   // overload from HTMLElement
   void ParseAttribute(const AttributeModificationParams&) override;
@@ -70,9 +71,6 @@ class CORE_EXPORT HTMLStyleElement final : public HTMLElement,
 
   const AtomicString& media() const override;
   const AtomicString& type() const override;
-
-  bool fired_load_;
-  bool loaded_sheet_;
 };
 
 }  // namespace blink

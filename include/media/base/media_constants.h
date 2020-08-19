@@ -124,17 +124,13 @@ extern const char kCodecParamMaxMessageSize[];
 extern const int kGoogleRtpDataCodecPlType;
 extern const char kGoogleRtpDataCodecName[];
 
-// TODO(pthatcher): Find an id that won't conflict with anything.  On
-// the other hand, it really shouldn't matter since the id won't be
-// used on the wire.
-extern const int kGoogleSctpDataCodecPlType;
-extern const char kGoogleSctpDataCodecName[];
-
 extern const char kComfortNoiseCodecName[];
 
 RTC_EXPORT extern const char kVp8CodecName[];
 RTC_EXPORT extern const char kVp9CodecName[];
+RTC_EXPORT extern const char kAv1CodecName[];
 RTC_EXPORT extern const char kH264CodecName[];
+RTC_EXPORT extern const char kHEVCCodecName[];
 
 // RFC 6184 RTP Payload Format for H.264 video
 RTC_EXPORT extern const char kH264FmtpProfileLevelId[];

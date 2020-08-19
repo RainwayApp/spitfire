@@ -14,6 +14,7 @@
 #include "base/task/sequence_manager/lazy_now.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "base/time/time.h"
+#include "base/values.h"
 
 namespace base {
 namespace sequence_manager {
@@ -56,11 +57,14 @@ class BASE_EXPORT TimeDomain {
   // NOTE: |lazy_now| and the return value are in the SequenceManager's time.
   virtual Optional<TimeDelta> DelayTillNextTask(LazyNow* lazy_now) = 0;
 
-  void AsValueInto(trace_event::TracedValue* state) const;
-  bool HasPendingHighResolutionTasks() const;
+  Value AsValue() const;
+
+  bool has_pending_high_resolution_tasks() const {
+    return pending_high_res_wake_up_count_;
+  }
 
   // Returns true if there are no pending delayed tasks.
-  bool Empty() const;
+  bool empty() const { return delayed_wake_up_queue_.empty(); }
 
   // This is the signal that virtual time should step forward. If
   // RunLoop::QuitWhenIdle has been called then |quit_when_idle_requested| will
@@ -87,9 +91,6 @@ class BASE_EXPORT TimeDomain {
   // Tells SequenceManager to schedule immediate work.
   // May be overriden to control wake ups manually.
   virtual void RequestDoWork();
-
-  // For implementation-specific tracing.
-  virtual void AsValueIntoInternal(trace_event::TracedValue* state) const;
 
   virtual const char* GetName() const = 0;
 

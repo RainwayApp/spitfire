@@ -44,7 +44,7 @@
 // As above, but for CHECK().
 #if defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
 
-// Official builds will CHECK, but also eat stream parameters. So match "".
+// Official builds will eat stream parameters, so don't check the error message.
 #if defined(OFFICIAL_BUILD) && defined(NDEBUG)
 #define EXPECT_CHECK_DEATH(statement) EXPECT_DEATH(statement, "")
 #define ASSERT_CHECK_DEATH(statement) ASSERT_DEATH(statement, "")

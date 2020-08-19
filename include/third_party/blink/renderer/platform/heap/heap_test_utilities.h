@@ -29,6 +29,8 @@ class TestSupportingGC : public testing::Test {
   static void ConservativelyCollectGarbage(
       BlinkGC::SweepingType sweeping_type = BlinkGC::kEagerSweeping);
 
+  ~TestSupportingGC() override;
+
   // Performs multiple rounds of garbage collections until no more memory can be
   // freed. This is useful to avoid other garbage collections having to deal
   // with stale memory.
@@ -54,7 +56,7 @@ class ObjectWithCallbackBeforeInitializer
       base::OnceCallback<void(ObjectWithCallbackBeforeInitializer<T>*)>&& cb)
       : bool_(ExecuteCallbackReturnTrue(this, std::move(cb))) {}
 
-  virtual void Trace(Visitor* visitor) { visitor->Trace(value_); }
+  virtual void Trace(Visitor* visitor) const { visitor->Trace(value_); }
 
   T* value() const { return value_.Get(); }
 
@@ -82,7 +84,7 @@ class MixinWithCallbackBeforeInitializer : public GarbageCollectedMixin {
       base::OnceCallback<void(MixinWithCallbackBeforeInitializer<T>*)>&& cb)
       : bool_(ExecuteCallbackReturnTrue(this, std::move(cb))) {}
 
-  void Trace(Visitor* visitor) override { visitor->Trace(value_); }
+  void Trace(Visitor* visitor) const override { visitor->Trace(value_); }
 
   T* value() const { return value_.Get(); }
 
@@ -122,7 +124,7 @@ class ObjectWithMixinWithCallbackBeforeInitializer
       base::OnceCallback<void(Mixin*)>&& cb)
       : Mixin(std::move(cb)) {}
 
-  void Trace(Visitor* visitor) override { Mixin::Trace(visitor); }
+  void Trace(Visitor* visitor) const override { Mixin::Trace(visitor); }
 };
 
 // Simple linked object to be used in tests.
@@ -135,7 +137,7 @@ class LinkedObject : public GarbageCollected<LinkedObject> {
   LinkedObject* next() const { return next_; }
   Member<LinkedObject>& next_ref() { return next_; }
 
-  void Trace(Visitor* visitor) { visitor->Trace(next_); }
+  void Trace(Visitor* visitor) const { visitor->Trace(next_); }
 
  private:
   Member<LinkedObject> next_;
@@ -171,7 +173,15 @@ class IncrementalMarkingTestDriver {
 
 class IntegerObject : public GarbageCollected<IntegerObject> {
  public:
-  void Trace(blink::Visitor* visitor) {}
+  static std::atomic_int destructor_calls;
+
+  explicit IntegerObject(int x) : x_(x) {}
+
+  virtual ~IntegerObject() {
+    destructor_calls.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  virtual void Trace(Visitor* visitor) const {}
 
   int Value() const { return x_; }
 
@@ -180,8 +190,6 @@ class IntegerObject : public GarbageCollected<IntegerObject> {
   }
 
   unsigned GetHash() { return IntHash<int>::GetHash(x_); }
-
-  explicit IntegerObject(int x) : x_(x) {}
 
  private:
   int x_;

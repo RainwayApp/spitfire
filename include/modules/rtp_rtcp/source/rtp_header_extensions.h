@@ -19,7 +19,6 @@
 #include "api/rtp_headers.h"
 #include "api/video/color_space.h"
 #include "api/video/video_content_type.h"
-#include "api/video/video_frame_marking.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -192,6 +191,16 @@ class VideoTimingExtension {
   static constexpr const char kUri[] =
       "http://www.webrtc.org/experiments/rtp-hdrext/video-timing";
 
+  // Offsets of the fields in the RTP header extension, counting from the first
+  // byte after the one-byte header.
+  static constexpr uint8_t kFlagsOffset = 0;
+  static constexpr uint8_t kEncodeStartDeltaOffset = 1;
+  static constexpr uint8_t kEncodeFinishDeltaOffset = 3;
+  static constexpr uint8_t kPacketizationFinishDeltaOffset = 5;
+  static constexpr uint8_t kPacerExitDeltaOffset = 7;
+  static constexpr uint8_t kNetworkTimestampDeltaOffset = 9;
+  static constexpr uint8_t kNetwork2TimestampDeltaOffset = 11;
+
   static bool Parse(rtc::ArrayView<const uint8_t> data,
                     VideoSendTiming* timing);
   static size_t ValueSize(const VideoSendTiming&) { return kValueSizeBytes; }
@@ -204,24 +213,7 @@ class VideoTimingExtension {
   // Writes only single time delta to position idx.
   static bool Write(rtc::ArrayView<uint8_t> data,
                     uint16_t time_delta_ms,
-                    uint8_t idx);
-};
-
-class FrameMarkingExtension {
- public:
-  using value_type = FrameMarking;
-  static constexpr RTPExtensionType kId = kRtpExtensionFrameMarking;
-  static constexpr const char kUri[] =
-      "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07";
-
-  static bool Parse(rtc::ArrayView<const uint8_t> data,
-                    FrameMarking* frame_marking);
-  static size_t ValueSize(const FrameMarking& frame_marking);
-  static bool Write(rtc::ArrayView<uint8_t> data,
-                    const FrameMarking& frame_marking);
-
- private:
-  static bool IsScalable(uint8_t temporal_id, uint8_t layer_id);
+                    uint8_t offset);
 };
 
 class ColorSpaceExtension {

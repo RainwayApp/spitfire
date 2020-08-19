@@ -75,7 +75,7 @@ class CORE_EXPORT TransitionInterpolation : public Interpolation {
 
   void Interpolate(int iteration, double fraction) final;
 
-  void Trace(Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(compositor_start_);
     visitor->Trace(compositor_end_);
     Interpolation::Trace(visitor);
@@ -98,11 +98,12 @@ class CORE_EXPORT TransitionInterpolation : public Interpolation {
   mutable std::unique_ptr<InterpolableValue> cached_interpolable_value_;
 };
 
-DEFINE_TYPE_CASTS(TransitionInterpolation,
-                  Interpolation,
-                  value,
-                  value->IsTransitionInterpolation(),
-                  value.IsTransitionInterpolation());
+template <>
+struct DowncastTraits<TransitionInterpolation> {
+  static bool AllowFrom(const Interpolation& value) {
+    return value.IsTransitionInterpolation();
+  }
+};
 
 }  // namespace blink
 

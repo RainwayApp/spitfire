@@ -11,7 +11,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_BINDINGS_TESTS_RESULTS_CORE_TEST_DICTIONARY_H_
 #define THIRD_PARTY_BLINK_RENDERER_BINDINGS_TESTS_RESULTS_CORE_TEST_DICTIONARY_H_
 
-#include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/double_or_double_or_null_sequence.h"
 #include "third_party/blink/renderer/bindings/core/v8/double_or_double_sequence.h"
 #include "third_party/blink/renderer/bindings/core/v8/double_or_string.h"
@@ -44,6 +43,9 @@ class Element;
 class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
  public:
   static TestDictionary* Create() { return MakeGarbageCollected<TestDictionary>(); }
+  static TestDictionary* Create(v8::Isolate* isolate) {
+    return MakeGarbageCollected<TestDictionary>();
+  }
 
   TestDictionary();
   virtual ~TestDictionary();
@@ -81,7 +83,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setBooleanMember(bool);
 
-  bool hasCallbackFunctionMember() const { return callback_function_member_; }
+  bool hasCallbackFunctionMember() const { return !!callback_function_member_; }
   V8VoidCallbackFunction* callbackFunctionMember() const {
     return callback_function_member_;
   }
@@ -93,12 +95,6 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
     return create_member_;
   }
   inline void setCreateMember(bool);
-
-  bool hasDictionaryMember() const { return !dictionary_member_.IsUndefinedOrNull(); }
-  Dictionary dictionaryMember() const {
-    return dictionary_member_;
-  }
-  void setDictionaryMember(Dictionary);
 
   bool hasDomStringTreatNullAsEmptyStringMember() const { return !dom_string_treat_null_as_empty_string_member_.IsNull(); }
   const String& domStringTreatNullAsEmptyStringMember() const {
@@ -113,6 +109,16 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setDoubleOrNullMember(double);
   inline void setDoubleOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasDoubleOrNullMemberNonNull() const { return has_double_or_null_member_; }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasDoubleOrNullMemberNonNull| in advance to check the condition.
+  double doubleOrNullMemberNonNull() const {
+    DCHECK(hasDoubleOrNullMemberNonNull());
+    return double_or_null_member_;
+  }
 
   bool hasDoubleOrNullOrDoubleOrNullSequenceMember() const { return !double_or_null_or_double_or_null_sequence_member_.IsNull(); }
   const DoubleOrDoubleOrNullSequence& doubleOrNullOrDoubleOrNullSequenceMember() const {
@@ -153,6 +159,16 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setElementOrNullMember(Element*);
   inline void setElementOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasElementOrNullMemberNonNull() const { return has_element_or_null_member_; }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasElementOrNullMemberNonNull| in advance to check the condition.
+  Element* elementOrNullMemberNonNull() const {
+    DCHECK(hasElementOrNullMemberNonNull());
+    return element_or_null_member_;
+  }
 
   bool hasElementOrNullRecordMember() const { return has_element_or_null_record_member_; }
   const HeapVector<std::pair<String, Member<Element>>>& elementOrNullRecordMember() const {
@@ -180,6 +196,16 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setEnumOrNullMember(const String&);
   inline void setEnumOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasEnumOrNullMemberNonNull() const { return !enum_or_null_member_.IsNull(); }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasEnumOrNullMemberNonNull| in advance to check the condition.
+  const String& enumOrNullMemberNonNull() const {
+    DCHECK(hasEnumOrNullMemberNonNull());
+    return enum_or_null_member_;
+  }
 
   bool hasEnumSequenceMember() const { return has_enum_sequence_member_; }
   const Vector<String>& enumSequenceMember() const {
@@ -188,7 +214,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   void setEnumSequenceMember(const Vector<String>&);
 
-  bool hasEventTargetMember() const { return event_target_member_; }
+  bool hasEventTargetMember() const { return !!event_target_member_; }
   EventTarget* eventTargetMember() const {
     return event_target_member_;
   }
@@ -241,6 +267,23 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   void setObjectOrNullMember(ScriptValue);
   void setObjectOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasObjectOrNullMemberNonNull() const { return !(object_or_null_member_.IsEmpty() || object_or_null_member_.IsNull() || object_or_null_member_.IsUndefined()); }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasObjectOrNullMemberNonNull| in advance to check the condition.
+  ScriptValue objectOrNullMemberNonNull() const {
+    DCHECK(hasObjectOrNullMemberNonNull());
+    return object_or_null_member_;
+  }
+
+  bool hasObjectOrNullSequenceMember() const { return has_object_or_null_sequence_member_; }
+  const HeapVector<ScriptValue>& objectOrNullSequenceMember() const {
+    DCHECK(has_object_or_null_sequence_member_);
+    return object_or_null_sequence_member_;
+  }
+  void setObjectOrNullSequenceMember(const HeapVector<ScriptValue>&);
 
   bool hasOriginTrialMember() const { return has_origin_trial_member_; }
   bool originTrialMember() const {
@@ -269,7 +312,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   void setRecordMember(const Vector<std::pair<String, int8_t>>&);
 
-  bool hasRequiredCallbackFunctionMember() const { return required_callback_function_member_; }
+  bool hasRequiredCallbackFunctionMember() const { return !!required_callback_function_member_; }
   V8VoidCallbackFunction* requiredCallbackFunctionMember() const {
     return required_callback_function_member_;
   }
@@ -308,6 +351,16 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setStringOrNullMember(const String&);
   inline void setStringOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasStringOrNullMemberNonNull() const { return !string_or_null_member_.IsNull(); }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasStringOrNullMemberNonNull| in advance to check the condition.
+  const String& stringOrNullMemberNonNull() const {
+    DCHECK(hasStringOrNullMemberNonNull());
+    return string_or_null_member_;
+  }
 
   bool hasStringOrNullRecordMember() const { return has_string_or_null_record_member_; }
   const Vector<std::pair<String, String>>& stringOrNullRecordMember() const {
@@ -354,7 +407,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   void setTestInterface2OrUint8ArrayMember(const TestInterface2OrUint8Array&);
 
-  bool hasTestInterfaceMember() const { return test_interface_member_; }
+  bool hasTestInterfaceMember() const { return !!test_interface_member_; }
   TestInterfaceImplementation* testInterfaceMember() const {
     return test_interface_member_;
   }
@@ -366,6 +419,16 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setTestInterfaceOrNullMember(TestInterfaceImplementation*);
   inline void setTestInterfaceOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasTestInterfaceOrNullMemberNonNull() const { return has_test_interface_or_null_member_; }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasTestInterfaceOrNullMemberNonNull| in advance to check the condition.
+  TestInterfaceImplementation* testInterfaceOrNullMemberNonNull() const {
+    DCHECK(hasTestInterfaceOrNullMemberNonNull());
+    return test_interface_or_null_member_;
+  }
 
   bool hasTestInterfaceSequenceMember() const { return has_test_interface_sequence_member_; }
   const HeapVector<Member<TestInterfaceImplementation>>& testInterfaceSequenceMember() const {
@@ -381,7 +444,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   void setTestObjectSequenceMember(const HeapVector<Member<TestObject>>&);
 
-  bool hasTreatNonNullObjMember() const { return treat_non_null_obj_member_; }
+  bool hasTreatNonNullObjMember() const { return !!treat_non_null_obj_member_; }
   V8TreatNonObjectAsNullVoidFunction* treatNonNullObjMember() const {
     return treat_non_null_obj_member_;
   }
@@ -394,7 +457,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   void setTreatNullAsStringSequenceMember(const Vector<String>&);
 
-  bool hasUint8ArrayMember() const { return uint8_array_member_; }
+  bool hasUint8ArrayMember() const { return !!uint8_array_member_; }
   NotShared<DOMUint8Array> uint8ArrayMember() const {
     return uint8_array_member_;
   }
@@ -452,9 +515,19 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   }
   inline void setUsvStringOrNullMember(const String&);
   inline void setUsvStringOrNullMemberToNull();
+  // Migration adapters
+  // Returns true iff this member has a non-null value.  Returns false if the
+  // value is missing or a null value.
+  bool hasUsvStringOrNullMemberNonNull() const { return !usv_string_or_null_member_.IsNull(); }
+  // Returns the value if this member has a non-null value.  Call
+  // |hasUsvStringOrNullMemberNonNull| in advance to check the condition.
+  const String& usvStringOrNullMemberNonNull() const {
+    DCHECK(hasUsvStringOrNullMemberNonNull());
+    return usv_string_or_null_member_;
+  }
 
   v8::Local<v8::Value> ToV8Impl(v8::Local<v8::Object>, v8::Isolate*) const override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   bool has_any_in_record_member_ = false;
@@ -474,6 +547,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   bool has_is_public_ = false;
   bool has_long_member_ = false;
   bool has_member_with_hyphen_in_name_ = false;
+  bool has_object_or_null_sequence_member_ = false;
   bool has_origin_trial_member_ = false;
   bool has_origin_trial_second_member_ = false;
   bool has_record_member_ = false;
@@ -499,7 +573,6 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   bool boolean_member_;
   Member<V8VoidCallbackFunction> callback_function_member_;
   bool create_member_;
-  Dictionary dictionary_member_;
   String dom_string_treat_null_as_empty_string_member_;
   double double_or_null_member_;
   DoubleOrDoubleOrNullSequence double_or_null_or_double_or_null_sequence_member_;
@@ -521,6 +594,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   bool member_with_hyphen_in_name_;
   ScriptValue object_member_;
   ScriptValue object_or_null_member_;
+  HeapVector<ScriptValue> object_or_null_sequence_member_;
   bool origin_trial_member_;
   bool origin_trial_second_member_;
   DoubleOrString other_double_or_string_member_;
@@ -544,7 +618,7 @@ class CORE_EXPORT TestDictionary : public IDLDictionaryBase {
   HeapVector<Member<TestObject>> test_object_sequence_member_;
   Member<V8TreatNonObjectAsNullVoidFunction> treat_non_null_obj_member_;
   Vector<String> treat_null_as_string_sequence_member_;
-  Member<DOMUint8Array> uint8_array_member_;
+  NotShared<DOMUint8Array> uint8_array_member_;
   HeapVector<std::pair<String, LongOrBoolean>> union_in_record_member_;
   DoubleOrDoubleSequence union_member_with_sequence_default_;
   HeapVector<std::pair<String, DoubleOrString>> union_or_null_record_member_;
@@ -682,7 +756,7 @@ void TestDictionary::setTestInterfaceOrNullMemberToNull() {
 }
 
 void TestDictionary::setUint8ArrayMember(NotShared<DOMUint8Array> value) {
-  uint8_array_member_ = value.View();
+  uint8_array_member_ = value;
 }
 
 void TestDictionary::setUnrestrictedDoubleMember(double value) {

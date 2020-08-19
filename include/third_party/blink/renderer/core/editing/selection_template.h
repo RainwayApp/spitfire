@@ -84,7 +84,7 @@ class SelectionTemplate final {
     explicit InvalidSelectionResetter(const SelectionTemplate&);
     ~InvalidSelectionResetter();
 
-    void Trace(Visitor*);
+    void Trace(Visitor*) const;
 
    private:
     const Member<const Document> document_;
@@ -121,7 +121,7 @@ class SelectionTemplate final {
   // Returns |SelectionType| for |this| based on |base_| and |extent_|.
   SelectionType Type() const;
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
   void PrintTo(std::ostream*, const char* type) const;
 #if DCHECK_IS_ON()
@@ -130,6 +130,7 @@ class SelectionTemplate final {
 
  private:
   friend class SelectionEditor;
+  friend class FrameSelection;
 
   enum class Direction {
     kNotComputed,

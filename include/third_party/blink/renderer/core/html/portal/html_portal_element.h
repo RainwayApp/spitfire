@@ -14,6 +14,8 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
+#include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -39,8 +41,10 @@ class CORE_EXPORT HTMLPortalElement : public HTMLFrameOwnerElement {
           portal_client_receiver = {});
   ~HTMLPortalElement() override;
 
+  bool IsHTMLPortalElement() const final { return true; }
+
   // ScriptWrappable overrides.
-  void Trace(Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
   // idl implementation.
   ScriptPromise activate(ScriptState*, PortalActivateOptions*, ExceptionState&);
@@ -60,8 +64,8 @@ class CORE_EXPORT HTMLPortalElement : public HTMLFrameOwnerElement {
 
   const base::UnguessableToken& GetToken() const;
 
-  FrameOwnerElementType OwnerType() const override {
-    return FrameOwnerElementType::kPortal;
+  mojom::blink::FrameOwnerElementType OwnerType() const override {
+    return mojom::blink::FrameOwnerElementType::kPortal;
   }
 
   // Consumes the portal interface. When a Portal is activated, or if the
@@ -77,12 +81,30 @@ class CORE_EXPORT HTMLPortalElement : public HTMLFrameOwnerElement {
   void PortalContentsWillBeDestroyed(PortalContents*);
 
  private:
+  // Checks whether the Portals feature is enabled for this document, and logs a
+  // warning to the developer if not. Doing basically anything with an
+  // HTMLPortalElement in a document which doesn't support portals is forbidden.
+  bool CheckPortalsEnabledOrWarn() const;
+  bool CheckPortalsEnabledOrThrow(ExceptionState&) const;
+
+  // Checks if, when inserted, we were beyond the frame limit. If so, we will
+  // disable navigating the portal and insertion (and will display a warning in
+  // the console).
+  bool CheckWithinFrameLimitOrWarn() const;
+
+  // Checks that the number of frames and portals on the page are within the
+  // limit.
+  bool IsCurrentlyWithinFrameLimit() const;
+
   enum class GuestContentsEligibility {
     // Can have a guest contents.
     kEligible,
 
     // Ineligible as it is not top-level.
     kNotTopLevel,
+
+    // Ineligible as it is sandboxed.
+    kSandboxed,
 
     // Ineligible as the host's protocol is not in the HTTP family.
     kNotHTTPFamily,
@@ -101,15 +123,17 @@ class CORE_EXPORT HTMLPortalElement : public HTMLFrameOwnerElement {
   // Node overrides
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
+  void DefaultEventHandler(Event&) override;
 
   // Element overrides
   bool IsURLAttribute(const Attribute&) const override;
   void ParseAttribute(const AttributeModificationParams&) override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
+  bool SupportsFocus() const override;
 
   // HTMLFrameOwnerElement overrides
   void DisconnectContentFrame() override;
-  ParsedFeaturePolicy ConstructContainerPolicy(Vector<String>*) const override {
+  ParsedFeaturePolicy ConstructContainerPolicy() const override {
     return ParsedFeaturePolicy();
   }
   void AttachLayoutTree(AttachContext& context) override;
@@ -122,6 +146,25 @@ class CORE_EXPORT HTMLPortalElement : public HTMLFrameOwnerElement {
 
   // Temporarily set to keep this element alive after adoption.
   bool was_just_adopted_ = false;
+
+  // Disable BackForwardCache when using the portal feature, because we do not
+  // handle the state inside the portal after putting the page in cache.
+  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
+};
+
+// Type casting. Custom since adoption could lead to an HTMLPortalElement ending
+// up in a document that doesn't have Portals enabled.
+template <>
+struct DowncastTraits<HTMLPortalElement> {
+  static bool AllowFrom(const HTMLElement& element) {
+    return element.IsHTMLPortalElement();
+  }
+  static bool AllowFrom(const Node& node) {
+    if (const HTMLElement* html_element = DynamicTo<HTMLElement>(node))
+      return html_element->IsHTMLPortalElement();
+    return false;
+  }
 };
 
 }  // namespace blink

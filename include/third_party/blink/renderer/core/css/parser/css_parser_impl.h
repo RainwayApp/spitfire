@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_property_source_data.h"
 #include "third_party/blink/renderer/core/css/css_property_value.h"
@@ -44,7 +45,7 @@ enum class ParseSheetResult {
   kHasUnallowedImportRule,
 };
 
-class CSSParserImpl {
+class CORE_EXPORT CSSParserImpl {
   STACK_ALLOCATED();
 
  public:
@@ -115,6 +116,7 @@ class CSSParserImpl {
   static std::unique_ptr<Vector<double>> ParseKeyframeKeyList(const String&);
 
   bool SupportsDeclaration(CSSParserTokenRange&);
+  const CSSParserContext* GetContext() const { return context_; }
 
   static void ParseDeclarationListForInspector(const String&,
                                                const CSSParserContext*,
@@ -145,33 +147,18 @@ class CSSParserImpl {
   StyleRuleBase* ConsumeAtRule(CSSParserTokenStream&, AllowedRulesType);
   StyleRuleBase* ConsumeQualifiedRule(CSSParserTokenStream&, AllowedRulesType);
 
-  static StyleRuleCharset* ConsumeCharsetRule(CSSParserTokenRange prelude);
+  static StyleRuleCharset* ConsumeCharsetRule(CSSParserTokenStream&);
   StyleRuleImport* ConsumeImportRule(AtomicString prelude_uri,
-                                     CSSParserTokenRange prelude,
-                                     const RangeOffset& prelude_offset);
-  StyleRuleNamespace* ConsumeNamespaceRule(CSSParserTokenRange prelude);
-  StyleRuleMedia* ConsumeMediaRule(CSSParserTokenRange prelude,
-                                   const RangeOffset& prelude_offset,
-                                   CSSParserTokenStream& block);
-  StyleRuleSupports* ConsumeSupportsRule(CSSParserTokenRange prelude,
-                                         const RangeOffset& prelude_offset,
-                                         CSSParserTokenStream& block);
-  StyleRuleViewport* ConsumeViewportRule(CSSParserTokenRange prelude,
-                                         const RangeOffset& prelude_offset,
-                                         CSSParserTokenStream& block);
-  StyleRuleFontFace* ConsumeFontFaceRule(CSSParserTokenRange prelude,
-                                         const RangeOffset& prelude_offset,
-                                         CSSParserTokenStream& block);
+                                     CSSParserTokenStream&);
+  StyleRuleNamespace* ConsumeNamespaceRule(CSSParserTokenStream&);
+  StyleRuleMedia* ConsumeMediaRule(CSSParserTokenStream&);
+  StyleRuleSupports* ConsumeSupportsRule(CSSParserTokenStream&);
+  StyleRuleViewport* ConsumeViewportRule(CSSParserTokenStream&);
+  StyleRuleFontFace* ConsumeFontFaceRule(CSSParserTokenStream&);
   StyleRuleKeyframes* ConsumeKeyframesRule(bool webkit_prefixed,
-                                           CSSParserTokenRange prelude,
-                                           const RangeOffset& prelude_offset,
-                                           CSSParserTokenStream& block);
-  StyleRulePage* ConsumePageRule(CSSParserTokenRange prelude,
-                                 const RangeOffset& prelude_offset,
-                                 CSSParserTokenStream& block);
-  StyleRuleProperty* ConsumePropertyRule(CSSParserTokenRange prelude,
-                                         const RangeOffset& prelude_offset,
-                                         CSSParserTokenStream& block);
+                                           CSSParserTokenStream&);
+  StyleRulePage* ConsumePageRule(CSSParserTokenStream&);
+  StyleRuleProperty* ConsumePropertyRule(CSSParserTokenStream&);
 
   StyleRuleKeyframe* ConsumeKeyframeStyleRule(CSSParserTokenRange prelude,
                                               const RangeOffset& prelude_offset,
@@ -198,13 +185,13 @@ class CSSParserImpl {
   // FIXME: Investigate using a smaller inline buffer
   HeapVector<CSSPropertyValue, 256> parsed_properties_;
 
-  Member<const CSSParserContext> context_;
-  Member<StyleSheetContents> style_sheet_;
+  const CSSParserContext* context_;
+  StyleSheetContents* style_sheet_;
 
   // For the inspector
   CSSParserObserver* observer_;
 
-  Member<CSSLazyParsingState> lazy_state_;
+  CSSLazyParsingState* lazy_state_;
   DISALLOW_COPY_AND_ASSIGN(CSSParserImpl);
 };
 

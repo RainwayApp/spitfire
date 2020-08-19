@@ -61,10 +61,10 @@ class PLATFORM_EXPORT DisplayItem {
     kClippingMask,
     kColumnRules,
     kDebugDrawing,
+    kDocumentRootBackdrop,
     kDocumentBackground,
     kDragImage,
     kDragCaret,
-    kEmptyContentForFilters,
     kForcedColorsModeBackplate,
     kSVGImage,
     kLinkHighlight,
@@ -100,12 +100,16 @@ class PLATFORM_EXPORT DisplayItem {
     kForeignLayerDevToolsOverlay,
     kForeignLayerPlugin,
     kForeignLayerVideo,
-    kForeignLayerWrapper,
+    kForeignLayerRemoteFrame,
     kForeignLayerContentsWrapper,
     kForeignLayerLinkHighlight,
     kForeignLayerViewportScroll,
     kForeignLayerViewportScrollbar,
     kForeignLayerLast = kForeignLayerViewportScrollbar,
+
+    kGraphicsLayerWrapperFirst,
+    kGraphicsLayerWrapper = kGraphicsLayerWrapperFirst,
+    kGraphicsLayerWrapperLast = kGraphicsLayerWrapper,
 
     kClipPaintPhaseFirst,
     kClipPaintPhaseLast = kClipPaintPhaseFirst + kPaintPhaseMax,
@@ -119,26 +123,31 @@ class PLATFORM_EXPORT DisplayItem {
     kSVGEffectPaintPhaseFirst,
     kSVGEffectPaintPhaseLast = kSVGEffectPaintPhaseFirst + kPaintPhaseMax,
 
+    // The following hit test types are for paint chunks containing hit test
+    // data, when we don't have an previously set explicit chunk id when
+    // creating the paint chunk, or we need dedicated paint chunk for the hit
+    // test data.
+
     // Compositor hit testing requires that layers are created and sized to
-    // include content that does not paint. Hit test display items ensure
-    // a layer exists and is sized properly even if no content would otherwise
-    // be painted.
+    // include content that does not paint. Hit test data ensure a layer exists
+    // and is sized properly even if no content would otherwise be painted.
     kHitTest,
 
     // Used both for specifying the paint-order scroll location, and for non-
-    // composited scroll hit testing (see: scroll_hit_test_display_item.h).
+    // composited scroll hit testing (see: hit_test_data.h).
     kScrollHitTest,
     // Used to prevent composited scrolling on the resize handle.
     kResizerScrollHitTest,
     // Used to prevent composited scrolling on plugins with wheel handlers.
     kPluginScrollHitTest,
+    // Used to prevent composited scrolling on custom scrollbars.
+    kCustomScrollbarHitTest,
 
-    kLayerChunkBackground,
-    kLayerChunkNegativeZOrderChildren,
-    kLayerChunkDescendantBackgrounds,
-    kLayerChunkFloat,
+    // These are for paint chunks that are forced for layers.
+    kLayerChunk,
+    // This is used if a layer has any negative-z-index children. Otherwise the
+    // foreground is in the kLayerChunk chunk.
     kLayerChunkForeground,
-    kLayerChunkNormalFlowAndPositiveZOrderChildren,
 
     // The following 2 types are For ScrollbarDisplayItem.
     kScrollbarHorizontal,
@@ -152,21 +161,22 @@ class PLATFORM_EXPORT DisplayItem {
   // later paint cycles when |client| may have been destroyed.
   DisplayItem(const DisplayItemClient& client,
               Type type,
-              size_t derived_size,
+              wtf_size_t derived_size,
               bool draws_content = false)
       : client_(&client),
         visual_rect_(client.VisualRect()),
         outset_for_raster_effects_(client.VisualRectOutsetForRasterEffects()),
-        type_(type),
-        draws_content_(draws_content),
         fragment_(0),
+        type_(type),
+        derived_size_(derived_size),
+        draws_content_(draws_content),
         is_cacheable_(client.IsCacheable()),
-        is_tombstone_(false) {
+        is_tombstone_(false),
+        is_moved_from_cached_subsequence_(false) {
     // |derived_size| must fit in |derived_size_|.
     // If it doesn't, enlarge |derived_size_| and fix this assert.
-    SECURITY_DCHECK(derived_size < (1 << 8));
+    SECURITY_DCHECK(derived_size == derived_size_);
     SECURITY_DCHECK(derived_size >= sizeof(*this));
-    derived_size_ = static_cast<unsigned>(derived_size);
   }
 
   virtual ~DisplayItem() = default;
@@ -174,16 +184,16 @@ class PLATFORM_EXPORT DisplayItem {
   // Ids are for matching new DisplayItems with existing DisplayItems.
   struct Id {
     DISALLOW_NEW();
-    Id(const DisplayItemClient& client, const Type type, unsigned fragment = 0)
+    Id(const DisplayItemClient& client, Type type, wtf_size_t fragment = 0)
         : client(client), type(type), fragment(fragment) {}
-    Id(const Id& id, unsigned fragment)
+    Id(const Id& id, wtf_size_t fragment)
         : client(id.client), type(id.type), fragment(fragment) {}
 
     String ToString() const;
 
     const DisplayItemClient& client;
     const Type type;
-    const unsigned fragment;
+    const wtf_size_t fragment;
   };
 
   Id GetId() const { return Id(*client_, GetType(), fragment_); }
@@ -211,15 +221,14 @@ class PLATFORM_EXPORT DisplayItem {
   // This is not sizeof(*this), because it needs to account for the size of
   // the derived class (i.e. runtime type). Derived classes are expected to
   // supply this to the DisplayItem constructor.
-  size_t DerivedSize() const { return derived_size_; }
+  wtf_size_t DerivedSize() const { return derived_size_; }
 
   // The fragment is part of the id, to uniquely identify display items in
   // different fragments for the same client and type.
-  unsigned Fragment() const { return fragment_; }
-  void SetFragment(unsigned fragment) {
-    DCHECK(fragment < (1 << 14));
-    fragment_ = fragment;
-  }
+  wtf_size_t Fragment() const { return fragment_; }
+  void SetFragment(wtf_size_t fragment) { fragment_ = fragment; }
+
+  void SetVisualRectForTesting(const IntRect& r) { visual_rect_ = r; }
 
 // See comments of enum Type for usage of the following macros.
 #define DEFINE_CATEGORY_METHODS(Category)                           \
@@ -243,19 +252,12 @@ class PLATFORM_EXPORT DisplayItem {
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(Drawing)
 
   DEFINE_CATEGORY_METHODS(ForeignLayer)
+  DEFINE_CATEGORY_METHODS(GraphicsLayerWrapper)
 
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(Clip)
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(Scroll)
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(SVGTransform)
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(SVGEffect)
-
-  bool IsHitTest() const { return type_ == kHitTest; }
-  bool IsScrollHitTest() const {
-    return type_ == kScrollHitTest || IsResizerScrollHitTest() ||
-           IsPluginScrollHitTest();
-  }
-  bool IsResizerScrollHitTest() const { return type_ == kResizerScrollHitTest; }
-  bool IsPluginScrollHitTest() const { return type_ == kPluginScrollHitTest; }
 
   bool IsScrollbar() const {
     return type_ == kScrollbarHorizontal || type_ == kScrollbarVertical;
@@ -263,6 +265,13 @@ class PLATFORM_EXPORT DisplayItem {
 
   bool IsCacheable() const { return is_cacheable_; }
   void SetUncacheable() { is_cacheable_ = false; }
+
+  bool IsMovedFromCachedSubsequence() const {
+    return is_moved_from_cached_subsequence_;
+  }
+  void SetMovedFromCachedSubsequence(bool b) {
+    is_moved_from_cached_subsequence_ = b;
+  }
 
   virtual bool Equals(const DisplayItem& other) const {
     // Failure of this DCHECK would cause bad casts in subclasses.
@@ -285,7 +294,7 @@ class PLATFORM_EXPORT DisplayItem {
 #endif
 
  private:
-  template <typename T, unsigned alignment>
+  template <typename T, wtf_size_t alignment>
   friend class ContiguousContainer;
   friend class DisplayItemList;
 
@@ -300,14 +309,15 @@ class PLATFORM_EXPORT DisplayItem {
   const DisplayItemClient* client_;
   IntRect visual_rect_;
   float outset_for_raster_effects_;
-
-  static_assert(kTypeLast < (1 << 7), "DisplayItem::Type should fit in 7 bits");
-  unsigned type_ : 7;
-  unsigned draws_content_ : 1;
-  unsigned derived_size_ : 8;  // size of the actual derived class
-  unsigned fragment_ : 14;
-  unsigned is_cacheable_ : 1;
-  unsigned is_tombstone_ : 1;
+  wtf_size_t fragment_;
+  static_assert(kTypeLast < (1 << 8),
+                "DisplayItem::Type should fit in uint8_t");
+  uint8_t type_;
+  uint8_t derived_size_;  // size of the actual derived class
+  bool draws_content_ : 1;
+  bool is_cacheable_ : 1;
+  bool is_tombstone_ : 1;
+  bool is_moved_from_cached_subsequence_ : 1;
 };
 
 inline bool operator==(const DisplayItem::Id& a, const DisplayItem::Id& b) {

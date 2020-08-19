@@ -40,7 +40,6 @@ class CORE_EXPORT SpinButtonElement final : public HTMLDivElement,
 
  public:
   enum UpDownState {
-    kIndeterminate,  // Hovered, but the event is not handled.
     kDown,
     kUp,
   };
@@ -75,7 +74,7 @@ class CORE_EXPORT SpinButtonElement final : public HTMLDivElement,
 
   void ForwardEvent(Event&);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void DetachLayoutTree(bool performing_reattach) override;
@@ -91,7 +90,6 @@ class CORE_EXPORT SpinButtonElement final : public HTMLDivElement,
   void StartRepeatingTimer();
   void StopRepeatingTimer();
   void RepeatingTimerFired(TimerBase*);
-  void SetHovered(bool hovered) override;
   bool ShouldRespondToMouseEvents();
   bool IsMouseFocusable() const override { return false; }
 

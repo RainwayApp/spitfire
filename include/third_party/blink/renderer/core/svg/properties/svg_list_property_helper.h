@@ -46,6 +46,7 @@ template <typename Derived, typename ItemProperty>
 class SVGListPropertyHelper : public SVGPropertyHelper<Derived> {
  public:
   typedef ItemProperty ItemPropertyType;
+  using ItemPropertyListType = HeapVector<Member<ItemPropertyType>>;
 
   SVGListPropertyHelper() = default;
 
@@ -64,33 +65,9 @@ class SVGListPropertyHelper : public SVGPropertyHelper<Derived> {
         index);
   }
 
-  class ConstIterator {
-    STACK_ALLOCATED();
-
-   private:
-    typedef typename HeapVector<Member<ItemPropertyType>>::const_iterator
-        WrappedType;
-
-   public:
-    ConstIterator(WrappedType it) : it_(it) {}
-
-    ConstIterator& operator++() {
-      ++it_;
-      return *this;
-    }
-
-    bool operator==(const ConstIterator& o) const { return it_ == o.it_; }
-    bool operator!=(const ConstIterator& o) const { return it_ != o.it_; }
-
-    ItemPropertyType* operator*() { return *it_; }
-    ItemPropertyType* operator->() { return *it_; }
-
-   private:
-    WrappedType it_;
-  };
-
-  ConstIterator begin() const { return ConstIterator(values_.begin()); }
-  ConstIterator end() const { return ConstIterator(values_.end()); }
+  using const_iterator = typename ItemPropertyListType::const_iterator;
+  const_iterator begin() const { return values_.begin(); }
+  const_iterator end() const { return values_.end(); }
 
   void Append(ItemPropertyType* new_item) {
     DCHECK(new_item);
@@ -124,13 +101,13 @@ class SVGListPropertyHelper : public SVGPropertyHelper<Derived> {
   ItemPropertyType* AppendItem(ItemPropertyType*);
   ItemPropertyType* ReplaceItem(ItemPropertyType*, uint32_t, ExceptionState&);
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(values_);
     SVGPropertyHelper<Derived>::Trace(visitor);
   }
 
  protected:
-  void DeepCopy(Derived*);
+  void DeepCopy(const Derived*);
 
   bool AdjustFromToListValues(Derived* from_list,
                               Derived* to_list,
@@ -146,7 +123,7 @@ class SVGListPropertyHelper : public SVGPropertyHelper<Derived> {
  private:
   inline bool CheckIndexBound(uint32_t, ExceptionState&);
 
-  HeapVector<Member<ItemPropertyType>> values_;
+  ItemPropertyListType values_;
 };
 
 template <typename Derived, typename ItemProperty>
@@ -250,7 +227,8 @@ bool SVGListPropertyHelper<Derived, ItemProperty>::CheckIndexBound(
 }
 
 template <typename Derived, typename ItemProperty>
-void SVGListPropertyHelper<Derived, ItemProperty>::DeepCopy(Derived* from) {
+void SVGListPropertyHelper<Derived, ItemProperty>::DeepCopy(
+    const Derived* from) {
   Clear();
   for (const auto& from_value : from->values_)
     Append(from_value->Clone());

@@ -47,7 +47,6 @@ class CORE_EXPORT StreamPromiseResolver final
 
   // Creates an initialised promise.
   explicit StreamPromiseResolver(ScriptState*);
-  ~StreamPromiseResolver();
 
   // Resolves the promise with |value|. Does nothing if the promise is already
   // settled.
@@ -76,7 +75,7 @@ class CORE_EXPORT StreamPromiseResolver final
   // Returns true if the the promise is not pending.
   bool IsSettled() const { return is_settled_; }
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   TraceWrapperV8Reference<v8::Promise::Resolver> resolver_;

@@ -11,7 +11,7 @@
 #include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_size.h"
-#include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_style_variant.h"
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
@@ -21,6 +21,7 @@
 namespace blink {
 
 class ComputedStyle;
+class FragmentData;
 class Node;
 class NGFragmentBuilder;
 class NGInlineItem;
@@ -50,7 +51,6 @@ class CORE_EXPORT NGPhysicalFragment
     kFragmentBox = 0,
     kFragmentText = 1,
     kFragmentLineBox = 2,
-    kFragmentRenderedLegend = 3,
     // When adding new values, make sure the bit size of |type_| is large
     // enough to store.
   };
@@ -64,13 +64,14 @@ class CORE_EXPORT NGPhysicalFragment
     kFloating,
     kOutOfFlowPositioned,
     kBlockFlowRoot,
+    kRenderedLegend,
     // When adding new values, make sure the bit size of |sub_type_| is large
     // enough to store.
 
-    // Also, add after kMinimumBlockFormattingContextRoot if the box type is a
-    // block formatting context root, or before otherwise. See
-    // IsBlockFormattingContextRoot().
-    kMinimumBlockFormattingContextRoot = kAtomicInline
+    // Also, add after kMinimumFormattingContextRoot if the box type is a
+    // formatting context root, or before otherwise. See
+    // IsFormattingContextRoot().
+    kMinimumFormattingContextRoot = kAtomicInline
   };
 
   ~NGPhysicalFragment();
@@ -78,18 +79,11 @@ class CORE_EXPORT NGPhysicalFragment
   NGFragmentType Type() const { return static_cast<NGFragmentType>(type_); }
   bool IsContainer() const {
     return Type() == NGFragmentType::kFragmentBox ||
-           Type() == NGFragmentType::kFragmentLineBox ||
-           Type() == NGFragmentType::kFragmentRenderedLegend;
+           Type() == NGFragmentType::kFragmentLineBox;
   }
   bool IsBox() const { return Type() == NGFragmentType::kFragmentBox; }
   bool IsText() const { return Type() == NGFragmentType::kFragmentText; }
   bool IsLineBox() const { return Type() == NGFragmentType::kFragmentLineBox; }
-
-  // Return true if this is the legend child of a fieldset that gets special
-  // treatment (i.e. placed over the block-start border).
-  bool IsRenderedLegend() const {
-    return Type() == NGFragmentType::kFragmentRenderedLegend;
-  }
 
   // Returns the box type of this fragment.
   NGBoxType BoxType() const {
@@ -104,6 +98,7 @@ class CORE_EXPORT NGPhysicalFragment
   bool IsColumnBox() const {
     return IsBox() && BoxType() == NGBoxType::kColumnBox;
   }
+  bool IsFragmentainerBox() const { return IsColumnBox(); }
   // An atomic inline is represented as a kFragmentBox, such as inline block and
   // replaced elements.
   bool IsAtomicInline() const {
@@ -122,6 +117,12 @@ class CORE_EXPORT NGPhysicalFragment
   bool IsFloatingOrOutOfFlowPositioned() const {
     return IsFloating() || IsOutOfFlowPositioned();
   }
+  // Return true if this is the legend child of a fieldset that gets special
+  // treatment (i.e. placed over the block-start border).
+  bool IsRenderedLegend() const {
+    return IsBox() && BoxType() == NGBoxType::kRenderedLegend;
+  }
+  bool IsMathMLFraction() const { return IsBox() && is_math_fraction_; }
 
   // Return true if this fragment corresponds directly to an entry in the CSS
   // box tree [1]. Note that anonymous blocks also exist in the CSS box
@@ -133,15 +134,16 @@ class CORE_EXPORT NGPhysicalFragment
   //
   // [1] https://www.w3.org/TR/css-display-3/#box-tree
   // [2] https://www.w3.org/TR/css-break-3/#fragmentation-container
-  bool IsCSSBox() const { return !IsLineBox() && !IsColumnBox(); }
+  bool IsCSSBox() const { return !IsLineBox() && !IsFragmentainerBox(); }
 
   bool IsBlockFlow() const;
   bool IsAnonymousBlock() const {
     return IsCSSBox() && layout_object_->IsAnonymousBlock();
   }
   bool IsListMarker() const {
-    return IsCSSBox() && layout_object_->IsLayoutNGListMarker();
+    return IsCSSBox() && layout_object_->IsLayoutNGOutsideListMarker();
   }
+  bool IsRubyRun() const { return layout_object_->IsRubyRun(); }
 
   // Return true if this fragment is a container established by a fieldset
   // element. Such a fragment contains an optional rendered legend fragment and
@@ -152,9 +154,11 @@ class CORE_EXPORT NGPhysicalFragment
   // Returns whether the fragment is legacy layout root.
   bool IsLegacyLayoutRoot() const { return is_legacy_layout_root_; }
 
-  bool IsBlockFormattingContextRoot() const {
-    return (IsBox() &&
-            BoxType() >= NGBoxType::kMinimumBlockFormattingContextRoot) ||
+  // Returns whether the fragment should be atomically painted.
+  bool IsPaintedAtomically() const { return is_painted_atomically_; }
+
+  bool IsFormattingContextRoot() const {
+    return (IsBox() && BoxType() >= NGBoxType::kMinimumFormattingContextRoot) ||
            IsLegacyLayoutRoot();
   }
 
@@ -206,6 +210,17 @@ class CORE_EXPORT NGPhysicalFragment
   // from GetNode() when this fragment is content of a pseudo node.
   Node* NodeForHitTest() const { return layout_object_->NodeForHitTest(); }
 
+  bool IsInSelfHitTestingPhase(HitTestAction action) const {
+    if (const auto* box = ToLayoutBoxOrNull(GetLayoutObject()))
+      return box->IsInSelfHitTestingPhase(action);
+    if (IsInlineBox())
+      return action == kHitTestForeground;
+    // Assuming this is some sort of container, e.g. a fragmentainer (they don't
+    // have a LayoutObject associated).
+    return action == kHitTestBlockBackground ||
+           action == kHitTestChildBlockBackground;
+  }
+
   // Whether there is a PaintLayer associated with the fragment.
   bool HasLayer() const { return IsCSSBox() && layout_object_->HasLayer(); }
 
@@ -225,9 +240,38 @@ class CORE_EXPORT NGPhysicalFragment
     return IsCSSBox() && layout_object_->ShouldClipOverflow();
   }
 
+  bool IsFragmentationContextRoot() const {
+    // We have no bit that tells us whether this is a fragmentation context
+    // root, so some additional checking is necessary here, to make sure that
+    // we're actually establishing one. We check that we're not a custom layout
+    // box, as specifying columns on such a box has no effect. Note that
+    // specifying columns together with a display value of e.g. 'flex', 'grid'
+    // or 'table' also has no effect, but we don't need to check for that here,
+    // since such display types don't create a block flow (block container).
+    return IsCSSBox() && Style().SpecifiesColumns() && IsBlockFlow() &&
+           !layout_object_->IsLayoutNGCustom();
+  }
+
+  // Return whether we can traverse this fragment and its children directly, for
+  // painting, hit-testing and other layout read operations. If false is
+  // returned, we need to traverse the layout object tree instead.
+  bool CanTraverse() const {
+    return layout_object_->CanTraversePhysicalFragments();
+  }
+
   // This fragment is hidden for paint purpose, but exists for querying layout
   // information. Used for `text-overflow: ellipsis`.
   bool IsHiddenForPaint() const { return is_hidden_for_paint_; }
+
+  // Return true if this fragment is monolithic, as far as block fragmentation
+  // is concerned.
+  bool IsMonolithic() const {
+    const LayoutObject* layout_object = GetLayoutObject();
+    if (!layout_object || !IsBox() || !layout_object->IsBox())
+      return false;
+    return ToLayoutBox(layout_object)->GetPaginationBreakability() ==
+           LayoutBox::kForbidBreaks;
+  }
 
   // GetLayoutObject should only be used when necessary for compatibility
   // with LegacyLayout.
@@ -243,6 +287,13 @@ class CORE_EXPORT NGPhysicalFragment
   LayoutObject* GetMutableLayoutObject() const {
     return IsCSSBox() ? layout_object_ : nullptr;
   }
+  // Similar to |GetLayoutObject|, but returns the |LayoutObject| of its
+  // container for |!IsCSSBox()| fragments instead of |nullptr|.
+  const LayoutObject* GetSelfOrContainerLayoutObject() const {
+    return layout_object_;
+  }
+
+  const FragmentData* GetFragmentData() const;
 
   // |NGPhysicalFragment| may live longer than the corresponding |LayoutObject|.
   // Though |NGPhysicalFragment| is immutable, |layout_object_| is cleared to
@@ -260,13 +311,21 @@ class CORE_EXPORT NGPhysicalFragment
   // check if there were newer generations.
   const NGPhysicalFragment* PostLayout() const;
 
+  PhysicalRect InkOverflow() const {
+    // TODO(layout-dev): Implement box fragment overflow.
+    return LocalRect();
+  }
+
   // Scrollable overflow. including contents, in the local coordinate.
   PhysicalRect ScrollableOverflow() const;
 
   // ScrollableOverflow(), with transforms applied wrt container if needed.
   // This does not include any offsets from the parent (including relpos).
   PhysicalRect ScrollableOverflowForPropagation(
-      const LayoutObject* container) const;
+      const NGPhysicalBoxFragment& container) const;
+  void AdjustScrollableOverflowForPropagation(
+      const NGPhysicalBoxFragment& container,
+      PhysicalRect* overflow) const;
 
   // The allowed touch action is the union of the effective touch action
   // (from style) and blocking touch event handlers.
@@ -278,6 +337,15 @@ class CORE_EXPORT NGPhysicalFragment
   // Returns the resolved direction of a text or atomic inline fragment. Not to
   // be confused with the CSS 'direction' property.
   TextDirection ResolvedDirection() const;
+
+  // Helper function to convert to |PhysicalRect| to |LogicalRect| with
+  // |Style().Direction()|
+  LogicalRect ConvertToLogical(const PhysicalRect& physical_rect,
+                               PhysicalSize inner_size) const;
+  LogicalRect ConvertToLogical(const PhysicalRect& physical_rect,
+                               TextDirection direction,
+                               PhysicalSize inner_size) const;
+  PhysicalRect ConvertToPhysical(const LogicalRect& logical_rect) const;
 
   // Utility functions for caret painting. Note that carets are painted as part
   // of the containing block's foreground.
@@ -348,27 +416,35 @@ class CORE_EXPORT NGPhysicalFragment
   // The following bitfields are only to be used by NGPhysicalLineBoxFragment
   // (it's defined here to save memory, since that class has no bitfields).
   unsigned has_propagated_descendants_ : 1;
-  unsigned base_direction_ : 1;  // TextDirection
+  // base (line box) or resolve (text) direction
+  unsigned base_or_resolved_direction_ : 1;  // TextDirection
   unsigned has_hanging_ : 1;
 
   // The following bitfields are only to be used by NGPhysicalBoxFragment
   // (it's defined here to save memory, since that class has no bitfields).
-  unsigned children_inline_ : 1;
+  unsigned is_inline_formatting_context_ : 1;
   unsigned has_fragment_items_ : 1;
   unsigned border_edge_ : 4;  // NGBorderEdges::Physical
   unsigned has_borders_ : 1;
   unsigned has_padding_ : 1;
+  unsigned is_math_fraction_ : 1;
   unsigned is_first_for_node_ : 1;
 
   // The following are only used by NGPhysicalBoxFragment but are initialized
   // for all types to allow methods using them to be inlined.
   unsigned is_fieldset_container_ : 1;
   unsigned is_legacy_layout_root_ : 1;
+  unsigned is_painted_atomically_ : 1;
+  unsigned has_baseline_ : 1;
+  unsigned has_last_baseline_ : 1;
 
   // The following bitfields are only to be used by NGPhysicalTextFragment
   // (it's defined here to save memory, since that class has no bitfields).
-  unsigned is_generated_text_ : 1;
-  mutable unsigned ink_overflow_computed_ : 1;
+  mutable unsigned ink_overflow_computed_or_mathml_paint_info_ : 1;
+
+  // Note: We've used 32-bit bit field. If you need more bits, please think to
+  // share bit fields, or put them before layout_object_ to fill the gap after
+  // RefCounted on 64-bit systems.
 
  private:
   friend struct NGPhysicalFragmentTraits;

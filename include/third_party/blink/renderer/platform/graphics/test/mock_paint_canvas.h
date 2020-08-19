@@ -21,6 +21,7 @@ class MockPaintCanvas : public cc::PaintCanvas {
   MOCK_CONST_METHOD0(imageInfo, SkImageInfo());
   MOCK_METHOD3(accessTopLayerPixels,
                void*(SkImageInfo* info, size_t* rowBytes, SkIPoint* origin));
+  MOCK_METHOD1(setNodeId, void(int));
   MOCK_METHOD0(flush, void());
   MOCK_METHOD0(save, int());
   MOCK_METHOD2(saveLayer, int(const SkRect* bounds, const PaintFlags* flags));
@@ -75,7 +76,7 @@ class MockPaintCanvas : public cc::PaintCanvas {
                     const SkRect& src,
                     const SkRect& dst,
                     const PaintFlags* flags,
-                    SrcRectConstraint constraint));
+                    SkCanvas::SrcRectConstraint constraint));
   MOCK_METHOD3(drawSkottie,
                void(scoped_refptr<cc::SkottieWrapper> skottie,
                     const SkRect& dst,
@@ -98,7 +99,7 @@ class MockPaintCanvas : public cc::PaintCanvas {
   MOCK_METHOD1(drawPicture, void(sk_sp<const PaintRecord> record));
   MOCK_CONST_METHOD0(isClipEmpty, bool());
   MOCK_CONST_METHOD0(isClipRect, bool());
-  MOCK_CONST_METHOD0(getTotalMatrix, const SkMatrix&());
+  MOCK_CONST_METHOD0(getTotalMatrix, SkMatrix());
 
   MOCK_METHOD3(Annotate,
                void(AnnotationType type,

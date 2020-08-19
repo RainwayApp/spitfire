@@ -26,7 +26,7 @@ class CORE_EXPORT TransformStreamDefaultController : public ScriptWrappable {
   ~TransformStreamDefaultController() override;
 
   // https://streams.spec.whatwg.org/#ts-default-controller-desired-size
-  double desiredSize(bool& is_null) const;
+  base::Optional<double> desiredSize() const;
 
   // https://streams.spec.whatwg.org/#ts-default-controller-enqueue
   void enqueue(ScriptState*, ExceptionState&);
@@ -39,7 +39,7 @@ class CORE_EXPORT TransformStreamDefaultController : public ScriptWrappable {
   // https://streams.spec.whatwg.org/#ts-default-controller-terminate
   void terminate(ScriptState*);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   friend class TransformStream;

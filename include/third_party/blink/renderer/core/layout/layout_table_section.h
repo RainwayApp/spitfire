@@ -232,11 +232,8 @@ class CORE_EXPORT LayoutTableSection final
   // information.
   int DistributeExtraLogicalHeightToRows(int extra_logical_height);
 
-  static LayoutTableSection* CreateAnonymousWithParent(const LayoutObject*);
   LayoutBox* CreateAnonymousBoxWithSameTypeAs(
-      const LayoutObject* parent) const override {
-    return CreateAnonymousWithParent(parent);
-  }
+      const LayoutObject* parent) const override;
 
   void Paint(const PaintInfo&) const override;
 
@@ -336,6 +333,11 @@ class CORE_EXPORT LayoutTableSection final
                    HitTestAction) override;
 
  private:
+  MinMaxSizes ComputeIntrinsicLogicalWidths() const final {
+    NOTREACHED();
+    return MinMaxSizes();
+  }
+
   void ComputeVisualOverflowFromDescendants();
 
   bool IsOfType(LayoutObjectType type) const override {
@@ -420,8 +422,6 @@ class CORE_EXPORT LayoutTableSection final
   // The offset at which the first row in the section will get positioned to
   // avoid any repeating headers in its table or ancestor tables.
   int OffsetForRepeatedHeader() const;
-
-  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const override;
 
   bool HeaderGroupShouldRepeat() const {
     return Table()->Header() == this && GroupShouldRepeat();

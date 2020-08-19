@@ -378,11 +378,8 @@ class CORE_EXPORT LayoutTable final : public LayoutBlock,
       RecalcSections();
   }
 
-  static LayoutTable* CreateAnonymousWithParent(const LayoutObject*);
   LayoutBox* CreateAnonymousBoxWithSameTypeAs(
-      const LayoutObject* parent) const override {
-    return CreateAnonymousWithParent(parent);
-  }
+      const LayoutObject* parent) const override;
 
   void AddCaption(const LayoutTableCaption*);
   void RemoveCaption(const LayoutTableCaption*);
@@ -427,7 +424,6 @@ class CORE_EXPORT LayoutTable final : public LayoutBlock,
 
   void EnsureIsReadyForPaintInvalidation() override;
   void InvalidatePaint(const PaintInvalidatorContext&) const override;
-  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const override;
   void ColumnStructureChanged();
 
   // LayoutNGTableInterface methods start.
@@ -460,9 +456,8 @@ class CORE_EXPORT LayoutTable final : public LayoutBlock,
   void PaintObject(const PaintInfo&,
                    const PhysicalOffset& paint_offset) const override;
   void UpdateLayout() override;
-  void ComputeIntrinsicLogicalWidths(LayoutUnit& min_width,
-                                     LayoutUnit& max_width) const override;
-  void ComputePreferredLogicalWidths() override;
+  MinMaxSizes ComputeIntrinsicLogicalWidths() const override;
+  MinMaxSizes PreferredLogicalWidths() const override;
   bool NodeAtPoint(HitTestResult&,
                    const HitTestLocation&,
                    const PhysicalOffset& accumulated_offset,

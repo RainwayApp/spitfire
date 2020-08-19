@@ -63,7 +63,7 @@ class CORE_EXPORT HTMLMeterElement final : public HTMLElement {
 
   bool CanContainRangeEndPoint() const override;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   ~HTMLMeterElement() override;
@@ -71,7 +71,6 @@ class CORE_EXPORT HTMLMeterElement final : public HTMLElement {
   bool AreAuthorShadowsAllowed() const override { return false; }
 
   bool IsLabelable() const override { return true; }
-  bool TypeShouldForceLegacyLayout() const final { return true; }
 
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
   void ParseAttribute(const AttributeModificationParams&) override;

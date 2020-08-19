@@ -51,7 +51,7 @@ class MODULES_EXPORT AudioWorklet final : public Worklet {
   // are ready.
   bool IsReady();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // Implements Worklet

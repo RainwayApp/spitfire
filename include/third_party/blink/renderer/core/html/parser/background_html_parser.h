@@ -37,7 +37,6 @@
 #include "third_party/blink/renderer/core/html/parser/compact_html_token.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_options.h"
 #include "third_party/blink/renderer/core/html/parser/html_preload_scanner.h"
-#include "third_party/blink/renderer/core/html/parser/html_source_tracker.h"
 #include "third_party/blink/renderer/core/html/parser/html_tree_builder_simulator.h"
 #include "third_party/blink/renderer/core/html/parser/text_resource_decoder.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
@@ -56,7 +55,7 @@ class BackgroundHTMLParser {
    public:
     Configuration();
     HTMLParserOptions options;
-    base::WeakPtr<HTMLDocumentParser> parser;
+    WeakPersistent<HTMLDocumentParser> parser;
     std::unique_ptr<TextResourceDecoder> decoder;
   };
 
@@ -74,7 +73,7 @@ class BackgroundHTMLParser {
     USING_FAST_MALLOC(Checkpoint);
 
    public:
-    base::WeakPtr<HTMLDocumentParser> parser;
+    WeakPersistent<HTMLDocumentParser> parser;
     std::unique_ptr<HTMLToken> token;
     std::unique_ptr<HTMLTokenizer> tokenizer;
     HTMLTreeBuilderSimulator::State tree_builder_state;
@@ -93,6 +92,8 @@ class BackgroundHTMLParser {
 
   void ForcePlaintextForTextDocument();
 
+  void ClearParser();
+
  private:
   BackgroundHTMLParser(std::unique_ptr<Configuration>,
                        scoped_refptr<base::SingleThreadTaskRunner>);
@@ -106,12 +107,11 @@ class BackgroundHTMLParser {
   void UpdateDocument(const String& decoded_data);
 
   BackgroundHTMLInputStream input_;
-  HTMLSourceTracker source_tracker_;
   std::unique_ptr<HTMLToken> token_;
   std::unique_ptr<HTMLTokenizer> tokenizer_;
   HTMLTreeBuilderSimulator tree_builder_simulator_;
   HTMLParserOptions options_;
-  base::WeakPtr<HTMLDocumentParser> parser_;
+  WeakPersistent<HTMLDocumentParser> parser_;
 
   CompactHTMLTokenStream pending_tokens_;
   PreloadRequestStream pending_preloads_;

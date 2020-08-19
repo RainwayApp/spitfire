@@ -53,6 +53,7 @@ class PLATFORM_EXPORT JPEGImageDecoder final : public ImageDecoder {
   void DecodeToYUV() override;
   SkYUVColorSpace GetYUVColorSpace() const override;
   Vector<SkISize> GetSupportedDecodeSizes() const override;
+
   bool HasImagePlanes() const { return image_planes_.get(); }
 
   bool OutputScanlines();
@@ -62,6 +63,10 @@ class PLATFORM_EXPORT JPEGImageDecoder final : public ImageDecoder {
 
   void SetOrientation(ImageOrientation orientation) {
     orientation_ = orientation;
+  }
+
+  void SetDensityCorrectedSize(const IntSize& size) {
+    density_corrected_size_ = size;
   }
   void SetDecodedSize(unsigned width, unsigned height);
 

@@ -20,6 +20,8 @@
 #include <string>
 
 #include "absl/types/optional.h"
+#include "api/priority.h"
+#include "api/rtc_error.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ref_count.h"
@@ -60,6 +62,9 @@ struct DataChannelInit {
 
   // The stream id, or SID, for SCTP data channels. -1 if unset (see above).
   int id = -1;
+
+  // https://w3c.github.io/webrtc-priority/#new-rtcdatachannelinit-member
+  absl::optional<Priority> priority;
 };
 
 // At the JavaScript level, data can be passed in as a string or a blob, so
@@ -153,7 +158,12 @@ class RTC_EXPORT DataChannelInterface : public rtc::RefCountInterface {
   // If negotiated in-band, this ID will be populated once the DTLS role is
   // determined, and until then this will return -1.
   virtual int id() const = 0;
+  virtual Priority priority() const { return Priority::kLow; }
   virtual DataState state() const = 0;
+  // When state is kClosed, and the DataChannel was not closed using
+  // the closing procedure, returns the error information about the closing.
+  // The default implementation returns "no error".
+  virtual RTCError error() const { return RTCError(); }
   virtual uint32_t messages_sent() const = 0;
   virtual uint64_t bytes_sent() const = 0;
   virtual uint32_t messages_received() const = 0;

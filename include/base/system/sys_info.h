@@ -160,6 +160,10 @@ class BASE_EXPORT SysInfo {
 
   // Returns the kernel version of the host operating system.
   static std::string KernelVersion();
+
+  // Crashes if running on Chrome OS non-test image. Use only for really
+  // sensitive and risky use cases.
+  static void CrashIfChromeOSNonTestImage();
 #endif  // defined(OS_CHROMEOS)
 
 #if defined(OS_ANDROID)
@@ -168,6 +172,9 @@ class BASE_EXPORT SysInfo {
 
   // Returns the Android build ID.
   static std::string GetAndroidBuildID();
+
+  // Returns the Android hardware EGL system property.
+  static std::string GetAndroidHardwareEGL();
 
   static int DalvikHeapSizeMB();
   static int DalvikHeapGrowthLimitMB();
@@ -182,10 +189,16 @@ class BASE_EXPORT SysInfo {
   static std::string GetIOSBuildNumber();
 #endif  // defined(OS_IOS)
 
-  // Returns true if this is a low-end device.
-  // Low-end device refers to devices having a very low amount of total
-  // system memory, typically <= 1GB.
-  // See also SysUtils.java, method isLowEndDevice.
+  // Returns true for low-end devices that may require extreme tradeoffs,
+  // including user-visible changes, for acceptable performance.
+  // For general memory optimizations, consider |AmountOfPhysicalMemoryMB|.
+  //
+  // On Android this returns:
+  //   true when memory <= 1GB on Android O and later.
+  //   true when memory <= 512MB on Android N and earlier.
+  // This is not the same as "low-memory" and will be false on a large number of
+  // <=1GB pre-O Android devices. See: |detectLowEndDevice| in SysUtils.java.
+  // On Desktop this returns true when memory <= 512MB.
   static bool IsLowEndDevice();
 
  private:

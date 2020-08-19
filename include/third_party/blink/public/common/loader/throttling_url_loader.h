@@ -10,6 +10,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -18,7 +19,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
-#include "services/network/public/mojom/url_loader_factory.mojom.h"
+#include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
@@ -37,6 +38,9 @@ namespace blink {
 class BLINK_COMMON_EXPORT ThrottlingURLLoader
     : public network::mojom::URLLoaderClient {
  public:
+  // Reason used when resetting the URLLoader to follow a redirect.
+  static const char kFollowRedirectReason[];
+
   // |client| must stay alive during the lifetime of the returned object. Please
   // note that the request may not start immediately since it could be deferred
   // by throttles.
@@ -49,16 +53,26 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
       network::ResourceRequest* url_request,
       network::mojom::URLLoaderClient* client,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      base::Optional<std::vector<std::string>> cors_exempt_header_list =
+          base::nullopt);
 
   ~ThrottlingURLLoader() override;
 
   // Follows a redirect, calling CreateLoaderAndStart() on the factory. This
   // is useful if the factory uses different loaders for different URLs.
   void FollowRedirectForcingRestart();
+  // This should be called if the loader will be recreated to follow a redirect
+  // instead of calling FollowRedirect(). This can be used if a loader is
+  // implementing similar logic to FollowRedirectForcingRestart(). If this is
+  // called, a future request for the redirect should be guaranteed to be sent
+  // with the same request_id.
+  void ResetForFollowRedirect();
 
-  void FollowRedirect(const std::vector<std::string>& removed_headers,
-                      const net::HttpRequestHeaders& modified_headers);
+  void FollowRedirect(
+      const std::vector<std::string>& removed_headers,
+      const net::HttpRequestHeaders& modified_headers,
+      const net::HttpRequestHeaders& modified_cors_exempt_headers);
   void SetPriority(net::RequestPriority priority, int32_t intra_priority_value);
   void PauseReadingBodyFromNet();
   void ResumeReadingBodyFromNet();
@@ -101,7 +115,8 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
              int32_t request_id,
              uint32_t options,
              network::ResourceRequest* url_request,
-             scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+             scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+             base::Optional<std::vector<std::string>> cors_exempt_header_list);
 
   void StartNow();
   void RestartWithFlagsNow();
@@ -208,7 +223,8 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
         int32_t in_request_id,
         uint32_t in_options,
         network::ResourceRequest* in_url_request,
-        scoped_refptr<base::SingleThreadTaskRunner> in_task_runner);
+        scoped_refptr<base::SingleThreadTaskRunner> in_task_runner,
+        base::Optional<std::vector<std::string>> in_cors_exempt_header_list);
     ~StartInfo();
 
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory;
@@ -219,6 +235,7 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
     network::ResourceRequest url_request;
     // |task_runner| is used to set up |client_receiver_|.
     scoped_refptr<base::SingleThreadTaskRunner> task_runner;
+    base::Optional<std::vector<std::string>> cors_exempt_header_list;
   };
   // Holds any info needed to start or restart the request. Used when start is
   // deferred or when FollowRedirectForcingRestart() is called.
@@ -247,7 +264,6 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
   struct PriorityInfo {
     PriorityInfo(net::RequestPriority in_priority,
                  int32_t in_intra_priority_value);
-    ~PriorityInfo();
 
     net::RequestPriority priority;
     int32_t intra_priority_value;
@@ -278,6 +294,7 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
 
   std::vector<std::string> removed_headers_;
   net::HttpRequestHeaders modified_headers_;
+  net::HttpRequestHeaders modified_cors_exempt_headers_;
 
   int pending_restart_flags_ = 0;
   bool has_pending_restart_ = false;

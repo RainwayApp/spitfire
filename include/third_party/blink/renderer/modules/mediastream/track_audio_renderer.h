@@ -29,8 +29,7 @@ class AudioParameters;
 
 namespace blink {
 
-class WebLocalFrame;
-class MediaStreamInternalFrameWrapper;
+class LocalFrame;
 
 // TrackAudioRenderer is a WebMediaStreamAudioRenderer for plumbing audio
 // data generated from either local or remote (but not
@@ -63,9 +62,10 @@ class TrackAudioRenderer : public WebMediaStreamAudioRenderer,
   //
   // Called on the main thread.
   TrackAudioRenderer(const WebMediaStreamTrack& audio_track,
-                     WebLocalFrame* playout_web_frame,
+                     LocalFrame* playout_web_frame,
                      const base::UnguessableToken& session_id,
-                     const String& device_id);
+                     const String& device_id,
+                     base::RepeatingCallback<void()> on_render_error_callback);
 
   // WebMediaStreamAudioRenderer implementation.
   // Called on the main thread.
@@ -101,6 +101,8 @@ class TrackAudioRenderer : public WebMediaStreamAudioRenderer,
              media::AudioBus* audio_bus) override;
   void OnRenderError() override;
 
+  void OnRenderErrorCrossThread();
+
   // Initializes and starts the |sink_| if
   //  we have received valid |source_params_| &&
   //  |playing_| has been set to true.
@@ -126,8 +128,8 @@ class TrackAudioRenderer : public WebMediaStreamAudioRenderer,
   // disconnect with the audio track.
   WebMediaStreamTrack audio_track_;
 
-  // The WebLocalFrame in which the audio is rendered into |sink_|.
-  std::unique_ptr<MediaStreamInternalFrameWrapper> internal_playout_frame_;
+  // The LocalFrame in which the audio is rendered into |sink_|.
+  WeakPersistent<LocalFrame> playout_frame_;
   const base::UnguessableToken session_id_;
 
   // MessageLoop associated with the single thread that performs all control
@@ -150,6 +152,8 @@ class TrackAudioRenderer : public WebMediaStreamAudioRenderer,
   // The audio parameters of the track's source.
   // Must only be touched on the main thread.
   media::AudioParameters source_params_;
+
+  base::RepeatingCallback<void()> on_render_error_callback_;
 
   // Set when playing, cleared when paused.
   bool playing_;

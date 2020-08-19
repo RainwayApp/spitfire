@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_node.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_line_box_fragment_builder.h"
+#include "third_party/blink/renderer/core/layout/ng/inline/ng_logical_line_item.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_box_fragment_builder.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_constraint_space_builder.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_layout_algorithm.h"
@@ -51,6 +51,11 @@ class CORE_EXPORT NGInlineLayoutAlgorithm final
 
   scoped_refptr<const NGLayoutResult> Layout() override;
 
+  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesInput&) const override {
+    NOTREACHED();
+    return {MinMaxSizes(), true};
+  }
+
  private:
   unsigned PositionLeadingFloats(NGExclusionSpace*, NGPositionedFloatVector*);
   NGPositionedFloat PositionFloat(LayoutUnit origin_block_bfc_offset,
@@ -69,6 +74,7 @@ class CORE_EXPORT NGInlineLayoutAlgorithm final
 
   NGInlineBoxState* HandleOpenTag(const NGInlineItem&,
                                   const NGInlineItemResult&,
+                                  NGLogicalLineItems*,
                                   NGInlineLayoutStateStack*) const;
   NGInlineBoxState* HandleCloseTag(const NGInlineItem&,
                                    const NGInlineItemResult&,
@@ -80,9 +86,9 @@ class CORE_EXPORT NGInlineLayoutAlgorithm final
                         const NGLineInfo&,
                         NGInlineItemResult*,
                         NGInlineBoxState*);
-  void PlaceGeneratedContent(scoped_refptr<const NGPhysicalTextFragment>,
-                             UBiDiLevel,
-                             NGInlineBoxState*);
+  void PlaceHyphen(const NGInlineItemResult&,
+                   LayoutUnit hyphen_inline_size,
+                   NGInlineBoxState*);
   NGInlineBoxState* PlaceAtomicInline(const NGInlineItem&,
                                       const NGLineInfo&,
                                       NGInlineItemResult*);
@@ -99,13 +105,20 @@ class CORE_EXPORT NGInlineLayoutAlgorithm final
                        const NGLineInfo&);
 
   LayoutUnit ApplyTextAlign(NGLineInfo*);
-  bool ApplyJustify(LayoutUnit space, NGLineInfo*);
+  base::Optional<LayoutUnit> ApplyJustify(ETextAlign text_align,
+                                          LayoutUnit space,
+                                          NGLineInfo*);
 
   LayoutUnit ComputeContentSize(const NGLineInfo&,
                                 const NGExclusionSpace&,
                                 LayoutUnit line_height);
 
-  NGLineBoxFragmentBuilder::ChildList line_box_;
+  NGLineHeightMetrics ComputeAnnotationOverflow(
+      const NGLineHeightMetrics& line_box_metrics,
+      LayoutUnit line_block_start,
+      const ComputedStyle& line_style);
+
+  NGLogicalLineItems line_box_;
   NGInlineLayoutStateStack* box_states_;
   NGInlineChildLayoutContext* context_;
 

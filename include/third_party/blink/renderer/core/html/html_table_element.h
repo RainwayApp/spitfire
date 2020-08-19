@@ -28,13 +28,13 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/html/html_table_rows_collection.h"
 
 namespace blink {
 
 class ExceptionState;
 class HTMLCollection;
 class HTMLTableCaptionElement;
-class HTMLTableRowsCollection;
 class HTMLTableSectionElement;
 
 class CORE_EXPORT HTMLTableElement final : public HTMLElement {
@@ -73,7 +73,7 @@ class CORE_EXPORT HTMLTableElement final : public HTMLElement {
 
   bool HasNonInBodyInsertionMode() const override { return true; }
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   ~HTMLTableElement() override;

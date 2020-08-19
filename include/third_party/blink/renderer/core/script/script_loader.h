@@ -53,9 +53,9 @@ class CORE_EXPORT ScriptLoader final : public GarbageCollected<ScriptLoader>,
   USING_GARBAGE_COLLECTED_MIXIN(ScriptLoader);
 
  public:
-  ScriptLoader(ScriptElementBase*, bool created_by_parser, bool is_evaluated);
+  ScriptLoader(ScriptElementBase*, const CreateElementFlags);
   ~ScriptLoader() override;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   const char* NameInHeapSnapshot() const override { return "ScriptLoader"; }
 
   enum LegacyTypeSupport {
@@ -139,6 +139,9 @@ class CORE_EXPORT ScriptLoader final : public GarbageCollected<ScriptLoader>,
 
   // PendingScriptClient
   void PendingScriptFinished(PendingScript*) override;
+
+  // Get the effective script text (after Trusted Types checking).
+  String GetScriptText() const;
 
   Member<ScriptElementBase> element_;
 

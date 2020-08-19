@@ -42,6 +42,7 @@ class
 class CPUTimeBudgetPool;
 class FrameSchedulerImpl;
 class MainThreadSchedulerImpl;
+class WakeUpBudgetPool;
 
 class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
  public:
@@ -89,18 +90,16 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   // PageSchedulerImpl::OptedOutFromAggressiveThrottling can be used in non-test
   // code, while PageScheduler::OptedOutFromAggressiveThrottlingForTest can't.
   bool OptedOutFromAggressiveThrottling() const;
-  // Note that the frame can throttle queues even when the page is not throttled
-  // (e.g. for offscreen frames or recently backgrounded pages).
-  bool IsThrottled() const;
+  // Returns whether CPU time is throttled for the page. Note: This is
+  // independent from wake up rate throttling.
+  bool IsCPUTimeThrottled() const;
   bool KeepActive() const;
 
   bool IsLoading() const;
 
-  // An "ordinary" PageScheduler is responsible for is a fully-featured page
+  // An "ordinary" PageScheduler is responsible for a fully-featured page
   // owned by a web view.
   bool IsOrdinary() const;
-
-  void RegisterFrameSchedulerImpl(FrameSchedulerImpl* frame_scheduler);
 
   MainThreadSchedulerImpl* GetMainThreadScheduler() const;
 
@@ -110,6 +109,10 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void OnAggressiveThrottlingStatusUpdated();
 
   void OnTraceLogEnabled();
+
+  // Virtual for testing.
+  virtual bool IsWaitingForMainFrameContentfulPaint() const;
+  virtual bool IsWaitingForMainFrameMeaningfulPaint() const;
 
   // Return a number of child web frame schedulers for this PageScheduler.
   size_t FrameCount() const;
@@ -188,6 +191,8 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
     DISALLOW_COPY_AND_ASSIGN(PageLifecycleStateTracker);
   };
 
+  void RegisterFrameSchedulerImpl(FrameSchedulerImpl* frame_scheduler);
+
   // We do not throttle anything while audio is played and shortly after that.
   static constexpr base::TimeDelta kRecentAudioDelay =
       base::TimeDelta::FromSeconds(5);
@@ -198,8 +203,13 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   // a part of foregrounding the page.
   void SetPageFrozenImpl(bool frozen, NotificationPolicy notification_policy);
 
-  CPUTimeBudgetPool* BackgroundCPUTimeBudgetPool();
-  void MaybeInitializeBackgroundCPUTimeBudgetPool();
+  CPUTimeBudgetPool* background_cpu_time_budget_pool();
+  void MaybeInitializeBackgroundCPUTimeBudgetPool(
+      base::sequence_manager::LazyNow* lazy_now);
+
+  WakeUpBudgetPool* wake_up_budget_pool();
+  void MaybeInitializeWakeUpBudgetPool(
+      base::sequence_manager::LazyNow* lazy_now);
 
   void OnThrottlingReported(base::TimeDelta throttling_duration);
 
@@ -208,19 +218,19 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void UpdateBackgroundSchedulingLifecycleState(
       NotificationPolicy notification_policy);
 
-  // As a part of UpdateBackgroundSchedulingLifecycleState set correct
-  // background_time_budget_pool_ state depending on page visibility and
-  // number of active connections.
-  void UpdateBackgroundBudgetPoolSchedulingLifecycleState();
+  // Adjusts settings of a budget pool depending on current state of the page.
+  void UpdateCPUTimeBudgetPool(base::sequence_manager::LazyNow* lazy_now);
+  void UpdateWakeUpBudgetPool(base::sequence_manager::LazyNow* lazy_now);
 
   // Callback for marking page is silent after a delay since last audible
   // signal.
   void OnAudioSilent();
 
-  // Callback for enabling throttling in background after specified delay.
+  // Callbacks for adjusting the settings of a budget pool after a delay.
   // TODO(altimin): Trigger throttling depending on the loading state
   // of the page.
-  void DoThrottlePage();
+  void DoThrottleCPUTime();
+  void DoIntensivelyThrottleWakeUps();
 
   // Notify frames that the page scheduler state has been updated.
   void NotifyFrames();
@@ -251,11 +261,14 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   bool opted_out_from_aggressive_throttling_;
   bool nested_runloop_;
   bool is_main_frame_local_;
-  bool is_throttled_;
+  bool is_cpu_time_throttled_;
+  bool are_wake_ups_intensively_throttled_;
   bool keep_active_;
-  CPUTimeBudgetPool* background_time_budget_pool_;  // Not owned.
-  PageScheduler::Delegate* delegate_;               // Not owned.
-  CancelableClosureHolder do_throttle_page_callback_;
+  CPUTimeBudgetPool* cpu_time_budget_pool_;
+  WakeUpBudgetPool* wake_up_budget_pool_;
+  PageScheduler::Delegate* delegate_;
+  CancelableClosureHolder do_throttle_cpu_time_callback_;
+  CancelableClosureHolder do_intensively_throttle_wake_ups_callback_;
   CancelableClosureHolder on_audio_silent_closure_;
   CancelableClosureHolder do_freeze_page_callback_;
   const base::TimeDelta delay_for_background_tab_freezing_;

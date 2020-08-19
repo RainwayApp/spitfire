@@ -76,7 +76,7 @@ class MODULES_EXPORT IDBKeyRange final : public ScriptWrappable {
                                       const ScriptValue&,
                                       ExceptionState&);
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     ScriptWrappable::Trace(visitor);
   }
 

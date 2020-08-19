@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_BLUETOOTH_BLUETOOTH_ADVERTISING_EVENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_BLUETOOTH_BLUETOOTH_ADVERTISING_EVENT_H_
 
+#include "third_party/blink/public/mojom/bluetooth/web_bluetooth.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 
 namespace blink {
@@ -22,28 +23,23 @@ class BluetoothAdvertisingEvent final : public Event {
   BluetoothAdvertisingEvent(const AtomicString& event_type,
                             const BluetoothAdvertisingEventInit* initializer);
 
-  BluetoothAdvertisingEvent(const AtomicString& event_type,
-                            BluetoothDevice* device,
-                            const String& name,
-                            const HeapVector<StringOrUnsignedLong>& uuids,
-                            base::Optional<uint16_t> appearance,
-                            base::Optional<int8_t> txPower,
-                            base::Optional<int8_t> rssi,
-                            BluetoothManufacturerDataMap* manufacturer_data_map,
-                            BluetoothServiceDataMap* service_data_map);
+  BluetoothAdvertisingEvent(
+      const AtomicString& event_type,
+      BluetoothDevice* device,
+      mojom::blink::WebBluetoothAdvertisingEventPtr advertising_event);
 
   ~BluetoothAdvertisingEvent() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   const AtomicString& InterfaceName() const override;
 
   BluetoothDevice* device() const;
   const String& name() const;
   const HeapVector<StringOrUnsignedLong>& uuids() const;
-  uint16_t appearance(bool& is_null) const;
-  int8_t txPower(bool& is_null) const;
-  int8_t rssi(bool& is_null) const;
+  base::Optional<uint16_t> appearance() const { return appearance_; }
+  base::Optional<int8_t> txPower() const { return txPower_; }
+  base::Optional<int8_t> rssi() const { return rssi_; }
   BluetoothManufacturerDataMap* manufacturerData() const;
   BluetoothServiceDataMap* serviceData() const;
 

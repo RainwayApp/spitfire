@@ -28,8 +28,11 @@
 #include "third_party/blink/renderer/core/animation/css/css_animation_update.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_pending_substitution_value.h"
+#include "third_party/blink/renderer/core/css/css_property_name.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_to_length_conversion_data.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_mode.h"
+#include "third_party/blink/renderer/core/css/pseudo_style_request.h"
 #include "third_party/blink/renderer/core/css/resolver/css_to_style_map.h"
 #include "third_party/blink/renderer/core/css/resolver/element_resolve_context.h"
 #include "third_party/blink/renderer/core/css/resolver/element_style_resources.h"
@@ -58,6 +61,7 @@ class CORE_EXPORT StyleResolverState {
   StyleResolverState(Document&,
                      Element&,
                      PseudoId,
+                     PseudoElementStyleRequest::RequestType,
                      const ComputedStyle* parent_style,
                      const ComputedStyle* layout_parent_style);
   ~StyleResolverState();
@@ -127,6 +131,28 @@ class CORE_EXPORT StyleResolverState {
   void SetIsAnimatingCustomProperties(bool value) {
     is_animating_custom_properties_ = value;
   }
+  bool IsAnimatingRevert() const { return is_animating_revert_; }
+  void SetIsAnimatingRevert(bool value) { is_animating_revert_ = value; }
+
+  // Normally, we apply all active animation effects on top of the style created
+  // by regular CSS declarations. However, !important declarations have a
+  // higher priority than animation effects [1]. If we're currently animating
+  // (not transitioning) a property which was declared !important in the base
+  // style, this flag is set such that we can disable the base computed style
+  // optimization.
+  //
+  // [1] https://drafts.csswg.org/css-cascade-4/#cascade-origin
+  bool HasImportantOverrides() const { return has_important_overrides_; }
+  void SetHasImportantOverrides() { has_important_overrides_ = true; }
+
+  // This flag is set when applying an animation (or transition) for a font
+  // affecting property. When such properties are animated, font-relative
+  // units (e.g. em, ex) in the base style must respond to the animation.
+  // Therefore we can't use the base computed style optimization in such cases.
+  bool HasFontAffectingAnimation() const {
+    return has_font_affecting_animation_;
+  }
+  void SetHasFontAffectingAnimation() { has_font_affecting_animation_ = true; }
 
   const Element* GetAnimatingElement() const;
 
@@ -192,12 +218,54 @@ class CORE_EXPORT StyleResolverState {
   ParsedPropertiesForPendingSubstitutionCache(
       const cssvalue::CSSPendingSubstitutionValue&) const;
 
+  CSSParserMode GetParserMode() const;
+
+  // If the input CSSValue is a CSSLightDarkValuePair, return the light or dark
+  // CSSValue based on the UsedColorScheme. For all other values, just return a
+  // reference to the passed value. If the property is a non-inherited one, mark
+  // the ComputedStyle as having such a pair since that will make sure its not
+  // stored in the MatchedPropertiesCache.
+  const CSSValue& ResolveLightDarkPair(const CSSProperty&, const CSSValue&);
+
+  // Mark the ComputedStyle as possibly dependent on the specified property.
+  //
+  // A "dependency" in this context means that one or more of the computed
+  // values held by the ComputedStyle depends on the computed value of the
+  // parent ComputedStyle.
+  //
+  // For example, a declaration such as background-color:var(--x) would incur
+  // a dependency on --x.
+  void MarkDependency(const CSSProperty&);
+
+  // Returns the set of all properties seen by MarkDependency.
+  //
+  // Note that this set might be larger than the actual set of dependencies,
+  // as we do some degree of over-marking to keep the implementation simple.
+  //
+  // For example, we mark all custom properties referenced as dependencies, even
+  // though the ComputedStyle itself may define a value for some or all of those
+  // custom properties. In the following example, both --x and --y will be
+  // added to this set, even though only --y is a true dependency:
+  //
+  //  div {
+  //    --x: 10px;
+  //    margin: var(--x) (--y);
+  //  }
+  //
+  const HashSet<CSSPropertyName>& Dependencies() const { return dependencies_; }
+
+  // True if there's a dependency without the kComputedValueComparable flag.
+  bool HasIncomparableDependency() const {
+    return has_incomparable_dependency_;
+  }
+
  private:
   enum class AnimatingElementType { kElement, kPseudoElement };
 
   StyleResolverState(Document&,
                      Element&,
                      PseudoElement*,
+                     PseudoElementStyleRequest::RequestType,
                      AnimatingElementType,
                      const ComputedStyle* parent_style,
                      const ComputedStyle* layout_parent_style);
@@ -206,7 +274,7 @@ class CORE_EXPORT StyleResolverState {
       const ComputedStyle* font_style) const;
 
   ElementResolveContext element_context_;
-  Member<Document> document_;
+  Document* document_;
 
   // style_ is the primary output for each element's style resolve.
   scoped_refptr<ComputedStyle> style_;
@@ -222,21 +290,34 @@ class CORE_EXPORT StyleResolverState {
   scoped_refptr<const ComputedStyle> layout_parent_style_;
 
   CSSAnimationUpdate animation_update_;
-  bool is_animation_interpolation_map_ready_;
-  bool is_animating_custom_properties_;
+  bool is_animation_interpolation_map_ready_ = false;
+  bool is_animating_custom_properties_ = false;
+  // We can't use the base computed style optimization when 'revert' appears
+  // in a keyframe. (We need to build the cascade to know what to revert to).
+  // TODO(crbug.com/1068515): Refactor caching to remove these flags.
+  bool is_animating_revert_ = false;
+  bool has_important_overrides_ = false;
+  bool has_font_affecting_animation_ = false;
+  bool has_dir_auto_attribute_ = false;
+  PseudoElementStyleRequest::RequestType pseudo_request_type_;
 
-  bool has_dir_auto_attribute_;
-
-  Member<const CSSValue> cascaded_color_value_;
-  Member<const CSSValue> cascaded_visited_color_value_;
+  const CSSValue* cascaded_color_value_ = nullptr;
+  const CSSValue* cascaded_visited_color_value_ = nullptr;
 
   FontBuilder font_builder_;
 
   std::unique_ptr<CachedUAStyle> cached_ua_style_;
 
   ElementStyleResources element_style_resources_;
-  Member<Element> pseudo_element_;
+  Element* pseudo_element_;
   AnimatingElementType animating_element_type_;
+
+  // Properties depended on by the ComputedStyle. This is known after the
+  // cascade is applied.
+  HashSet<CSSPropertyName> dependencies_;
+  // True if there's an entry in 'dependencies_' which does not have the
+  // CSSProperty::kComputedValueComparable flag set.
+  bool has_incomparable_dependency_ = false;
 
   mutable HeapHashMap<
       Member<const cssvalue::CSSPendingSubstitutionValue>,

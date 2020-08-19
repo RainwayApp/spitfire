@@ -28,6 +28,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/experiments/rtt_mult_experiment.h"
 #include "rtc_base/numerics/sequence_number_util.h"
+#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/thread_annotations.h"
@@ -58,14 +59,6 @@ class FrameBuffer {
 
   // Get the next frame for decoding. Will return at latest after
   // |max_wait_time_ms|.
-  //  - If a frame is available within |max_wait_time_ms| it will return
-  //    kFrameFound and set |frame_out| to the resulting frame.
-  //  - If no frame is available after |max_wait_time_ms| it will return
-  //    kTimeout.
-  //  - If the FrameBuffer is stopped then it will return kStopped.
-  ReturnReason NextFrame(int64_t max_wait_time_ms,
-                         std::unique_ptr<EncodedFrame>* frame_out,
-                         bool keyframe_required);
   void NextFrame(
       int64_t max_wait_time_ms,
       bool keyframe_required,
@@ -167,6 +160,9 @@ class FrameBuffer {
   EncodedFrame* CombineAndDeleteFrames(
       const std::vector<EncodedFrame*>& frames) const;
 
+  SequenceChecker construction_checker_;
+  SequenceChecker callback_checker_;
+
   // Stores only undecoded frames.
   FrameMap frames_ RTC_GUARDED_BY(crit_);
   DecodedFramesHistory decoded_frames_history_ RTC_GUARDED_BY(crit_);
@@ -181,7 +177,6 @@ class FrameBuffer {
   int64_t latest_return_time_ms_ RTC_GUARDED_BY(crit_);
   bool keyframe_required_ RTC_GUARDED_BY(crit_);
 
-  rtc::Event new_continuous_frame_event_;
   VCMJitterEstimator jitter_estimator_ RTC_GUARDED_BY(crit_);
   VCMTiming* const timing_ RTC_GUARDED_BY(crit_);
   VCMInterFrameDelay inter_frame_delay_ RTC_GUARDED_BY(crit_);

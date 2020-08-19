@@ -30,6 +30,7 @@
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
 
@@ -90,6 +91,12 @@ class LayoutState {
     height_offset_for_table_footers_ = offset;
   }
 
+  // The input page name is the name specified by the element itself, if any. If
+  // the element doesn't specify one, but an ancestor does, return that.
+  // Otherwise it's an empty string. This is the page name that will be used on
+  // all descendants if none of them override it.
+  const AtomicString& InputPageName() const { return input_page_name_; }
+
   const LayoutSize& PaginationOffset() const { return pagination_offset_; }
   bool ContainingBlockLogicalWidthChanged() const {
     return containing_block_logical_width_changed_;
@@ -127,6 +134,8 @@ class LayoutState {
   // The height we need to make available for repeating table footers in
   // paginated layout.
   LayoutUnit height_offset_for_table_footers_;
+
+  AtomicString input_page_name_;
 
   LayoutObject& layout_object_;
   DISALLOW_COPY_AND_ASSIGN(LayoutState);

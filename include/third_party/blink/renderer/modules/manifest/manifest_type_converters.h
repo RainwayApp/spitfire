@@ -32,6 +32,13 @@ struct TypeConverter<blink::Manifest::ImageResource,
 };
 
 template <>
+struct TypeConverter<blink::Manifest::ShortcutItem,
+                     blink::mojom::blink::ManifestShortcutItemPtr> {
+  static blink::Manifest::ShortcutItem Convert(
+      const blink::mojom::blink::ManifestShortcutItemPtr& input);
+};
+
+template <>
 struct TypeConverter<blink::Manifest::ShareTarget,
                      blink::mojom::blink::ManifestShareTargetPtr> {
   static blink::Manifest::ShareTarget Convert(
@@ -57,6 +64,13 @@ struct TypeConverter<blink::Manifest::FileHandler,
                      blink::mojom::blink::ManifestFileHandlerPtr> {
   static blink::Manifest::FileHandler Convert(
       const blink::mojom::blink::ManifestFileHandlerPtr& input);
+};
+
+template <>
+struct TypeConverter<blink::Manifest::ProtocolHandler,
+                     blink::mojom::blink::ManifestProtocolHandlerPtr> {
+  static blink::Manifest::ProtocolHandler Convert(
+      const blink::mojom::blink::ManifestProtocolHandlerPtr& input);
 };
 
 template <>

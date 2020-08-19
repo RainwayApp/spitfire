@@ -114,7 +114,7 @@ class CORE_EXPORT ScrollAnimatorMac : public ScrollAnimatorBase {
 
   void SendContentAreaScrolledSoon(const ScrollOffset& scroll_delta);
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     ScrollAnimatorBase::Trace(visitor);
   }
 
@@ -165,7 +165,7 @@ class CORE_EXPORT ScrollAnimatorMac : public ScrollAnimatorBase {
   void WillRemoveHorizontalScrollbar(Scrollbar&) override;
 
   void NotifyContentAreaScrolled(const ScrollOffset& delta,
-                                 ScrollType) override;
+                                 mojom::blink::ScrollType) override;
 
   bool SetScrollbarsVisibleForTesting(bool) override;
 

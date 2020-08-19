@@ -52,9 +52,9 @@ class LayoutSelection final : public GarbageCollected<LayoutSelection> {
   LayoutSelectionStatus ComputeSelectionStatus(const NGInlineCursor&) const;
   static bool IsSelected(const LayoutObject&);
 
-  void OnDocumentShutdown();
+  void ContextDestroyed();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   void AssertIsValid() const;

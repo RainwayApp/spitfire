@@ -39,7 +39,7 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/https_state.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
-#include "third_party/blink/renderer/platform/weborigin/security_violation_reporting_policy.h"
+#include "third_party/blink/renderer/platform/weborigin/reporting_disposition.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -69,18 +69,21 @@ class CORE_EXPORT MixedContentChecker final {
   DISALLOW_NEW();
 
  public:
-  static bool ShouldBlockFetch(LocalFrame*,
-                               mojom::RequestContextType,
-                               ResourceRequest::RedirectStatus,
-                               const KURL&,
-                               SecurityViolationReportingPolicy =
-                                   SecurityViolationReportingPolicy::kReport);
+  static bool ShouldBlockFetch(LocalFrame* frame,
+                               mojom::blink::RequestContextType request_context,
+                               const KURL& url_before_redirects,
+                               ResourceRequest::RedirectStatus redirect_status,
+                               const KURL& url,
+                               const base::Optional<String>& devtools_id,
+                               ReportingDisposition reporting_disposition =
+                                   ReportingDisposition::kReport);
 
   static bool ShouldBlockFetchOnWorker(const WorkerFetchContext&,
                                        mojom::RequestContextType,
+                                       const KURL& url_before_redirects,
                                        ResourceRequest::RedirectStatus,
                                        const KURL&,
-                                       SecurityViolationReportingPolicy,
+                                       ReportingDisposition,
                                        bool is_worklet_global_scope);
 
   static bool IsWebSocketAllowed(const FrameFetchContext&,
@@ -89,11 +92,12 @@ class CORE_EXPORT MixedContentChecker final {
   static bool IsWebSocketAllowed(const WorkerFetchContext&, const KURL&);
 
   static bool IsMixedContent(const SecurityOrigin*, const KURL&);
+  static bool IsMixedContent(const String& origin_protocol, const KURL&);
   static bool IsMixedContent(const FetchClientSettingsObject&, const KURL&);
-  static bool IsMixedFormAction(LocalFrame*,
-                                const KURL&,
-                                SecurityViolationReportingPolicy =
-                                    SecurityViolationReportingPolicy::kReport);
+  static bool IsMixedFormAction(
+      LocalFrame*,
+      const KURL&,
+      ReportingDisposition = ReportingDisposition::kReport);
 
   static bool ShouldAutoupgrade(HttpsState context_https_state,
                                 mojom::RequestContextType type,
@@ -117,6 +121,7 @@ class CORE_EXPORT MixedContentChecker final {
                                 const KURL& mixed_content_url,
                                 mojom::RequestContextType,
                                 bool was_allowed,
+                                const KURL& url_before_redirects,
                                 bool had_redirect,
                                 std::unique_ptr<SourceLocation>);
 
@@ -133,7 +138,7 @@ class CORE_EXPORT MixedContentChecker final {
       ResourceRequest&,
       const FetchClientSettingsObject* fetch_client_settings_object,
       ExecutionContext* execution_context_for_logging,
-      network::mojom::RequestContextFrameType,
+      mojom::RequestContextFrameType,
       WebContentSettingsClient* settings_client);
 
  private:

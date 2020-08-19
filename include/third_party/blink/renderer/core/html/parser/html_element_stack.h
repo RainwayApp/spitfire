@@ -45,7 +45,6 @@ class HTMLElementStack {
 
  public:
   HTMLElementStack();
-  ~HTMLElementStack();
 
   class ElementRecord final : public GarbageCollected<ElementRecord> {
    public:
@@ -61,7 +60,7 @@ class HTMLElementStack {
 
     ElementRecord* Next() const { return next_.Get(); }
 
-    void Trace(Visitor*);
+    void Trace(Visitor*) const;
 
    private:
     friend class HTMLElementStack;
@@ -165,7 +164,7 @@ class HTMLElementStack {
 
   ContainerNode* RootNode() const;
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
 #ifndef NDEBUG
   void Show();

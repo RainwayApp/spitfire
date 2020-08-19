@@ -147,7 +147,7 @@ class Supplement : public GarbageCollectedMixin {
                : nullptr;
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(supplementable_);
   }
 
@@ -201,7 +201,7 @@ class Supplementable : public GarbageCollectedMixin {
 #endif
   }
 
-  void Trace(blink::Visitor* visitor) override { visitor->Trace(supplements_); }
+  void Trace(Visitor* visitor) const override { visitor->Trace(supplements_); }
 
  protected:
   using SupplementMap =

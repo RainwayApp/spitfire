@@ -44,7 +44,9 @@
 
 namespace network {
 namespace mojom {
+enum class FetchResponseSource;
 enum class FetchResponseType : int32_t;
+class LoadTimingInfo;
 }
 }  // namespace network
 
@@ -54,7 +56,6 @@ class ResourceResponse;
 class WebHTTPHeaderVisitor;
 class WebHTTPLoadInfo;
 class WebURL;
-class WebURLLoadTiming;
 
 class WebURLResponse {
  public:
@@ -173,10 +174,12 @@ class WebURLResponse {
 
   BLINK_PLATFORM_EXPORT void SetConnectionReused(bool);
 
-  BLINK_PLATFORM_EXPORT void SetLoadTiming(const WebURLLoadTiming&);
+  BLINK_PLATFORM_EXPORT void SetLoadTiming(
+      const network::mojom::LoadTimingInfo&);
 
   BLINK_PLATFORM_EXPORT void SetHTTPLoadInfo(const WebHTTPLoadInfo&);
 
+  BLINK_PLATFORM_EXPORT base::Time ResponseTime() const;
   BLINK_PLATFORM_EXPORT void SetResponseTime(base::Time);
 
   BLINK_PLATFORM_EXPORT WebString MimeType() const;
@@ -216,6 +219,7 @@ class WebURLResponse {
   BLINK_PLATFORM_EXPORT void SetHasMajorCertificateErrors(bool);
   BLINK_PLATFORM_EXPORT void SetCTPolicyCompliance(net::ct::CTPolicyCompliance);
   BLINK_PLATFORM_EXPORT void SetIsLegacyTLSVersion(bool);
+  BLINK_PLATFORM_EXPORT void SetTimingAllowPassed(bool);
 
   BLINK_PLATFORM_EXPORT void SetSecurityStyle(SecurityStyle);
 
@@ -243,6 +247,13 @@ class WebURLResponse {
   BLINK_PLATFORM_EXPORT bool WasFetchedViaServiceWorker() const;
   BLINK_PLATFORM_EXPORT void SetWasFetchedViaServiceWorker(bool);
 
+  // Set when this request was loaded via a ServiceWorker. See
+  // network::ResourceResponseInfo::service_worker_response_source for details.
+  BLINK_PLATFORM_EXPORT network::mojom::FetchResponseSource
+  GetServiceWorkerResponseSource() const;
+  BLINK_PLATFORM_EXPORT void SetServiceWorkerResponseSource(
+      network::mojom::FetchResponseSource);
+
   // See network::ResourceResponseInfo::was_fallback_required_by_service_worker.
   BLINK_PLATFORM_EXPORT void SetWasFallbackRequiredByServiceWorker(bool);
 
@@ -260,6 +271,7 @@ class WebURLResponse {
 
   // The cache name of the CacheStorage from where the response is served via
   // the ServiceWorker. Null if the response isn't from the CacheStorage.
+  BLINK_PLATFORM_EXPORT WebString CacheStorageCacheName() const;
   BLINK_PLATFORM_EXPORT void SetCacheStorageCacheName(const WebString&);
 
   // The headers that should be exposed according to CORS. Only guaranteed

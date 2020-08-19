@@ -42,7 +42,7 @@ class BaseButtonInputType : public InputType,
   USING_GARBAGE_COLLECTED_MIXIN(BaseButtonInputType);
 
  public:
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   using InputType::GetElement;
 
  protected:
@@ -54,6 +54,7 @@ class BaseButtonInputType : public InputType,
   InputTypeView* CreateView() override;
   bool ShouldSaveAndRestoreFormControlState() const override;
   void AppendToFormData(FormData&) const override;
+  bool TypeShouldForceLegacyLayout() const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&,
                                    LegacyLayout) const override;
   ValueMode GetValueMode() const override;

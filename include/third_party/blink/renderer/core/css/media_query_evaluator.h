@@ -60,13 +60,12 @@ class CORE_EXPORT MediaQueryEvaluator final
  public:
   static void Init();
 
-  // Creates evaluator which evaluates to true for all media queries.
-  MediaQueryEvaluator() = default;
+  MediaQueryEvaluator() = delete;
 
-  // Creates evaluator which evaluates only simple media queries
-  // Evaluator returns true for acceptedMediaType and returns true for any media
-  // features.
-  MediaQueryEvaluator(const char* accepted_media_type);
+  // Creates evaluator to evaluate media types only. Evaluator returns true for
+  // accepted_media_type and triggers a NOTREACHED returning false for any media
+  // features. Should only be used for UA stylesheets.
+  explicit MediaQueryEvaluator(const char* accepted_media_type);
 
   // Creates evaluator which evaluates full media queries.
   explicit MediaQueryEvaluator(LocalFrame*);
@@ -94,7 +93,11 @@ class CORE_EXPORT MediaQueryEvaluator final
   // Evaluates media query subexpression, ie "and (media-feature: value)" part.
   bool Eval(const MediaQueryExp&) const;
 
-  void Trace(blink::Visitor*);
+  // Returns true if any of the expressions in the results lists changed its
+  // evaluation.
+  bool DidResultsChange(const MediaQueryResultList& results) const;
+
+  void Trace(Visitor*) const;
 
  private:
   const String MediaType() const;

@@ -19,9 +19,7 @@ public:
     operator T*() const { return 0; }
     T* operator->() { return 0; }
 
-    void Trace(Visitor* visitor)
-    {
-    }
+    void Trace(Visitor* visitor) const {}
 };
 
 }
@@ -32,9 +30,10 @@ class PartObject;
 class PartObject {
     DISALLOW_NEW();
 public:
-    void Trace(Visitor*);
+ void Trace(Visitor*) const;
+
 private:
-    RefPtr<HeapObject> m_obj2;
+    scoped_refptr<HeapObject> m_obj2;
     bar::unique_ptr<HeapObject> m_obj3;
     std::unique_ptr<HeapObject> m_obj4;
     Vector<int>::iterator m_iterator1;
@@ -44,11 +43,11 @@ private:
 
 class HeapObject : public GarbageCollected<HeapObject> {
  public:
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   PartObject m_part;
-  RefPtr<HeapObject> m_obj2;
+  scoped_refptr<HeapObject> m_obj2;
   bar::unique_ptr<HeapObject> m_obj3;
   std::unique_ptr<HeapObject> m_obj4;
   HeapHashMap<int, Member<HeapObject>>::reverse_iterator m_iterator3;

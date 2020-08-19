@@ -17,9 +17,13 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData> {
 
   void SetPseudoElement(PseudoId, PseudoElement*);
   PseudoElement* GetPseudoElement(PseudoId) const;
+
+  using PseudoElementVector = HeapVector<Member<PseudoElement>, 2>;
+  PseudoElementVector GetPseudoElements() const;
+
   bool HasPseudoElements() const;
   void ClearPseudoElements();
-  void Trace(Visitor* visitor) {
+  void Trace(Visitor* visitor) const {
     visitor->Trace(generated_before_);
     visitor->Trace(generated_after_);
     visitor->Trace(generated_marker_);
@@ -100,6 +104,22 @@ inline PseudoElement* PseudoElementData::GetPseudoElement(
   if (kPseudoIdFirstLetter == pseudo_id)
     return generated_first_letter_;
   return nullptr;
+}
+
+inline PseudoElementData::PseudoElementVector
+PseudoElementData::GetPseudoElements() const {
+  PseudoElementData::PseudoElementVector result;
+  if (generated_before_)
+    result.push_back(generated_before_);
+  if (generated_after_)
+    result.push_back(generated_after_);
+  if (generated_marker_)
+    result.push_back(generated_marker_);
+  if (generated_first_letter_)
+    result.push_back(generated_first_letter_);
+  if (backdrop_)
+    result.push_back(backdrop_);
+  return result;
 }
 
 }  // namespace blink
