@@ -16,11 +16,11 @@ void Spitfire::Observers::CreateSessionDescriptionObserver::OnSuccess(webrtc::Se
 	}
 }
 
-void Spitfire::Observers::CreateSessionDescriptionObserver::OnFailure(const std::string & error)
+void Spitfire::Observers::CreateSessionDescriptionObserver::OnFailure(webrtc::RTCError error)
 {
-	RTC_LOG(LERROR) << error;
+	RTC_LOG(LS_ERROR) << __FUNCTION__ << error.message();
 	if (conductor_->onFailure)
 	{
-		conductor_->onFailure(error.c_str());
+		conductor_->onFailure(error.message());
 	}
 }
