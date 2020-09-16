@@ -20,25 +20,39 @@ namespace Spitfire
 
 	RtcConductor::~RtcConductor()
 	{
-		DeletePeerConnection();
-		RTC_DCHECK(!peerObserver || !peerObserver->peerConnection);
+		//DeletePeerConnection();
+		//RTC_DCHECK(!peerObserver || !peerObserver->peerConnection);
 	}
 
 	void RtcConductor::DeletePeerConnection()
 	{
+		RTC_DCHECK(!peerObserver || !peerObserver->peerConnection);
+		
 		if (peerObserver)
 		{
 			if (peerObserver->peerConnection)
 			{
 				peerObserver->peerConnection->Close();
 			}
-			delete peerObserver;
+			delete peerObserver.release();
 		}
 
-		pc_factory_ = nullptr;
-		delete default_socket_factory_.get();
-		delete default_network_manager_.get();
-
+		
+		if (pc_factory_)
+		{
+			pc_factory_.release();
+		}
+		
+		if (default_socket_factory_)
+		{
+			delete default_socket_factory_.release();
+		}
+		
+		if (default_network_manager_)
+		{
+			delete default_network_manager_.release();
+		}
+		
 		if (!dataObservers.empty())
 		{
 			// loop over all active data channel observers and close them
@@ -50,36 +64,59 @@ namespace Spitfire
 			}
 			dataObservers.clear();
 		}
+
+		
 		serverConfigs.clear();
 
 		RTC_DCHECK(network_thread_ && worker_thread_ && signaling_thread_);
-		network_thread_->Quit();
-		worker_thread_->Quit();
-		signaling_thread_->Quit();
 
-		delete network_thread_.get();
-		delete worker_thread_.get();;
-		delete signaling_thread_.get();;
+		if (network_thread_)
+		{
+			network_thread_->Quit();
+			delete network_thread_.release();
+		}
+		
+		if (worker_thread_)
+		{
+			worker_thread_->Quit();
+			delete worker_thread_.release();
+		}
+		
+		if (signaling_thread_)
+		{
+			signaling_thread_->Quit();
+			delete signaling_thread_.release();
+		}
+		
+		if (sessionObserver)
+		{
+			delete sessionObserver.release();
+		}
 
-
-		delete sessionObserver;
-		delete setSessionObserver;
+		if (setSessionObserver)
+		{
+			delete setSessionObserver.release();
+		}
+		
 		rtc::Thread* current_thread = rtc::ThreadManager::Instance()->CurrentThread();
 		if (current_thread)
+		{
 			current_thread->Quit();
-
-
+		}
 	}
 
 	void RtcConductor::FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer)
 	{
-		if (observer->dataChannel != nullptr)
+		if (observer)
 		{
-			// sends the close notification to the remote peer
-			observer->dataChannel->Close();
-			// unregisters the the observer which needs to be done before disposing 
-			observer->dataChannel->UnregisterObserver();
-			delete observer;
+			if (observer->dataChannel)
+			{
+				// sends the close notification to the remote peer
+				observer->dataChannel->Close();
+				// unregisters the the observer which needs to be done before disposing 
+				observer->dataChannel->UnregisterObserver();
+			}
+			//delete observer->get();
 		}
 		dataObservers.erase(label);
 
@@ -139,7 +176,6 @@ namespace Spitfire
 				}
 			}
 		}
-		DeletePeerConnection();
 		RTC_LOG(LS_ERROR) << "Unable to create peer connection";
 		return false;
 	}

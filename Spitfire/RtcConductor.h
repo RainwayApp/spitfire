@@ -108,6 +108,7 @@ namespace Spitfire
 		};
 
 	private:
+		bool disposed;
 		std::unique_ptr<rtc::Thread> worker_thread_;
 		std::unique_ptr<rtc::Thread> signaling_thread_;
 		std::unique_ptr<rtc::Thread> network_thread_;
