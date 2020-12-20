@@ -260,7 +260,7 @@ namespace Spitfire
 	private:
 		Spitfire::RtcConductor* conductor_ = nullptr;
 
-		bool disposed_;
+		bool disposed_ = false;
 		uint16_t min_port_;
 		uint16_t max_port_;
 
@@ -312,6 +312,18 @@ namespace Spitfire
 				OnSuccessAnswer(sdpModel);
 			}
 		}
+		void _OnFailure(String^ error)
+		{
+			OnFailure(error);
+		}
+		void _OnMessage(String^ label, uint8_t* data, uint32_t size, bool is_binary)
+		{
+			//auto buffer = gcnew array<Byte>(size);
+			//IntPtr src(data);
+			//Marshal::Copy(src, buffer, 0, size);
+			IntPtr managedPointer(data);
+			OnMessage(label, managedPointer, size, is_binary);
+		}
 
 		void _OnIceCandidate(String^ sdp_mid, int32_t sdp_mline_index, String^ sdp)
 		{
@@ -322,12 +334,6 @@ namespace Spitfire
 			OnIceCandidate(ice);
 		}
 
-		void _OnFailure(String^ error)
-		{
-			OnFailure(error);
-		}
-
-		
 		void _OnIceState(webrtc::PeerConnectionInterface::IceConnectionState state)
 		{
 
@@ -352,19 +358,9 @@ namespace Spitfire
 			OnDataChannelStateChange(label, managedState);
 		}
 
-		void _OnMessage(String^ label, uint8_t* data, const uint32_t size, const bool is_binary)
-		{
-			//auto buffer = gcnew array<Byte>(size);
-			//IntPtr src(data);
-			//Marshal::Copy(src, buffer, 0, size);
-			IntPtr managedPointer(data);
-			OnMessage(label, managedPointer, size, is_binary);
-		}
-
 		void Initialize(uint16_t min_port, uint16_t max_port)
 		{
 			assert(!conductor_);
-			disposed_ = false;
 			conductor_ = new Spitfire::RtcConductor();
 			min_port_ = min_port;
 			max_port_ = max_port;
