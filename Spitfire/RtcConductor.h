@@ -7,6 +7,7 @@
 #include "PeerConnectionObserver.h"
 #include "CreateSessionDescriptionObserver.h"
 #include "SetSessionDescriptionObserver.h"
+
 #include "api/peer_connection_interface.h"
 #include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/base/basic_packet_socket_factory.h"
@@ -15,7 +16,7 @@
 
 namespace Spitfire
 {
-	struct ProcessingThread 
+	struct ProcessingThread // Obsolete
 	{
 		std::unique_ptr<rtc::Thread> thread;
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
@@ -42,7 +43,6 @@ namespace Spitfire
 		webrtc::DataChannelInterface::DataState state;
 	};
 
-	typedef void(__stdcall *OnErrorCallbackNative)();
 	typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdpMid, int32_t sdpIndex, const char * sdp);
