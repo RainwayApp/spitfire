@@ -18,8 +18,8 @@ namespace Spitfire
 			}
 			~CreateSessionDescriptionObserver() = default;
 
-			void OnSuccess(webrtc::SessionDescriptionInterface * desc) override;
-			void OnFailure(const std::string & error) override;
+			void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
+			void OnFailure(webrtc::RTCError error) override;
 
 			void AddRef() const override
 			{

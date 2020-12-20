@@ -1,7 +1,7 @@
 #include "CreateSessionDescriptionObserver.h"
 #include "RtcConductor.h"
 
-void Spitfire::Observers::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface * desc)
+void Spitfire::Observers::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc)
 {
 	if (!conductor_->peerObserver->peerConnection.get())
 	{
@@ -16,11 +16,11 @@ void Spitfire::Observers::CreateSessionDescriptionObserver::OnSuccess(webrtc::Se
 	}
 }
 
-void Spitfire::Observers::CreateSessionDescriptionObserver::OnFailure(const std::string & error)
+void Spitfire::Observers::CreateSessionDescriptionObserver::OnFailure(webrtc::RTCError error)
 {
-	RTC_LOG(LERROR) << error;
+	RTC_LOG(LERROR) << error.message();
 	if (conductor_->onFailure)
 	{
-		conductor_->onFailure(error.c_str());
+		conductor_->onFailure(error.message());
 	}
 }
