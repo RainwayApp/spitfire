@@ -16,7 +16,6 @@ namespace Spitfire
 				conductor_(conductor)
 			{
 			}
-			
 			~PeerConnectionObserver() = default;
 
 			// webrtc::PeerConnectionObserver
@@ -64,28 +63,28 @@ namespace Spitfire
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-			virtual void OnIceSelectedCandidatePairChanged(const cricket::CandidatePairChangeEvent& event) override
+			void OnIceSelectedCandidatePairChanged(const cricket::CandidatePairChangeEvent& event) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-			virtual void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver, const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams) override
+			void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver, const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-			virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override
+			void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-			virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override
+			void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-			virtual void OnInterestingUsage(int usage_pattern) override
+			void OnInterestingUsage(int usage_pattern) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
 
-			rtc::scoped_refptr<webrtc::PeerConnectionInterface> peerConnection;
+			rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
 
 		private:
 			RtcConductor* conductor_;

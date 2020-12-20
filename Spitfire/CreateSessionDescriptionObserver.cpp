@@ -8,11 +8,11 @@ namespace Observers
 
 void CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc)
 {
-	if (!conductor_->peer_observer_->peerConnection.get())
+	if (!conductor_->peer_observer_->peer_connection_.get())
 	{
 		return;
 	}
-	conductor_->peer_observer_->peerConnection->SetLocalDescription(conductor_->set_session_observer_.get(), desc);
+	conductor_->peer_observer_->peer_connection_->SetLocalDescription(conductor_->set_session_observer_.get(), desc);
 	std::string sdp;
 	desc->ToString(&sdp);
 	RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << desc->type() << "; SDP: " << sdp;

@@ -63,12 +63,10 @@ namespace Spitfire
 		void OnOfferReply(std::string type, std::string sdp);
 		void OnOfferRequest(std::string sdp);
 		bool AddIceCandidate(std::string sdp_mid, int32_t sdp_mlineindex, std::string sdp);
-
 		bool ProcessMessages(int32_t delay)
 		{
 			return rtc::ThreadManager::Instance()->WrapCurrentThread()->ProcessMessages(delay);
 		}
-
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
 		void CreateDataChannel(const std::string & label, webrtc::DataChannelInit dc_options);
@@ -95,17 +93,16 @@ namespace Spitfire
 		void DeletePeerConnection();
 
 	private:
+		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
+		void FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer);
+
 		std::unique_ptr<rtc::Thread> worker_thread_;
 		std::unique_ptr<rtc::Thread> signaling_thread_;
 		std::unique_ptr<rtc::Thread> network_thread_;
 		std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
-
-		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
-		void FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer);
-
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
-		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
+		std::vector<webrtc::PeerConnectionInterface::IceServer> servers_;
 		std::unique_ptr<cricket::RelayPortFactoryInterface> default_relay_port_factory_;
 	};
 }
