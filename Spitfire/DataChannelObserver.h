@@ -12,11 +12,39 @@ namespace Spitfire
 		class DataChannelObserver : public webrtc::DataChannelObserver
 		{
 		public:
-			explicit DataChannelObserver(RtcConductor* conductor) :
-				conductor_(conductor)
+			explicit DataChannelObserver(RtcConductor* conductor, rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) :
+				conductor_(conductor),
+				data_channel_(data_channel)
 			{
 			}
-			~DataChannelObserver() = default;
+			~DataChannelObserver()
+			{
+				#if defined(_DEBUG)
+					RTC_DCHECK(!registered_);
+				#endif
+			}
+
+			void RegisterObserver()
+			{
+				RTC_DCHECK(data_channel_);
+				data_channel_->RegisterObserver(this);
+				#if defined(_DEBUG)
+					RTC_DCHECK(!registered_);
+					registered_ = true;
+				#endif
+			}
+			void UnregisterObserver()
+			{
+				RTC_DCHECK(data_channel_);
+				// NOTE: The channel is assumed to be provided in constructor with immediate following observer registration, hence it's lifetime is directly
+				//       related to this observer; we close the channel along with observer termination as a part of cleanup
+				data_channel_->Close();
+				data_channel_->UnregisterObserver();
+				#if defined(_DEBUG)
+					RTC_DCHECK(registered_);
+					registered_ = false;
+				#endif
+			}
 
 			// webrtc::DataChannelObserver
 			void OnStateChange() override;
@@ -27,6 +55,9 @@ namespace Spitfire
 
 		private:
 			RtcConductor* conductor_;
+			#if defined(_DEBUG)
+				bool registered_ = false;
+			#endif
 		};
 	}
 }

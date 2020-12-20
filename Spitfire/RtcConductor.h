@@ -94,7 +94,6 @@ namespace Spitfire
 
 	private:
 		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
-		void FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer);
 
 		std::unique_ptr<rtc::Thread> worker_thread_;
 		std::unique_ptr<rtc::Thread> signaling_thread_;

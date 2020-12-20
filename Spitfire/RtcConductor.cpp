@@ -32,17 +32,10 @@ namespace Spitfire
 		delete default_socket_factory_.get();
 		delete default_network_manager_.get();
 
-		if (!data_observers_.empty())
-		{
-			// loop over all active data channel observers and close them
-			for (auto itr = data_observers_.begin(); itr != data_observers_.end(); )
-			{
-				const auto copy_itr = itr;
-				++itr;
-				FinalizeDataChannelClose(copy_itr->first, copy_itr->second.get());
-			}
-			data_observers_.clear();
-		}
+		for(auto&& element: data_observers_)
+			element.second->UnregisterObserver();
+		data_observers_.clear();
+
 		servers_.clear();
 
 		RTC_DCHECK(network_thread_ && worker_thread_ && signaling_thread_);
@@ -54,25 +47,12 @@ namespace Spitfire
 		delete worker_thread_.get();
 		delete signaling_thread_.get();
 
-		delete session_observer_;
-		delete set_session_observer_;
+		session_observer_ = nullptr;
+		set_session_observer_ = nullptr;
 
 		rtc::Thread* current_thread = rtc::ThreadManager::Instance()->CurrentThread();
 		if(current_thread)
 			current_thread->Quit();
-	}
-
-	void RtcConductor::FinalizeDataChannelClose(const std::string& label, Observers::DataChannelObserver* observer)
-	{
-		if(observer->data_channel_)
-		{
-			// sends the close notification to the remote peer
-			observer->data_channel_->Close();
-			// unregisters the the observer which needs to be done before disposing 
-			observer->data_channel_->UnregisterObserver();
-			delete observer;
-		}
-		data_observers_.erase(label);
 	}
 
 	bool RtcConductor::InitializePeerConnection(uint16_t min_port, uint16_t max_port)
@@ -256,9 +236,8 @@ namespace Spitfire
 			return;
 		if(data_observers_.find(label) == data_observers_.end()) 
 		{
-			auto data_observer = std::make_unique<Observers::DataChannelObserver>(this);
-			data_observer->data_channel_ = peer_observer_->peer_connection_->CreateDataChannel(label, &dc_options);
-			data_observer->data_channel_->RegisterObserver(data_observer.get());
+			auto data_observer = std::make_unique<Observers::DataChannelObserver>(this, peer_observer_->peer_connection_->CreateDataChannel(label, &dc_options));
+			data_observer->RegisterObserver();
 			data_observers_[label] = std::move(data_observer);
 			RTC_LOG(INFO) << "Created data channel " << label;
 		}
@@ -309,29 +288,29 @@ namespace Spitfire
 	webrtc::DataChannelInterface::DataState RtcConductor::GetDataChannelState(const std::string& label)
 	{
 		const auto observer = data_observers_.find(label);
-		if (observer != data_observers_.end()) {
-			return observer->second->data_channel_->state();
-		}
-		return {};
+		if(observer == data_observers_.end())
+			return webrtc::DataChannelInterface::DataState::kClosed;
+		return observer->second->data_channel_->state();
 	}
-
 	
 	void RtcConductor::DataChannelSendData(const std::string& label, uint8_t* data, const uint32_t length)
 	{
 		const auto observer = data_observers_.find(label);
-		if (observer != data_observers_.end()) {
-			const rtc::CopyOnWriteBuffer write_buffer(data, length);
-			observer->second->data_channel_->Send(webrtc::DataBuffer(write_buffer, true));
-		}
+		if(observer == data_observers_.end())
+			return;
+		const rtc::CopyOnWriteBuffer write_buffer(data, length);
+		observer->second->data_channel_->Send(webrtc::DataBuffer(write_buffer, true));
 	}
 	
-	void RtcConductor::CloseDataChannel(const std::string & label)
+	void RtcConductor::CloseDataChannel(const std::string& label)
 	{
-		const auto observer = data_observers_.find(label);
-		if (observer != data_observers_.end()) {
-			FinalizeDataChannelClose(observer->first, observer->second.get());
-			RTC_LOG(INFO) << "Closed data channel " << label;
-		}
+		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
+		const auto it = data_observers_.find(label);
+		if(it == data_observers_.end())
+			return;
+		it->second->UnregisterObserver();
+		data_observers_.erase(label);
+		RTC_LOG(LS_VERBOSE) << __FUNCTION__;
 	}
 
 }

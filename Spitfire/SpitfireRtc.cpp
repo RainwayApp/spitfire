@@ -603,6 +603,7 @@ namespace Spitfire
 			auto password = String::IsNullOrWhiteSpace(p) ? "" : marshal_as<std::string>(p);
 			conductor_->get()->AddServerConfig(hostUri, username, password);
 		}
+
 		/// <summary>
 		/// Creates a data channel from within the application.
 		/// Only call if your application is setting up the connection and preparing to offer.
@@ -629,6 +630,7 @@ namespace Spitfire
 			dc_options.reliable = dataChannelOptions->Reliable;
 			conductor_->get()->CreateDataChannel(marshal_as<std::string>(label), dc_options);
 		}
+
 		/// <summary>
 		/// Send your text through the data channel
 		/// </summary>
@@ -686,6 +688,7 @@ namespace Spitfire
 		{
 			conductor_->get()->CloseDataChannel(marshal_as<std::string>(label));
 		}
+
 		/// <summary>
 		/// Send your binary data through the data channel
 		/// Be aware that channels have a 16KB limit and you should take advantage 

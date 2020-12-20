@@ -9,14 +9,12 @@ namespace Observers
 void PeerConnectionObserver::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 {
 	const auto label = channel->label();
-	if(conductor_->data_observers_.find(label) == conductor_->data_observers_.end())
-	{
-		RTC_LOG(INFO) << __FUNCTION__ << ": " << label;
-		auto data_observer = std::make_unique<DataChannelObserver>(conductor_);
-		data_observer->data_channel_ = channel.get();
-		data_observer->data_channel_->RegisterObserver(conductor_->data_observers_[label].get());
-		conductor_->data_observers_[label] = std::move(data_observer);
-	}
+	if(conductor_->data_observers_.find(label) != conductor_->data_observers_.end())
+		return;
+	RTC_LOG(INFO) << __FUNCTION__ << ": " << label;
+	auto data_observer = std::make_unique<DataChannelObserver>(conductor_, channel);
+	data_observer->RegisterObserver();
+	conductor_->data_observers_[label] = std::move(data_observer);
 }
 
 void PeerConnectionObserver::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state)
