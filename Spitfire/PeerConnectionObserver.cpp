@@ -18,16 +18,16 @@ void PeerConnectionObserver::OnIceConnectionChange(webrtc::PeerConnectionInterfa
 {
 	RTC_LOG(INFO) << __FUNCTION__ << ": " << new_state;
 	RTC_DCHECK(conductor_);
-	if(conductor_->onIceStateChange)
-		conductor_->onIceStateChange(new_state);
+	if(conductor_->on_ice_state_change_)
+		conductor_->on_ice_state_change_(new_state);
 }
 
 void PeerConnectionObserver::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
 {
 	RTC_LOG(INFO) << __FUNCTION__ << ": " << new_state;
 	RTC_DCHECK(conductor_);
-	if(conductor_->onIceGatheringStateChange) 
-		conductor_->onIceGatheringStateChange(new_state);
+	if(conductor_->on_ice_gathering_state_change_) 
+		conductor_->on_ice_gathering_state_change_(new_state);
 }
 
 void PeerConnectionObserver::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
@@ -38,8 +38,8 @@ void PeerConnectionObserver::OnIceCandidate(const webrtc::IceCandidateInterface*
 	if(candidate->ToString(&sdp))
 	{
 		RTC_DCHECK(conductor_);
-		if(conductor_->onIceCandidate)
-			conductor_->onIceCandidate(candidate->sdp_mid().c_str(), candidate->sdp_mline_index(), sdp.c_str());
+		if(conductor_->on_ice_candidate_)
+			conductor_->on_ice_candidate_(candidate->sdp_mid().c_str(), candidate->sdp_mline_index(), sdp.c_str());
 	} else
 		RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
 }

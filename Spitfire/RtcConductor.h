@@ -78,14 +78,14 @@ namespace Spitfire
 
 		void HandleDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel);
 
-		OnSuccessCallbackNative onSuccess { nullptr };
-		OnFailureCallbackNative onFailure { nullptr };
-		OnIceStateChangeCallbackNative onIceStateChange { nullptr };
-		OnIceGatheringStateCallbackNative onIceGatheringStateChange { nullptr };
-		OnIceCandidateCallbackNative onIceCandidate { nullptr };
-		OnDataChannelStateCallbackNative onDataChannelState { nullptr };
-		OnBufferAmountCallbackNative onBufferAmountChange { nullptr };
-		OnMessageCallbackNative onMessage { nullptr };
+		OnSuccessCallbackNative on_success_ { nullptr };
+		OnFailureCallbackNative on_failure_ { nullptr };
+		OnIceStateChangeCallbackNative on_ice_state_change_ { nullptr };
+		OnIceGatheringStateCallbackNative on_ice_gathering_state_change_ { nullptr };
+		OnIceCandidateCallbackNative on_ice_candidate_ { nullptr };
+		OnDataChannelStateCallbackNative on_data_channel_state_change_ { nullptr };
+		OnBufferAmountCallbackNative on_buffer_amount_change_ { nullptr };
+		OnMessageCallbackNative on_message_ { nullptr };
 
 		std::unique_ptr<Observers::PeerConnectionObserver> peer_observer_;
 		rtc::scoped_refptr<Observers::CreateSessionDescriptionObserver> session_observer_;

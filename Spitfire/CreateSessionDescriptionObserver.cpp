@@ -16,18 +16,18 @@ void CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInter
 	std::string sdp;
 	desc->ToString(&sdp);
 	RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << desc->type() << "; SDP: " << sdp;
-	if (conductor_->onSuccess)
+	if (conductor_->on_success_)
 	{
-		conductor_->onSuccess(desc->type().c_str(), sdp.c_str());
+		conductor_->on_success_(desc->type().c_str(), sdp.c_str());
 	}
 }
 
 void CreateSessionDescriptionObserver::OnFailure(webrtc::RTCError error)
 {
 	RTC_LOG(LS_ERROR) << __FUNCTION__ << ": " << error.message();
-	if (conductor_->onFailure)
+	if (conductor_->on_failure_)
 	{
-		conductor_->onFailure(error.message());
+		conductor_->on_failure_(error.message());
 	}
 }
 
