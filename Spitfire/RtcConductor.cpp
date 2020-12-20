@@ -4,8 +4,6 @@
 
 #include "RtcConductor.h"
 
-using cricket::MediaEngineInterface;
-
 namespace Spitfire
 {
 	RtcConductor::RtcConductor()
@@ -41,7 +39,7 @@ namespace Spitfire
 		for(auto&& server: servers_)
 			config.servers.push_back(server);
 
-		auto allocator = std::make_unique<cricket::BasicPortAllocator>(default_network_manager_.get(), default_socket_factory_.get(), config.turn_customizer, default_relay_port_factory_.get());
+		auto allocator = std::make_unique<cricket::BasicPortAllocator>(network_manager_.get(), socket_factory_.get(), config.turn_customizer, relay_port_factory_.get());
 		allocator->set_flags(allocator->flags() | cricket::PORTALLOCATOR_DISABLE_TCP);
 		allocator->set_allow_tcp_listen(false);
 		allocator->SetPortRange(minPort, maxPort);
@@ -80,14 +78,14 @@ namespace Spitfire
 		pc_factory_ = CreateModularPeerConnectionFactory(std::move(factory_deps));
 		if(pc_factory_)
 		{
-			default_network_manager_.reset(new rtc::BasicNetworkManager());
-			if(default_network_manager_)
+			network_manager_.reset(new rtc::BasicNetworkManager());
+			if(network_manager_)
 			{
-				default_socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_.get()));
-				if(default_socket_factory_)
+				socket_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_.get()));
+				if(socket_factory_)
 				{
-					default_relay_port_factory_.reset(new cricket::TurnPortFactory());
-					if(default_relay_port_factory_)
+					relay_port_factory_.reset(new cricket::TurnPortFactory());
+					if(relay_port_factory_)
 					{
 						webrtc::PeerConnectionFactoryInterface::Options opt;
 						pc_factory_->SetOptions(opt);
@@ -127,8 +125,8 @@ namespace Spitfire
 		}
 		
 		pc_factory_ = nullptr;
-		default_socket_factory_ = nullptr;
-		default_network_manager_ = nullptr;
+		socket_factory_ = nullptr;
+		network_manager_ = nullptr;
 
 		for(auto&& element: data_observers_)
 			element.second->UnregisterObserver();
@@ -151,7 +149,6 @@ namespace Spitfire
 	void RtcConductor::AddServerConfig(const std::string& uri, const std::string& username, const std::string& password)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << uri << ", " << username << ", " << password;
-
 		webrtc::PeerConnectionInterface::IceServer server;
 		server.uri = uri;
 		server.username = username;
@@ -162,72 +159,60 @@ namespace Spitfire
 	void RtcConductor::CreateOffer()
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
-
-		if (!peer_observer_->peer_connection_)
+		if(!peer_observer_->peer_connection_)
 			return;
-
 		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
 		options.offer_to_receive_audio = false;
 		options.offer_to_receive_video = false;
 		peer_observer_->peer_connection_->CreateOffer(session_observer_, options);
 		RTC_LOG(LS_INFO) << "Created an offer";
 	}
-	void RtcConductor::OnOfferReply(std::string type, std::string sdp)
+	void RtcConductor::OnOfferReply(const std::string& type, const std::string& sdp)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
-
-		if (!peer_observer_->peer_connection_)
+		if(!peer_observer_->peer_connection_)
 			return;
-
 		webrtc::SdpParseError error;
-		webrtc::SessionDescriptionInterface* session_description(CreateSessionDescription(type, sdp, &error));
-		if (!session_description)
+		const auto session_description = CreateSessionDescription(type, sdp, &error);
+		if(!session_description)
 		{
-			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received session description message. SdpParseError was: " << error.description;
 			return;
 		}
 		peer_observer_->peer_connection_->SetRemoteDescription(set_session_observer_, session_description);
 	}
-	void RtcConductor::OnOfferRequest(std::string sdp)
+	void RtcConductor::OnOfferRequest(const std::string& sdp)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
-
-		if (!peer_observer_->peer_connection_)
+		if(!peer_observer_->peer_connection_)
 			return;
-
 		webrtc::SdpParseError error;
-		webrtc::SessionDescriptionInterface* session_description(CreateSessionDescription("offer", sdp, &error));
-		if (!session_description)
+		const auto session_description = CreateSessionDescription("offer", sdp, &error);
+		if(!session_description)
 		{
-			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received session description message. SdpParseError was: " << error.description;
 			return;
 		}
 		peer_observer_->peer_connection_->SetRemoteDescription(set_session_observer_, session_description);
-		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions o;
-		{
-			o.voice_activity_detection = false;
-			o.offer_to_receive_audio = false;
-			o.offer_to_receive_video = false;
-		}
-		peer_observer_->peer_connection_->CreateAnswer(session_observer_, o);
+		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+		options.voice_activity_detection = false;
+		options.offer_to_receive_audio = false;
+		options.offer_to_receive_video = false;
+		peer_observer_->peer_connection_->CreateAnswer(session_observer_, options);
 	}
-	bool RtcConductor::AddIceCandidate(std::string sdp_mid, int32_t sdp_mlineindex, std::string sdp)
+	bool RtcConductor::AddIceCandidate(const std::string& sdp_mid, int32_t sdp_mlineindex, const std::string& sdp)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
-
 		webrtc::SdpParseError error;
-		webrtc::IceCandidateInterface * candidate = CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
-		if (!candidate)
+		const auto candidate = CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
+		if(!candidate)
 		{
-			RTC_LOG(WARNING) << "Can't parse received candidate message. "
-				<< "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received candidate message. SdpParseError was: " << error.description;
 			return false;
 		}
-
-		if (!peer_observer_->peer_connection_)
+		if(!peer_observer_->peer_connection_)
 			return false;
-
-		if (!peer_observer_->peer_connection_->AddIceCandidate(candidate))
+		if(!peer_observer_->peer_connection_->AddIceCandidate(candidate))
 		{
 			RTC_LOG(WARNING) << "Failed to apply the received candidate";
 			return false;
@@ -238,7 +223,6 @@ namespace Spitfire
 	void RtcConductor::CreateDataChannel(const std::string& label, const webrtc::DataChannelInit config)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
-
 		if(!peer_observer_->peer_connection_)
 			return;
 		if(data_observers_.find(label) != data_observers_.end()) 
@@ -251,7 +235,6 @@ namespace Spitfire
 	void RtcConductor::CloseDataChannel(const std::string& label)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
-
 		const auto it = data_observers_.find(label);
 		if(it == data_observers_.end())
 			return;
@@ -319,8 +302,8 @@ namespace Spitfire
 			RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
 			return;
 		}
-		auto const sdp_mid = candidate->sdp_mid();
-		auto const sdp_mline_index = candidate->sdp_mline_index();
+		const auto sdp_mid = candidate->sdp_mid();
+		const auto sdp_mline_index = candidate->sdp_mline_index();
 		on_ice_candidate_(sdp_mid.c_str(), sdp_mline_index, sdp.c_str());
 	}
 }
