@@ -360,7 +360,9 @@ namespace Spitfire
 
 		void Initialize(uint16_t min_port, uint16_t max_port)
 		{
-			//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF);
+			#if defined(_DEBUG)
+				//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF);
+			#endif
 
 			assert(!conductor_);
 			conductor_ = new Spitfire::RtcConductor();
@@ -455,21 +457,20 @@ namespace Spitfire
 
 		SpitfireRtc()
 		{
-			RTC_LOG(INFO) << __FUNCTION__;
+			RTC_LOG(INFO) << __FUNCTION__ << ": " << this_string();
 			Initialize(1025, 65535);
 		}
 		SpitfireRtc(uint16_t min_port, uint16_t max_port)
 		{
-			RTC_LOG(INFO) << __FUNCTION__ << ": " << min_port << ", " << max_port;
+			RTC_LOG(INFO) << __FUNCTION__ << ": " << this_string() << ", " << min_port << ", " << max_port;
 			Initialize(min_port, max_port);
 		}
 		~SpitfireRtc()
 		{
-			RTC_LOG(INFO) << __FUNCTION__ << ": " << disposed_;
+			RTC_LOG(INFO) << __FUNCTION__ << ": " << this_string() << ", " << disposed_;
 			if(disposed_)
 				return;
-
-			// dispose managed data
+			#pragma region Delegate Handle
 			FreeGCHandle(on_success_handle_);
 			FreeGCHandle(on_failure_handle_);
 			FreeGCHandle(on_message_handle_);
@@ -478,12 +479,8 @@ namespace Spitfire
 			FreeGCHandle(on_buffer_amount_change_handle_);
 			FreeGCHandle(on_ice_state_change_handle_);
 			FreeGCHandle(on_ice_gathering_state_change_handle_);
-		
-			if(conductor_)
-				conductor_->DeletePeerConnection();
-
-			this->!SpitfireRtc(); // call finalizer
-
+			#pragma endregion
+			this->!SpitfireRtc();
 			disposed_ = true;
 		}
 
@@ -671,11 +668,12 @@ namespace Spitfire
 	protected:
 		!SpitfireRtc()
 		{
-			RTC_LOG(INFO) << __FUNCTION__ << ": " << static_cast<bool>(conductor_ != nullptr);
+			RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << this_string() << ", " << static_cast<bool>(conductor_ != nullptr);
 			if(conductor_)
 			{
-				delete conductor_;
+				RtcConductor* conductor = conductor_;
 				conductor_ = nullptr;
+				delete conductor;
 			}
 		}
 		static void FreeGCHandle(GCHandle^% handle)
@@ -698,6 +696,12 @@ namespace Spitfire
 			if(!value)
 				return default_value;
 			return msclr::interop::marshal_as<std::string>(value);
+		}
+		std::string this_string() //const
+		{
+			char text[64];
+			sprintf_s(text, "this 0x%p", this);
+			return text;
 		}
 	};
 }

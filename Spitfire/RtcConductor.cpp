@@ -10,12 +10,15 @@ namespace Spitfire
 {
 	RtcConductor::RtcConductor()
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+		// SUGG: Create observers on demand
 		peer_observer_.reset(new Observers::PeerConnectionObserver(this));
 		session_observer_ = new Observers::CreateSessionDescriptionObserver(this);
 		set_session_observer_ = new Observers::SetSessionDescriptionObserver(this);
 	}
 	RtcConductor::~RtcConductor()
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
 		DeletePeerConnection();
 		RTC_DCHECK(!peer_observer_ || !peer_observer_->peer_connection_);
 	}
@@ -104,6 +107,13 @@ namespace Spitfire
 		RTC_LOG(LS_ERROR) << "Unable to create peer connection";
 		return false;
 	}
+	void QuitThread(std::unique_ptr<rtc::Thread>& thread)
+	{
+		if(!thread)
+			return;
+		thread->Quit();
+		thread = nullptr;
+	}
 	void RtcConductor::DeletePeerConnection()
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
@@ -116,8 +126,8 @@ namespace Spitfire
 		}
 		
 		pc_factory_ = nullptr;
-		delete default_socket_factory_.get();
-		delete default_network_manager_.get();
+		default_socket_factory_ = nullptr;
+		default_network_manager_ = nullptr;
 
 		for(auto&& element: data_observers_)
 			element.second->UnregisterObserver();
@@ -125,14 +135,9 @@ namespace Spitfire
 
 		servers_.clear();
 
-		RTC_DCHECK(network_thread_ && worker_thread_ && signaling_thread_);
-		network_thread_->Quit();
-		worker_thread_->Quit();
-		signaling_thread_->Quit();
-
-		delete network_thread_.get();
-		delete worker_thread_.get();
-		delete signaling_thread_.get();
+		QuitThread(signaling_thread_);
+		QuitThread(worker_thread_);
+		QuitThread(network_thread_);
 
 		session_observer_ = nullptr;
 		set_session_observer_ = nullptr;
