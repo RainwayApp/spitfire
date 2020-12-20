@@ -12,49 +12,38 @@ namespace Spitfire
 		session_observer_ = new Observers::CreateSessionDescriptionObserver(this);
 		set_session_observer_ = new Observers::SetSessionDescriptionObserver(this);
 	}
-
 	RtcConductor::~RtcConductor()
 	{
 		DeletePeerConnection();
 		RTC_DCHECK(!peer_observer_ || !peer_observer_->peer_connection_);
 	}
 
-	void RtcConductor::DeletePeerConnection()
+	bool RtcConductor::CreatePeerConnection(uint16_t minPort, uint16_t maxPort)
 	{
-		if(peer_observer_)
-		{
-			if(peer_observer_->peer_connection_)
-				peer_observer_->peer_connection_->Close();
-			peer_observer_.reset();
-		}
+		RTC_DCHECK(pc_factory_);
+		RTC_DCHECK(peer_observer_ && !peer_observer_->peer_connection_);
+
+		webrtc::PeerConnectionInterface::RTCConfiguration config;
+		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
+		// no clue why this was set to true
+		config.disable_ipv6 = false;
+		config.disable_ipv6_on_wifi = false;
+		config.candidate_network_policy = webrtc::PeerConnectionInterface::kCandidateNetworkPolicyLowCost;
+		config.network_preference = absl::optional<rtc::AdapterType>(rtc::AdapterType::ADAPTER_TYPE_ETHERNET);
+		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+
+		for(auto server: servers_)
+			config.servers.push_back(server);
 		
-		pc_factory_ = nullptr;
-		delete default_socket_factory_.get();
-		delete default_network_manager_.get();
-
-		for(auto&& element: data_observers_)
-			element.second->UnregisterObserver();
-		data_observers_.clear();
-
-		servers_.clear();
-
-		RTC_DCHECK(network_thread_ && worker_thread_ && signaling_thread_);
-		network_thread_->Quit();
-		worker_thread_->Quit();
-		signaling_thread_->Quit();
-
-		delete network_thread_.get();
-		delete worker_thread_.get();
-		delete signaling_thread_.get();
-
-		session_observer_ = nullptr;
-		set_session_observer_ = nullptr;
-
-		rtc::Thread* current_thread = rtc::ThreadManager::Instance()->CurrentThread();
-		if(current_thread)
-			current_thread->Quit();
+		auto allocator = std::make_unique<cricket::BasicPortAllocator>(default_network_manager_.get(), default_socket_factory_.get(), config.turn_customizer, default_relay_port_factory_.get());
+		allocator->set_flags(allocator->flags() | cricket::PORTALLOCATOR_DISABLE_TCP);
+		allocator->set_allow_tcp_listen(false);
+		allocator->SetPortRange(minPort, maxPort);
+		const auto peer_connection = pc_factory_->CreatePeerConnection(config, std::move(allocator), nullptr, peer_observer_.get());
+		RTC_DCHECK(peer_connection);
+		peer_observer_->peer_connection_ = peer_connection;
+		return true;
 	}
-
 	bool RtcConductor::InitializePeerConnection(uint16_t min_port, uint16_t max_port)
 	{
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
@@ -74,8 +63,6 @@ namespace Spitfire
 		signaling_thread_ = rtc::Thread::Create();
 		signaling_thread_->SetName("signaling_thread", nullptr);
 		RTC_CHECK(signaling_thread_->Start()) << "Failed to start signaling thread";
-		
-		
 
 		webrtc::PeerConnectionFactoryDependencies factory_deps;
 		factory_deps.network_thread = network_thread_.get();
@@ -113,40 +100,40 @@ namespace Spitfire
 		RTC_LOG(LS_ERROR) << "Unable to create peer connection";
 		return false;
 	}
-
-	bool RtcConductor::CreatePeerConnection(uint16_t minPort, uint16_t maxPort)
+	void RtcConductor::DeletePeerConnection()
 	{
-		RTC_DCHECK(pc_factory_);
-		RTC_DCHECK(peer_observer_ && !peer_observer_->peer_connection_);
-
-		webrtc::PeerConnectionInterface::RTCConfiguration config;
-		
-		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
-		//no clue why this was set to true
-		config.disable_ipv6 = false;
-		config.disable_ipv6_on_wifi = false;
-		config.candidate_network_policy = webrtc::PeerConnectionInterface::kCandidateNetworkPolicyLowCost;
-		config.network_preference = absl::optional<rtc::AdapterType>(rtc::AdapterType::ADAPTER_TYPE_ETHERNET);
-		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
-
-		for(auto server: servers_)
+		if(peer_observer_)
 		{
-			config.servers.push_back(server);
-		}	
+			if(peer_observer_->peer_connection_)
+				peer_observer_->peer_connection_->Close();
+			peer_observer_.reset();
+		}
 		
-		std::unique_ptr<cricket::PortAllocator> allocator = std::make_unique<cricket::BasicPortAllocator>(
-			default_network_manager_.get(),
-			default_socket_factory_.get(),
-			config.turn_customizer,
-			default_relay_port_factory_.get());
+		pc_factory_ = nullptr;
+		delete default_socket_factory_.get();
+		delete default_network_manager_.get();
 
-		allocator->set_flags(allocator->flags() | cricket::PORTALLOCATOR_DISABLE_TCP);
-		allocator->set_allow_tcp_listen(false);
-		allocator->SetPortRange(minPort, maxPort);
-		const auto peer_connection = pc_factory_->CreatePeerConnection(config, std::move(allocator), nullptr, peer_observer_.get());
-		RTC_DCHECK(peer_connection);
-		peer_observer_->peer_connection_ = peer_connection;
-		return true;
+		for(auto&& element: data_observers_)
+			element.second->UnregisterObserver();
+		data_observers_.clear();
+
+		servers_.clear();
+
+		RTC_DCHECK(network_thread_ && worker_thread_ && signaling_thread_);
+		network_thread_->Quit();
+		worker_thread_->Quit();
+		signaling_thread_->Quit();
+
+		delete network_thread_.get();
+		delete worker_thread_.get();
+		delete signaling_thread_.get();
+
+		session_observer_ = nullptr;
+		set_session_observer_ = nullptr;
+
+		rtc::Thread* current_thread = rtc::ThreadManager::Instance()->CurrentThread();
+		if(current_thread)
+			current_thread->Quit();
 	}
 
 	void RtcConductor::AddServerConfig(std::string uri, std::string username, std::string password)
@@ -230,17 +217,26 @@ namespace Spitfire
 		return true;
 	}
 
-	void RtcConductor::CreateDataChannel(const std::string& label, const webrtc::DataChannelInit dc_options)
+	void RtcConductor::CreateDataChannel(const std::string& label, const webrtc::DataChannelInit config)
 	{
 		if(!peer_observer_->peer_connection_)
 			return;
-		if(data_observers_.find(label) == data_observers_.end()) 
-		{
-			auto data_observer = std::make_unique<Observers::DataChannelObserver>(this, peer_observer_->peer_connection_->CreateDataChannel(label, &dc_options));
-			data_observer->RegisterObserver();
-			data_observers_[label] = std::move(data_observer);
-			RTC_LOG(INFO) << "Created data channel " << label;
-		}
+		if(data_observers_.find(label) != data_observers_.end()) 
+			return;
+		auto data_observer = std::make_unique<Observers::DataChannelObserver>(this, peer_observer_->peer_connection_->CreateDataChannel(label, &config));
+		data_observer->RegisterObserver();
+		data_observers_[label] = std::move(data_observer);
+		RTC_LOG(INFO) << "Created data channel " << label;
+	}
+	void RtcConductor::CloseDataChannel(const std::string& label)
+	{
+		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
+		const auto it = data_observers_.find(label);
+		if(it == data_observers_.end())
+			return;
+		it->second->UnregisterObserver();
+		data_observers_.erase(label);
+		RTC_LOG(LS_VERBOSE) << __FUNCTION__;
 	}
 
 	void RtcConductor::DataChannelSendText(const std::string & label, const std::string & text)
@@ -302,15 +298,15 @@ namespace Spitfire
 		observer->second->data_channel_->Send(webrtc::DataBuffer(write_buffer, true));
 	}
 	
-	void RtcConductor::CloseDataChannel(const std::string& label)
+	void RtcConductor::HandleDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
-		const auto it = data_observers_.find(label);
-		if(it == data_observers_.end())
+		RTC_DCHECK(channel);
+		const auto label = channel->label();
+		RTC_LOG(INFO) << __FUNCTION__ << ": " << label;
+		if(data_observers_.find(label) != data_observers_.end())
 			return;
-		it->second->UnregisterObserver();
-		data_observers_.erase(label);
-		RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+		auto observer = std::make_unique<Observers::DataChannelObserver>(this, channel);
+		observer->RegisterObserver();
+		data_observers_[label] = std::move(observer);
 	}
-
 }

@@ -59,6 +59,7 @@ namespace Spitfire
 		~RtcConductor();
 
 		bool InitializePeerConnection(uint16_t min_port, uint16_t max_port);
+		void DeletePeerConnection();
 		void CreateOffer();
 		void OnOfferReply(std::string type, std::string sdp);
 		void OnOfferRequest(std::string sdp);
@@ -69,12 +70,14 @@ namespace Spitfire
 		}
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
-		void CreateDataChannel(const std::string & label, webrtc::DataChannelInit dc_options);
-		void DataChannelSendText(const std::string & label, const std::string & text);
+		void CreateDataChannel(const std::string& label, webrtc::DataChannelInit config);
+		void CloseDataChannel(const std::string& label);
 		RtcDataChannelInfo GetDataChannelInfo(const std::string& label);
 		webrtc::DataChannelInterface::DataState GetDataChannelState(const std::string& label);
-		void CloseDataChannel(const std::string& label);
 		void DataChannelSendData(const std::string& label, uint8_t* data, uint32_t length);
+		void DataChannelSendText(const std::string& label, const std::string& text);
+
+		void HandleDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel);
 
 		OnSuccessCallbackNative onSuccess { nullptr };
 		OnFailureCallbackNative onFailure { nullptr };
@@ -85,21 +88,21 @@ namespace Spitfire
 		OnBufferAmountCallbackNative onBufferAmountChange { nullptr };
 		OnMessageCallbackNative onMessage { nullptr };
 
-		std::unordered_map<std::string, std::unique_ptr<Observers::DataChannelObserver>> data_observers_;
 		std::unique_ptr<Observers::PeerConnectionObserver> peer_observer_;
 		rtc::scoped_refptr<Observers::CreateSessionDescriptionObserver> session_observer_;
 		rtc::scoped_refptr<Observers::SetSessionDescriptionObserver> set_session_observer_;
 
-		void DeletePeerConnection();
-
 	private:
 		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
+
+		std::unordered_map<std::string, std::unique_ptr<Observers::DataChannelObserver>> data_observers_;
 
 		std::unique_ptr<rtc::Thread> worker_thread_;
 		std::unique_ptr<rtc::Thread> signaling_thread_;
 		std::unique_ptr<rtc::Thread> network_thread_;
 		std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
+
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 		std::vector<webrtc::PeerConnectionInterface::IceServer> servers_;
 		std::unique_ptr<cricket::RelayPortFactoryInterface> default_relay_port_factory_;
