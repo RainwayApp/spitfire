@@ -1,8 +1,8 @@
 #pragma once
 
-#include "api/jsep.h"
-#include "rtc_base/ref_count.h"
-#include "rtc_base/ref_counted_object.h"
+#include <api/jsep.h>
+#include <rtc_base/ref_count.h>
+#include <rtc_base/ref_counted_object.h>
 
 namespace Spitfire 
 {
@@ -22,11 +22,11 @@ namespace Spitfire
 			// webrtc::SetSessionDescriptionObserver
 			void OnSuccess() override
 			{
-				RTC_LOG(INFO) << __FUNCTION__;
+				RTC_LOG(LS_INFO) << __FUNCTION__;
 			}
 			void OnFailure(webrtc::RTCError error) override
 			{
-				RTC_LOG(INFO) << __FUNCTION__;
+				RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << error.message();
 			}
 
 			void AddRef() const override
@@ -35,7 +35,7 @@ namespace Spitfire
 			};
 			rtc::RefCountReleaseStatus Release() const override
 			{
-				if (ref_count_.HasOneRef()) 
+				if(ref_count_.HasOneRef()) 
 				{
 					delete this;
 					return rtc::RefCountReleaseStatus::kDroppedLastRef;

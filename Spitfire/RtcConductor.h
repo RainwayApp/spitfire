@@ -92,7 +92,6 @@ namespace Spitfire
 	private:
 		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
 
-
 		std::unordered_map<std::string, std::unique_ptr<Observers::DataChannelObserver>> data_observers_;
 
 		std::unique_ptr<rtc::Thread> worker_thread_;
