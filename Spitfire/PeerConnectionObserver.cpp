@@ -34,14 +34,8 @@ void PeerConnectionObserver::OnIceCandidate(const webrtc::IceCandidateInterface*
 {
 	RTC_LOG(INFO) << __FUNCTION__ << ": " << candidate->sdp_mline_index();
 	RTC_DCHECK(candidate);
-	std::string sdp;
-	if(candidate->ToString(&sdp))
-	{
-		RTC_DCHECK(conductor_);
-		if(conductor_->on_ice_candidate_)
-			conductor_->on_ice_candidate_(candidate->sdp_mid().c_str(), candidate->sdp_mline_index(), sdp.c_str());
-	} else
-		RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
+	RTC_DCHECK(conductor_);
+	conductor_->HandleIceCandidate(candidate);
 }
 
 }

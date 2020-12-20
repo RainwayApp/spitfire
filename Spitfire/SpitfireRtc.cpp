@@ -2,18 +2,18 @@
 
 #pragma warning(disable: 4635) // warning C4635: XML document comment applied to 'rtc.EventBasedExponentialMovingAverage': badly-formed XML: A semi colon character was expected.
 
-#include "rtc_base\ssl_adapter.h"
-#include "rtc_base\win32_socket_init.h"
-#include "rtc_base\win32_socket_server.h"
-#include "rtc_base\logging.h"
-#include "rtc_base\time_utils.h"
-#include "rtc_base\helpers.h"
+#include <rtc_base\ssl_adapter.h>
+#include <rtc_base\win32_socket_init.h>
+#include <rtc_base\win32_socket_server.h>
+#include <rtc_base\logging.h>
+#include <rtc_base\time_utils.h>
+#include <rtc_base\helpers.h>
 
 #include "RtcConductor.h"
 
 #pragma managed
 
-#include "msclr/marshal_cppstd.h"
+#include <msclr\marshal_cppstd.h>
 
 using namespace System::Runtime::InteropServices;
 using namespace System::Reflection;
@@ -360,15 +360,19 @@ namespace Spitfire
 
 		void Initialize(uint16_t min_port, uint16_t max_port)
 		{
+			//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF);
+
 			assert(!conductor_);
 			conductor_ = new Spitfire::RtcConductor();
 			min_port_ = min_port;
 			max_port_ = max_port;
 
+			// NOTE: How to: Define and Use Delegates (C++/CLI) https://docs.microsoft.com/en-us/cpp/dotnet/how-to-define-and-use-delegates-cpp-cli
+
 			#define B(on_xxx_, delegate_name_a, delegate_name_b, delegate_name_c) \
 				on_xxx_ = gcnew _##delegate_name_a##Callback(this, &SpitfireRtc::_##delegate_name_b); \
 				on_xxx_##handle_ = GCHandle::Alloc(on_xxx_); \
-				conductor_->on_xxx_ = static_cast<Spitfire::delegate_name_c##CallbackNative>(Marshal::GetFunctionPointerForDelegate(on_xxx_).ToPointer());
+				conductor_->on_xxx_ = static_cast<delegate_name_c##CallbackNative>(Marshal::GetFunctionPointerForDelegate(on_xxx_).ToPointer());
 
 			#define A(on_xxx_, delegate_name) B(on_xxx_, delegate_name, delegate_name, delegate_name)
 
@@ -560,13 +564,13 @@ namespace Spitfire
 
 		void AddServerConfig(ServerConfig^ config)
 		{
-			String^ type = config->Type == ServerType::Stun ? "stun" : "turn";
-			auto hostUri = marshal_as<std::string>(type + ":" + config->Host + ":" + config->Port);
-			auto u = config->Username;
-			auto username = String::IsNullOrWhiteSpace(u) ? "" : marshal_as<std::string>(u);
-			auto p = config->Password;
-			auto password = String::IsNullOrWhiteSpace(p) ? "" : marshal_as<std::string>(p);
-			conductor_->AddServerConfig(hostUri, username, password);
+			if(!config)
+				throw gcnew ArgumentException(gcnew String("Missing mandatory argument"), gcnew String("config"));
+			if(String::IsNullOrEmpty(config->Host))
+				throw gcnew ArgumentException(gcnew String("Missing mandatory host argument"));
+			char uri[256];
+			sprintf_s(uri, "%hs:%hs:%u", config->Type == ServerType::Stun ? "stun" : "turn", From(config->Host, "").c_str(), config->Port);
+			conductor_->AddServerConfig(uri, From(config->Username, ""), From(config->Password, ""));
 		}
 
 		/// <summary>
@@ -680,6 +684,20 @@ namespace Spitfire
 				return;
 			handle->Free();
 			handle = nullptr;
+		}
+
+	private:
+		static absl::optional<std::string> From(String^ value)
+		{
+			if(!value)
+				return absl::nullopt;
+			return msclr::interop::marshal_as<std::string>(value);
+		}
+		static std::string From(String^ value, const char* default_value)
+		{
+			if(!value)
+				return default_value;
+			return msclr::interop::marshal_as<std::string>(value);
 		}
 	};
 }

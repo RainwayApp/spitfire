@@ -1,6 +1,8 @@
-#include "RtcConductor.h"
-#include "p2p/client/basic_port_allocator.h"
 #include <iostream>
+
+#include <p2p/client/basic_port_allocator.h>
+
+#include "RtcConductor.h"
 
 using cricket::MediaEngineInterface;
 
@@ -29,12 +31,12 @@ namespace Spitfire
 		config.disable_ipv6 = false;
 		config.disable_ipv6_on_wifi = false;
 		config.candidate_network_policy = webrtc::PeerConnectionInterface::kCandidateNetworkPolicyLowCost;
-		config.network_preference = absl::optional<rtc::AdapterType>(rtc::AdapterType::ADAPTER_TYPE_ETHERNET);
+		config.network_preference = rtc::AdapterType::ADAPTER_TYPE_ETHERNET;
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
 
-		for(auto server: servers_)
+		for(auto&& server: servers_)
 			config.servers.push_back(server);
-		
+
 		auto allocator = std::make_unique<cricket::BasicPortAllocator>(default_network_manager_.get(), default_socket_factory_.get(), config.turn_customizer, default_relay_port_factory_.get());
 		allocator->set_flags(allocator->flags() | cricket::PORTALLOCATOR_DISABLE_TCP);
 		allocator->set_allow_tcp_listen(false);
@@ -46,6 +48,8 @@ namespace Spitfire
 	}
 	bool RtcConductor::InitializePeerConnection(uint16_t min_port, uint16_t max_port)
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
 		RTC_DCHECK(!pc_factory_);
 		RTC_DCHECK(peer_observer_ && !peer_observer_->peer_connection_);
@@ -88,7 +92,7 @@ namespace Spitfire
 							RTC_DCHECK(peer_observer_->peer_connection_);
 							if(peer_observer_->peer_connection_)
 							{
-								RTC_LOG(INFO) << "Peer connection created completed";
+								RTC_LOG(LS_INFO) << "Peer connection created completed";
 								return true;
 							}
 						}
@@ -102,6 +106,8 @@ namespace Spitfire
 	}
 	void RtcConductor::DeletePeerConnection()
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		if(peer_observer_)
 		{
 			if(peer_observer_->peer_connection_)
@@ -136,18 +142,21 @@ namespace Spitfire
 			current_thread->Quit();
 	}
 
-	void RtcConductor::AddServerConfig(std::string uri, std::string username, std::string password)
+	void RtcConductor::AddServerConfig(const std::string& uri, const std::string& username, const std::string& password)
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << uri << ", " << username << ", " << password;
+
 		webrtc::PeerConnectionInterface::IceServer server;
 		server.uri = uri;
 		server.username = username;
 		server.password = password;
 		servers_.push_back(server);
-		RTC_LOG(INFO) << "Added Ice Server " << uri;
+		RTC_LOG(LS_INFO) << "Added Ice Server " << uri;
 	}
-
 	void RtcConductor::CreateOffer()
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		if (!peer_observer_->peer_connection_)
 			return;
 
@@ -155,11 +164,12 @@ namespace Spitfire
 		options.offer_to_receive_audio = false;
 		options.offer_to_receive_video = false;
 		peer_observer_->peer_connection_->CreateOffer(session_observer_, options);
-		RTC_LOG(INFO) << "Created an offer";
+		RTC_LOG(LS_INFO) << "Created an offer";
 	}
-
 	void RtcConductor::OnOfferReply(std::string type, std::string sdp)
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		if (!peer_observer_->peer_connection_)
 			return;
 
@@ -172,9 +182,10 @@ namespace Spitfire
 		}
 		peer_observer_->peer_connection_->SetRemoteDescription(set_session_observer_, session_description);
 	}
-	
 	void RtcConductor::OnOfferRequest(std::string sdp)
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		if (!peer_observer_->peer_connection_)
 			return;
 
@@ -194,9 +205,10 @@ namespace Spitfire
 		}
 		peer_observer_->peer_connection_->CreateAnswer(session_observer_, o);
 	}
-
 	bool RtcConductor::AddIceCandidate(std::string sdp_mid, int32_t sdp_mlineindex, std::string sdp)
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		webrtc::SdpParseError error;
 		webrtc::IceCandidateInterface * candidate = CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
 		if (!candidate)
@@ -219,6 +231,8 @@ namespace Spitfire
 
 	void RtcConductor::CreateDataChannel(const std::string& label, const webrtc::DataChannelInit config)
 	{
+		RTC_LOG(LS_INFO) << __FUNCTION__;
+
 		if(!peer_observer_->peer_connection_)
 			return;
 		if(data_observers_.find(label) != data_observers_.end()) 
@@ -231,6 +245,7 @@ namespace Spitfire
 	void RtcConductor::CloseDataChannel(const std::string& label)
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
+
 		const auto it = data_observers_.find(label);
 		if(it == data_observers_.end())
 			return;
@@ -280,11 +295,26 @@ namespace Spitfire
 	{
 		RTC_DCHECK(channel);
 		const auto label = channel->label();
-		RTC_LOG(INFO) << __FUNCTION__ << ": " << label;
+		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
 		if(data_observers_.find(label) != data_observers_.end())
 			return;
 		auto observer = std::make_unique<Observers::DataChannelObserver>(this, channel);
 		observer->RegisterObserver();
 		data_observers_[label] = std::move(observer);
+	}
+	void RtcConductor::HandleIceCandidate(const webrtc::IceCandidateInterface* candidate)
+	{
+		RTC_DCHECK(candidate);
+		if(!on_ice_candidate_)
+			return;
+		std::string sdp;
+		if(!candidate->ToString(&sdp))
+		{
+			RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
+			return;
+		}
+		auto const sdp_mid = candidate->sdp_mid();
+		auto const sdp_mline_index = candidate->sdp_mline_index();
+		on_ice_candidate_(sdp_mid.c_str(), sdp_mline_index, sdp.c_str());
 	}
 }

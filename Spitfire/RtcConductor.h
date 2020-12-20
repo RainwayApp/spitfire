@@ -1,18 +1,15 @@
 #pragma once
 
-#ifndef WEBRTC_NET_CONDUCTOR_H_
-#define WEBRTC_NET_CONDUCTOR_H_
+#include <api/peer_connection_interface.h>
+#include <p2p/client/relay_port_factory_interface.h>
+#include <p2p/base/basic_packet_socket_factory.h>
+#include <rtc_base/logging.h>
+#include <rtc_base/log_sinks.h>
 
 #include "DataChannelObserver.h"
 #include "PeerConnectionObserver.h"
 #include "CreateSessionDescriptionObserver.h"
 #include "SetSessionDescriptionObserver.h"
-
-#include "api/peer_connection_interface.h"
-#include "p2p/client/relay_port_factory_interface.h"
-#include "p2p/base/basic_packet_socket_factory.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/log_sinks.h"
 
 namespace Spitfire
 {
@@ -68,7 +65,7 @@ namespace Spitfire
 		{
 			return rtc::ThreadManager::Instance()->WrapCurrentThread()->ProcessMessages(delay);
 		}
-		void AddServerConfig(std::string uri, std::string username, std::string password);
+		void AddServerConfig(const std::string& uri, const std::string& username, const std::string& password);
 
 		void CreateDataChannel(const std::string& label, webrtc::DataChannelInit config);
 		void CloseDataChannel(const std::string& label);
@@ -77,15 +74,16 @@ namespace Spitfire
 		void SendToDataChannel(const std::string& label, const webrtc::DataBuffer& buffer);
 
 		void HandleDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel);
+		void HandleIceCandidate(const webrtc::IceCandidateInterface* candidate);
 
 		OnSuccessCallbackNative on_success_ { nullptr };
 		OnFailureCallbackNative on_failure_ { nullptr };
+		OnMessageCallbackNative on_message_ { nullptr };
 		OnIceStateChangeCallbackNative on_ice_state_change_ { nullptr };
 		OnIceGatheringStateCallbackNative on_ice_gathering_state_change_ { nullptr };
 		OnIceCandidateCallbackNative on_ice_candidate_ { nullptr };
 		OnDataChannelStateCallbackNative on_data_channel_state_change_ { nullptr };
 		OnBufferAmountCallbackNative on_buffer_amount_change_ { nullptr };
-		OnMessageCallbackNative on_message_ { nullptr };
 
 		std::unique_ptr<Observers::PeerConnectionObserver> peer_observer_;
 		rtc::scoped_refptr<Observers::CreateSessionDescriptionObserver> session_observer_;
@@ -93,6 +91,7 @@ namespace Spitfire
 
 	private:
 		bool CreatePeerConnection(uint16_t minPort, uint16_t maxPort);
+
 
 		std::unordered_map<std::string, std::unique_ptr<Observers::DataChannelObserver>> data_observers_;
 
@@ -103,8 +102,7 @@ namespace Spitfire
 		std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
 
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
-		std::vector<webrtc::PeerConnectionInterface::IceServer> servers_;
+		webrtc::PeerConnectionInterface::IceServers servers_;
 		std::unique_ptr<cricket::RelayPortFactoryInterface> default_relay_port_factory_;
 	};
 }
-#endif  // WEBRTC_NET_CONDUCTOR_H_
