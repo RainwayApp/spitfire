@@ -83,7 +83,7 @@ static const double rate_thresh_mult[FRAME_SCALE_STEPS] = { 1.0, 2.0 };
 static const double rcf_mult[FRAME_SCALE_STEPS] = { 1.0, 2.0 };
 
 typedef struct {
-  // Rate targetting variables
+  // Rate targeting variables
   int base_frame_target;  // A baseline frame target before adjustment
                           // for previous under or over shoot.
   int this_frame_target;  // Actual frame target after rc adjustment.
@@ -329,6 +329,8 @@ int vp9_encodedframe_overshoot(struct VP9_COMP *cpi, int frame_size, int *q);
 void vp9_configure_buffer_updates(struct VP9_COMP *cpi, int gf_group_index);
 
 void vp9_estimate_qp_gop(struct VP9_COMP *cpi);
+
+void vp9_compute_frame_low_motion(struct VP9_COMP *const cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

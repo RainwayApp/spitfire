@@ -10,6 +10,9 @@
 #include "v8/include/v8.h"
 
 namespace blink {
+
+class Visitor;
+
 namespace bindings {
 
 // This class is the base class for all IDL dictionary implementations.  This is
@@ -33,6 +36,8 @@ class PLATFORM_EXPORT DictionaryBase : public GarbageCollected<DictionaryBase> {
     return v8_object;
   }
 
+  virtual void Trace(Visitor*) {}
+
  protected:
   DictionaryBase() = default;
 
@@ -41,7 +46,7 @@ class PLATFORM_EXPORT DictionaryBase : public GarbageCollected<DictionaryBase> {
   DictionaryBase& operator=(const DictionaryBase&) = delete;
   DictionaryBase& operator=(const DictionaryBase&&) = delete;
 
-  virtual void FillWithMembers(v8::Isolate* isolate,
+  virtual bool FillWithMembers(v8::Isolate* isolate,
                                v8::Local<v8::Object> creation_context,
                                v8::Local<v8::Object> v8_object) const = 0;
 };

@@ -33,18 +33,6 @@
 // and will not be copied. Use this macro to force a const char* to be copied.
 #define TRACE_STR_COPY(str) ::base::trace_event::TraceStringWithCopy(str)
 
-// DEPRECATED: do not use: Consider using the TRACE_ID_LOCAL macro instead. By
-// default, uint64_t ID argument values are not mangled with the Process ID in
-// TRACE_EVENT_ASYNC macros. Use this macro to force Process ID mangling.
-#define TRACE_ID_MANGLE(id) \
-    trace_event_internal::TraceID::ForceMangle(id)
-
-// DEPRECATED: do not use: Consider using the TRACE_ID_GLOBAL macro instead. By
-// default, pointers are mangled with the Process ID in TRACE_EVENT_ASYNC
-// macros. Use this macro to prevent Process ID mangling.
-#define TRACE_ID_DONT_MANGLE(id) \
-    trace_event_internal::TraceID::DontMangle(id)
-
 // By default, trace IDs are eventually converted to a single 64-bit number. Use
 // this macro to add a scope string. For example,
 //
@@ -407,23 +395,6 @@
     }                                                                        \
   } while (0)
 
-// The linked ID will not be mangled.
-#define INTERNAL_TRACE_EVENT_ADD_LINK_IDS(category_group, name, id1, id2) \
-  do {                                                                    \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);               \
-    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED()) {                  \
-      trace_event_internal::TraceID source_id((id1));                     \
-      unsigned int source_flags = source_id.id_flags();                   \
-      trace_event_internal::TraceID target_id((id2));                     \
-      trace_event_internal::AddTraceEvent(                                \
-          TRACE_EVENT_PHASE_LINK_IDS,                                     \
-          INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,         \
-          source_id.scope(), source_id.raw_id(), source_flags,            \
-          trace_event_internal::kNoId, "linked_id",                       \
-          target_id.AsConvertableToTraceFormat());                        \
-    }                                                                     \
-  } while (0)
-
 // Implementation detail: internal macro to create static category and add
 // metadata event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_METADATA_ADD(category_group, name, ...) \
@@ -519,88 +490,20 @@ class BASE_EXPORT TraceID {
         : scope_(scope), raw_id_(global_id.raw_id()) {
       id_flags_ = TRACE_EVENT_FLAG_HAS_GLOBAL_ID;
     }
-    WithScope(const char* scope,
-              unsigned long long prefix,
-              unsigned long long raw_id)
-        : scope_(scope), has_prefix_(true), prefix_(prefix), raw_id_(raw_id) {}
-    WithScope(const char* scope, unsigned long long prefix, GlobalId global_id)
-        : scope_(scope),
-          has_prefix_(true),
-          prefix_(prefix),
-          raw_id_(global_id.raw_id()) {
-      id_flags_ = TRACE_EVENT_FLAG_HAS_GLOBAL_ID;
-    }
     unsigned long long raw_id() const { return raw_id_; }
     const char* scope() const { return scope_; }
-    bool has_prefix() const { return has_prefix_; }
-    unsigned long long prefix() const { return prefix_; }
     unsigned int id_flags() const { return id_flags_; }
 
    private:
     const char* scope_ = nullptr;
-    bool has_prefix_ = false;
-    unsigned long long prefix_;
     unsigned long long raw_id_;
     unsigned int id_flags_ = TRACE_EVENT_FLAG_HAS_ID;
   };
 
-  // DEPRECATED: consider using GlobalId, instead.
-  class DontMangle {
-   public:
-    explicit DontMangle(const void* raw_id)
-        : raw_id_(static_cast<unsigned long long>(
-              reinterpret_cast<uintptr_t>(raw_id))) {}
-    explicit DontMangle(unsigned long long raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned long raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned int raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned short raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned char raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(long long raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit DontMangle(long raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit DontMangle(int raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit DontMangle(short raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit DontMangle(signed char raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    unsigned long long raw_id() const { return raw_id_; }
-   private:
-    unsigned long long raw_id_;
-  };
-
-  // DEPRECATED: consider using LocalId, instead.
-  class ForceMangle {
-   public:
-    explicit ForceMangle(unsigned long long raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned long raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned int raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned short raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned char raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(long long raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit ForceMangle(long raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit ForceMangle(int raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit ForceMangle(short raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    explicit ForceMangle(signed char raw_id)
-        : raw_id_(static_cast<unsigned long long>(raw_id)) {}
-    unsigned long long raw_id() const { return raw_id_; }
-   private:
-    unsigned long long raw_id_;
-  };
-
   TraceID(const void* raw_id) : raw_id_(static_cast<unsigned long long>(
                                         reinterpret_cast<uintptr_t>(raw_id))) {
-    id_flags_ = TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_MANGLE_ID;
+    id_flags_ = TRACE_EVENT_FLAG_HAS_LOCAL_ID;
   }
-  TraceID(ForceMangle raw_id) : raw_id_(raw_id.raw_id()) {
-    id_flags_ = TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_MANGLE_ID;
-  }
-  TraceID(DontMangle raw_id) : raw_id_(raw_id.raw_id()) {}
   TraceID(unsigned long long raw_id) : raw_id_(raw_id) {}
   TraceID(unsigned long raw_id) : raw_id_(raw_id) {}
   TraceID(unsigned int raw_id) : raw_id_(raw_id) {}
@@ -624,24 +527,15 @@ class BASE_EXPORT TraceID {
   }
   TraceID(WithScope scoped_id)
       : scope_(scoped_id.scope()),
-        has_prefix_(scoped_id.has_prefix()),
-        prefix_(scoped_id.prefix()),
         raw_id_(scoped_id.raw_id()),
         id_flags_(scoped_id.id_flags()) {}
 
   unsigned long long raw_id() const { return raw_id_; }
   const char* scope() const { return scope_; }
-  bool has_prefix() const { return has_prefix_; }
-  unsigned long long prefix() const { return prefix_; }
   unsigned int id_flags() const { return id_flags_; }
-
-  std::unique_ptr<base::trace_event::ConvertableToTraceFormat>
-  AsConvertableToTraceFormat() const;
 
  private:
   const char* scope_ = nullptr;
-  bool has_prefix_ = false;
-  unsigned long long prefix_;
   unsigned long long raw_id_;
   unsigned int id_flags_ = TRACE_EVENT_FLAG_HAS_ID;
 };

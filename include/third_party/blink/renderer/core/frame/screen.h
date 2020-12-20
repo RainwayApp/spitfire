@@ -31,7 +31,7 @@
 
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
@@ -60,12 +60,14 @@ class CORE_EXPORT Screen final : public ScriptWrappable,
   int availHeight() const;
   int availWidth() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
 
   // Proposed extensions to the Screen interface.
-  // https://github.com/spark008/screen-enumeration/blob/master/EXPLAINER.md
+  // https://github.com/webscreens/screen-enumeration
   // TODO(msw): Resolve different info sources, caching, and lifetimes.
-  Screen(display::mojom::blink::DisplayPtr display, bool primary);
+  Screen(display::mojom::blink::DisplayPtr display,
+         bool internal,
+         bool primary);
   int left() const;
   int top() const;
   bool internal() const;
@@ -73,11 +75,19 @@ class CORE_EXPORT Screen final : public ScriptWrappable,
   float scaleFactor() const;
   const String name() const;
 
+  // Not web-exposed; for internal usage only.
+  static constexpr int64_t kInvalidDisplayId = -1;
+  int64_t DisplayId() const;
+
  private:
   // A static snapshot of the display's information, provided upon construction.
   // This member is only valid for Screen objects obtained via the experimental
   // Screen Enumeration API.
   const display::mojom::blink::DisplayPtr display_;
+  // True if this is an internal display of the device; it is a static value
+  // provided upon construction. This member is only valid for Screen objects
+  // obtained via the experimental Screen Enumeration API.
+  const base::Optional<bool> internal_;
   // True if this is the primary screen of the operating system; it is a static
   // value provided upon construction. This member is only valid for Screen
   // objects obtained via the experimental Screen Enumeration API.

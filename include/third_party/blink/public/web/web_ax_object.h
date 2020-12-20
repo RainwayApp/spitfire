@@ -33,7 +33,6 @@
 
 #include <memory>
 #include "third_party/blink/public/platform/web_common.h"
-#include "third_party/blink/public/platform/web_point.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
 #include "third_party/blink/public/platform/web_size.h"
 #include "third_party/blink/public/platform/web_vector.h"
@@ -41,6 +40,10 @@
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 
 class SkMatrix44;
+
+namespace gfx {
+class Point;
+}
 
 namespace blink {
 
@@ -51,7 +54,6 @@ class WebDocument;
 class WebString;
 class WebURL;
 struct WebFloatRect;
-struct WebPoint;
 struct WebRect;
 struct WebSize;
 
@@ -148,6 +150,7 @@ class WebAXObject {
   BLINK_EXPORT bool IsVisible() const;
   BLINK_EXPORT bool IsVisited() const;
 
+  BLINK_EXPORT bool HasAriaAttribute() const;
   BLINK_EXPORT WebString AccessKey() const;
   BLINK_EXPORT unsigned BackgroundColor() const;
   BLINK_EXPORT bool CanPress() const;
@@ -180,7 +183,7 @@ class WebAXObject {
   BLINK_EXPORT double EstimatedLoadingProgress() const;
   BLINK_EXPORT int HeadingLevel() const;
   BLINK_EXPORT int HierarchicalLevel() const;
-  BLINK_EXPORT WebAXObject HitTest(const WebPoint&) const;
+  BLINK_EXPORT WebAXObject HitTest(const gfx::Point&) const;
   // Get the WebAXObject's bounds in frame-relative coordinates as a WebRect.
   BLINK_EXPORT WebRect GetBoundsInFrameCoordinates() const;
   BLINK_EXPORT WebString KeyboardShortcut() const;
@@ -268,7 +271,6 @@ class WebAXObject {
 
   BLINK_EXPORT WebNode GetNode() const;
   BLINK_EXPORT WebDocument GetDocument() const;
-  BLINK_EXPORT bool HasComputedStyle() const;
   BLINK_EXPORT WebString ComputedStyleDisplay() const;
   BLINK_EXPORT bool AccessibilityIsIgnored() const;
   BLINK_EXPORT bool AccessibilityIsIncludedInTree() const;
@@ -308,7 +310,7 @@ class WebAXObject {
           ax::mojom::ScrollBehavior::kDoNotScrollIfVisible) const;
   // Scroll this object to a given point in global coordinates of the top-level
   // window.
-  BLINK_EXPORT bool ScrollToGlobalPoint(const WebPoint&) const;
+  BLINK_EXPORT bool ScrollToGlobalPoint(const gfx::Point&) const;
 
   // For a table
   BLINK_EXPORT int AriaColumnCount() const;
@@ -352,11 +354,14 @@ class WebAXObject {
                                       WebVector<int>& ends) const;
 
   // Scrollable containers.
+  // Programmatically scrollable.
   BLINK_EXPORT bool IsScrollableContainer() const;
-  BLINK_EXPORT WebPoint GetScrollOffset() const;
-  BLINK_EXPORT WebPoint MinimumScrollOffset() const;
-  BLINK_EXPORT WebPoint MaximumScrollOffset() const;
-  BLINK_EXPORT void SetScrollOffset(const WebPoint&) const;
+  // Also scrollable by user.
+  BLINK_EXPORT bool IsUserScrollable() const;
+  BLINK_EXPORT gfx::Point GetScrollOffset() const;
+  BLINK_EXPORT gfx::Point MinimumScrollOffset() const;
+  BLINK_EXPORT gfx::Point MaximumScrollOffset() const;
+  BLINK_EXPORT void SetScrollOffset(const gfx::Point&) const;
 
   // aria-dropeffect is deprecated in WAI-ARIA 1.1
   BLINK_EXPORT void Dropeffects(
@@ -376,6 +381,9 @@ class WebAXObject {
                                       WebFloatRect& bounds_in_container,
                                       SkMatrix44& container_transform,
                                       bool* clips_children = nullptr) const;
+
+  // Blink-internal DOM Node ID. Currently used for PDF exporting.
+  BLINK_EXPORT int GetDOMNodeId() const;
 
   // Exchanges a WebAXObject with another.
   BLINK_EXPORT void Swap(WebAXObject& other);

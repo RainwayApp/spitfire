@@ -17,11 +17,9 @@
 
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/audio_quality_analyzer_interface.h"
-#include "api/test/frame_generator_interface.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "pc/video_track_source.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/thread.h"
@@ -31,10 +29,10 @@
 #include "test/pc/e2e/analyzer/video/single_process_encoded_image_data_injector.h"
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 #include "test/pc/e2e/analyzer_helper.h"
+#include "test/pc/e2e/media/media_helper.h"
 #include "test/pc/e2e/peer_connection_quality_test_params.h"
 #include "test/pc/e2e/sdp/sdp_changer.h"
 #include "test/pc/e2e/test_peer.h"
-#include "test/testsupport/video_frame_writer.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {
@@ -136,6 +134,11 @@ class PeerConfigurerImpl final
     params_->audio_config = std::move(config);
     return this;
   }
+  PeerConfigurer* SetNetEqFactory(
+      std::unique_ptr<NetEqFactory> neteq_factory) override {
+    components_->pcf_dependencies->neteq_factory = std::move(neteq_factory);
+    return this;
+  }
   PeerConfigurer* SetRtcEventLogPath(std::string path) override {
     params_->rtc_event_log_path = std::move(path);
     return this;
@@ -155,6 +158,12 @@ class PeerConfigurerImpl final
     return this;
   }
 
+  PeerConfigurer* SetIceTransportFactory(
+      std::unique_ptr<IceTransportFactory> factory) override {
+    components_->pc_dependencies->ice_transport_factory = std::move(factory);
+    return this;
+  }
+
  protected:
   friend class PeerConnectionE2EQualityTest;
 
@@ -171,33 +180,6 @@ class PeerConfigurerImpl final
   std::unique_ptr<InjectableComponents> components_;
   std::unique_ptr<Params> params_;
   std::vector<std::unique_ptr<test::FrameGeneratorInterface>> video_generators_;
-};
-
-class TestVideoCapturerVideoTrackSource : public VideoTrackSource {
- public:
-  TestVideoCapturerVideoTrackSource(
-      std::unique_ptr<test::TestVideoCapturer> video_capturer,
-      bool is_screencast)
-      : VideoTrackSource(/*remote=*/false),
-        video_capturer_(std::move(video_capturer)),
-        is_screencast_(is_screencast) {}
-
-  ~TestVideoCapturerVideoTrackSource() = default;
-
-  void Start() { SetState(kLive); }
-
-  void Stop() { SetState(kMuted); }
-
-  bool is_screencast() const override { return is_screencast_; }
-
- protected:
-  rtc::VideoSourceInterface<VideoFrame>* source() override {
-    return video_capturer_.get();
-  }
-
- private:
-  std::unique_ptr<test::TestVideoCapturer> video_capturer_;
-  const bool is_screencast_;
 };
 
 class PeerConnectionE2EQualityTest
@@ -259,7 +241,9 @@ class PeerConnectionE2EQualityTest
   //  * Generate video stream labels if some of them missed
   //  * Generate audio stream labels if some of them missed
   //  * Set video source generation mode if it is not specified
+  //  * Video codecs under test
   void SetDefaultValuesForMissingParams(
+      RunParams* run_params,
       std::vector<Params*> params,
       std::vector<std::vector<std::unique_ptr<test::FrameGeneratorInterface>>*>
           video_sources);
@@ -278,18 +262,6 @@ class PeerConnectionE2EQualityTest
   // Have to be run on the signaling thread.
   void SetupCallOnSignalingThread(const RunParams& run_params);
   void TearDownCallOnSignalingThread();
-  std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>>
-  MaybeAddMedia(TestPeer* peer);
-  std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>>
-  MaybeAddVideo(TestPeer* peer);
-  std::unique_ptr<test::TestVideoCapturer> CreateVideoCapturer(
-      const VideoConfig& video_config,
-      std::unique_ptr<test::FrameGeneratorInterface> generator,
-      std::unique_ptr<test::TestVideoCapturer::FramePreprocessor>
-          frame_preprocessor);
-  std::unique_ptr<test::FrameGeneratorInterface>
-  CreateScreenShareFrameGenerator(const VideoConfig& video_config);
-  void MaybeAddAudio(TestPeer* peer);
   void SetPeerCodecPreferences(TestPeer* peer, const RunParams& run_params);
   void SetupCall(const RunParams& run_params);
   void ExchangeOfferAnswer(SignalingInterceptor* signaling_interceptor);
@@ -298,9 +270,6 @@ class PeerConnectionE2EQualityTest
       const std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>>&
           sources);
   void TearDownCall();
-  test::VideoFrameWriter* MaybeCreateVideoWriter(
-      absl::optional<std::string> file_name,
-      const VideoConfig& config);
   Timestamp Now() const;
 
   Clock* const clock_;
@@ -308,6 +277,7 @@ class PeerConnectionE2EQualityTest
   std::string test_case_name_;
   std::unique_ptr<VideoQualityAnalyzerInjectionHelper>
       video_quality_analyzer_injection_helper_;
+  std::unique_ptr<MediaHelper> media_helper_;
   std::unique_ptr<SingleProcessEncodedImageDataInjector>
       encoded_image_id_controller_;
   std::unique_ptr<AudioQualityAnalyzerInterface> audio_quality_analyzer_;
@@ -325,7 +295,6 @@ class PeerConnectionE2EQualityTest
       alice_video_sources_;
   std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>>
       bob_video_sources_;
-  std::vector<std::unique_ptr<test::VideoFrameWriter>> video_writers_;
   std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>
       output_video_sinks_;
   AnalyzerHelper analyzer_helper_;

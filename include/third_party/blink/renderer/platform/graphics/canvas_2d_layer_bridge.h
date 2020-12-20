@@ -44,7 +44,6 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_color_params.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types.h"
-#include "third_party/blink/renderer/platform/graphics/paint/paint_recorder.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
@@ -99,7 +98,8 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
       override;
 
   void FinalizeFrame();
-  void SetIsHidden(bool);
+  void SetIsInHiddenPage(bool);
+  void SetIsBeingDisplayed(bool);
   void DidDraw(const FloatRect&);
   void DoPaintInvalidation(const FloatRect& dirty_rect);
   cc::Layer* Layer();
@@ -112,7 +112,8 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   virtual void DidRestoreCanvasMatrixClipStack(cc::PaintCanvas*) {}
   virtual bool IsAccelerated() const;
 
-  cc::PaintCanvas* DrawingCanvas();
+  // This may recreate CanvasResourceProvider
+  cc::PaintCanvas* GetPaintCanvas();
   bool IsValid();
   bool WritePixels(const SkImageInfo&,
                    const void* pixels,
@@ -122,9 +123,7 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   void DontUseIdleSchedulingForTesting() {
     dont_use_idle_scheduling_for_testing_ = true;
   }
-  void SetCanvasResourceHost(CanvasResourceHost* host) {
-    resource_host_ = host;
-  }
+  void SetCanvasResourceHost(CanvasResourceHost* host);
 
   void Hibernate();
   bool IsHibernating() const { return hibernation_image_ != nullptr; }
@@ -135,14 +134,6 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   scoped_refptr<StaticBitmapImage> NewImageSnapshot(AccelerationHint);
 
   cc::TextureLayer* layer_for_testing() { return layer_.get(); }
-
-  // TODO(jochin): Remove this function completely once recorder_ has been
-  // moved into CanvasResourceProvider.
-  sk_sp<cc::PaintRecord> record_for_testing() {
-    sk_sp<cc::PaintRecord> record = recorder_->finishRecordingAsPicture();
-    StartRecording();
-    return record;
-  }
 
   // The values of the enum entries must not change because they are used for
   // usage metrics histograms. New values can be added to the end.
@@ -186,6 +177,8 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   // bridge knows that there's no previous content on the resource.
   void ClearFrame() { clear_frame_ = true; }
 
+  bool HasRateLimiterForTesting();
+
  private:
   friend class Canvas2DLayerBridgeTest;
   friend class CanvasRenderingContext2DTest;
@@ -195,12 +188,11 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   bool CheckResourceProviderValid();
   void ResetResourceProvider();
 
-  void StartRecording();
   void SkipQueuedDrawCommands();
+  void EnsureCleared();
 
   bool ShouldAccelerate(AccelerationHint) const;
 
-  std::unique_ptr<PaintRecorder> recorder_;
   sk_sp<SkImage> hibernation_image_;
   scoped_refptr<cc::TextureLayer> layer_;
   std::unique_ptr<SharedContextRateLimiter> rate_limiter_;
@@ -208,6 +200,7 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   int frames_since_last_commit_ = 0;
   bool have_recorded_draw_commands_;
   bool is_hidden_;
+  bool is_being_displayed_;
   bool software_rendering_while_hidden_;
   bool hibernation_scheduled_ = false;
   bool dont_use_idle_scheduling_for_testing_ = false;
@@ -250,6 +243,10 @@ class PLATFORM_EXPORT Canvas2DLayerBridge : public cc::TextureLayerClient {
   Deque<RasterTimer> pending_raster_timers_;
 
   sk_sp<cc::PaintRecord> last_recording_;
+
+  // This tracks whether the canvas has been cleared once after
+  // this bridge was created.
+  bool cleared_ = false;
 
   base::WeakPtrFactory<Canvas2DLayerBridge> weak_ptr_factory_{this};
 

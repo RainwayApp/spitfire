@@ -33,7 +33,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_H_
 
 #include "base/single_thread_task_runner.h"
-#include "third_party/blink/public/platform/web_resource_timing_info.h"
+#include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/string_or_double.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
@@ -61,7 +61,6 @@ class PerformanceMarkOptions;
 class ExceptionState;
 class LargestContentfulPaint;
 class LayoutShift;
-class MeasureMemoryOptions;
 class MemoryInfo;
 class PerformanceElementTiming;
 class PerformanceEventTiming;
@@ -97,9 +96,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   virtual PerformanceNavigation* navigation() const;
   virtual MemoryInfo* memory() const;
   virtual ScriptPromise measureMemory(ScriptState*,
-                                      MeasureMemoryOptions*) const;
-
-  virtual void UpdateLongTaskInstrumentation() {}
+                                      ExceptionState& exception_state) const;
 
   // Reduce the resolution to prevent timing attacks. See:
   // http://www.w3.org/TR/hr-time-2/#privacy-security
@@ -161,12 +158,12 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   // Generates timing info suitable for appending to the performance entries of
   // a context with |origin|. This should be rarely used; most callsites should
   // prefer the convenience method |GenerateAndAddResourceTiming()|.
-  static WebResourceTimingInfo GenerateResourceTiming(
+  static mojom::blink::ResourceTimingInfoPtr GenerateResourceTiming(
       const SecurityOrigin& destination_origin,
       const ResourceTimingInfo&,
       ExecutionContext& context_for_use_counter);
   void AddResourceTiming(
-      const WebResourceTimingInfo&,
+      mojom::blink::ResourceTimingInfoPtr,
       const AtomicString& initiator_type,
       mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
           worker_timing_receiver);
@@ -261,7 +258,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   void RegisterPerformanceObserver(PerformanceObserver&);
   void UpdatePerformanceObserverFilterOptions();
   void ActivateObserver(PerformanceObserver&);
-  void ResumeSuspendedObservers();
+  void SuspendObserver(PerformanceObserver&);
 
   bool HasObserverFor(PerformanceEntry::EntryType) const;
 
@@ -290,7 +287,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
 
   ScriptValue toJSONForBinding(ScriptState*) const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
 
   class UnifiedClock {
    public:
@@ -346,7 +343,6 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   void FireResourceTimingBufferFull(TimerBase*);
 
   void NotifyObserversOfEntry(PerformanceEntry&) const;
-  void NotifyObserversOfEntries(PerformanceEntryVector&);
 
   void DeliverObservationsTimerFired(TimerBase*);
 
@@ -366,6 +362,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   unsigned element_timing_buffer_max_size_;
   PerformanceEntryVector layout_shift_buffer_;
   PerformanceEntryVector largest_contentful_paint_buffer_;
+  PerformanceEntryVector longtask_buffer_;
   Member<PerformanceEntry> navigation_timing_;
   Member<UserTiming> user_timing_;
   Member<PerformanceEntry> first_paint_timing_;

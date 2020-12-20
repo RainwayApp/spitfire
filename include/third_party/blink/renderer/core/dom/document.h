@@ -36,23 +36,24 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/timer/elapsed_timer.h"
+#include "net/cookies/site_for_cookies.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/blink/public/platform/web_focus_type.h"
-#include "third_party/blink/public/platform/web_insecure_request_policy.h"
+#include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
+#include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/css/media_value_change.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/create_element_flags.h"
 #include "third_party/blink/renderer/core/dom/document_encoding_data.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
-#include "third_party/blink/renderer/core/dom/document_shutdown_notifier.h"
-#include "third_party/blink/renderer/core/dom/document_shutdown_observer.h"
 #include "third_party/blink/renderer/core/dom/document_timing.h"
 #include "third_party/blink/renderer/core/dom/frame_request_callback_collection.h"
 #include "third_party/blink/renderer/core/dom/live_node_list_registry.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/dom/scripted_idle_task_controller.h"
-#include "third_party/blink/renderer/core/dom/synchronous_mutation_notifier.h"
 #include "third_party/blink/renderer/core/dom/synchronous_mutation_observer.h"
 #include "third_party/blink/renderer/core/dom/text_link_colors.h"
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
@@ -60,10 +61,12 @@
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
-#include "third_party/blink/renderer/core/frame/hosts_using_features.h"
 #include "third_party/blink/renderer/core/html/custom/v0_custom_element.h"
 #include "third_party/blink/renderer/core/html/parser/parser_synchronization_policy.h"
+#include "third_party/blink/renderer/core/loader/font_preload_manager.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/heap_observer_list.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
@@ -78,6 +81,12 @@ namespace ukm {
 class UkmRecorder;
 }  // namespace ukm
 
+namespace network {
+namespace mojom {
+enum class CSPDisposition : int32_t;
+}  // namespace mojom
+}  // namespace network
+
 namespace blink {
 
 class AnimationClock;
@@ -90,11 +99,15 @@ class CSSStyleSheet;
 class CanvasFontCache;
 class ChromeClient;
 class Comment;
+class CompositorAnimationTimeline;
 class ComputedAccessibleNode;
+class DisplayLockContext;
+class ElementIntersectionObserverData;
 class WindowAgent;
 class WindowAgentFactory;
 class ComputedStyle;
 class ConsoleMessage;
+class InspectorIssue;
 class ContextFeatures;
 class CookieJar;
 class V0CustomElementMicrotaskRunQueue;
@@ -110,6 +123,7 @@ class DocumentOutliveTimeReporter;
 class DocumentParser;
 class DocumentResourceCoordinator;
 class DocumentState;
+class DocumentAnimations;
 class DocumentTimeline;
 class DocumentType;
 class DOMFeaturePolicy;
@@ -128,6 +142,8 @@ class FontMatchingMetrics;
 class FormController;
 class HTMLAllCollection;
 class HTMLBodyElement;
+class HTMLFormElement;
+class FrameScheduler;
 class HTMLCollection;
 class HTMLDialogElement;
 class HTMLElement;
@@ -176,6 +192,7 @@ class ScriptPromise;
 class ScriptRunner;
 class ScriptableDocumentParser;
 class ScriptedAnimationController;
+class SecurityContextInit;
 class SecurityOrigin;
 class SelectorQueryCache;
 class SerializedScriptValue;
@@ -196,9 +213,7 @@ class VisitedLinkState;
 class WebComputedAXTree;
 class WebMouseEvent;
 class WorkletAnimationController;
-enum ContentSecurityPolicyDisposition : uint8_t;
 enum class CSSPropertyID;
-enum class ScrollbarMode;
 struct AnnotatedRegionValue;
 struct FocusParams;
 struct IconURL;
@@ -236,8 +251,6 @@ enum ShadowCascadeOrder {
   kShadowCascadeV1
 };
 
-enum class SecureContextState { kNonSecure, kSecure };
-
 using DocumentClassFlags = unsigned char;
 
 // A map of IDL attribute name to Element value, for one particular element.
@@ -260,10 +273,8 @@ using ExplicitlySetAttrElementsMap =
 // the user in a frame and an execution context for JavaScript code.
 class CORE_EXPORT Document : public ContainerNode,
                              public TreeScope,
-                             public SecurityContext,
-                             public ExecutionContext,
-                             public DocumentShutdownNotifier,
-                             public SynchronousMutationNotifier,
+                             public UseCounter,
+                             public FeaturePolicyParserDelegate,
                              public Supplementable<Document> {
   DEFINE_WRAPPERTYPEINFO();
   USING_GARBAGE_COLLECTED_MIXIN(Document);
@@ -290,17 +301,129 @@ class CORE_EXPORT Document : public ContainerNode,
 
   MediaQueryMatcher& GetMediaQueryMatcher();
 
-  void MediaQueryAffectingValueChanged();
+  void MediaQueryAffectingValueChanged(MediaValueChange change);
 
-  using SecurityContext::GetContentSecurityPolicy;
-  using SecurityContext::GetMutableSecurityOrigin;
-  using SecurityContext::GetSecurityOrigin;
   using TreeScope::getElementById;
 
-  // ExecutionContext overrides:
-  bool IsDocument() const final { return true; }
-  bool ShouldInstallV8Extensions() const final;
-  ContentSecurityPolicy* GetContentSecurityPolicyForWorld() override;
+  // TODO(crbug.com/1029822) Former ExecutionContext overrides. Most of these
+  // should move to LocalDOMWindow.
+  ContentSecurityPolicy* GetContentSecurityPolicyForWorld();
+  LocalDOMWindow* ExecutingWindow() const;
+  String UserAgent() const;
+  // TODO(https://crbug.com/880986): Implement Document's HTTPS state in more
+  // spec-conformant way.
+  HttpsState GetHttpsState() const {
+    return CalculateHttpsState(GetSecurityOrigin());
+  }
+  bool CanExecuteScripts(ReasonForCallingCanExecuteScripts);
+  String OutgoingReferrer() const;
+  network::mojom::ReferrerPolicy GetReferrerPolicy() const;
+  CoreProbeSink* GetProbeSink();
+  BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker();
+  FrameOrWorkerScheduler* GetScheduler();
+  void CountPotentialFeaturePolicyViolation(
+      mojom::blink::FeaturePolicyFeature) const;
+  void ReportFeaturePolicyViolation(
+      mojom::blink::FeaturePolicyFeature,
+      mojom::blink::PolicyDisposition,
+      const String& message = g_empty_string,
+      // If source_file is set to empty string,
+      // current JS file would be used as source_file instead.
+      const String& source_file = g_empty_string) const;
+  void ReportDocumentPolicyViolation(
+      mojom::blink::DocumentPolicyFeature,
+      mojom::blink::PolicyDisposition disposition,
+      const String& message = g_empty_string,
+      // If source_file is set to empty string,
+      // current JS file would be used as source_file instead.
+      const String& source_file = g_empty_string) const;
+
+  // FeaturePolicyParserDelegate override
+  // TODO(crbug.com/1029822) FeaturePolicyParserDelegate overrides, these
+  // should migrate to LocalDOMWindow.
+  bool FeatureEnabled(OriginTrialFeature) const override;
+  void CountFeaturePolicyUsage(mojom::WebFeature feature) override;
+  bool FeaturePolicyFeatureObserved(
+      mojom::blink::FeaturePolicyFeature feature) override;
+
+  SecurityContext& GetSecurityContext() { return security_context_; }
+  const SecurityContext& GetSecurityContext() const {
+    return security_context_;
+  }
+
+  // TODO(crbug.com/1029822): Temporary cast helpers while ExecutionContext is
+  // migrating to LocalDOMWindow. Callsite that permanently need to convert a
+  // Document to an ExecutionContext should use either GetExecutionContext() as
+  // inherited from Node, or domWindow().
+  // Downcasts will cast to a LocalDOMWindow, then use
+  // LocalDOMWindow::document() if the Document is what is actually needed.
+  ExecutionContext* ToExecutionContext();
+  const ExecutionContext* ToExecutionContext() const;
+  static Document* From(ExecutionContext* context) {
+    return context ? &From(*context) : nullptr;
+  }
+  static Document& From(ExecutionContext& context);
+  static const Document* From(const ExecutionContext* context) {
+    return context ? &From(*context) : nullptr;
+  }
+  static const Document& From(const ExecutionContext& context);
+  static Document* DynamicFrom(ExecutionContext* context) {
+    return context && context->IsDocument() ? From(context) : nullptr;
+  }
+  static Document* DynamicFrom(ExecutionContext& context) {
+    return context.IsDocument() ? &From(context) : nullptr;
+  }
+  static const Document* DynamicFrom(const ExecutionContext* context) {
+    return context && context->IsDocument() ? From(context) : nullptr;
+  }
+  static const Document* DynamicFrom(const ExecutionContext& context) {
+    return context.IsDocument() ? &From(context) : nullptr;
+  }
+
+  // TODO(crbug.com/1029822): Temporary helpers to access ExecutionContext
+  // methods. These will need to be audited. Some might be useful permanent
+  // helpers.
+  const SecurityOrigin* GetSecurityOrigin() const;
+  SecurityOrigin* GetMutableSecurityOrigin();
+  ContentSecurityPolicy* GetContentSecurityPolicy() const;
+  mojom::blink::WebSandboxFlags GetSandboxFlags() const;
+  bool IsSandboxed(mojom::blink::WebSandboxFlags mask) const;
+  PublicURLManager& GetPublicURLManager();
+  bool IsContextPaused() const;
+  bool IsContextDestroyed() const;
+  ContentSecurityPolicyDelegate& GetContentSecurityPolicyDelegate();
+  SecureContextMode GetSecureContextMode() const;
+  bool IsSecureContext() const;
+  bool IsSecureContext(String& error_message) const;
+  void SetSecureContextModeForTesting(SecureContextMode);
+  void SetReferrerPolicy(network::mojom::ReferrerPolicy);
+  v8::Isolate* GetIsolate() const;
+  Agent* GetAgent() const;
+  OriginTrialContext* GetOriginTrialContext() const;
+  bool IsFeatureEnabled(
+      mojom::blink::FeaturePolicyFeature,
+      ReportOptions report_on_failure = ReportOptions::kDoNotReport,
+      const String& message = g_empty_string,
+      const String& source_file = g_empty_string) const;
+  bool IsFeatureEnabled(
+      mojom::blink::FeaturePolicyFeature,
+      PolicyValue threshold_value,
+      ReportOptions report_on_failure = ReportOptions::kDoNotReport,
+      const String& message = g_empty_string,
+      const String& source_file = g_empty_string) const;
+  bool IsFeatureEnabled(
+      mojom::blink::DocumentPolicyFeature,
+      ReportOptions report_option = ReportOptions::kDoNotReport,
+      const String& message = g_empty_string,
+      const String& source_file = g_empty_string) const;
+  bool IsFeatureEnabled(
+      mojom::blink::DocumentPolicyFeature,
+      PolicyValue threshold_value,
+      ReportOptions report_option = ReportOptions::kDoNotReport,
+      const String& message = g_empty_string,
+      const String& source_file = g_empty_string) const;
+
+  String addressSpaceForBindings() const;
 
   bool CanContainRangeEndPoint() const override { return true; }
 
@@ -326,9 +449,6 @@ class CORE_EXPORT Document : public ContainerNode,
   DEFINE_ATTRIBUTE_EVENT_LISTENER(visibilitychange, kVisibilitychange)
 
   ViewportData& GetViewportData() const { return *viewport_data_; }
-
-  String OutgoingReferrer() const override;
-  network::mojom::ReferrerPolicy GetReferrerPolicy() const override;
 
   void SetDoctype(DocumentType*);
   DocumentType* doctype() const { return doc_type_.Get(); }
@@ -443,7 +563,7 @@ class CORE_EXPORT Document : public ContainerNode,
   HTMLCollection* DocumentAllNamedItems(const AtomicString& name);
 
   // "defaultView" attribute defined in HTML spec.
-  LocalDOMWindow* defaultView() const;
+  DOMWindow* defaultView() const;
 
   bool IsHTMLDocument() const { return document_classes_ & kHTMLDocumentClass; }
   bool IsXHTMLDocument() const {
@@ -474,23 +594,25 @@ class CORE_EXPORT Document : public ContainerNode,
   bool IsViewSource() const { return is_view_source_; }
   void SetIsViewSource(bool);
 
-  bool IsImmersiveArOverlay() const { return is_immersive_ar_overlay_; }
-  void SetIsImmersiveArOverlay(bool);
+  // WebXR DOM Overlay support, cf https://immersive-web.github.io/dom-overlays/
+  // True if there's an ongoing "immersive-ar" WebXR session with a DOM Overlay
+  // element active. This is needed for applying the :xr-overlay pseudoclass
+  // and compositing/paint integration for this mode.
+  bool IsXrOverlay() const { return is_xr_overlay_; }
+  // Called from modules/xr's XRSystem when DOM Overlay mode starts and ends.
+  // This lazy-loads the UA stylesheet and updates the overlay element's
+  // pseudoclass.
+  void SetIsXrOverlay(bool enabled, Element* overlay_element);
 
   bool SawElementsInKnownNamespaces() const {
     return saw_elements_in_known_namespaces_;
   }
 
-  bool CanExecuteScripts(ReasonForCallingCanExecuteScripts) override;
   bool IsScriptExecutionReady() const {
     return HaveImportsLoaded() && HaveScriptBlockingStylesheetsLoaded();
   }
 
   bool IsForExternalHandler() const { return is_for_external_handler_; }
-  void SetIsForExternalHandler() {
-    DCHECK(!is_for_external_handler_);
-    is_for_external_handler_ = true;
-  }
 
   // This is a DOM function.
   StyleSheetList& StyleSheets();
@@ -551,14 +673,13 @@ class CORE_EXPORT Document : public ContainerNode,
   void UpdateStyleAndLayoutTreeForNode(const Node*);
   void UpdateStyleAndLayoutTreeForSubtree(const Node*);
 
-  enum ForcedLayoutStatus { IsForcedLayout, IsNotForcedLayout };
-  void UpdateStyleAndLayout(ForcedLayoutStatus = IsForcedLayout);
+  void UpdateStyleAndLayout(DocumentUpdateReason);
   void LayoutUpdated();
   enum RunPostLayoutTasks {
     kRunPostLayoutTasksAsynchronously,
     kRunPostLayoutTasksSynchronously,
   };
-  void UpdateStyleAndLayoutForNode(const Node*);
+  void UpdateStyleAndLayoutForNode(const Node*, DocumentUpdateReason);
   scoped_refptr<const ComputedStyle> StyleForPage(int page_index);
 
   // Ensures that location-based data will be valid for a given node.
@@ -569,7 +690,8 @@ class CORE_EXPORT Document : public ContainerNode,
   //
   // Due to this you should only call this if you definitely need valid location
   // data, otherwise use one of the |UpdateStyleAndLayout...| methods above.
-  void EnsurePaintLocationDataValidForNode(const Node*);
+  void EnsurePaintLocationDataValidForNode(const Node*,
+                                           DocumentUpdateReason reason);
 
   // Returns true if page box (margin boxes and page borders) is visible.
   bool IsPageBoxVisible(int page_index);
@@ -585,9 +707,7 @@ class CORE_EXPORT Document : public ContainerNode,
                                   int& margin_bottom,
                                   int& margin_left);
 
-  ResourceFetcher* Fetcher() const override { return fetcher_.Get(); }
-
-  using ExecutionContext::NotifyContextDestroyed;
+  ResourceFetcher* Fetcher() const { return fetcher_.Get(); }
 
   void Initialize();
   virtual void Shutdown();
@@ -709,7 +829,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // Return the document URL, or an empty URL if it's unavailable.
   // This is not an implementation of web-exposed Document.prototype.URL.
-  const KURL& Url() const final { return url_; }
+  const KURL& Url() const { return url_; }
   void SetURL(const KURL&);
 
   // Bind the url to document.url, if unavailable bind to about:blank.
@@ -720,7 +840,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // Document base URL.
   // https://html.spec.whatwg.org/C/#document-base-url
-  const KURL& BaseURL() const final;
+  const KURL& BaseURL() const;
   void SetBaseURLOverride(const KURL&);
   const KURL& BaseURLOverride() const { return base_url_override_; }
   KURL ValidBaseElementURL() const;
@@ -734,23 +854,16 @@ class CORE_EXPORT Document : public ContainerNode,
   // Creates URL based on passed relative url and this documents base URL.
   // Depending on base URL value it is possible that parent document
   // base URL will be used instead. Uses CompleteURLWithOverride internally.
-  KURL CompleteURL(const String&) const final;
+  KURL CompleteURL(const String&) const;
   // Creates URL based on passed relative url and passed base URL override.
   KURL CompleteURLWithOverride(const String&,
                                const KURL& base_url_override) const;
 
+  const KURL& WebBundleClaimedUrl() const { return web_bundle_claimed_url_; }
+
   // Determines whether a new document should take on the same origin as that of
   // the document which created it.
   static bool ShouldInheritSecurityOriginFromOwner(const KURL&);
-
-  String UserAgent() const final;
-  void DisableEval(const String& error_message) final;
-
-  // TODO(https://crbug.com/880986): Implement Document's HTTPS state in more
-  // spec-conformant way.
-  HttpsState GetHttpsState() const final {
-    return CalculateHttpsState(GetSecurityOrigin());
-  }
 
   CSSStyleSheet& ElementSheet();
 
@@ -798,6 +911,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // https://html.spec.whatwg.org/C/#documentreadystate
   enum DocumentReadyState { kLoading, kInteractive, kComplete };
 
+  DocumentReadyState GetReadyState() const { return ready_state_; }
   void SetReadyState(DocumentReadyState);
   bool IsLoadCompleted() const;
 
@@ -822,8 +936,8 @@ class CORE_EXPORT Document : public ContainerNode,
     had_keyboard_event_ = had_keyboard_event;
   }
   bool HadKeyboardEvent() const { return had_keyboard_event_; }
-  void SetLastFocusType(WebFocusType last_focus_type);
-  WebFocusType LastFocusType() const { return last_focus_type_; }
+  void SetLastFocusType(mojom::blink::FocusType last_focus_type);
+  mojom::blink::FocusType LastFocusType() const { return last_focus_type_; }
   bool SetFocusedElement(Element*, const FocusParams&);
   void ClearFocusedElement();
   Element* FocusedElement() const { return focused_element_.Get(); }
@@ -843,7 +957,8 @@ class CORE_EXPORT Document : public ContainerNode,
   void FlushAutofocusCandidates();
   void FinalizeAutofocus();
   void SetSequentialFocusNavigationStartingPoint(Node*);
-  Element* SequentialFocusNavigationStartingPoint(WebFocusType) const;
+  Element* SequentialFocusNavigationStartingPoint(
+      mojom::blink::FocusType) const;
 
   void SetActiveElement(Element*);
   Element* GetActiveElement() const { return active_element_.Get(); }
@@ -931,13 +1046,14 @@ class CORE_EXPORT Document : public ContainerNode,
     kAnimationEndListener = 1 << 6,
     kAnimationStartListener = 1 << 7,
     kAnimationIterationListener = 1 << 8,
-    kTransitionRunListener = 1 << 9,
-    kTransitionStartListener = 1 << 10,
-    kTransitionEndListener = 1 << 11,
-    kTransitionCancelListener = 1 << 12,
-    kScrollListener = 1 << 13,
-    kLoadListenerAtCapturePhaseOrAtStyleElement = 1 << 14
-    // 1 bit remaining
+    kAnimationCancelListener = 1 << 9,
+    kTransitionRunListener = 1 << 10,
+    kTransitionStartListener = 1 << 11,
+    kTransitionEndListener = 1 << 12,
+    kTransitionCancelListener = 1 << 13,
+    kScrollListener = 1 << 14,
+    kLoadListenerAtCapturePhaseOrAtStyleElement = 1 << 15,
+    // 0 bits remaining
   };
 
   bool HasListenerType(ListenerType listener_type) const {
@@ -956,6 +1072,14 @@ class CORE_EXPORT Document : public ContainerNode,
   IntersectionObserverController* GetIntersectionObserverController();
   IntersectionObserverController& EnsureIntersectionObserverController();
 
+  // This is used to track IntersectionObservers for which this document is the
+  // explicit root. The IntersectionObserverController tracks *all* observers
+  // associated with this document; usually that's what you want.
+  ElementIntersectionObserverData*
+  DocumentExplicitRootIntersectionObserverData() const;
+  ElementIntersectionObserverData&
+  EnsureDocumentExplicitRootIntersectionObserverData();
+
   ResizeObserverController* GetResizeObserverController() const {
     return resize_observer_controller_;
   }
@@ -967,7 +1091,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void WillChangeFrameOwnerProperties(int margin_width,
                                       int margin_height,
-                                      ScrollbarMode,
+                                      mojom::blink::ScrollbarMode,
                                       bool is_display_none);
 
   String title() const { return title_; }
@@ -1013,12 +1137,18 @@ class CORE_EXPORT Document : public ContainerNode,
 
   scoped_refptr<const SecurityOrigin> TopFrameOrigin() const;
 
-  const KURL SiteForCookies() const;
+  net::SiteForCookies SiteForCookies() const;
+
+  // Permissions service helper methods to facilitate requesting and checking
+  // storage access permissions.
+  mojom::blink::PermissionService* GetPermissionService(
+      ExecutionContext* execution_context);
+  void PermissionServiceConnectionError();
 
   // Storage Access API methods to check for or request access to storage that
   // may otherwise be blocked.
   ScriptPromise hasStorageAccess(ScriptState* script_state) const;
-  ScriptPromise requestStorageAccess(ScriptState* script_state) const;
+  ScriptPromise requestStorageAccess(ScriptState* script_state);
 
   // The following implements the rule from HTML 4 for what valid names are.
   // To get this right for all the XML cases, we probably have to improve this
@@ -1128,10 +1258,6 @@ class CORE_EXPORT Document : public ContainerNode,
   bool IsDNSPrefetchEnabled() const { return is_dns_prefetch_enabled_; }
   void ParseDNSPrefetchControlHeader(const String&);
 
-  void TasksWerePaused() final;
-  void TasksWereUnpaused() final;
-  bool TasksNeedPause() final;
-
   void FinishedParsing();
 
   void SetEncodingData(const DocumentEncodingData& new_data);
@@ -1190,9 +1316,6 @@ class CORE_EXPORT Document : public ContainerNode,
   void SetContainsPlugins() { contains_plugins_ = true; }
   bool ContainsPlugins() const { return contains_plugins_; }
 
-  bool IsContextThread() const final;
-  bool IsJSExecutionForbidden() const final { return false; }
-
   void EnqueueResizeEvent();
   void EnqueueScrollEventForNode(Node*);
   void EnqueueScrollEndEventForNode(Node*);
@@ -1246,8 +1369,7 @@ class CORE_EXPORT Document : public ContainerNode,
                           const IdleRequestOptions*);
   void CancelIdleCallback(int id);
 
-  EventTarget* ErrorEventTarget() final;
-  void ExceptionThrown(ErrorEvent*) final;
+  ScriptedAnimationController& GetScriptedAnimationController();
 
   void InitDNSPrefetch();
 
@@ -1299,11 +1421,17 @@ class CORE_EXPORT Document : public ContainerNode,
 
   AnimationClock& GetAnimationClock();
   const AnimationClock& GetAnimationClock() const;
+  DocumentAnimations& GetDocumentAnimations() const {
+    return *document_animations_;
+  }
   DocumentTimeline& Timeline() const { return *timeline_; }
   PendingAnimations& GetPendingAnimations() { return *pending_animations_; }
   WorkletAnimationController& GetWorkletAnimationController() {
     return *worklet_animation_controller_;
   }
+
+  void AttachCompositorTimeline(CompositorAnimationTimeline*) const;
+  void DetachCompositorTimeline(CompositorAnimationTimeline*) const;
 
   void AddToTopLayer(Element*, const Element* before = nullptr);
   void RemoveFromTopLayer(Element*);
@@ -1322,9 +1450,10 @@ class CORE_EXPORT Document : public ContainerNode,
   // for controls outside of forms as well.
   void DidAssociateFormControl(Element*);
 
-  void AddConsoleMessageImpl(ConsoleMessage*, bool discard_duplicates) final;
+  void AddConsoleMessage(ConsoleMessage* message,
+                         bool discard_duplicates = false);
+  void AddInspectorIssue(InspectorIssue*);
 
-  LocalDOMWindow* ExecutingWindow() const final;
   LocalFrame* ExecutingFrame();
 
   DocumentLifecycle& Lifecycle() { return lifecycle_; }
@@ -1347,6 +1476,7 @@ class CORE_EXPORT Document : public ContainerNode,
   void ClearResizedForViewportUnits();
 
   void UpdateActiveStyle();
+  void InvalidateStyleAndLayoutForFontUpdates();
 
   void Trace(Visitor*) override;
 
@@ -1354,17 +1484,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void PlatformColorsChanged();
 
-  HostsUsingFeatures::Value& HostsUsingFeaturesValue() {
-    return hosts_using_features_value_;
-  }
-
   NthIndexCache* GetNthIndexCache() const { return nth_index_cache_; }
-
-  bool IsSecureContext(String& error_message) const override;
-  bool IsSecureContext() const override;
-  void SetSecureContextStateForTesting(SecureContextState state) {
-    secure_context_state_ = state;
-  }
 
   CanvasFontCache* GetCanvasFontCache();
 
@@ -1381,27 +1501,10 @@ class CORE_EXPORT Document : public ContainerNode,
   int NodeCount() const { return node_count_; }
 
   SnapCoordinator& GetSnapCoordinator();
+  void PerformScrollSnappingTasks();
 
   void DidEnforceInsecureRequestPolicy();
   void DidEnforceInsecureNavigationsSet();
-
-  // Temporary flag for some UseCounter items. crbug.com/859391.
-  enum class InDOMNodeRemovedHandlerState {
-    kNone,
-    kDOMNodeRemoved,
-    kDOMNodeRemovedFromDocument
-  };
-  void SetInDOMNodeRemovedHandlerState(InDOMNodeRemovedHandlerState state) {
-    in_dom_node_removed_handler_state_ = state;
-  }
-  InDOMNodeRemovedHandlerState GetInDOMNodeRemovedHandlerState() const {
-    return in_dom_node_removed_handler_state_;
-  }
-  bool InDOMNodeRemovedHandler() const {
-    return in_dom_node_removed_handler_state_ !=
-           InDOMNodeRemovedHandlerState::kNone;
-  }
-  void CountDetachingNodeAccessInDOMNodeRemovedHandler();
 
   bool MayContainV0Shadow() const { return may_contain_v0_shadow_; }
 
@@ -1430,21 +1533,11 @@ class CORE_EXPORT Document : public ContainerNode,
   // text field in a non-secure context.
   void MaybeQueueSendDidEditFieldInInsecureContext();
 
-  CoreProbeSink* GetProbeSink() final;
-  service_manager::InterfaceProvider* GetInterfaceProvider() final;
-
-  BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() final;
-
   // May return nullptr when PerformanceManager instrumentation is disabled.
   DocumentResourceCoordinator* GetResourceCoordinator();
 
-  // Apply pending feature policy headers.
-  void ApplyPendingFeaturePolicyHeaders();
-
-  // Set the report-only feature policy on this document in response to an HTTP
-  // Feature-Policy-Report-Only header.
-  void ApplyReportOnlyFeaturePolicyFromHeader(
-      const String& feature_policy_report_only_header);
+  // Apply pending feature policy headers and document policy headers.
+  void ApplyPendingFramePolicyHeaders();
 
   const AtomicString& bgColor() const;
   void setBgColor(const AtomicString&);
@@ -1469,10 +1562,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // attempts (both successful and not successful) by the page.
   FontMatchingMetrics* GetFontMatchingMetrics();
 
-  // May return nullptr.
-  FrameOrWorkerScheduler* GetScheduler() override;
-
-  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner(TaskType) override;
+  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner(TaskType);
 
   void RecordUkmOutliveTimeAfterShutdown(int outlive_time_count);
 
@@ -1527,34 +1617,53 @@ class CORE_EXPORT Document : public ContainerNode,
   LazyLoadImageObserver& EnsureLazyLoadImageObserver();
 
   WindowAgent& GetWindowAgent();
-  WindowAgentFactory* GetWindowAgentFactory() { return window_agent_factory_; }
-
-  void CountPotentialFeaturePolicyViolation(
-      mojom::FeaturePolicyFeature) const override;
-  void ReportFeaturePolicyViolation(
-      mojom::FeaturePolicyFeature,
-      mojom::FeaturePolicyDisposition,
-      const String& message = g_empty_string,
-      // If source_file is set to empty string,
-      // current JS file would be used as source_file instead.
-      const String& source_file = g_empty_string) const override;
+  WindowAgentFactory* GetWindowAgentFactory() const {
+    return window_agent_factory_;
+  }
 
   void IncrementNumberOfCanvases();
 
-  void ProcessJavaScriptUrl(const KURL&, ContentSecurityPolicyDisposition);
+  void ProcessJavaScriptUrl(const KURL&, network::mojom::CSPDisposition);
 
   // Functions to keep count of display locks in this document.
-  void AddActivationBlockingDisplayLock();
-  void RemoveActivationBlockingDisplayLock();
-  int ActivationBlockingDisplayLockCount() const;
+  void IncrementDisplayLockBlockingAllActivation();
+  void DecrementDisplayLockBlockingAllActivation();
+  int DisplayLockBlockingAllActivationCount() const;
 
   void AddLockedDisplayLock();
   void RemoveLockedDisplayLock();
   int LockedDisplayLockCount() const;
 
+  void AddDisplayLockContext(DisplayLockContext*);
+  void RemoveDisplayLockContext(DisplayLockContext*);
+  int DisplayLockCount() const;
+  void NotifySelectionRemovedFromDisplayLocks();
+
   // Manage the element's observation for display lock activation.
   void RegisterDisplayLockActivationObservation(Element*);
   void UnregisterDisplayLockActivationObservation(Element*);
+
+  class ScopedForceActivatableDisplayLocks {
+    STACK_ALLOCATED();
+
+   public:
+    ScopedForceActivatableDisplayLocks(ScopedForceActivatableDisplayLocks&&);
+    ~ScopedForceActivatableDisplayLocks();
+
+    ScopedForceActivatableDisplayLocks& operator=(
+        ScopedForceActivatableDisplayLocks&&);
+
+   private:
+    friend Document;
+    ScopedForceActivatableDisplayLocks(Document*);
+
+    Document* document_;
+  };
+
+  ScopedForceActivatableDisplayLocks GetScopedForceActivatableLocks();
+  bool ActivatableDisplayLocksForced() const {
+    return activatable_display_locks_forced_ > 0;
+  }
 
   // Deferred compositor commits are disallowed by default, and are only allowed
   // for same-origin navigations to an html document fetched with http.
@@ -1581,10 +1690,10 @@ class CORE_EXPORT Document : public ContainerNode,
   // inside a cross-process frame (MimeHandlerView).
   void SetShowBeforeUnloadDialog(bool show_dialog);
 
-  TrustedTypePolicyFactory* GetTrustedTypes() const override;
-  bool RequireTrustedTypes() const override;
-
   void ColorSchemeChanged();
+
+  // A new vision deficiency is being emulated through DevTools.
+  void VisionDeficiencyChanged();
 
   void ClearIsolatedWorldCSPForTesting(int32_t world_id);
 
@@ -1612,14 +1721,19 @@ class CORE_EXPORT Document : public ContainerNode,
   // NOTE: only for use in testing.
   bool IsAnimatedPropertyCounted(CSSPropertyID property) const;
   void ClearUseCounterForTesting(mojom::WebFeature);
-  void SetSecurityOrigin(scoped_refptr<SecurityOrigin>) final;
 
   // Bind Content Security Policy to this document. This will cause the
   // CSP to resolve the 'self' attribute and all policies will then be
   // applied to this document.
   void BindContentSecurityPolicy();
 
+  void UpdateForcedColors();
   bool InForcedColorsMode() const;
+
+  // Returns true if the subframe document is cross-site to the main frame. If
+  // we can't tell whether the document was ever cross-site or not (e.g. it is
+  // not the active Document in a browsing context), return false.
+  bool IsCrossSiteSubframe() const;
 
   // Capture the toggle event during parsing either by HTML parser or XML
   // parser.
@@ -1653,6 +1767,28 @@ class CORE_EXPORT Document : public ContainerNode,
   }
 #endif
 
+  void ApplyScrollRestorationLogic();
+
+  void MarkHasFindInPageRequest();
+  void MarkHasFindInPageSubtreeVisibilityActiveMatch();
+
+  void ScheduleFormSubmission(HTMLFormElement* form_element);
+  void CancelFormSubmissions();
+
+  HeapObserverList<SynchronousMutationObserver>&
+  SynchronousMutationObserverList() {
+    return synchronous_mutation_observer_list_;
+  }
+
+  void NotifyUpdateCharacterData(CharacterData* character_data,
+                                 unsigned offset,
+                                 unsigned old_length,
+                                 unsigned new_length);
+  void NotifyChangeChildren(const ContainerNode& container);
+
+  FontPreloadManager& GetFontPreloadManager() { return font_preload_manager_; }
+  void FontPreloadingFinishedOrTimedOut();
+
  protected:
   void ClearXMLVersion() { xml_version_ = String(); }
 
@@ -1670,17 +1806,16 @@ class CORE_EXPORT Document : public ContainerNode,
   friend class NthIndexCache;
   FRIEND_TEST_ALL_PREFIXES(FrameFetchContextSubresourceFilterTest,
                            DuringOnFreeze);
+  FRIEND_TEST_ALL_PREFIXES(DocumentTest, FindInPageUkm);
   class NetworkStateObserver;
-  class SecurityContextInit;
 
   Document(const DocumentInit& initization,
-           SecurityContextInit init_helper,
+           const SecurityContextInit& init_helper,
            DocumentClassFlags document_classes);
 
-  // Post initialization of the object handling of the feature policy.
-  void FeaturePolicyInitialized(
-      const DocumentInit& document_initializer,
-      const SecurityContextInit& security_initializer);
+  // Post initialization of the object handling of both feature policy and
+  // document policy.
+  void PoliciesInitialized(const DocumentInit& document_initializer);
 
   friend class AXContext;
   void AddAXContext(AXContext*);
@@ -1693,13 +1828,8 @@ class CORE_EXPORT Document : public ContainerNode,
   bool IsElementNode() const =
       delete;  // This will catch anyone doing an unnecessary check.
 
-  ScriptedAnimationController& EnsureScriptedAnimationController();
   ScriptedIdleTaskController& EnsureScriptedIdleTaskController();
-  void InitSecurityContext(const DocumentInit&,
-                           const SecurityContextInit& security_initializer);
-  void InitSecureContextState();
-  SecurityContext& GetSecurityContext() final { return *this; }
-  const SecurityContext& GetSecurityContext() const final { return *this; }
+  void InitSecurityContext(const DocumentInit&);
 
   bool HasPendingVisualUpdate() const {
     return lifecycle_.GetState() == DocumentLifecycle::kVisualUpdatePending;
@@ -1811,6 +1941,8 @@ class CORE_EXPORT Document : public ContainerNode,
   void ProcessDisplayLockActivationObservation(
       const HeapVector<Member<IntersectionObserverEntry>>&);
 
+  void ExecuteFormSubmission(HTMLFormElement* form_element);
+
   DocumentLifecycle lifecycle_;
 
   bool evaluate_media_queries_on_style_recalc_;
@@ -1824,6 +1956,14 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<LocalFrame> frame_;
   Member<LocalDOMWindow> dom_window_;
   Member<HTMLImportsController> imports_controller_;
+
+  SecurityContext security_context_;
+
+  // Document::CountUse() attributes the feature counts to the DocumentLoader
+  // which is returned by Loader(). During construction Loader() returns null,
+  // so we use this UseCounter instead.
+  // TODO(dgozman): we should probably explicitly set and clear loader instead.
+  Member<UseCounter> use_counter_during_construction_;
 
   // The document of creator browsing context for frame-less documents such as
   // documents created by DOMParser and DOMImplementation.
@@ -1850,6 +1990,8 @@ class CORE_EXPORT Document : public ContainerNode,
   KURL cookie_url_;         // The URL to use for cookie access.
   std::unique_ptr<OriginAccessEntry> access_entry_from_url_;
 
+  KURL web_bundle_claimed_url_;
+
   AtomicString base_target_;
 
   // Mime-type of the document in case it was cloned or created by XHR.
@@ -1872,16 +2014,16 @@ class CORE_EXPORT Document : public ContainerNode,
   struct PendingJavascriptUrl {
    public:
     PendingJavascriptUrl(const KURL& input_url,
-                         ContentSecurityPolicyDisposition input_disposition)
+                         network::mojom::CSPDisposition input_disposition)
         : url(input_url), disposition(input_disposition) {}
     KURL url;
-    ContentSecurityPolicyDisposition disposition;
+    network::mojom::CSPDisposition disposition;
   };
   Vector<PendingJavascriptUrl> pending_javascript_urls_;
 
   // https://html.spec.whatwg.org/C/#autofocus-processed-flag
   bool autofocus_processed_flag_ = false;
-  WebFocusType last_focus_type_;
+  mojom::blink::FocusType last_focus_type_;
   bool had_keyboard_event_;
   TaskRunnerTimer<Document> clear_focused_element_timer_;
   // https://html.spec.whatwg.org/C/#autofocus-candidates
@@ -1895,6 +2037,9 @@ class CORE_EXPORT Document : public ContainerNode,
   UserActionElementSet user_action_elements_;
   Member<RootScrollerController> root_scroller_controller_;
 
+  double overscroll_accumulated_delta_x_ = 0;
+  double overscroll_accumulated_delta_y_ = 0;
+
   uint64_t dom_tree_version_;
   static uint64_t global_tree_version_;
 
@@ -1907,6 +2052,9 @@ class CORE_EXPORT Document : public ContainerNode,
   uint16_t listener_types_;
 
   MutationObserverOptions mutation_observer_types_;
+
+  Member<ElementIntersectionObserverData>
+      document_explicit_root_intersection_observer_data_;
 
   Member<StyleEngine> style_engine_;
   Member<StyleSheetList> style_sheet_list_;
@@ -1999,7 +2147,7 @@ class CORE_EXPORT Document : public ContainerNode,
   DocumentClassFlags document_classes_;
 
   bool is_view_source_;
-  bool is_immersive_ar_overlay_;
+  bool is_xr_overlay_;
   bool saw_elements_in_known_namespaces_;
   bool is_srcdoc_document_;
   bool is_mobile_document_;
@@ -2039,6 +2187,7 @@ class CORE_EXPORT Document : public ContainerNode,
       HashMap<AtomicString, std::unique_ptr<Locale>>;
   LocaleIdentifierToLocaleMap locale_cache_;
 
+  Member<DocumentAnimations> document_animations_;
   Member<DocumentTimeline> timeline_;
   Member<PendingAnimations> pending_animations_;
   Member<WorkletAnimationController> worklet_animation_controller_;
@@ -2054,8 +2203,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   ParserSynchronizationPolicy parser_sync_policy_;
 
-  HostsUsingFeatures::Value hosts_using_features_value_;
-
   Member<CanvasFontCache> canvas_font_cache_;
 
   Member<IntersectionObserverController> intersection_observer_controller_;
@@ -2063,9 +2210,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   int node_count_;
 
-  // Temporary flag for some UseCounter items. crbug.com/859391.
-  InDOMNodeRemovedHandlerState in_dom_node_removed_handler_state_ =
-      InDOMNodeRemovedHandlerState::kNone;
   bool may_contain_v0_shadow_ = false;
 
   Member<SnapCoordinator> snap_coordinator_;
@@ -2075,8 +2219,6 @@ class CORE_EXPORT Document : public ContainerNode,
   bool logged_field_edit_;
 
   TaskHandle sensitive_input_edited_task_;
-
-  SecureContextState secure_context_state_;
 
   Member<NetworkStateObserver> network_state_observer_;
 
@@ -2111,10 +2253,14 @@ class CORE_EXPORT Document : public ContainerNode,
   // The number of canvas elements on the document
   int num_canvases_ = 0;
 
-  // Number of activation blocking display locks currently in this document.
-  int activation_blocking_display_lock_count_ = 0;
+  // Number of display locks in this document that block all activation.
+  int display_lock_blocking_all_activation_count_ = 0;
   // Number of locked display locks in the document.
   int locked_display_lock_count_ = 0;
+  // All of this document's display lock contexts.
+  HeapHashSet<WeakMember<DisplayLockContext>> display_lock_contexts_;
+  // If non-zero, then the activatable locks have been globally forced.
+  int activatable_display_locks_forced_ = 0;
 
   bool deferred_compositor_commit_is_allowed_ = false;
 
@@ -2122,7 +2268,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // types that are handled externally. The document in this case is the
   // counterpart to a PluginDocument except that it contains a FrameView as
   // opposed to a PluginView.
-  bool is_for_external_handler_ = false;
+  bool is_for_external_handler_;
 
 #if DCHECK_IS_ON()
   // Allow traversal of Shadow DOM V0 traversal with dirty distribution.
@@ -2138,9 +2284,21 @@ class CORE_EXPORT Document : public ContainerNode,
   // We don't use std::bitset to avoid to include feature_policy.mojom-blink.h.
   mutable Vector<bool> potentially_violated_features_;
 
-  // Pending parsed headers to send to browser after DidCommitNavigation
+  // Pending feature policy headers to send to browser after DidCommitNavigation
   // IPC.
-  ParsedFeaturePolicy pending_parsed_headers_;
+  ParsedFeaturePolicy pending_fp_headers_;
+
+  // Pending document policy headers to send to browser after
+  // DidCommitNavigation IPC. Note: pending_dp_headers is the document policy
+  // state used to initialize |document_policy_| in SecurityContext. Verifying
+  // its integrity against required_document_policy has already been done in
+  // DocumentLoader.
+  DocumentPolicy::FeatureState pending_dp_headers_;
+
+  // Tracks which feature policies have already been parsed, so as not to count
+  // them multiple times.
+  // The size of this vector is 0 until FeaturePolicyFeatureObserved is called.
+  Vector<bool> parsed_feature_policies_;
 
   AtomicString override_last_modified_;
 
@@ -2163,7 +2321,7 @@ class CORE_EXPORT Document : public ContainerNode,
   std::unique_ptr<DocumentResourceCoordinator> resource_coordinator_;
 
   // Used for document.cookie. May be null.
-  std::unique_ptr<CookieJar> cookie_jar_;
+  Member<CookieJar> cookie_jar_;
 
   // A dummy scheduler to return when the document is detached.
   // All operations on it result in no-op, but due to this it's safe to
@@ -2185,7 +2343,26 @@ class CORE_EXPORT Document : public ContainerNode,
   HeapHashMap<WeakMember<Element>, Member<ExplicitlySetAttrElementsMap>>
       element_explicitly_set_attr_elements_map_;
 
+  HeapObserverList<SynchronousMutationObserver>
+      synchronous_mutation_observer_list_;
+
   Member<IntersectionObserver> display_lock_activation_observer_;
+
+  bool in_forced_colors_mode_;
+
+  bool applying_scroll_restoration_logic_ = false;
+
+  // Records find-in-page metrics, which are sent to UKM on shutdown.
+  bool had_find_in_page_request_ = false;
+  bool had_find_in_page_render_subtree_active_match_ = false;
+
+  HeapHashMap<Member<HTMLFormElement>, TaskHandle> form_to_pending_submission_;
+
+  // Mojo remote used to determine if the document has permission to access
+  // storage or not.
+  HeapMojoRemote<mojom::blink::PermissionService> permission_service_;
+
+  FontPreloadManager font_preload_manager_;
 };
 
 extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<Document>;
@@ -2217,9 +2394,6 @@ Node* EventTargetNodeForDocument(Document*);
 
 template <>
 struct DowncastTraits<Document> {
-  static bool AllowFrom(const ExecutionContext& context) {
-    return context.IsDocument();
-  }
   static bool AllowFrom(const Node& node) { return node.IsDocumentNode(); }
 };
 

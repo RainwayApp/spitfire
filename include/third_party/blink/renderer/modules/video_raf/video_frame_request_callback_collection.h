@@ -5,10 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_VIDEO_RAF_VIDEO_FRAME_REQUEST_CALLBACK_COLLECTION_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_VIDEO_RAF_VIDEO_FRAME_REQUEST_CALLBACK_COLLECTION_H_
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame_metadata.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame_request_callback.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/video_raf/video_frame_metadata.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
@@ -83,8 +83,7 @@ class MODULES_EXPORT VideoFrameRequestCallbackCollection final
   // Invokes all callbacks with the provided information.
   void ExecuteFrameCallbacks(double high_res_now_ms, const VideoFrameMetadata*);
 
-  bool HasFrameCallback() const { return frame_callbacks_.size(); }
-  bool IsEmpty() const { return !HasFrameCallback(); }
+  bool IsEmpty() const { return !frame_callbacks_.size(); }
 
   virtual void Trace(Visitor*);
   const char* NameInHeapSnapshot() const override {

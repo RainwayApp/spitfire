@@ -39,10 +39,13 @@
 
 namespace blink {
 
+class CSSFontSelector;
 class ChromeClient;
 class Document;
 class Element;
 class Locale;
+class PagePopup;
+class PagePopupController;
 
 class CORE_EXPORT PagePopupClient {
  public:
@@ -53,12 +56,13 @@ class CORE_EXPORT PagePopupClient {
   //  - window.setValueAndClosePopup(number, string).
   virtual void WriteDocument(SharedBuffer*) = 0;
 
-  // This is called after the document is ready to do additionary setup.
-  virtual void SelectFontsFromOwnerDocument(Document&) = 0;
-
   virtual Element& OwnerElement() = 0;
 
   virtual ChromeClient& GetChromeClient() = 0;
+
+  virtual CSSFontSelector* CreateCSSFontSelector(Document& popup_document);
+
+  virtual PagePopupController* CreatePagePopupController(PagePopup&);
 
   // Returns effective zoom factor of ownerElement, or the page zoom factor if
   // the effective zoom factor is not available.

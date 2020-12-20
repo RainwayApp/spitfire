@@ -32,25 +32,31 @@
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_VIEW_H_
 
 #include "base/time/time.h"
+#include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "third_party/blink/public/common/page/page_visibility_state.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-shared.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
 #include "third_party/blink/public/platform/web_drag_operation.h"
-#include "third_party/blink/public/platform/web_focus_type.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cc {
 class PaintCanvas;
+struct BrowserControlsParams;
 }
 
 namespace gfx {
 class Point;
+class PointF;
 class Rect;
+class SizeF;
 }
 
 namespace blink {
 class PageScheduler;
 class WebFrame;
+class WebFrameWidget;
 class WebHitTestResult;
 class WebLocalFrame;
 class WebPageImportanceSignals;
@@ -61,10 +67,7 @@ class WebSettings;
 class WebString;
 class WebViewClient;
 class WebWidget;
-struct PluginAction;
 struct WebDeviceEmulationParams;
-struct WebFloatPoint;
-struct WebFloatSize;
 struct WebRect;
 struct WebSize;
 struct WebTextAutosizerPageInfo;
@@ -95,10 +98,14 @@ class WebView {
   // LayerTreeView will not be set for the WebWidget.
   // TODO(danakj): This field should go away as WebWidgets always composite
   // their output.
-  BLINK_EXPORT static WebView* Create(WebViewClient*,
-                                      bool is_hidden,
-                                      bool compositing_enabled,
-                                      WebView* opener);
+  // |page_handle| is only set for views that are part of a WebContents' frame
+  // tree.
+  BLINK_EXPORT static WebView* Create(
+      WebViewClient*,
+      bool is_hidden,
+      bool compositing_enabled,
+      WebView* opener,
+      mojo::ScopedInterfaceEndpointHandle page_handle);
 
   // Destroys the WebView.
   virtual void Close() = 0;
@@ -161,11 +168,6 @@ class WebView {
   // Focus the first (last if reverse is true) focusable node.
   virtual void SetInitialFocus(bool reverse) = 0;
 
-  // Clears the focused element (and selection if a text field is focused)
-  // to ensure that a text field on the page is not eating keystrokes we
-  // send it.
-  virtual void ClearFocusedElement() = 0;
-
   // Smooth scroll the root layer to |targetX|, |targetY| in |duration|.
   virtual void SmoothScroll(int target_x,
                             int target_y,
@@ -176,11 +178,19 @@ class WebView {
   virtual void AdvanceFocus(bool reverse) {}
 
   // Advance the focus from the frame |from| to the next in sequence
-  // (determined by WebFocusType) focusable element in frame |to|. Used when
+  // (determined by mojom::FocusType) focusable element in frame |to|. Used when
   // focus needs to advance to/from a cross-process frame.
-  virtual void AdvanceFocusAcrossFrames(WebFocusType,
+  virtual void AdvanceFocusAcrossFrames(mojom::FocusType,
                                         WebRemoteFrame* from,
                                         WebLocalFrame* to) {}
+
+  // Changes the zoom and scroll for zooming into an editable element
+  // with bounds |element_bounds_in_document| and caret bounds
+  // |caret_bounds_in_document|.
+  virtual void ZoomAndScrollToFocusedEditableElementRect(
+      const WebRect& element_bounds_in_document,
+      const WebRect& caret_bounds_in_document,
+      bool zoom_into_legible_scale) = 0;
 
   // Zoom ----------------------------------------------------------------
 
@@ -219,21 +229,14 @@ class WebView {
   // Sets the offset of the visual viewport within the main frame, in
   // fractional CSS pixels. The offset will be clamped so the visual viewport
   // stays within the frame's bounds.
-  virtual void SetVisualViewportOffset(const WebFloatPoint&) = 0;
+  virtual void SetVisualViewportOffset(const gfx::PointF&) = 0;
 
   // Gets the visual viewport's current offset within the page's main frame,
   // in fractional CSS pixels.
-  virtual WebFloatPoint VisualViewportOffset() const = 0;
+  virtual gfx::PointF VisualViewportOffset() const = 0;
 
   // Get the visual viewport's size in CSS pixels.
-  virtual WebFloatSize VisualViewportSize() const = 0;
-
-  // Resizes the unscaled (page scale = 1.0) visual viewport. Normally the
-  // unscaled visual viewport is the same size as the main frame. The passed
-  // size becomes the size of the viewport when page scale = 1. This
-  // is used to shrink the visible viewport to allow things like the ChromeOS
-  // virtual keyboard to overlay over content but allow scrolling it into view.
-  virtual void ResizeVisualViewport(const WebSize&) = 0;
+  virtual gfx::SizeF VisualViewportSize() const = 0;
 
   // Sets the default minimum, and maximum page scale. These will be overridden
   // by the page or by the overrides below if they are set.
@@ -269,11 +272,12 @@ class WebView {
   // WebView.
   virtual WebSize ContentsPreferredMinimumSize() = 0;
 
-  // Requests a page-scale animation based on the specified point/rect.
-  virtual void AnimateDoubleTapZoom(const gfx::Point&, const WebRect&) = 0;
+  // Check whether the preferred size has changed. This should only be called
+  // with up-to-date layout.
+  virtual void UpdatePreferredSize() = 0;
 
-  // Requests a page-scale animation based on the specified rect.
-  virtual void ZoomToFindInPageRect(const WebRect&) = 0;
+  // Indicates that view's preferred size changes will be sent to the browser.
+  virtual void EnablePreferredSizeChangedMode() = 0;
 
   // Sets the display mode of the web app.
   virtual void SetDisplayMode(blink::mojom::DisplayMode) = 0;
@@ -290,14 +294,29 @@ class WebView {
 
   virtual float ZoomFactorForDeviceScaleFactor() = 0;
 
+  // This method is used for testing.
   // Resize the view at the same time as changing the state of the top
   // controls. If |browser_controls_shrink_layout| is true, the embedder shrunk
   // the WebView size by the browser controls height.
   virtual void ResizeWithBrowserControls(
-      const WebSize&,
+      const WebSize& main_frame_widget_size,
       float top_controls_height,
       float bottom_controls_height,
       bool browser_controls_shrink_layout) = 0;
+  // This method is used for testing.
+  // Resizes the unscaled (page scale = 1.0) visual viewport. Normally the
+  // unscaled visual viewport is the same size as the main frame. The passed
+  // size becomes the size of the viewport when page scale = 1. This
+  // is used to shrink the visible viewport to allow things like the ChromeOS
+  // virtual keyboard to overlay over content but allow scrolling it into view.
+  virtual void ResizeVisualViewport(const WebSize&) = 0;
+
+  // Same as ResizeWithBrowserControls(const WebSize&,float,float,bool), but
+  // includes all browser controls params such as the min heights.
+  virtual void ResizeWithBrowserControls(
+      const WebSize& main_frame_widget_size,
+      const WebSize& visible_viewport_size,
+      cc::BrowserControlsParams browser_controls_params) = 0;
 
   // Same as ResizeWithBrowserControls, but keeps the same BrowserControl
   // settings.
@@ -316,10 +335,6 @@ class WebView {
   virtual void DisableAutoResizeMode() = 0;
 
   // Media ---------------------------------------------------------------
-
-  // Performs the specified plugin action on the node at the given location.
-  virtual void PerformPluginAction(const PluginAction&,
-                                   const gfx::Point& location) = 0;
 
   // Notifies WebView when audio is started or stopped.
   virtual void AudioStateChanged(bool is_audio_playing) = 0;
@@ -384,16 +399,6 @@ class WebView {
   // well.
   virtual void SetBaseBackgroundColor(SkColor) {}
 
-  // Overrides the page's background and base background color. You
-  // can use this to enforce a transparent background, which is useful if you
-  // want to have some custom background rendered behind the widget.
-  //
-  // These may are only called for composited WebViews.
-  virtual void SetBackgroundColorOverride(SkColor) {}
-  virtual void ClearBackgroundColorOverride() {}
-  virtual void SetBaseBackgroundColorOverride(SkColor) {}
-  virtual void ClearBaseBackgroundColorOverride() {}
-
   // Scheduling -----------------------------------------------------------
 
   virtual PageScheduler* Scheduler() const = 0;
@@ -451,6 +456,7 @@ class WebView {
   virtual void AddAutoplayFlags(int32_t flags) = 0;
   virtual void ClearAutoplayFlags() = 0;
   virtual int32_t AutoplayFlagsForTest() = 0;
+  virtual WebSize GetPreferredSizeForTest() = 0;
 
   // Non-composited support -----------------------------------------------
 
@@ -460,13 +466,13 @@ class WebView {
   // PaintCanvas being supplied by another (composited) WebView.
   //
   // Before calling PaintContent(), the caller must ensure the lifecycle of the
-  // widget's frame is clean by calling UpdateLifecycle(LifecycleUpdate::All).
-  // It is okay to call paint multiple times once the lifecycle is clean,
-  // assuming no other changes are made to the WebWidget (e.g., once
-  // events are processed, it should be assumed that another call to
-  // UpdateLifecycle is warranted before painting again). Paints starting from
-  // the main LayoutView's property tree state, thus ignoring any transient
-  // transormations (e.g. pinch-zoom, dev tools emulation, etc.).
+  // widget's frame is clean by calling
+  // UpdateLifecycle(WebLifecycleUpdate::All). It is okay to call paint multiple
+  // times once the lifecycle is clean, assuming no other changes are made to
+  // the WebWidget (e.g., once events are processed, it should be assumed that
+  // another call to UpdateLifecycle is warranted before painting again). Paints
+  // starting from the main LayoutView's property tree state, thus ignoring any
+  // transient transormations (e.g. pinch-zoom, dev tools emulation, etc.).
   //
   // The painting will be performed without applying the DevicePixelRatio as
   // scaling is expected to already be applied to the PaintCanvas by the
@@ -479,7 +485,7 @@ class WebView {
 
   // TODO(lfg): Remove this once the refactor of WebView/WebWidget is
   // completed.
-  virtual WebWidget* MainFrameWidget() = 0;
+  virtual WebFrameWidget* MainFrameWidget() = 0;
 
   // Portals --------------------------------------------------------------
 
@@ -488,7 +494,7 @@ class WebView {
 
   // Use to transfer TextAutosizer state from the local main frame renderer to
   // remote main frame renderers.
-  virtual void SetTextAutosizePageInfo(const WebTextAutosizerPageInfo&) {}
+  virtual void SetTextAutosizerPageInfo(const WebTextAutosizerPageInfo&) {}
 
  protected:
   ~WebView() = default;

@@ -63,7 +63,7 @@ class PLATFORM_EXPORT RawResource final : public Resource {
                                     RawResourceClient*);
 
   // Exposed for testing
-  static RawResource* CreateForTest(ResourceRequest request,
+  static RawResource* CreateForTest(const ResourceRequest& request,
                                     ResourceType type) {
     ResourceLoaderOptions options;
     return MakeGarbageCollected<RawResource>(request, type, options);
@@ -207,7 +207,6 @@ class PLATFORM_EXPORT RawResourceClientStateChecker final {
 
  public:
   RawResourceClientStateChecker();
-  ~RawResourceClientStateChecker();
 
   // Call before addClient()/removeClient() is called.
   void WillAddClient();

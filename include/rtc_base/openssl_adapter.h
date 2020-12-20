@@ -21,7 +21,6 @@
 #include "rtc_base/async_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/message_handler.h"
-#include "rtc_base/message_queue.h"
 #include "rtc_base/openssl_identity.h"
 #include "rtc_base/openssl_session_cache.h"
 #include "rtc_base/socket.h"
@@ -55,6 +54,7 @@ class OpenSSLAdapter final : public SSLAdapter, public MessageHandler {
   void SetMode(SSLMode mode) override;
   void SetCertVerifier(SSLCertificateVerifier* ssl_cert_verifier) override;
   void SetIdentity(SSLIdentity* identity) override;
+  void SetIdentity(std::unique_ptr<SSLIdentity> identity) override;
   void SetRole(SSLRole role) override;
   AsyncSocket* Accept(SocketAddress* paddr) override;
   int StartSSL(const char* hostname, bool restartable) override;

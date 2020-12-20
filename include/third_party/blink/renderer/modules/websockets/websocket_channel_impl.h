@@ -119,7 +119,8 @@ class MODULES_EXPORT WebSocketChannelImpl final
       mojo::PendingReceiver<network::mojom::blink::WebSocketClient>
           client_receiver,
       network::mojom::blink::WebSocketHandshakeResponsePtr,
-      mojo::ScopedDataPipeConsumerHandle readable) override;
+      mojo::ScopedDataPipeConsumerHandle readable,
+      mojo::ScopedDataPipeProducerHandle writable) override;
 
   // network::mojom::blink::WebSocketClient methods:
   void OnDataFrame(bool fin,
@@ -131,9 +132,7 @@ class MODULES_EXPORT WebSocketChannelImpl final
                      const String& reason) override;
   void OnClosingHandshake() override;
 
-  ExecutionContext* GetExecutionContext();
-
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) override;
 
  private:
   struct DataFrame final {
@@ -191,7 +190,7 @@ class MODULES_EXPORT WebSocketChannelImpl final
 
   void SendInternal(network::mojom::blink::WebSocketMessageType,
                     const char* data,
-                    wtf_size_t total_size,
+                    size_t total_size,
                     uint64_t* consumed_buffered_amount);
   void SendAndAdjustQuota(bool final,
                           network::mojom::blink::WebSocketMessageType,
@@ -247,7 +246,7 @@ class MODULES_EXPORT WebSocketChannelImpl final
   bool throttle_passed_ = false;
   bool has_initiated_opening_handshake_ = false;
   uint64_t sending_quota_ = 0;
-  wtf_size_t sent_size_of_top_message_ = 0;
+  size_t sent_size_of_top_message_ = 0;
   FrameScheduler::SchedulingAffectingFeatureHandle
       feature_handle_for_scheduler_;
 
@@ -266,6 +265,8 @@ class MODULES_EXPORT WebSocketChannelImpl final
   mojo::ScopedDataPipeConsumerHandle readable_;
   mojo::SimpleWatcher readable_watcher_;
   WTF::Deque<DataFrame> pending_data_frames_;
+
+  mojo::ScopedDataPipeProducerHandle writable_;
 
   const scoped_refptr<base::SingleThreadTaskRunner> file_reading_task_runner_;
 };

@@ -30,14 +30,19 @@ namespace cricket {
 
 // Constants that are important to API users
 // The size of the SCTP association send buffer. 256kB, the usrsctp default.
-constexpr int kSctpSendBufferSize = 2048 * 2048;
+constexpr int kSctpSendBufferSize = 256 * 1024;
 
 // The number of outgoing streams that we'll negotiate. Since stream IDs (SIDs)
 // are 0-based, the highest usable SID is 1023.
+//
 // It's recommended to use the maximum of 65535 in:
 // https://tools.ietf.org/html/draft-ietf-rtcweb-data-channel-13#section-6.2
+// However, we use 1024 in order to save memory. usrsctp allocates 104 bytes
+// for each pair of incoming/outgoing streams (on a 64-bit system), so 65535
+// streams would waste ~6MB.
+//
 // Note: "max" and "min" here are inclusive.
-constexpr uint16_t kMaxSctpStreams = 65535;
+constexpr uint16_t kMaxSctpStreams = 1024;
 constexpr uint16_t kMaxSctpSid = kMaxSctpStreams - 1;
 constexpr uint16_t kMinSctpSid = 0;
 
@@ -129,6 +134,9 @@ class SctpTransportInternal {
   // Parameter is SID; fired when closing procedure is complete (both incoming
   // and outgoing streams reset).
   sigslot::signal1<int> SignalClosingProcedureComplete;
+  // Fired when the underlying DTLS transport has closed due to an error
+  // or an incoming DTLS disconnect.
+  sigslot::signal0<> SignalClosedAbruptly;
 
   // Helper for debugging.
   virtual void set_debug_name_for_testing(const char* debug_name) = 0;

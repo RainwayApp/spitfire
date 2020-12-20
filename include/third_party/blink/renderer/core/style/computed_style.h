@@ -237,6 +237,7 @@ class ComputedStyle : public ComputedStyleBase,
   // Access to private Appearance() and HasAppearance().
   friend class LayoutTheme;
   friend class StyleAdjuster;
+  friend class StyleCascade;
   friend class css_longhand::WebkitAppearance;
   // Editing has to only reveal unvisited info.
   friend class ApplyStyleCommand;
@@ -252,6 +253,8 @@ class ComputedStyle : public ComputedStyleBase,
   friend class ColorPropertyFunctions;
   // Edits the background for media controls.
   friend class StyleAdjuster;
+  // Access to private SetFontInternal().
+  friend class FontBuilder;
 
   // FIXME: When we stop resolving currentColor at style time, these can be
   // removed.
@@ -897,7 +900,7 @@ class ComputedStyle : public ComputedStyleBase,
     SetZIndexInternal(0);
   }
 
-  bool SetEffectiveZoom(float);
+  CORE_EXPORT bool SetEffectiveZoom(float);
   float EffectiveZoom() const;
 
   // -webkit-clip-path
@@ -948,7 +951,6 @@ class ComputedStyle : public ComputedStyleBase,
 
   // color
   void SetColor(const Color&);
-  void ResolveInternalTextColor(const Color&);
 
   // line-height
   Length LineHeight() const;
@@ -1005,6 +1007,15 @@ class ComputedStyle : public ComputedStyleBase,
   }
   CORE_EXPORT bool SetFontDescription(const FontDescription&);
   bool HasIdenticalAscentDescentAndLineGap(const ComputedStyle& other) const;
+  bool HasFontRelativeUnits() const {
+    return HasEmUnits() || HasRemUnits() || HasGlyphRelativeUnits();
+  }
+
+  // If true, the ComputedStyle must be recalculated when fonts are updated.
+  bool DependsOnFontMetrics() const {
+    return HasGlyphRelativeUnits() || HasFontSizeAdjust();
+  }
+  bool CachedPseudoElementStylesDependOnFontMetrics() const;
 
   // font-size
   int FontSize() const { return GetFontDescription().ComputedPixelSize(); }
@@ -1074,9 +1085,6 @@ class ComputedStyle : public ComputedStyleBase,
   // word-spacing
   float WordSpacing() const { return GetFontDescription().WordSpacing(); }
   void SetWordSpacing(float);
-
-  // font-variant-numeric spacing
-  void SetFontVariantNumericSpacing(FontVariantNumeric::NumericSpacing);
 
   // orphans
   void SetOrphans(int16_t o) { SetOrphansInternal(clampTo<int16_t>(o, 1)); }
@@ -1214,8 +1222,11 @@ class ComputedStyle : public ComputedStyleBase,
   }
   bool IsDeprecatedFlexboxUsingFlexLayout() const {
     return IsDeprecatedWebkitBox() &&
-           RuntimeEnabledFeatures::WebkitBoxLayoutUsesFlexLayoutEnabled() &&
-           (!HasLineClamp() || BoxOrient() == EBoxOrient::kHorizontal);
+           !IsDeprecatedWebkitBoxWithVerticalLineClamp();
+  }
+  bool IsDeprecatedWebkitBoxWithVerticalLineClamp() const {
+    return IsDeprecatedWebkitBox() && BoxOrient() == EBoxOrient::kVertical &&
+           HasLineClamp();
   }
 
   // Variables.
@@ -1340,19 +1351,23 @@ class ComputedStyle : public ComputedStyleBase,
   // Grid utility functions.
   GridAutoFlow GetGridAutoFlow() const { return GridAutoFlowInternal(); }
   bool IsGridAutoFlowDirectionRow() const {
-    return (GridAutoFlowInternal() & kInternalAutoFlowDirectionRow) ==
+    return (GridAutoFlowInternal() &
+            static_cast<int>(kInternalAutoFlowDirectionRow)) ==
            kInternalAutoFlowDirectionRow;
   }
   bool IsGridAutoFlowDirectionColumn() const {
-    return (GridAutoFlowInternal() & kInternalAutoFlowDirectionColumn) ==
+    return (GridAutoFlowInternal() &
+            static_cast<int>(kInternalAutoFlowDirectionColumn)) ==
            kInternalAutoFlowDirectionColumn;
   }
   bool IsGridAutoFlowAlgorithmSparse() const {
-    return (GridAutoFlowInternal() & kInternalAutoFlowAlgorithmSparse) ==
+    return (GridAutoFlowInternal() &
+            static_cast<int>(kInternalAutoFlowAlgorithmSparse)) ==
            kInternalAutoFlowAlgorithmSparse;
   }
   bool IsGridAutoFlowAlgorithmDense() const {
-    return (GridAutoFlowInternal() & kInternalAutoFlowAlgorithmDense) ==
+    return (GridAutoFlowInternal() &
+            static_cast<int>(kInternalAutoFlowAlgorithmDense)) ==
            kInternalAutoFlowAlgorithmDense;
   }
 
@@ -1934,10 +1949,15 @@ class ComputedStyle : public ComputedStyleBase,
         LengthSize(Length::Fixed(s.Width()), Length::Fixed(s.Height())));
   }
 
+  FloatRoundedRect GetBorderFor(const LayoutRect& border_rect) const;
+
   FloatRoundedRect GetRoundedBorderFor(
       const LayoutRect& border_rect,
       bool include_logical_left_edge = true,
       bool include_logical_right_edge = true) const;
+
+  FloatRoundedRect GetInnerBorderFor(const LayoutRect& border_rect) const;
+
   FloatRoundedRect GetRoundedInnerBorderFor(
       const LayoutRect& border_rect,
       bool include_logical_left_edge = true,
@@ -1996,6 +2016,7 @@ class ComputedStyle : public ComputedStyleBase,
   }
   CORE_EXPORT int OutlineOutsetExtent() const;
   CORE_EXPORT float GetOutlineStrokeWidthForFocusRing() const;
+  CORE_EXPORT int GetDefaultOffsetForFocusRing() const;
   bool HasOutlineWithCurrentColor() const {
     return HasOutline() && OutlineColor().IsCurrentColor();
   }
@@ -2117,8 +2138,10 @@ class ComputedStyle : public ComputedStyleBase,
 
   bool IsDisplayTableType() const { return IsDisplayTableType(Display()); }
 
+  bool IsDisplayMathType() const { return IsDisplayMathBox(Display()); }
+
   bool BlockifiesChildren() const {
-    return IsDisplayFlexibleOrGridBox() || IsDisplayMathBox(Display()) ||
+    return IsDisplayFlexibleOrGridBox() || IsDisplayMathType() ||
            IsDisplayLayoutCustomBox() ||
            (Display() == EDisplay::kContents && IsInBlockifyingDisplay());
   }
@@ -2127,7 +2150,25 @@ class ComputedStyle : public ComputedStyleBase,
   bool HasIsolation() const { return Isolation() != EIsolation::kAuto; }
 
   // Content utility functions.
-  bool HasContent() const { return GetContentData(); }
+  bool ContentBehavesAsNormal() const {
+    switch (StyleType()) {
+      case kPseudoIdMarker:
+        return !GetContentData();
+      default:
+        return !GetContentData() || GetContentData()->IsNone();
+    }
+  }
+  bool ContentPreventsBoxGeneration() const {
+    switch (StyleType()) {
+      case kPseudoIdBefore:
+      case kPseudoIdAfter:
+        return ContentBehavesAsNormal();
+      case kPseudoIdMarker:
+        return GetContentData() && GetContentData()->IsNone();
+      default:
+        return false;
+    }
+  }
 
   // Cursor utility functions.
   CursorList* Cursors() const { return CursorDataInternal().Get(); }
@@ -2514,14 +2555,14 @@ class ComputedStyle : public ComputedStyleBase,
   InterpolationQuality GetInterpolationQuality() const;
 
   bool CanGeneratePseudoElement(PseudoId pseudo) const {
-    if (!HasPseudoElementStyle(pseudo))
-      return false;
     if (Display() == EDisplay::kNone)
       return false;
     if (IsEnsuredInDisplayNone())
       return false;
     if (pseudo == kPseudoIdMarker)
       return Display() == EDisplay::kListItem;
+    if (!HasPseudoElementStyle(pseudo))
+      return false;
     if (Display() != EDisplay::kContents)
       return true;
     // For display: contents elements, we still need to generate ::before and
@@ -2534,26 +2575,33 @@ class ComputedStyle : public ComputedStyleBase,
   void LoadDeferredImages(Document&) const;
 
   enum WebColorScheme UsedColorScheme() const {
+    return DarkColorScheme() &&
+                   RuntimeEnabledFeatures::CSSColorSchemeUARenderingEnabled()
+               ? WebColorScheme::kDark
+               : WebColorScheme::kLight;
+  }
+
+  enum WebColorScheme UsedColorSchemeForInitialColors() const {
     return DarkColorScheme() ? WebColorScheme::kDark : WebColorScheme::kLight;
   }
 
+  Color InitialColorForColorScheme() const {
+    // TODO(crbug.com/1046753, crbug.com/929098): The initial value of the color
+    // property should be canvastext, but since we do not yet ship color-scheme
+    // aware system colors, we use this method instead. This should be replaced
+    // by default_value:"canvastext" in css_properties.json5.
+    return LayoutTheme::GetTheme().SystemColor(
+        CSSValueID::kCanvastext, UsedColorSchemeForInitialColors());
+  }
+
   Color ForcedBackplateColor() const {
-    return LayoutTheme::GetTheme().SystemColor(CSSValueID::kWindow,
+    return LayoutTheme::GetTheme().SystemColor(CSSValueID::kCanvas,
                                                WebColorScheme::kLight);
   }
 
-  // render-subtree helpers.
-  bool RenderSubtreeInvisible() const {
-    return static_cast<unsigned>(RenderSubtree()) &
-           static_cast<unsigned>(RenderSubtreeFlags::kInvisible);
-  }
-  bool RenderSubtreeSkipActivation() const {
-    return static_cast<unsigned>(RenderSubtree()) &
-           static_cast<unsigned>(RenderSubtreeFlags::kSkipActivation);
-  }
-  bool RenderSubtreeSkipViewportActivation() const {
-    return static_cast<unsigned>(RenderSubtree()) &
-           static_cast<unsigned>(RenderSubtreeFlags::kSkipViewportActivation);
+  bool GeneratesMarkerImage() const {
+    return Display() == EDisplay::kListItem && ListStyleImage() &&
+           !ListStyleImage()->ErrorOccurred();
   }
 
  private:
@@ -2639,6 +2687,7 @@ class ComputedStyle : public ComputedStyleBase,
            display == EDisplay::kInlineFlex ||
            display == EDisplay::kInlineTable ||
            display == EDisplay::kInlineGrid ||
+           display == EDisplay::kInlineMath ||
            display == EDisplay::kInlineLayoutCustom;
   }
 
@@ -2820,13 +2869,12 @@ class ComputedStyle : public ComputedStyleBase,
   bool DiffNeedsFullLayoutForLayoutCustomChild(
       const Document&,
       const ComputedStyle& other) const;
-  bool DiffNeedsPaintInvalidationSubtree(const ComputedStyle& other) const;
-  void AdjustDiffForNeedsPaintInvalidationObject(const ComputedStyle& other,
-                                                 StyleDifference&,
-                                                 const Document&) const;
-  bool DiffNeedsPaintInvalidationObjectForPaintImage(const StyleImage&,
-                                                     const ComputedStyle& other,
-                                                     const Document&) const;
+  void AdjustDiffForNeedsPaintInvalidation(const ComputedStyle& other,
+                                           StyleDifference&,
+                                           const Document&) const;
+  bool DiffNeedsPaintInvalidationForPaintImage(const StyleImage&,
+                                               const ComputedStyle& other,
+                                               const Document&) const;
   bool DiffNeedsVisualRectUpdate(const ComputedStyle& other) const;
   CORE_EXPORT void UpdatePropertySpecificDifferences(const ComputedStyle& other,
                                                      StyleDifference&) const;
@@ -2922,16 +2970,6 @@ class ComputedStyle : public ComputedStyleBase,
   FRIEND_TEST_ALL_PREFIXES(ComputedStyleTest, CustomPropertiesEqual_Values);
   FRIEND_TEST_ALL_PREFIXES(ComputedStyleTest, CustomPropertiesEqual_Data);
 };
-
-inline bool ComputedStyle::SetEffectiveZoom(float f) {
-  // Clamp the effective zoom value to a smaller (but hopeful still large
-  // enough) range, to avoid overflow in derived computations.
-  float clamped_effective_zoom = clampTo<float>(f, 1e-6, 1e6);
-  if (EffectiveZoom() == clamped_effective_zoom)
-    return false;
-  SetInternalEffectiveZoom(clamped_effective_zoom);
-  return true;
-}
 
 inline float ComputedStyle::EffectiveZoom() const {
   return InternalEffectiveZoom();

@@ -14,16 +14,14 @@
 namespace blink {
 
 class LayoutBox;
-class NGBaselineRequest;
 class NGBlockBreakToken;
 class NGBoxFragmentBuilder;
-class NGBreakToken;
 class NGConstraintSpace;
 class NGEarlyBreak;
 class NGLayoutResult;
 class NGPhysicalBoxFragment;
 class NGPhysicalContainerFragment;
-struct MinMaxSize;
+struct MinMaxSizes;
 struct NGBoxStrut;
 struct NGLayoutAlgorithmParams;
 
@@ -37,7 +35,7 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
 
   scoped_refptr<const NGLayoutResult> Layout(
       const NGConstraintSpace& constraint_space,
-      const NGBreakToken* break_token = nullptr,
+      const NGBlockBreakToken* break_token = nullptr,
       const NGEarlyBreak* = nullptr);
 
   // This method is just for use within the |NGSimplifiedLayoutAlgorithm|.
@@ -66,7 +64,7 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
 
   // Computes the value of min-content and max-content for this node's border
   // box.
-  // If the underlying layout algorithm's ComputeMinMaxSize returns
+  // If the underlying layout algorithm's ComputeMinMaxSizes returns
   // no value, this function will synthesize these sizes using Layout with
   // special constraint spaces -- infinite available size for max content, zero
   // available size for min content, and percentage resolution size zero for
@@ -82,21 +80,26 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   // The constraint space is also used to perform layout when this block's
   // writing mode is orthogonal to its parent's, in which case the constraint
   // space is not optional.
-  MinMaxSize ComputeMinMaxSize(WritingMode container_writing_mode,
-                               const MinMaxSizeInput&,
-                               const NGConstraintSpace* = nullptr);
+  MinMaxSizes ComputeMinMaxSizes(WritingMode container_writing_mode,
+                                 const MinMaxSizesInput&,
+                                 const NGConstraintSpace* = nullptr);
 
-  MinMaxSize ComputeMinMaxSizeFromLegacy(const MinMaxSizeInput&) const;
+  MinMaxSizes ComputeMinMaxSizesFromLegacy(const MinMaxSizesInput&) const;
 
   NGLayoutInputNode FirstChild() const;
 
   NGBlockNode GetRenderedLegend() const;
   NGBlockNode GetFieldsetContent() const;
 
-  bool ChildrenInline() const;
+  // Return true if this block node establishes an inline formatting context.
+  // This will only be the case if there is actual inline content. Empty nodes
+  // or nodes consisting purely of block-level, floats, and/or out-of-flow
+  // positioned children will return false.
+  bool IsInlineFormattingContextRoot() const;
+
   bool IsInlineLevel() const;
   bool IsAtomicInlineLevel() const;
-  bool MayHaveAspectRatio() const;
+  bool HasAspectRatio() const;
 
   // Returns true if this node should fill the viewport.
   // This occurs when we are in quirks-mode and we are *not* OOF-positioned,
@@ -127,8 +130,9 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   scoped_refptr<const NGLayoutResult> LayoutAtomicInline(
       const NGConstraintSpace& parent_constraint_space,
       const ComputedStyle& parent_style,
-      FontBaseline,
-      bool use_first_line_style);
+      bool use_first_line_style,
+      NGBaselineAlgorithmType baseline_algorithm_type =
+          NGBaselineAlgorithmType::kInlineBlock);
 
   // Called if this is an out-of-flow block which needs to be
   // positioned with legacy layout.
@@ -136,6 +140,7 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
 
   // Write back resolved margins to legacy.
   void StoreMargins(const NGConstraintSpace&, const NGBoxStrut& margins);
+  void StoreMargins(const NGPhysicalBoxStrut& margins);
 
   static bool CanUseNewLayout(const LayoutBox&);
   bool CanUseNewLayout() const;
@@ -150,13 +155,14 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
   scoped_refptr<const NGLayoutResult> RunLegacyLayout(const NGConstraintSpace&);
 
   scoped_refptr<const NGLayoutResult> RunSimplifiedLayout(
-      const NGLayoutAlgorithmParams&) const;
+      const NGLayoutAlgorithmParams&,
+      const NGLayoutResult&) const;
 
   // If this node is a LayoutNGMixin, the caller must pass the layout object for
   // this node cast to a LayoutBlockFlow as the first argument.
   void FinishLayout(LayoutBlockFlow*,
                     const NGConstraintSpace&,
-                    const NGBreakToken*,
+                    const NGBlockBreakToken*,
                     scoped_refptr<const NGLayoutResult>);
 
   // After we run the layout algorithm, this function copies back the geometry
@@ -183,8 +189,7 @@ class CORE_EXPORT NGBlockNode final : public NGLayoutInputNode {
 
   void CopyBaselinesFromLegacyLayout(const NGConstraintSpace&,
                                      NGBoxFragmentBuilder*);
-  LayoutUnit AtomicInlineBaselineFromLegacyLayout(const NGBaselineRequest&,
-                                                  const NGConstraintSpace&);
+  LayoutUnit AtomicInlineBaselineFromLegacyLayout(const NGConstraintSpace&);
 
   void UpdateShapeOutsideInfoIfNeeded(
       const NGLayoutResult&,
