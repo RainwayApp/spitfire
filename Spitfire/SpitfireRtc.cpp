@@ -11,13 +11,6 @@
 
 #include "RtcConductor.h"
 
-FILE _iob[] { *stdin, *stdout, *stderr };
-
-extern "C" FILE * __cdecl __iob_func()
-{
-	return _iob;
-}
-
 #pragma managed
 
 #include "msclr/marshal_cppstd.h"
