@@ -19,6 +19,7 @@ namespace Spitfire
 	RtcConductor::~RtcConductor()
 	{
 		RTC_LOG(LS_INFO) << __FUNCTION__;
+		// TODO: This should be taken out of destruction as causing final termination issues, around PeerConnectionFactory in particular
 		DeletePeerConnection();
 		RTC_DCHECK(!peer_observer_ || !peer_observer_->peer_connection_);
 	}
