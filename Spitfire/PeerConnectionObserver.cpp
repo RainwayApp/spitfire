@@ -12,10 +12,10 @@ void PeerConnectionObserver::OnDataChannel(rtc::scoped_refptr<webrtc::DataChanne
 	if(conductor_->data_observers_.find(label) == conductor_->data_observers_.end())
 	{
 		RTC_LOG(INFO) << __FUNCTION__ << ": " << label;
-		auto observer = new DataChannelObserver(conductor_);
-		conductor_->data_observers_[label] = observer;
-		observer->data_channel_ = channel.get();
-		observer->data_channel_->RegisterObserver(conductor_->data_observers_[label]);
+		auto data_observer = std::make_unique<DataChannelObserver>(conductor_);
+		data_observer->data_channel_ = channel.get();
+		data_observer->data_channel_->RegisterObserver(conductor_->data_observers_[label].get());
+		conductor_->data_observers_[label] = std::move(data_observer);
 	}
 }
 

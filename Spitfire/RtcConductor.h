@@ -78,22 +78,19 @@ namespace Spitfire
 		void CloseDataChannel(const std::string& label);
 		void DataChannelSendData(const std::string& label, uint8_t* data, uint32_t length);
 
-		
-		OnSuccessCallbackNative onSuccess;
-		OnFailureCallbackNative onFailure;
-		OnIceStateChangeCallbackNative onIceStateChange{};
-		OnIceGatheringStateCallbackNative onIceGatheringStateChange{};
-		OnIceCandidateCallbackNative onIceCandidate;
-		OnDataChannelStateCallbackNative onDataChannelState;
-		OnBufferAmountCallbackNative onBufferAmountChange{};
-		OnMessageCallbackNative onMessage;
+		OnSuccessCallbackNative onSuccess { nullptr };
+		OnFailureCallbackNative onFailure { nullptr };
+		OnIceStateChangeCallbackNative onIceStateChange { nullptr };
+		OnIceGatheringStateCallbackNative onIceGatheringStateChange { nullptr };
+		OnIceCandidateCallbackNative onIceCandidate { nullptr };
+		OnDataChannelStateCallbackNative onDataChannelState { nullptr };
+		OnBufferAmountCallbackNative onBufferAmountChange { nullptr };
+		OnMessageCallbackNative onMessage { nullptr };
 
-		//rtc::scoped_refptr<Observers::DataChannelObserver> dataObserver;
-		std::unique_ptr<Observers::PeerConnectionObserver> peerObserver;
-		rtc::scoped_refptr<Observers::CreateSessionDescriptionObserver> sessionObserver;
-		rtc::scoped_refptr<Observers::SetSessionDescriptionObserver> setSessionObserver;
-
-		std::unordered_map<std::string, Observers::DataChannelObserver*> data_observers_;
+		std::unordered_map<std::string, std::unique_ptr<Observers::DataChannelObserver>> data_observers_;
+		std::unique_ptr<Observers::PeerConnectionObserver> peer_observer_;
+		rtc::scoped_refptr<Observers::CreateSessionDescriptionObserver> session_observer_;
+		rtc::scoped_refptr<Observers::SetSessionDescriptionObserver> set_session_observer_;
 
 		void DeletePeerConnection();
 
