@@ -229,7 +229,6 @@
     <ClCompile Include="DataChannelObserver.cpp" />
     <ClCompile Include="PeerConnectionObserver.cpp" />
     <ClCompile Include="RtcConductor.cpp" />
-    <ClCompile Include="SetSessionDescriptionObserver.cpp" />
     <ClCompile Include="SpitfireRtc.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</CompileAsManaged>
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Async</ExceptionHandling>

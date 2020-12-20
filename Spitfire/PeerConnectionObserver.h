@@ -19,10 +19,11 @@ namespace Spitfire
 			
 			~PeerConnectionObserver() = default;
 
-			// Triggered when the SignalingState changed.
-			void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
-
-			// Triggered when media is received on a new stream from remote peer.
+			// webrtc::PeerConnectionObserver
+			void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
 			void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
@@ -31,37 +32,60 @@ namespace Spitfire
 			{
 				RTC_LOG(INFO) << __FUNCTION__ << " ";
 			}
-
-			// Triggered when a remote peer open a data channel.
 			void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
-
-			// Triggered when renegotiation is needed, for example the ICE has restarted.
-			void OnRenegotiationNeeded() override;
-
-			// Called any time the IceConnectionState changes
+			void OnRenegotiationNeeded() override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
 			void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
-
-			// Called any time the IceGatheringState changes
+			void OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
 			void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
-
-			// New Ice candidate have been found.
 			void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
-
-			virtual void OnIceComplete() { /* Obsolete. Ignore. */ }
-
-			// Called when the ICE connection receiving status changes.
-			void OnIceConnectionReceivingChange(bool receiving) override { /* Not Implemented */ };
+			void OnIceCandidateError(const std::string& host_candidate, const std::string& url, int error_code, const std::string& error_text) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			void OnIceCandidateError(const std::string& address, int port, const std::string& url, int error_code, const std::string& error_text) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			void OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			void OnIceConnectionReceivingChange(bool receiving) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			virtual void OnIceSelectedCandidatePairChanged(const cricket::CandidatePairChangeEvent& event) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			virtual void OnAddTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver, const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
+			virtual void OnInterestingUsage(int usage_pattern) override
+			{
+				RTC_LOG(INFO) << __FUNCTION__ << " ";
+			}
 
 			rtc::scoped_refptr<webrtc::PeerConnectionInterface> peerConnection;
-
-			int AddRef() const
-			{
-				return 0;
-			};
-			int Release() const
-			{
-				return 0;
-			};
 
 		private:
 			RtcConductor* conductor_;

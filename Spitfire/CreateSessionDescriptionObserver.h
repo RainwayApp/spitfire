@@ -18,16 +18,19 @@ namespace Spitfire
 			}
 			~CreateSessionDescriptionObserver() = default;
 
+			// webrtc::CreateSessionDescriptionObserver
 			void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
 			void OnFailure(webrtc::RTCError error) override;
 
+			// rtc::RefCountInterface
 			void AddRef() const override
 			{
 				ref_count_.IncRef();
 			};
 			rtc::RefCountReleaseStatus Release() const override
 			{
-				if (ref_count_.HasOneRef()) {
+				if (ref_count_.HasOneRef())
+				{
 					delete this;
 					return rtc::RefCountReleaseStatus::kDroppedLastRef;
 				}

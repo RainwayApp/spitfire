@@ -50,9 +50,6 @@
     <ClCompile Include="DataChannelObserver.cpp">
       <Filter>Source Files\Observers</Filter>
     </ClCompile>
-    <ClCompile Include="SetSessionDescriptionObserver.cpp">
-      <Filter>Source Files\Observers</Filter>
-    </ClCompile>
     <ClCompile Include="CreateSessionDescriptionObserver.cpp">
       <Filter>Source Files\Observers</Filter>
     </ClCompile>

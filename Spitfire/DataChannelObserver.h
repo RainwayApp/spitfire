@@ -18,25 +18,12 @@ namespace Spitfire
 			}
 			~DataChannelObserver() = default;
 
-			// The data channel state have changed.
+			// webrtc::DataChannelObserver
 			void OnStateChange() override;
-
-			//  A data buffer was successfully received.
 			void OnMessage(const webrtc::DataBuffer & buffer) override;
-
-			// The data channel's buffered_amount has changed.
 			void OnBufferedAmountChange(uint64_t previous_amount) override;
 
-			rtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel;
-
-			int AddRef() const
-			{
-				return 0;
-			};
-			int Release() const
-			{
-				return 0;
-			};
+			rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
 
 		private:
 			RtcConductor* conductor_;

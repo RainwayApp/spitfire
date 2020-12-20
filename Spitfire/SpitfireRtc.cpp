@@ -1,5 +1,7 @@
 #pragma unmanaged
 
+#pragma warning(disable: 4635) // warning C4635: XML document comment applied to 'rtc.EventBasedExponentialMovingAverage': badly-formed XML: A semi colon character was expected.
+
 #include "rtc_base\ssl_adapter.h"
 #include "rtc_base\win32_socket_init.h"
 #include "rtc_base\win32_socket_server.h"

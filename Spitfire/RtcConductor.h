@@ -89,23 +89,13 @@ namespace Spitfire
 		OnMessageCallbackNative onMessage;
 
 		//rtc::scoped_refptr<Observers::DataChannelObserver> dataObserver;
-		rtc::scoped_refptr<Observers::PeerConnectionObserver> peerObserver;
+		std::unique_ptr<Observers::PeerConnectionObserver> peerObserver;
 		rtc::scoped_refptr<Observers::CreateSessionDescriptionObserver> sessionObserver;
 		rtc::scoped_refptr<Observers::SetSessionDescriptionObserver> setSessionObserver;
 
-		std::unordered_map<std::string, Observers::DataChannelObserver*> dataObservers;
+		std::unordered_map<std::string, Observers::DataChannelObserver*> data_observers_;
 
 		void DeletePeerConnection();
-
-	protected:
-		int AddRef() const
-		{
-			return 0;
-		};
-		int Release() const
-		{
-			return 0;
-		};
 
 	private:
 		std::unique_ptr<rtc::Thread> worker_thread_;
