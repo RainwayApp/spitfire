@@ -72,10 +72,9 @@ namespace Spitfire
 
 		void CreateDataChannel(const std::string& label, webrtc::DataChannelInit config);
 		void CloseDataChannel(const std::string& label);
-		RtcDataChannelInfo GetDataChannelInfo(const std::string& label);
-		webrtc::DataChannelInterface::DataState GetDataChannelState(const std::string& label);
-		void DataChannelSendData(const std::string& label, uint8_t* data, uint32_t length);
-		void DataChannelSendText(const std::string& label, const std::string& text);
+		absl::optional<RtcDataChannelInfo> GetDataChannelInfo(const std::string& label);
+		absl::optional<webrtc::DataChannelInterface::DataState> GetDataChannelState(const std::string& label);
+		void SendToDataChannel(const std::string& label, const webrtc::DataBuffer& buffer);
 
 		void HandleDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel);
 

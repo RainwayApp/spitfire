@@ -226,7 +226,7 @@ namespace Spitfire
 		auto data_observer = std::make_unique<Observers::DataChannelObserver>(this, peer_observer_->peer_connection_->CreateDataChannel(label, &config));
 		data_observer->RegisterObserver();
 		data_observers_[label] = std::move(data_observer);
-		RTC_LOG(INFO) << "Created data channel " << label;
+		RTC_LOG(LS_INFO) << __FUNCTION__ << ": Created data channel " << label;
 	}
 	void RtcConductor::CloseDataChannel(const std::string& label)
 	{
@@ -239,63 +239,41 @@ namespace Spitfire
 		RTC_LOG(LS_VERBOSE) << __FUNCTION__;
 	}
 
-	void RtcConductor::DataChannelSendText(const std::string & label, const std::string & text)
+	absl::optional<RtcDataChannelInfo> RtcConductor::GetDataChannelInfo(const std::string& label)
 	{
-		const auto observer = data_observers_.find(label);
-		if (observer != data_observers_.end()) {
-			observer->second->data_channel_->Send(webrtc::DataBuffer(text));
-		}
-	}
-
-	RtcDataChannelInfo RtcConductor::GetDataChannelInfo(const std::string& label)
-	{
+		const auto it = data_observers_.find(label);
+		if(it == data_observers_.end())
+			return absl::nullopt;
+		const auto data_channel = it->second->data_channel_;
 		auto info = RtcDataChannelInfo();
-
-		const auto observer = data_observers_.find(label);
-		
-		if (observer != data_observers_.end()) {
-
-			const auto data_channel = observer->second->data_channel_;
-
-			info.id = data_channel->id();
-			info.currentBuffer = data_channel->buffered_amount();
-			info.bytesSent = data_channel->bytes_sent();
-			info.bytesReceived = data_channel->bytes_received();
-
-			info.reliable = data_channel->reliable();
-			info.ordered = data_channel->ordered();
-			info.negotiated = data_channel->negotiated();
-
-			info.messagesSent = data_channel->messages_sent();
-			info.messagesReceived = data_channel->messages_received();
-
-			info.maxRetransmits = data_channel->maxRetransmits();
-			info.maxRetransmitTime = data_channel->maxRetransmitTime();
-
-			info.protocol = data_channel->protocol();
-			info.state = data_channel->state();
-
-			return info;
-		}
-		info.protocol = "unknown";
+		info.id = data_channel->id();
+		info.currentBuffer = data_channel->buffered_amount();
+		info.bytesSent = data_channel->bytes_sent();
+		info.bytesReceived = data_channel->bytes_received();
+		info.reliable = data_channel->reliable();
+		info.ordered = data_channel->ordered();
+		info.negotiated = data_channel->negotiated();
+		info.messagesSent = data_channel->messages_sent();
+		info.messagesReceived = data_channel->messages_received();
+		info.maxRetransmits = data_channel->maxRetransmits();
+		info.maxRetransmitTime = data_channel->maxRetransmitTime();
+		info.protocol = data_channel->protocol();
+		info.state = data_channel->state();
 		return info;
 	}
-
-	webrtc::DataChannelInterface::DataState RtcConductor::GetDataChannelState(const std::string& label)
+	absl::optional<webrtc::DataChannelInterface::DataState> RtcConductor::GetDataChannelState(const std::string& label)
 	{
-		const auto observer = data_observers_.find(label);
-		if(observer == data_observers_.end())
-			return webrtc::DataChannelInterface::DataState::kClosed;
-		return observer->second->data_channel_->state();
+		const auto it = data_observers_.find(label);
+		if(it == data_observers_.end())
+			return absl::nullopt;
+		return it->second->data_channel_->state();
 	}
-	
-	void RtcConductor::DataChannelSendData(const std::string& label, uint8_t* data, const uint32_t length)
+	void RtcConductor::SendToDataChannel(const std::string& label, const webrtc::DataBuffer& buffer)
 	{
-		const auto observer = data_observers_.find(label);
-		if(observer == data_observers_.end())
+		const auto it = data_observers_.find(label);
+		if(it == data_observers_.end())
 			return;
-		const rtc::CopyOnWriteBuffer write_buffer(data, length);
-		observer->second->data_channel_->Send(webrtc::DataBuffer(write_buffer, true));
+		it->second->data_channel_->Send(buffer);
 	}
 	
 	void RtcConductor::HandleDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)

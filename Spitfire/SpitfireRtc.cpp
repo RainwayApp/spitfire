@@ -636,7 +636,7 @@ namespace Spitfire
 		/// </summary>
 		void DataChannelSendText(String^ label, String^ text)
 		{
-			conductor_->get()->DataChannelSendText(marshal_as<std::string>(label), marshal_as<std::string>(text));
+			conductor_->get()->SendToDataChannel(marshal_as<std::string>(label), webrtc::DataBuffer(marshal_as<std::string>(text)));
 		}
 
 		/// <summary>
@@ -644,28 +644,29 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelInfo^ GetDataChannelInfo(String^ label)
 		{
-			auto rtc_info = conductor_->get()->GetDataChannelInfo(marshal_as<std::string>(label));
-			if(rtc_info.protocol != "unknown")
+			const auto optional_info = conductor_->get()->GetDataChannelInfo(marshal_as<std::string>(label));
+			if(optional_info.has_value())
 			{
+				const auto& info = optional_info.value();
 				const auto managed_info = gcnew Spitfire::DataChannelInfo();
-				managed_info->CurrentBuffer = rtc_info.currentBuffer;
-				managed_info->BytesSent = rtc_info.bytesSent;
-				managed_info->BytesReceived = rtc_info.bytesReceived;
+				managed_info->CurrentBuffer = info.currentBuffer;
+				managed_info->BytesSent = info.bytesSent;
+				managed_info->BytesReceived = info.bytesReceived;
 
-				managed_info->Reliable = rtc_info.reliable;
-				managed_info->Ordered = rtc_info.ordered;
-				managed_info->Negotiated = rtc_info.negotiated;
+				managed_info->Reliable = info.reliable;
+				managed_info->Ordered = info.ordered;
+				managed_info->Negotiated = info.negotiated;
 
-				managed_info->MessagesSent = rtc_info.messagesSent;
-				managed_info->MessagesReceived = rtc_info.messagesReceived;
-				managed_info->MaxRetransmits = rtc_info.maxRetransmits;
-				managed_info->MaxRetransmitTime = rtc_info.maxRetransmitTime;
+				managed_info->MessagesSent = info.messagesSent;
+				managed_info->MessagesReceived = info.messagesReceived;
+				managed_info->MaxRetransmits = info.maxRetransmits;
+				managed_info->MaxRetransmitTime = info.maxRetransmitTime;
 
-				if(!rtc_info.protocol.empty())
+				if(!info.protocol.empty())
 				{
-					managed_info->Protocol = gcnew String(rtc_info.protocol.c_str());
+					managed_info->Protocol = gcnew String(info.protocol.c_str());
 				}
-				managed_info->State = static_cast<DataChannelState>(rtc_info.state);
+				managed_info->State = static_cast<DataChannelState>(info.state);
 				return managed_info;
 			}
 			return nullptr;
@@ -676,9 +677,8 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelState GetDataChannelState(String^ label)
 		{
-			auto state = conductor_->get()->GetDataChannelState(marshal_as<std::string>(label));
-			const auto managed_state = static_cast<DataChannelState>(state);
-			return managed_state;
+			const auto state = conductor_->get()->GetDataChannelState(marshal_as<std::string>(label));
+			return static_cast<DataChannelState>(state.value_or(webrtc::DataChannelInterface::DataState::kClosed));
 		}
 		
 		/// <summary>
@@ -696,7 +696,7 @@ namespace Spitfire
 		/// </summary>
 		void DataChannelSendData(String^ label, Byte* array_data, uint32_t length)
 		{
-			conductor_->get()->DataChannelSendData(marshal_as<std::string>(label), array_data, length);
+			conductor_->get()->SendToDataChannel(marshal_as<std::string>(label), webrtc::DataBuffer(rtc::CopyOnWriteBuffer(array_data, length), true));
 		}
 
 	protected:
