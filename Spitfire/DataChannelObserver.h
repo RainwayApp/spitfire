@@ -16,10 +16,11 @@ namespace Spitfire
 				conductor_(conductor),
 				data_channel_(data_channel)
 			{
+				RTC_DCHECK(conductor && data_channel);
 			}
 			~DataChannelObserver()
 			{
-				#if defined(_DEBUG)
+				#if RTC_DCHECK_IS_ON
 					RTC_DCHECK(!registered_);
 				#endif
 			}
@@ -28,7 +29,7 @@ namespace Spitfire
 			{
 				RTC_DCHECK(data_channel_);
 				data_channel_->RegisterObserver(this);
-				#if defined(_DEBUG)
+				#if RTC_DCHECK_IS_ON
 					RTC_DCHECK(!registered_);
 					registered_ = true;
 				#endif
@@ -40,7 +41,7 @@ namespace Spitfire
 				//       related to this observer; we close the channel along with observer termination as a part of cleanup
 				data_channel_->Close();
 				data_channel_->UnregisterObserver();
-				#if defined(_DEBUG)
+				#if RTC_DCHECK_IS_ON
 					RTC_DCHECK(registered_);
 					registered_ = false;
 				#endif
@@ -55,7 +56,7 @@ namespace Spitfire
 
 		private:
 			RtcConductor* conductor_;
-			#if defined(_DEBUG)
+			#if RTC_DCHECK_IS_ON
 				bool registered_ = false;
 			#endif
 		};

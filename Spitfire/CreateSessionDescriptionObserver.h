@@ -15,6 +15,7 @@ namespace Spitfire
 			explicit CreateSessionDescriptionObserver(RtcConductor* conductor) :
 				conductor_(conductor)
 			{
+				RTC_DCHECK(conductor);
 			}
 			~CreateSessionDescriptionObserver() = default;
 

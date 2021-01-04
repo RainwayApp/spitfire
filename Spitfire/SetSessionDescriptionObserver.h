@@ -16,17 +16,18 @@ namespace Spitfire
 			explicit SetSessionDescriptionObserver(RtcConductor* conductor) :
 				conductor_(conductor)
 			{
+				RTC_DCHECK(conductor);
 			}
 			~SetSessionDescriptionObserver() = default;
 
 			// webrtc::SetSessionDescriptionObserver
 			void OnSuccess() override
 			{
-				RTC_LOG(LS_INFO) << __FUNCTION__;
+				RTC_DLOG_F(LS_INFO);
 			}
 			void OnFailure(webrtc::RTCError error) override
 			{
-				RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << error.message();
+				RTC_DLOG_F(LS_ERROR) << error.message();
 			}
 
 			void AddRef() const override
