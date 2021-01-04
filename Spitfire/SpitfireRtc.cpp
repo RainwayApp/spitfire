@@ -457,17 +457,17 @@ namespace Spitfire
 
 		SpitfireRtc()
 		{
-			RTC_LOG(INFO) << __FUNCTION__ << ": " << this_string();
+			RTC_DLOG_F(LS_INFO);
 			Initialize(1025, 65535);
 		}
 		SpitfireRtc(uint16_t min_port, uint16_t max_port)
 		{
-			RTC_LOG(INFO) << __FUNCTION__ << ": " << this_string() << ", " << min_port << ", " << max_port;
+			RTC_DLOG_F(LS_INFO) << min_port << ", " << max_port;
 			Initialize(min_port, max_port);
 		}
 		~SpitfireRtc()
 		{
-			RTC_LOG(INFO) << __FUNCTION__ << ": " << this_string() << ", " << disposed_;
+			RTC_DLOG_F(LS_INFO) << disposed_;
 			if(disposed_)
 				return;
 			#pragma region Delegate Handle
@@ -491,7 +491,8 @@ namespace Spitfire
 		static void EnableLogging(RtcLogVerbosity verbosity, String^ log_directory, const uint64_t max_log_size, const uint16_t max_number_of_splits)
 		{
 			const auto directory = marshal_as<std::string>(log_directory);
-			if (!directory.empty()) {
+			if (!directory.empty()) 
+			{
 				static rtc::FileRotatingLogSink sink(directory, "spitfire", max_log_size, max_number_of_splits);
 				sink.Init();
 				rtc::LogMessage::LogTimestamps();
@@ -524,11 +525,13 @@ namespace Spitfire
 		/// </summary>
 		bool InitializePeerConnection()
 		{
+			RTC_DCHECK(conductor_);
 			return conductor_->InitializePeerConnection(min_port_, max_port_);
 		}
 
 		void CreateOffer()
 		{
+			RTC_DCHECK(conductor_);
 			conductor_->CreateOffer();
 		}
 
@@ -537,11 +540,14 @@ namespace Spitfire
 		/// </summary>
 		bool ProcessMessages(Int32 delay)
 		{
+			RTC_DCHECK(conductor_);
 			return conductor_->ProcessMessages(delay);
 		}
 
 		void SetOfferReply(String^ type, String^ sdp)
 		{
+			RTC_DCHECK(type && sdp);
+			RTC_DCHECK(conductor_);
 			conductor_->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
 		}
 
@@ -551,16 +557,22 @@ namespace Spitfire
 		/// </summary>
 		void SetOfferRequest(String^ sdp)
 		{
+			RTC_DCHECK(sdp);
+			RTC_DCHECK(conductor_);
 			conductor_->OnOfferRequest(marshal_as<std::string>(sdp));
 		}
 
 		bool AddIceCandidate(String^ sdp_mid, int32_t sdp_mlineindex, String^ sdp)
 		{
+			RTC_DCHECK(sdp_mid && sdp);
+			RTC_DCHECK(conductor_);
 			return conductor_->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
 		}
 
 		void AddServerConfig(ServerConfig^ config)
 		{
+			//RTC_DCHECK(config);
+			RTC_DCHECK(conductor_);
 			if(!config)
 				throw gcnew ArgumentException(gcnew String("Missing mandatory argument"), gcnew String("config"));
 			if(String::IsNullOrEmpty(config->Host))
@@ -576,23 +588,20 @@ namespace Spitfire
 		/// </summary>
 		void CreateDataChannel(DataChannelOptions^ dataChannelOptions)
 		{
+			RTC_DCHECK(dataChannelOptions);
+			RTC_DCHECK(conductor_);
 			auto label = dataChannelOptions->Label;
 			auto protocol = dataChannelOptions->Protocol;
-
 			webrtc::DataChannelInit dc_options;
 			dc_options.id = dataChannelOptions->Id;
-			if(dataChannelOptions->MaxRetransmits.HasValue) {
+			if(dataChannelOptions->MaxRetransmits.HasValue)
 				dc_options.maxRetransmits.emplace(dataChannelOptions->MaxRetransmits.Value);
-			}
-			if(dataChannelOptions->MaxRetransmitTime.HasValue) {
+			if(dataChannelOptions->MaxRetransmitTime.HasValue)
 				dc_options.maxRetransmitTime.emplace(dataChannelOptions->MaxRetransmitTime.Value);
-			}
 			dc_options.negotiated = dataChannelOptions->Negotiated;
 			dc_options.ordered = dataChannelOptions->Ordered;
 			if(!String::IsNullOrWhiteSpace(protocol))
-			{
 				dc_options.protocol = marshal_as<std::string>(protocol);
-			}
 			dc_options.reliable = dataChannelOptions->Reliable;
 			conductor_->CreateDataChannel(marshal_as<std::string>(label), dc_options);
 		}
@@ -602,6 +611,9 @@ namespace Spitfire
 		/// </summary>
 		void DataChannelSendText(String^ label, String^ text)
 		{
+			RTC_DCHECK(label);
+			RTC_DCHECK(text);
+			RTC_DCHECK(conductor_);
 			conductor_->SendToDataChannel(marshal_as<std::string>(label), webrtc::DataBuffer(marshal_as<std::string>(text)));
 		}
 
@@ -610,6 +622,8 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelInfo^ GetDataChannelInfo(String^ label)
 		{
+			RTC_DCHECK(label);
+			RTC_DCHECK(conductor_);
 			const auto optional_info = conductor_->GetDataChannelInfo(marshal_as<std::string>(label));
 			if(optional_info.has_value())
 			{
@@ -643,6 +657,8 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelState GetDataChannelState(String^ label)
 		{
+			RTC_DCHECK(label);
+			RTC_DCHECK(conductor_);
 			const auto state = conductor_->GetDataChannelState(marshal_as<std::string>(label));
 			return static_cast<DataChannelState>(state.value_or(webrtc::DataChannelInterface::DataState::kClosed));
 		}
@@ -652,6 +668,8 @@ namespace Spitfire
 		/// </summary>
 		void CloseDataChannel(String^ label)
 		{
+			RTC_DCHECK(label);
+			RTC_DCHECK(conductor_);
 			conductor_->CloseDataChannel(marshal_as<std::string>(label));
 		}
 
@@ -662,13 +680,15 @@ namespace Spitfire
 		/// </summary>
 		void DataChannelSendData(String^ label, Byte* array_data, uint32_t length)
 		{
+			RTC_DCHECK(label && array_data);
+			RTC_DCHECK(conductor_);
 			conductor_->SendToDataChannel(marshal_as<std::string>(label), webrtc::DataBuffer(rtc::CopyOnWriteBuffer(array_data, length), true));
 		}
 
 	protected:
 		!SpitfireRtc()
 		{
-			RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << this_string() << ", " << static_cast<bool>(conductor_ != nullptr);
+			RTC_DLOG_F(LS_INFO) << static_cast<bool>(conductor_ != nullptr);
 			if(conductor_)
 			{
 				RtcConductor* conductor = conductor_;
@@ -696,12 +716,6 @@ namespace Spitfire
 			if(!value)
 				return default_value;
 			return msclr::interop::marshal_as<std::string>(value);
-		}
-		std::string this_string() //const
-		{
-			char text[64];
-			sprintf_s(text, "this 0x%p", this);
-			return text;
 		}
 	};
 }
