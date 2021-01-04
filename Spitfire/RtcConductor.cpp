@@ -8,7 +8,7 @@ namespace Spitfire
 {
 	RtcConductor::RtcConductor()
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_LOG_T_F(LS_INFO);
 		// SUGG: Create observers on demand
 		peer_observer_.reset(new Observers::PeerConnectionObserver(this));
 		session_observer_ = new Observers::CreateSessionDescriptionObserver(this);
@@ -16,8 +16,9 @@ namespace Spitfire
 	}
 	RtcConductor::~RtcConductor()
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
-		// TODO: This should be taken out of destruction as causing final termination issues, around PeerConnectionFactory in particular
+		RTC_LOG_T_F(LS_INFO);
+		// TODO: This should be taken out of destruction as causing final termination issues, around PeerConnectionFactory in particular;
+		//       there should probably be explicit connection closure to avoid late cross-thread sync, als it would make sense to reduce lifetime of peer connection observer
 		DeletePeerConnection();
 		RTC_DCHECK(!peer_observer_ || !peer_observer_->peer_connection_);
 	}
@@ -50,7 +51,7 @@ namespace Spitfire
 	}
 	bool RtcConductor::InitializePeerConnection(uint16_t min_port, uint16_t max_port)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO);
 
 		rtc::ThreadManager::Instance()->WrapCurrentThread();
 		RTC_DCHECK(!pc_factory_);
@@ -94,7 +95,7 @@ namespace Spitfire
 							RTC_DCHECK(peer_observer_->peer_connection_);
 							if(peer_observer_->peer_connection_)
 							{
-								RTC_LOG(LS_INFO) << "Peer connection created completed";
+								RTC_LOG_T_F(LS_INFO) << "Peer connection created completed";
 								return true;
 							}
 						}
@@ -103,7 +104,7 @@ namespace Spitfire
 			}
 		}
 		DeletePeerConnection();
-		RTC_LOG(LS_ERROR) << "Unable to create peer connection";
+		RTC_LOG_F(LS_ERROR) << "Unable to create peer connection";
 		return false;
 	}
 	void QuitThread(std::unique_ptr<rtc::Thread>& thread)
@@ -115,10 +116,11 @@ namespace Spitfire
 	}
 	void RtcConductor::DeletePeerConnection()
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO);
 
 		if(peer_observer_)
 		{
+			// WARN: Late reach here results in 0xC0020001 exception inside absl
 			if(peer_observer_->peer_connection_)
 				peer_observer_->peer_connection_->Close();
 			peer_observer_.reset();
@@ -148,7 +150,7 @@ namespace Spitfire
 
 	void RtcConductor::AddServerConfig(const std::string& uri, const std::string& username, const std::string& password)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << uri << ", " << username << ", " << password;
+		RTC_DLOG_F(LS_INFO) << uri << ", " << username << ", " << password;
 		webrtc::PeerConnectionInterface::IceServer server;
 		server.uri = uri;
 		server.username = username;
@@ -158,7 +160,7 @@ namespace Spitfire
 	}
 	void RtcConductor::CreateOffer()
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO);
 		if(!peer_observer_->peer_connection_)
 			return;
 		webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
@@ -169,21 +171,21 @@ namespace Spitfire
 	}
 	void RtcConductor::OnOfferReply(const std::string& type, const std::string& sdp)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO);
 		if(!peer_observer_->peer_connection_)
 			return;
 		webrtc::SdpParseError error;
 		const auto session_description = CreateSessionDescription(type, sdp, &error);
 		if(!session_description)
 		{
-			RTC_LOG(WARNING) << "Can't parse received session description message. SdpParseError was: " << error.description;
+			RTC_LOG(LS_WARNING) << "Can't parse received session description message. SdpParseError was: " << error.description;
 			return;
 		}
 		peer_observer_->peer_connection_->SetRemoteDescription(set_session_observer_, session_description);
 	}
 	void RtcConductor::OnOfferRequest(const std::string& sdp)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO);
 		if(!peer_observer_->peer_connection_)
 			return;
 		webrtc::SdpParseError error;
@@ -202,7 +204,7 @@ namespace Spitfire
 	}
 	bool RtcConductor::AddIceCandidate(const std::string& sdp_mid, int32_t sdp_mlineindex, const std::string& sdp)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO);
 		webrtc::SdpParseError error;
 		const auto candidate = CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
 		if(!candidate)
@@ -222,7 +224,7 @@ namespace Spitfire
 
 	void RtcConductor::CreateDataChannel(const std::string& label, const webrtc::DataChannelInit config)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__;
+		RTC_DLOG_F(LS_INFO) << label;
 		if(!peer_observer_->peer_connection_)
 			return;
 		if(data_observers_.find(label) != data_observers_.end()) 
@@ -230,17 +232,17 @@ namespace Spitfire
 		auto data_observer = std::make_unique<Observers::DataChannelObserver>(this, peer_observer_->peer_connection_->CreateDataChannel(label, &config));
 		data_observer->RegisterObserver();
 		data_observers_[label] = std::move(data_observer);
-		RTC_LOG(LS_INFO) << __FUNCTION__ << ": Created data channel " << label;
+		RTC_LOG(LS_INFO) << "Created data channel " << label;
 	}
 	void RtcConductor::CloseDataChannel(const std::string& label)
 	{
-		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
+		RTC_DLOG_F(LS_INFO) << label;
 		const auto it = data_observers_.find(label);
 		if(it == data_observers_.end())
 			return;
 		it->second->UnregisterObserver();
 		data_observers_.erase(label);
-		RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+		RTC_DLOG_F(LS_VERBOSE);
 	}
 
 	absl::optional<RtcDataChannelInfo> RtcConductor::GetDataChannelInfo(const std::string& label)
@@ -284,7 +286,7 @@ namespace Spitfire
 	{
 		RTC_DCHECK(channel);
 		const auto label = channel->label();
-		RTC_LOG(LS_INFO) << __FUNCTION__ << ": " << label;
+		RTC_DLOG_F(LS_INFO) << label;
 		if(data_observers_.find(label) != data_observers_.end())
 			return;
 		auto observer = std::make_unique<Observers::DataChannelObserver>(this, channel);
