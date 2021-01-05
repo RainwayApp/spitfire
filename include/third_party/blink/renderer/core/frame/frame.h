@@ -31,9 +31,11 @@
 
 #include "base/optional.h"
 #include "base/unguessable_token.h"
-#include "third_party/blink/public/common/feature_policy/feature_policy.h"
+#include "third_party/blink/public/common/feature_policy/document_policy.h"
 #include "third_party/blink/public/common/frame/user_activation_state.h"
 #include "third_party/blink/public/common/frame/user_activation_update_source.h"
+#include "third_party/blink/public/mojom/ad_tagging/ad_frame.mojom-blink.h"
+#include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink-forward.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/frame_lifecycle.h"
@@ -67,9 +69,6 @@ class WindowAgentFactory;
 
 enum class FrameDetachType { kRemove, kSwap };
 
-// Status of user gesture.
-enum class UserGestureStatus { kActive, kNone };
-
 // Frame is the base class of LocalFrame and RemoteFrame and should only contain
 // functionality shared between both. In particular, any method related to
 // input, layout, or painting probably belongs on LocalFrame.
@@ -77,12 +76,12 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
  public:
   virtual ~Frame();
 
-  virtual void Trace(blink::Visitor*);
+  virtual void Trace(Visitor*);
 
   virtual bool IsLocalFrame() const = 0;
   virtual bool IsRemoteFrame() const = 0;
 
-  virtual void Navigate(const FrameLoadRequest&, WebFrameLoadType) = 0;
+  virtual void Navigate(FrameLoadRequest&, WebFrameLoadType) = 0;
 
   void Detach(FrameDetachType);
   void DisconnectOwnerElement();
@@ -103,13 +102,23 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   // reach out to site-isolation-dev@chromium.org.
   bool IsMainFrame() const;
 
-  // Note that the result of this function should not be cached: a frame is
-  // not necessarily detached when it is navigated, so the return value can
-  // change.
-  // In addition, this function will always return true for a detached frame.
+  // Returns true if and only if:
+  // - this frame is a subframe
+  // - it is cross-origin to the main frame
+  //
+  // Important notes:
+  // - This function is not appropriate for determining if a subframe is
+  //   cross-origin to its parent (see: |IsCrossOriginToParentFrame|).
+  // - The return value must NOT be cached. A frame can be reused across
+  //   navigations, so the return value can change over time.
+  // - The return value is inaccurate for a detached frame: it always
+  //   returns true when the frame is detached.
   // TODO(dcheng): Move this to LocalDOMWindow and figure out the right
   // behavior for detached windows.
-  bool IsCrossOriginSubframe() const;
+  bool IsCrossOriginToMainFrame() const;
+  // Returns true if this frame is a subframe and is cross-origin to the parent
+  // frame. See |IsCrossOriginToMainFrame| for important notes.
+  bool IsCrossOriginToParentFrame() const;
 
   FrameOwner* Owner() const;
   void SetOwner(FrameOwner*);
@@ -120,7 +129,7 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   FrameTree& Tree() const;
   ChromeClient& GetChromeClient() const;
 
-  virtual SecurityContext* GetSecurityContext() const = 0;
+  virtual const SecurityContext* GetSecurityContext() const = 0;
 
   Frame* FindUnsafeParentScrollPropagationBoundary();
 
@@ -162,25 +171,41 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   // This should never be called from outside Frame or WebFrame.
   void ClearUserActivationInLocalTree();
 
-  bool HasBeenActivated() const {
+  // Returns the transient user activation state of this frame.
+  bool HasTransientUserActivation() const {
+    return user_activation_state_.IsActive();
+  }
+
+  // Returns the sticky user activation state of this frame.
+  bool HasStickyUserActivation() const {
     return user_activation_state_.HasBeenActive();
   }
 
-  void ClearActivation() { user_activation_state_.Clear(); }
+  // Resets the user activation state of this frame.
+  void ClearUserActivation() { user_activation_state_.Clear(); }
 
   // Transfers user activation state from |other| frame into |this|.
   void TransferUserActivationFrom(Frame* other);
 
-  void SetDocumentHasReceivedUserGestureBeforeNavigation(bool value) {
-    has_received_user_gesture_before_nav_ = value;
+  void SetHadStickyUserActivationBeforeNavigation(bool value) {
+    had_sticky_user_activation_before_nav_ = value;
   }
 
-  bool HasReceivedUserGestureBeforeNavigation() const {
-    return has_received_user_gesture_before_nav_;
+  bool HadStickyUserActivationBeforeNavigation() const {
+    return had_sticky_user_activation_before_nav_;
   }
 
   bool IsAttached() const {
     return lifecycle_.GetState() == FrameLifecycle::kAttached;
+  }
+
+  // Ad Tagging
+  bool IsAdSubframe() const {
+    return ad_frame_type_ != mojom::blink::AdFrameType::kNonAd;
+  }
+
+  bool IsAdRoot() const {
+    return ad_frame_type_ == mojom::blink::AdFrameType::kRootAd;
   }
 
   // Called to make a frame inert or non-inert. A frame is inert when there
@@ -197,9 +222,10 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
 
   // Continues to bubble logical scroll from |child| in this frame.
   // Returns true if the scroll was consumed locally.
-  virtual bool BubbleLogicalScrollFromChildFrame(ScrollDirection direction,
-                                                 ScrollGranularity granularity,
-                                                 Frame* child) = 0;
+  virtual bool BubbleLogicalScrollFromChildFrame(
+      mojom::blink::ScrollDirection direction,
+      ScrollGranularity granularity,
+      Frame* child) = 0;
 
   const base::UnguessableToken& GetDevToolsFrameToken() const {
     return devtools_frame_token_;
@@ -229,6 +255,15 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
     opener_feature_state_ = state;
   }
 
+  const DocumentPolicy::FeatureState& GetRequiredDocumentPolicy() const {
+    return required_document_policy_;
+  }
+
+  void SetRequiredDocumentPolicy(
+      const DocumentPolicy::FeatureState& required_document_policy) {
+    required_document_policy_ = required_document_policy;
+  }
+
   WindowAgentFactory& window_agent_factory() const {
     return *window_agent_factory_;
   }
@@ -238,6 +273,9 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
 
   // Called when the focus controller changes the focus to this frame.
   virtual void DidFocus() = 0;
+
+  virtual IntSize GetMainFrameViewportSize() const = 0;
+  virtual IntPoint GetMainFrameScrollOffset() const = 0;
 
  protected:
   // |inheriting_agent_factory| should basically be set to the parent frame or
@@ -269,26 +307,35 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
 
   void FocusImpl();
 
+  void ApplyFrameOwnerProperties(
+      mojom::blink::FrameOwnerPropertiesPtr properties);
+
   mutable FrameTree tree_node_;
 
   Member<Page> page_;
   Member<FrameOwner> owner_;
   Member<DOMWindow> dom_window_;
 
-  // The user activation state of the current frame.  See |UserActivationState|
-  // for details on how this state is maintained.
-  UserActivationState user_activation_state_;
-
-  bool has_received_user_gesture_before_nav_ = false;
-
   // This is set to true if this is a subframe, and the frame element in the
   // parent frame's document becomes inert. This should always be false for
   // the main frame.
   bool is_inert_ = false;
 
-  TouchAction inherited_effective_touch_action_ = TouchAction::kTouchActionAuto;
+  TouchAction inherited_effective_touch_action_ = TouchAction::kAuto;
 
   bool visible_to_hit_testing_ = true;
+
+  // Type of frame detected by heuristics checking if the frame was created
+  // for advertising purposes. It's per-frame (as opposed to per-document)
+  // because when an iframe is created on behalf of ad script that same frame is
+  // not typically reused for non-ad purposes.
+  //
+  // For LocalFrame, it might be (1) calculated directly in the renderer based
+  // on script in the stack, or (2) replicated from the browser process, or (3)
+  // signaled from the browser process at ready-to-commit time. For RemoteFrame,
+  // it might be (1) replicated from the browser process or (2) signaled from
+  // the browser process at ready-to-commit time.
+  mojom::blink::AdFrameType ad_frame_type_;
 
  private:
   Member<FrameClient> client_;
@@ -301,12 +348,27 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   // frames.
   FeaturePolicy::FeatureState opener_feature_state_;
 
+  // The required document policy for any subframes of this frame.
+  // Note: current frame's document policy might not conform to
+  // |required_document_policy_| here, as the Require-Document-Policy HTTP
+  // header can specify required document policy which only takes effect for
+  // subtree frames.
+  DocumentPolicy::FeatureState required_document_policy_;
+
   Member<WindowAgentFactory> window_agent_factory_;
 
   // TODO(sashab): Investigate if this can be represented with m_lifecycle.
   bool is_loading_;
   base::UnguessableToken devtools_frame_token_;
   base::Optional<std::string> trace_value_;
+
+  // The user activation state of the current frame.  See |UserActivationState|
+  // for details on how this state is maintained.
+  UserActivationState user_activation_state_;
+
+  // The sticky user activation state of the current frame before eTLD+1
+  // navigation.  This is used in autoplay.
+  bool had_sticky_user_activation_before_nav_ = false;
 };
 
 inline FrameClient* Frame::Client() const {

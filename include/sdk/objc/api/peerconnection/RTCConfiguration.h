@@ -15,7 +15,6 @@
 #import "RTCMacros.h"
 
 @class RTCIceServer;
-@class RTCIntervalRange;
 
 /**
  * Represents the ice transport policy. This exposes the same states in C++,
@@ -72,6 +71,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 RTC_OBJC_EXPORT
 @interface RTCConfiguration : NSObject
+
+/** If true, allows DSCP codes to be set on outgoing packets, configured using
+ *  networkPriority field of RTCRtpEncodingParameters. Defaults to false.
+ */
+@property(nonatomic, assign) BOOL enableDscp;
 
 /** An array of Ice Servers available to be used by ICE. */
 @property(nonatomic, copy) NSArray<RTCIceServer *> *iceServers;
@@ -156,13 +160,6 @@ RTC_OBJC_EXPORT
  *  check packets.
  */
 @property(nonatomic, copy, nullable) NSNumber *iceCheckMinInterval;
-
-/** ICE Periodic Regathering
- *  If set, WebRTC will periodically create and propose candidates without
- *  starting a new ICE generation. The regathering happens continuously with
- *  interval specified in milliseconds by the uniform distribution [a, b].
- */
-@property(nonatomic, strong, nullable) RTCIntervalRange *iceRegatherIntervalRange;
 
 /** Configure the SDP semantics used by this PeerConnection. Note that the
  *  WebRTC 1.0 specification requires UnifiedPlan semantics. The

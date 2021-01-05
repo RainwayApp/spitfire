@@ -50,18 +50,18 @@ namespace webrtc_internal_rtp_video_sender {
 // RTP state for a single simulcast stream. Internal to the implementation of
 // RtpVideoSender.
 struct RtpStreamSender {
-  RtpStreamSender(std::unique_ptr<PlayoutDelayOracle> playout_delay_oracle,
-                  std::unique_ptr<RtpRtcp> rtp_rtcp,
-                  std::unique_ptr<RTPSenderVideo> sender_video);
+  RtpStreamSender(std::unique_ptr<RtpRtcp> rtp_rtcp,
+                  std::unique_ptr<RTPSenderVideo> sender_video,
+                  std::unique_ptr<VideoFecGenerator> fec_generator);
   ~RtpStreamSender();
 
   RtpStreamSender(RtpStreamSender&&) = default;
   RtpStreamSender& operator=(RtpStreamSender&&) = default;
 
   // Note: Needs pointer stability.
-  std::unique_ptr<PlayoutDelayOracle> playout_delay_oracle;
   std::unique_ptr<RtpRtcp> rtp_rtcp;
   std::unique_ptr<RTPSenderVideo> sender_video;
+  std::unique_ptr<VideoFecGenerator> fec_generator;
 };
 
 }  // namespace webrtc_internal_rtp_video_sender
@@ -87,7 +87,8 @@ class RtpVideoSender : public RtpVideoSenderInterface,
       RateLimiter* retransmission_limiter,  // move inside RtpTransport
       std::unique_ptr<FecController> fec_controller,
       FrameEncryptorInterface* frame_encryptor,
-      const CryptoOptions& crypto_options);  // move inside RtpTransport
+      const CryptoOptions& crypto_options,  // move inside RtpTransport
+      rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
   ~RtpVideoSender() override;
 
   // RegisterProcessThread register |module_process_thread| with those objects
@@ -156,13 +157,13 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   void ConfigureProtection();
   void ConfigureSsrcs();
   void ConfigureRids();
-  bool FecEnabled() const;
   bool NackEnabled() const;
   uint32_t GetPacketizationOverheadRate() const;
 
   const bool send_side_bwe_with_overhead_;
   const bool account_for_packetization_overhead_;
   const bool use_early_loss_detection_;
+  const bool has_packet_feedback_;
 
   // TODO(holmer): Remove crit_ once RtpVideoSender runs on the
   // transport task queue.
@@ -172,8 +173,6 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   ProcessThread* module_process_thread_;
   rtc::ThreadChecker module_process_thread_checker_;
   std::map<uint32_t, RtpState> suspended_ssrcs_;
-
-  std::unique_ptr<FlexfecSender> flexfec_sender_;
 
   const std::unique_ptr<FecController> fec_controller_;
   bool fec_allowed_ RTC_GUARDED_BY(crit_);

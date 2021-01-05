@@ -1,7 +1,7 @@
 #pragma once
 
-#include "api/peer_connection_interface.h"
-#include "api/data_channel_interface.h"
+#include <api/peer_connection_interface.h>
+#include <api/data_channel_interface.h>
 
 namespace Spitfire 
 {
@@ -12,34 +12,53 @@ namespace Spitfire
 		class DataChannelObserver : public webrtc::DataChannelObserver
 		{
 		public:
-			explicit DataChannelObserver(RtcConductor* conductor) :
-				conductor_(conductor)
+			explicit DataChannelObserver(RtcConductor* conductor, rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) :
+				conductor_(conductor),
+				data_channel_(data_channel)
 			{
+				RTC_DCHECK(conductor && data_channel);
 			}
-			~DataChannelObserver() = default;
+			~DataChannelObserver()
+			{
+				#if RTC_DCHECK_IS_ON
+					RTC_DCHECK(!registered_);
+				#endif
+			}
 
-			// The data channel state have changed.
+			void RegisterObserver()
+			{
+				RTC_DCHECK(data_channel_);
+				data_channel_->RegisterObserver(this);
+				#if RTC_DCHECK_IS_ON
+					RTC_DCHECK(!registered_);
+					registered_ = true;
+				#endif
+			}
+			void UnregisterObserver()
+			{
+				RTC_DCHECK(data_channel_);
+				// NOTE: The channel is assumed to be provided in constructor with immediate following observer registration, hence it's lifetime is directly
+				//       related to this observer; we close the channel along with observer termination as a part of cleanup
+				data_channel_->Close();
+				data_channel_->UnregisterObserver();
+				#if RTC_DCHECK_IS_ON
+					RTC_DCHECK(registered_);
+					registered_ = false;
+				#endif
+			}
+
+			// webrtc::DataChannelObserver
 			void OnStateChange() override;
-
-			//  A data buffer was successfully received.
 			void OnMessage(const webrtc::DataBuffer & buffer) override;
-
-			// The data channel's buffered_amount has changed.
 			void OnBufferedAmountChange(uint64_t previous_amount) override;
 
-			rtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel;
-
-			int AddRef() const
-			{
-				return 0;
-			};
-			int Release() const
-			{
-				return 0;
-			};
+			rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
 
 		private:
 			RtcConductor* conductor_;
+			#if RTC_DCHECK_IS_ON
+				bool registered_ = false;
+			#endif
 		};
 	}
 }

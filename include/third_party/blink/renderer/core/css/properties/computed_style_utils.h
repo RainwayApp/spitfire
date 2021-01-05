@@ -99,6 +99,7 @@ class ComputedStyleUtils {
   ValueForContentPositionAndDistributionWithOverflowAlignment(
       const StyleContentAlignmentData&);
   static CSSValue* ValueForLineHeight(const ComputedStyle&);
+  static CSSValue* ComputedValueForLineHeight(const ComputedStyle&);
   static CSSValueList* ValueForFontFamily(const ComputedStyle&);
   static CSSPrimitiveValue* ValueForFontSize(const ComputedStyle&);
   static CSSPrimitiveValue* ValueForFontStretch(const ComputedStyle&);
@@ -135,8 +136,8 @@ class ComputedStyleUtils {
   static CSSValue* ValueForAnimationTimingFunction(const CSSTimingData*);
   static CSSValueList* ValuesForBorderRadiusCorner(const LengthSize&,
                                                    const ComputedStyle&);
-  static const CSSValue& ValueForBorderRadiusCorner(const LengthSize&,
-                                                    const ComputedStyle&);
+  static CSSValue* ValueForBorderRadiusCorner(const LengthSize&,
+                                              const ComputedStyle&);
   // TODO(fs): For some properties ('transform') we use the pixel snapped
   // border-box as the reference box. In other cases ('transform-origin') we use
   // the "unsnapped" border-box. Maybe use the same (the "unsnapped") in both
@@ -145,6 +146,10 @@ class ComputedStyleUtils {
     kDontUsePixelSnappedBox,
     kUsePixelSnappedBox,
   };
+  static CSSValue* ValueForMatrixTransform(const TransformationMatrix&,
+                                           const ComputedStyle&);
+  static CSSValue* ValueForTransformOperation(const TransformOperation&,
+                                              float zoom);
   static FloatRect ReferenceBoxForTransform(
       const LayoutObject&,
       UsePixelSnappedBox = kUsePixelSnappedBox);
@@ -214,12 +219,6 @@ class ComputedStyleUtils {
   static CSSValue* ValueForGapLength(const GapLength&, const ComputedStyle&);
   static std::unique_ptr<CrossThreadStyleValue>
   CrossThreadStyleValueFromCSSStyleValue(CSSStyleValue* style_value);
-
-  static CSSValuePair* ValuesForIntrinsicSizeShorthand(
-      const StylePropertyShorthand&,
-      const ComputedStyle&,
-      const LayoutObject*,
-      bool allow_visited_style);
 };
 
 }  // namespace blink

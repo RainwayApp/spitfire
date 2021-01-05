@@ -22,6 +22,8 @@
 #include "api/audio_options.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/crypto/frame_encryptor_interface.h"
+#include "api/frame_transformer_interface.h"
+#include "api/media_stream_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/transport/media/media_transport_config.h"
@@ -143,6 +145,7 @@ struct VideoOptions {
   // things, e.g., screencast of a text document and screencast of a
   // youtube video have different needs.
   absl::optional<bool> is_screencast;
+  webrtc::VideoTrackInterface::ContentHint content_hint;
 
  private:
   template <typename T>
@@ -286,6 +289,13 @@ class MediaChannel : public sigslot::has_slots<> {
   virtual webrtc::RTCError SetRtpSendParameters(
       uint32_t ssrc,
       const webrtc::RtpParameters& parameters) = 0;
+
+  virtual void SetEncoderToPacketizerFrameTransformer(
+      uint32_t ssrc,
+      rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer);
+  virtual void SetDepacketizerToDecoderFrameTransformer(
+      uint32_t ssrc,
+      rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer);
 
  protected:
   bool DscpEnabled() const { return enable_dscp_; }
@@ -502,6 +512,7 @@ struct VoiceReceiverInfo : public MediaReceiverInfo {
   uint64_t concealment_events = 0;
   double jitter_buffer_delay_seconds = 0.0;
   uint64_t jitter_buffer_emitted_count = 0;
+  double jitter_buffer_target_delay_seconds = 0.0;
   uint64_t inserted_samples_for_deceleration = 0;
   uint64_t removed_samples_for_acceleration = 0;
   uint64_t fec_packets_received = 0;
@@ -738,6 +749,10 @@ struct RtpParameters {
 
   std::vector<Codec> codecs;
   std::vector<webrtc::RtpExtension> extensions;
+  // For a send stream this is true if we've neogtiated a send direction,
+  // for a receive stream this is true if we've negotiated a receive direction.
+  bool is_stream_active = true;
+
   // TODO(pthatcher): Add streams.
   RtcpParameters rtcp;
 

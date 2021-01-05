@@ -1,7 +1,7 @@
 #pragma once
 
-#include "api/peer_connection_interface.h"
-#include "api/jsep.h"
+#include <api/peer_connection_interface.h>
+#include <api/jsep.h>
 
 namespace Spitfire 
 {
@@ -15,19 +15,23 @@ namespace Spitfire
 			explicit CreateSessionDescriptionObserver(RtcConductor* conductor) :
 				conductor_(conductor)
 			{
+				RTC_DCHECK(conductor);
 			}
 			~CreateSessionDescriptionObserver() = default;
 
-			void OnSuccess(webrtc::SessionDescriptionInterface * desc) override;
-			void OnFailure(const std::string & error) override;
+			// webrtc::CreateSessionDescriptionObserver
+			void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
+			void OnFailure(webrtc::RTCError error) override;
 
+			// rtc::RefCountInterface
 			void AddRef() const override
 			{
 				ref_count_.IncRef();
 			};
 			rtc::RefCountReleaseStatus Release() const override
 			{
-				if (ref_count_.HasOneRef()) {
+				if (ref_count_.HasOneRef())
+				{
 					delete this;
 					return rtc::RefCountReleaseStatus::kDroppedLastRef;
 				}

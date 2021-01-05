@@ -28,6 +28,11 @@ namespace webrtc {
 
 // An interface for signaling requests to limit or increase the resolution or
 // framerate of the captured video stream.
+// TODO(hbos): Can we remove AdaptationObserverInterface in favor of
+// ResourceUsageListener? If we need to adapt that is because of resource usage.
+// A multi-stream and multi-resource aware solution needs to sparate the notion
+// of being resource constrained from the decision to downgrade a specific
+// stream.
 class AdaptationObserverInterface {
  public:
   // Indicates if the adaptation is due to overuse of the CPU resources, or if
@@ -53,8 +58,7 @@ class QualityScaler {
   // Construct a QualityScaler with given |thresholds| and |observer|.
   // This starts the quality scaler periodically checking what the average QP
   // has been recently.
-  QualityScaler(rtc::TaskQueue* task_queue,
-                AdaptationObserverInterface* observer,
+  QualityScaler(AdaptationObserverInterface* observer,
                 VideoEncoder::QpThresholds thresholds);
   virtual ~QualityScaler();
   // Should be called each time a frame is dropped at encoding.
@@ -68,8 +72,7 @@ class QualityScaler {
 
   // The following members declared protected for testing purposes.
  protected:
-  QualityScaler(rtc::TaskQueue* task_queue,
-                AdaptationObserverInterface* observer,
+  QualityScaler(AdaptationObserverInterface* observer,
                 VideoEncoder::QpThresholds thresholds,
                 int64_t sampling_period_ms);
 

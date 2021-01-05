@@ -112,6 +112,7 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   void SetVolume(double volume) override;
   void SetLatencyHint(double seconds) override;
   void OnRequestPictureInPicture() override;
+  void OnPictureInPictureAvailabilityChanged(bool available) override;
   void SetSinkId(const WebString& sink_id,
                  WebSetSinkIdCompleteCallback completion_callback) override;
   void SetPreload(WebMediaPlayer::Preload preload) override;
@@ -135,15 +136,16 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   bool HasAudio() const override;
 
   // Dimensions of the video.
-  WebSize NaturalSize() const override;
+  gfx::Size NaturalSize() const override;
 
-  WebSize VisibleRect() const override;
+  gfx::Size VisibleSize() const override;
 
   // Getters of playback state.
   bool Paused() const override;
   bool Seeking() const override;
   double Duration() const override;
   double CurrentTime() const override;
+  bool IsEnded() const override;
 
   // Internal states of loading and network.
   WebMediaPlayer::NetworkState GetNetworkState() const override;
@@ -175,6 +177,8 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   void OnMuted(bool muted) override;
   void OnSeekForward(double seconds) override;
   void OnSeekBackward(double seconds) override;
+  void OnEnterPictureInPicture() override;
+  void OnExitPictureInPicture() override;
   void OnVolumeMultiplierUpdate(double multiplier) override;
   void OnBecamePersistentVideo(bool value) override;
 
@@ -234,6 +238,10 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
 
   void OnDisplayTypeChanged(WebMediaPlayer::DisplayType) override;
 
+  void RequestAnimationFrame() override;
+  std::unique_ptr<WebMediaPlayer::VideoFramePresentationMetadata>
+  GetVideoFramePresentationMetadata() override;
+
  private:
   friend class WebMediaPlayerMSTest;
 
@@ -265,6 +273,11 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   // Helper method used for testing.
   void SetGpuMemoryBufferVideoForTesting(
       media::GpuMemoryBufferVideoFramePool* gpu_memory_buffer_pool);
+
+  // Callback used to fulfill video.requestAnimationFrame() requests.
+  void OnNewFramePresentedCallback();
+
+  void SendLogMessage(const WTF::String& message) const;
 
   std::unique_ptr<MediaStreamInternalFrameWrapper> internal_frame_;
 
@@ -300,6 +313,10 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
 
   scoped_refptr<WebMediaStreamAudioRenderer> audio_renderer_;  // Weak
   media::PaintCanvasVideoRenderer video_renderer_;
+
+  // Indicated whether an outstanding rAF request needs to be forwarded to
+  // |compositor_|. Set when RequestAnimationFrame() is called before Load().
+  bool pending_raf_request_ = false;
 
   bool paused_;
   media::VideoTransformation video_transformation_;

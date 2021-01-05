@@ -19,14 +19,23 @@ class BLINK_COMMON_EXPORT
     return frame_policy.allowed_to_download;
   }
 
+  static bool disallow_document_access(const blink::FramePolicy& frame_policy) {
+    return frame_policy.disallow_document_access;
+  }
+
   static const std::vector<blink::ParsedFeaturePolicyDeclaration>&
   container_policy(const blink::FramePolicy& frame_policy) {
     return frame_policy.container_policy;
   }
 
-  static blink::WebSandboxFlags sandbox_flags(
+  static blink::mojom::WebSandboxFlags sandbox_flags(
       const blink::FramePolicy& frame_policy) {
     return frame_policy.sandbox_flags;
+  }
+
+  static const blink::DocumentPolicy::FeatureState& required_document_policy(
+      const blink::FramePolicy& frame_policy) {
+    return frame_policy.required_document_policy;
   }
 
   static bool Read(blink::mojom::FramePolicyDataView in,

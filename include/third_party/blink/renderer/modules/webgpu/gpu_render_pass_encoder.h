@@ -22,9 +22,6 @@ class GPURenderPassEncoder : public DawnObject<WGPURenderPassEncoder>,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static GPURenderPassEncoder* Create(
-      GPUDevice* device,
-      WGPURenderPassEncoder render_pass_encoder);
   explicit GPURenderPassEncoder(GPUDevice* device,
                                 WGPURenderPassEncoder render_pass_encoder);
   ~GPURenderPassEncoder() override;
@@ -35,7 +32,7 @@ class GPURenderPassEncoder : public DawnObject<WGPURenderPassEncoder>,
                     const Vector<uint32_t>& dynamicOffsets);
   void setBindGroup(uint32_t index,
                     GPUBindGroup* bind_group,
-                    const FlexibleUint32ArrayView& dynamic_offsets_data,
+                    const FlexibleUint32Array& dynamic_offsets_data,
                     uint64_t dynamic_offsets_data_start,
                     uint32_t dynamic_offsets_data_length,
                     ExceptionState& exception_state);

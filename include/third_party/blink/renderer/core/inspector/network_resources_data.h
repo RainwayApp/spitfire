@@ -50,18 +50,10 @@ class TextResourceDecoder;
 
 class XHRReplayData final : public GarbageCollected<XHRReplayData> {
  public:
-  static XHRReplayData* Create(ExecutionContext*,
-                               const AtomicString& method,
-                               const KURL&,
-                               bool async,
-                               scoped_refptr<EncodedFormData>,
-                               bool include_credentials);
-
   XHRReplayData(ExecutionContext*,
                 const AtomicString& method,
                 const KURL&,
                 bool async,
-                scoped_refptr<EncodedFormData>,
                 bool include_credentials);
 
   void AddHeader(const AtomicString& key, const AtomicString& value);
@@ -70,23 +62,16 @@ class XHRReplayData final : public GarbageCollected<XHRReplayData> {
   const AtomicString& Method() const { return method_; }
   const KURL& Url() const { return url_; }
   bool Async() const { return async_; }
-  EncodedFormData* FormData() const { return form_data_.get(); }
   const HTTPHeaderMap& Headers() const { return headers_; }
   bool IncludeCredentials() const { return include_credentials_; }
 
-  virtual void Trace(blink::Visitor* visitor) {
-    visitor->Trace(execution_context_);
-  }
-
-  void DeleteFormData() { form_data_ = nullptr; }
+  virtual void Trace(Visitor* visitor) { visitor->Trace(execution_context_); }
 
  private:
   WeakMember<ExecutionContext> execution_context_;
   AtomicString method_;
   KURL url_;
   bool async_;
-  // TODO(http://crbug.com/958524): Remove form_data_ after OutOfBlinkCORS is launched.
-  scoped_refptr<EncodedFormData> form_data_;
   HTTPHeaderMap headers_;
   bool include_credentials_;
 };
@@ -175,7 +160,7 @@ class NetworkResourcesData final
       post_data_ = post_data;
     }
     EncodedFormData* PostData() const { return post_data_.get(); }
-    void Trace(blink::Visitor*);
+    void Trace(Visitor*);
 
    private:
     bool HasData() const { return data_buffer_.get(); }
@@ -208,12 +193,6 @@ class NetworkResourcesData final
     Vector<AtomicString> certificate_;
     scoped_refptr<EncodedFormData> post_data_;
   };
-
-  static NetworkResourcesData* Create(size_t total_buffer_size,
-                                      size_t resource_buffer_size) {
-    return MakeGarbageCollected<NetworkResourcesData>(total_buffer_size,
-                                                      resource_buffer_size);
-  }
 
   NetworkResourcesData(size_t total_buffer_size, size_t resource_buffer_size);
   ~NetworkResourcesData();
@@ -251,7 +230,7 @@ class NetworkResourcesData final
   int64_t GetAndClearPendingEncodedDataLength(const String& request_id);
   void AddPendingEncodedDataLength(const String& request_id,
                                    size_t encoded_data_length);
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*);
 
  private:
   ResourceData* ResourceDataForRequestId(const String& request_id) const;

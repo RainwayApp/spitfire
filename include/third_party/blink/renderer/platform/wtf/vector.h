@@ -108,7 +108,7 @@ template <typename T>
 struct VectorUnusedSlotClearer<true, T> {
   STATIC_ONLY(VectorUnusedSlotClearer);
   static void Clear(T* begin, T* end) {
-    memset(reinterpret_cast<void*>(begin), 0, sizeof(T) * (end - begin));
+    AtomicMemzero(reinterpret_cast<void*>(begin), sizeof(T) * (end - begin));
   }
 
 #if DCHECK_IS_ON()
@@ -204,14 +204,40 @@ struct VectorMover<true, T, Allocator> {
         Traits::NotifyNewElements(dst, src_end - src);
     }
   }
+
+  template <bool = Allocator::kIsGarbageCollected>
+  static void MoveOverlappingImpl(const T* src, const T* src_end, T* dst);
+  template <>
+  static void MoveOverlappingImpl<false>(const T* src,
+                                         const T* src_end,
+                                         T* dst) {
+    memmove(dst, src,
+            reinterpret_cast<const char*>(src_end) -
+                reinterpret_cast<const char*>(src));
+  }
+  template <>
+  static void MoveOverlappingImpl<true>(const T* src,
+                                        const T* src_end,
+                                        T* dst) {
+    if (src == dst)
+      return;
+    if (dst < src) {
+      for (; src < src_end; ++src, ++dst)
+        AtomicWriteMemcpy<sizeof(T)>(dst, src);
+    } else {
+      --src_end;
+      T* dst_end = dst + (src_end - src);
+      for (; src_end >= src; --src_end, --dst_end)
+        AtomicWriteMemcpy<sizeof(T)>(dst_end, src_end);
+    }
+  }
+
   static void MoveOverlapping(const T* src,
                               const T* src_end,
                               T* dst,
                               bool has_inline_buffer) {
     if (LIKELY(dst && src)) {
-      memmove(dst, src,
-              reinterpret_cast<const char*>(src_end) -
-                  reinterpret_cast<const char*>(src));
+      MoveOverlappingImpl(src, src_end, dst);
       if (has_inline_buffer)
         Traits::NotifyNewElements(dst, src_end - src);
     }
@@ -407,13 +433,15 @@ class VectorBufferBase {
     DCHECK_LE(new_capacity,
               Allocator::template MaxElementCountInBackingStore<T>());
     size_t size_to_allocate = AllocationSize(new_capacity);
-    buffer_ = Allocator::template AllocateVectorBacking<T>(size_to_allocate);
+    AsAtomicPtr(&buffer_)->store(
+        Allocator::template AllocateVectorBacking<T>(size_to_allocate),
+        std::memory_order_relaxed);
     capacity_ = static_cast<wtf_size_t>(size_to_allocate / sizeof(T));
   }
 
   void AllocateBuffer(wtf_size_t new_capacity) {
     AllocateBufferNoBarrier(new_capacity);
-    Allocator::BackingWriteBarrier(buffer_);
+    Allocator::BackingWriteBarrier(&buffer_);
   }
 
   size_t AllocationSize(size_t capacity) const {
@@ -446,7 +474,7 @@ class VectorBufferBase {
   }
 
   void MoveBufferInto(VectorBufferBase& other) {
-    other.buffer_ = buffer_;
+    AsAtomicPtr(&other.buffer_)->store(buffer_, std::memory_order_relaxed);
     other.capacity_ = capacity_;
   }
 
@@ -479,6 +507,10 @@ class VectorBufferBase {
 
   bool IsHashTableDeletedValue() const {
     return buffer_ == reinterpret_cast<T*>(-1);
+  }
+
+  const T* BufferSafe() const {
+    return AsAtomicPtr(&buffer_)->load(std::memory_order_relaxed);
   }
 
   T* buffer_;
@@ -540,7 +572,7 @@ class VectorBuffer<T, 0, Allocator> : protected VectorBufferBase<T, Allocator> {
   }
 
   void ResetBufferPointer() {
-    buffer_ = nullptr;
+    AsAtomicPtr(&buffer_)->store(nullptr, std::memory_order_relaxed);
     capacity_ = 0;
   }
 
@@ -551,11 +583,11 @@ class VectorBuffer<T, 0, Allocator> : protected VectorBufferBase<T, Allocator> {
                         OffsetRange other_hole) {
     static_assert(VectorTraits<T>::kCanSwapUsingCopyOrMove,
                   "Cannot swap using copy or move.");
-    std::swap(buffer_, other.buffer_);
+    AtomicWriteSwap(buffer_, other.buffer_);
     std::swap(capacity_, other.capacity_);
     std::swap(size_, other.size_);
-    Allocator::BackingWriteBarrier(buffer_);
-    Allocator::BackingWriteBarrier(other.buffer_);
+    Allocator::BackingWriteBarrier(&buffer_);
+    Allocator::BackingWriteBarrier(&other.buffer_);
   }
 
   using Base::AllocateBuffer;
@@ -570,13 +602,18 @@ class VectorBuffer<T, 0, Allocator> : protected VectorBufferBase<T, Allocator> {
   bool HasOutOfLineBuffer() const {
     // When inlineCapacity is 0 we have an out of line buffer if we have a
     // buffer.
-    return Buffer();
+    return IsOutOfLineBuffer(Buffer());
   }
 
   T** BufferSlot() { return &buffer_; }
+  const T* const* BufferSlot() const { return &buffer_; }
 
  protected:
+  using Base::BufferSafe;
+
   using Base::size_;
+
+  bool IsOutOfLineBuffer(const T* buffer) const { return buffer; }
 
  private:
   using Base::buffer_;
@@ -648,7 +685,7 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
   }
 
   void ResetBufferPointer() {
-    buffer_ = InlineBuffer();
+    AsAtomicPtr(&buffer_)->store(InlineBuffer(), std::memory_order_relaxed);
     capacity_ = inlineCapacity;
   }
 
@@ -694,8 +731,8 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
       std::swap(buffer_, other.buffer_);
       std::swap(capacity_, other.capacity_);
       std::swap(size_, other.size_);
-      Allocator::BackingWriteBarrier(buffer_);
-      Allocator::BackingWriteBarrier(other.buffer_);
+      Allocator::BackingWriteBarrier(&buffer_);
+      Allocator::BackingWriteBarrier(&other.buffer_);
       return;
     }
 
@@ -756,7 +793,7 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
       other.buffer_ = other.InlineBuffer();
       std::swap(size_, other.size_);
       ANNOTATE_NEW_BUFFER(other.buffer_, inlineCapacity, other.size_);
-      Allocator::BackingWriteBarrier(buffer_);
+      Allocator::BackingWriteBarrier(&buffer_);
     } else if (!this_source_begin &&
                other_source_begin) {  // Their buffer is inline, ours is not.
       DCHECK_NE(Buffer(), InlineBuffer());
@@ -766,7 +803,7 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
       buffer_ = InlineBuffer();
       std::swap(size_, other.size_);
       ANNOTATE_NEW_BUFFER(buffer_, inlineCapacity, size_);
-      Allocator::BackingWriteBarrier(other.buffer_);
+      Allocator::BackingWriteBarrier(&other.buffer_);
     } else {  // Both buffers are inline.
       DCHECK(this_source_begin);
       DCHECK(other_source_begin);
@@ -850,14 +887,19 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
   using Base::Buffer;
   using Base::capacity;
 
-  bool HasOutOfLineBuffer() const {
-    return Buffer() && Buffer() != InlineBuffer();
-  }
+  bool HasOutOfLineBuffer() const { return IsOutOfLineBuffer(Buffer()); }
 
   T** BufferSlot() { return &buffer_; }
+  const T* const* BufferSlot() const { return &buffer_; }
 
  protected:
+  using Base::BufferSafe;
+
   using Base::size_;
+
+  bool IsOutOfLineBuffer(const T* buffer) const {
+    return buffer && buffer != InlineBuffer();
+  }
 
  private:
   using Base::buffer_;
@@ -1237,6 +1279,9 @@ class Vector
   void EraseAt(wtf_size_t position);
   void EraseAt(wtf_size_t position, wtf_size_t length);
   iterator erase(iterator position);
+  iterator erase(iterator first, iterator last);
+  // This is to prevent compilation of deprecated calls like 'vector.erase(0)'.
+  void erase(std::nullptr_t) = delete;
 
   // Remove the last element. Unlike remove(), (1) this function is fast, and
   // (2) only iterators pointing to the last element will be invalidated. Other
@@ -1254,8 +1299,15 @@ class Vector
   // or copy-initialize all the elements.
   //
   // Fill(value) is a synonym for Fill(value, size()).
-  void Fill(const T&, wtf_size_t);
-  void Fill(const T& val) { Fill(val, size()); }
+  //
+  // The implementation of Fill uses std::fill which is not yet supported for
+  // garbage collected vectors.
+  template <typename A = Allocator>
+  std::enable_if_t<!A::kIsGarbageCollected> Fill(const T&, wtf_size_t);
+  template <typename A = Allocator>
+  std::enable_if_t<!A::kIsGarbageCollected> Fill(const T& val) {
+    Fill(val, size());
+  }
 
   // Swap two vectors quickly.
   void swap(Vector& other) {
@@ -1291,7 +1343,7 @@ class Vector
   }
 
   template <typename VisitorDispatcher, typename A = Allocator>
-  std::enable_if_t<A::kIsGarbageCollected> Trace(VisitorDispatcher);
+  std::enable_if_t<A::kIsGarbageCollected> Trace(VisitorDispatcher) const;
 
   class GCForbiddenScope {
     STACK_ALLOCATED();
@@ -1306,6 +1358,7 @@ class Vector
   using Base::ClearUnusedSlots;
 
   T** GetBufferSlot() { return Base::BufferSlot(); }
+  const T* const* GetBufferSlot() const { return Base::BufferSlot(); }
 
  private:
   void ExpandCapacity(wtf_size_t new_min_capacity);
@@ -1326,14 +1379,12 @@ class Vector
 
   void ReallocateBuffer(wtf_size_t);
 
-  // This is to prevent compilation of deprecated calls like 'vector.erase(0)'.
-  void erase(std::nullptr_t) = delete;
-
-  using Base::size_;
-  using Base::Buffer;
-  using Base::SwapVectorBuffer;
   using Base::AllocateBuffer;
   using Base::AllocationSize;
+  using Base::Buffer;
+  using Base::BufferSafe;
+  using Base::size_;
+  using Base::SwapVectorBuffer;
 };
 
 //
@@ -1550,8 +1601,9 @@ wtf_size_t Vector<T, inlineCapacity, Allocator>::ReverseFind(
 }
 
 template <typename T, wtf_size_t inlineCapacity, typename Allocator>
-void Vector<T, inlineCapacity, Allocator>::Fill(const T& val,
-                                                wtf_size_t new_size) {
+template <typename A>
+std::enable_if_t<!A::kIsGarbageCollected>
+Vector<T, inlineCapacity, Allocator>::Fill(const T& val, wtf_size_t new_size) {
   if (size() > new_size) {
     Shrink(new_size);
   } else if (new_size > capacity()) {
@@ -1922,6 +1974,17 @@ inline auto Vector<T, inlineCapacity, Allocator>::erase(iterator position)
 }
 
 template <typename T, wtf_size_t inlineCapacity, typename Allocator>
+inline auto Vector<T, inlineCapacity, Allocator>::erase(iterator first,
+                                                        iterator last)
+    -> iterator {
+  DCHECK_LE(first, last);
+  const wtf_size_t index = static_cast<wtf_size_t>(first - begin());
+  const wtf_size_t diff = std::distance(first, last);
+  EraseAt(index, diff);
+  return begin() + index;
+}
+
+template <typename T, wtf_size_t inlineCapacity, typename Allocator>
 inline void Vector<T, inlineCapacity, Allocator>::EraseAt(wtf_size_t position,
                                                           wtf_size_t length) {
   SECURITY_DCHECK(position <= size());
@@ -1976,29 +2039,37 @@ inline bool operator!=(const Vector<T, inlineCapacityA, Allocator>& a,
 template <typename T, wtf_size_t inlineCapacity, typename Allocator>
 template <typename VisitorDispatcher, typename A>
 std::enable_if_t<A::kIsGarbageCollected>
-Vector<T, inlineCapacity, Allocator>::Trace(VisitorDispatcher visitor) {
+Vector<T, inlineCapacity, Allocator>::Trace(VisitorDispatcher visitor) const {
+  // Bail out for concurrent marking.
+  if (visitor->ConcurrentTracingBailOut(
+          {this, [](blink::Visitor* visitor, const void* object) {
+             reinterpret_cast<const Vector<T, inlineCapacity, Allocator>*>(
+                 object)
+                 ->Trace(visitor);
+           }}))
+    return;
+
   static_assert(Allocator::kIsGarbageCollected,
                 "Garbage collector must be enabled.");
 
-  if (this->HasOutOfLineBuffer()) {
-    Allocator::TraceVectorBacking(visitor, Buffer(), Base::BufferSlot());
+  const T* buffer = BufferSafe();
+  if (Base::IsOutOfLineBuffer(buffer)) {
+    Allocator::TraceVectorBacking(visitor, buffer, Base::BufferSlot());
   } else {
     // We should not visit inline buffers, but we still need to register the
     // slot for heap compaction. So, we pass nullptr to this method.
     Allocator::TraceVectorBacking(visitor, static_cast<T*>(nullptr),
                                   Base::BufferSlot());
-    if (!Buffer())
+    if (!buffer)
       return;
     // Inline buffer requires tracing immediately.
-    const T* buffer_begin = Buffer();
-    const T* buffer_end = Buffer() + size();
+    const T* buffer_begin = buffer;
+    const T* buffer_end = buffer + size();
     if (IsTraceableInCollectionTrait<VectorTraits<T>>::value) {
       for (const T* buffer_entry = buffer_begin; buffer_entry != buffer_end;
            buffer_entry++) {
-        Allocator::template Trace<T, VectorTraits<T>>(
-            visitor, *const_cast<T*>(buffer_entry));
+        Allocator::template Trace<T, VectorTraits<T>>(visitor, *buffer_entry);
       }
-      CheckUnusedSlots(Buffer() + size(), Buffer() + capacity());
     }
   }
 }
@@ -2035,7 +2106,7 @@ void Vector<T, inlineCapacity, Allocator>::ReallocateBuffer(
   ANNOTATE_DELETE_BUFFER(begin(), capacity(), size_);
   Base::DeallocateBuffer(begin());
   buffer.MoveBufferInto(*this);
-  Allocator::BackingWriteBarrier(begin());
+  Allocator::BackingWriteBarrier(Base::BufferSlot());
 }
 
 }  // namespace WTF

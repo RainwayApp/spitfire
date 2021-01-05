@@ -48,6 +48,7 @@ struct PeerConnectionFactoryComponents {
   std::unique_ptr<FecControllerFactoryInterface> fec_controller_factory;
   std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
   std::unique_ptr<MediaTransportFactory> media_transport_factory;
+  std::unique_ptr<NetEqFactory> neteq_factory;
 
   // Will be passed to MediaEngineInterface, that will be used in
   // PeerConnectionFactory.
@@ -74,6 +75,7 @@ struct PeerConnectionComponents {
   std::unique_ptr<webrtc::AsyncResolverFactory> async_resolver_factory;
   std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator;
   std::unique_ptr<rtc::SSLCertificateVerifier> tls_cert_verifier;
+  std::unique_ptr<IceTransportFactory> ice_transport_factory;
 };
 
 // Contains all components, that can be overridden in peer connection. Also

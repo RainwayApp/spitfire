@@ -101,7 +101,7 @@ class SVGAnimatedPropertyBase : public GarbageCollectedMixin {
  private:
   static_assert(kNumberOfAnimatedPropertyTypes <= (1u << 5),
                 "enough bits for AnimatedPropertyType (type_)");
-  static constexpr int kCssPropertyBits = 9;
+  static constexpr int kCssPropertyBits = 10;
   static_assert((1u << kCssPropertyBits) - 1 >= kIntLastCSSProperty,
                 "enough bits for CSS property ids");
 
@@ -161,7 +161,7 @@ class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
     SVGAnimatedPropertyBase::AnimationEnded();
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) override {
     visitor->Trace(base_value_);
     visitor->Trace(current_value_);
     SVGAnimatedPropertyBase::Trace(visitor);
@@ -273,7 +273,7 @@ class SVGAnimatedProperty<Property, TearOffType, void>
     return anim_val_tear_off_;
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) override {
     visitor->Trace(base_val_tear_off_);
     visitor->Trace(anim_val_tear_off_);
     SVGAnimatedPropertyCommon<Property>::Trace(visitor);

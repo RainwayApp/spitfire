@@ -181,7 +181,7 @@ class AudioSendStream final : public webrtc::AudioSendStream,
       RTC_GUARDED_BY(worker_queue_);
   RtpTransportControllerSendInterface* const rtp_transport_;
 
-  RtpRtcp* rtp_rtcp_module_;
+  RtpRtcp* const rtp_rtcp_module_;
   absl::optional<RtpState> const suspended_rtp_state_;
 
   // RFC 5285: Each distinct extension MUST have a unique ID. The value 0 is
@@ -190,6 +190,7 @@ class AudioSendStream final : public webrtc::AudioSendStream,
   struct ExtensionIds {
     int audio_level = 0;
     int abs_send_time = 0;
+    int abs_capture_time = 0;
     int transport_sequence_number = 0;
     int mid = 0;
     int rid = 0;

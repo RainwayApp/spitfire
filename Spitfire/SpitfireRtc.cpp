@@ -1,24 +1,19 @@
 #pragma unmanaged
 
-#include "rtc_base\ssl_adapter.h"
-#include "rtc_base\win32_socket_init.h"
-#include "rtc_base\win32_socket_server.h"
-#include "rtc_base\logging.h"
-#include "rtc_base\time_utils.h"
-#include "rtc_base\helpers.h"
+#pragma warning(disable: 4635) // warning C4635: XML document comment applied to 'rtc.EventBasedExponentialMovingAverage': badly-formed XML: A semi colon character was expected.
+
+#include <rtc_base\ssl_adapter.h>
+#include <rtc_base\win32_socket_init.h>
+#include <rtc_base\win32_socket_server.h>
+#include <rtc_base\logging.h>
+#include <rtc_base\time_utils.h>
+#include <rtc_base\helpers.h>
 
 #include "RtcConductor.h"
 
-FILE _iob[] { *stdin, *stdout, *stderr };
-
-extern "C" FILE * __cdecl __iob_func()
-{
-	return _iob;
-}
-
 #pragma managed
 
-#include "msclr/marshal_cppstd.h"
+#include <msclr\marshal_cppstd.h>
 
 using namespace System::Runtime::InteropServices;
 using namespace System::Reflection;
@@ -29,8 +24,6 @@ using namespace msclr::interop;
 
 namespace Spitfire
 {
-
-	
 
 	/// <summary>
 	/// <seealso href="http://w3c.github.io/webrtc-pc/#idl-def-RTCDataChannelState"/>
@@ -167,7 +160,6 @@ namespace Spitfire
 		String^ Password;
 	};
 
-
 	public ref class DataChannelInfo
 	{
 	public:
@@ -266,51 +258,43 @@ namespace Spitfire
 	public ref class SpitfireRtc
 	{
 	private:
-		std::unique_ptr<Spitfire::RtcConductor>* conductor_;
+		Spitfire::RtcConductor* conductor_ = nullptr;
 
-		bool disposed_;
+		bool disposed_ = false;
 		uint16_t min_port_;
 		uint16_t max_port_;
 
 		delegate void _OnSuccessCallback(String^ type, String^ sdp);
-		_OnSuccessCallback^ onSuccess;
+		_OnSuccessCallback^ on_success_;
 		GCHandle^ on_success_handle_;
 
 		delegate void _OnFailureCallback(String^ error);
-		_OnFailureCallback^ onFailure;
+		_OnFailureCallback^ on_failure_;
 		GCHandle^ on_failure_handle_;
 		
 		delegate void _OnMessageCallback(String^ label, uint8_t* msg, uint32_t size, bool is_binary);
-		_OnMessageCallback^ onMessage;
+		_OnMessageCallback^ on_message_;
 		GCHandle^ on_message_handle_;
 
 		delegate void _OnIceCandidateCallback(String^ sdp_mid, int32_t sdp_mline_index, String^ sdp);
-		_OnIceCandidateCallback^ onIceCandidate;
+		_OnIceCandidateCallback^ on_ice_candidate_;
 		GCHandle^ on_ice_candidate_handle_;
 
 		delegate void _OnDataChannelStateCallback(String^ label, webrtc::DataChannelInterface::DataState state);
-		_OnDataChannelStateCallback^ onDataChannelStateChange;
-		GCHandle^ on_data_channel_state_handle_;
+		_OnDataChannelStateCallback^ on_data_channel_state_change_;
+		GCHandle^ on_data_channel_state_change_handle_;
 
 		delegate void _OnBufferChangeCallback(String^ label, uint64_t previousAmount, uint64_t currentAmount, uint64_t bytesSent, uint64_t bytesReceived);
-		_OnBufferChangeCallback^ onBufferAmountChange;
+		_OnBufferChangeCallback^ on_buffer_amount_change_;
 		GCHandle^ on_buffer_amount_change_handle_;
 
 		delegate void _OnIceStateCallback(webrtc::PeerConnectionInterface::IceConnectionState state);
-		_OnIceStateCallback^ onIceStateChange;
-		GCHandle^ on_ice_state_callback_handle_;
+		_OnIceStateCallback^ on_ice_state_change_;
+		GCHandle^ on_ice_state_change_handle_;
 
 		delegate void _OnIceGatheringStateCallback(webrtc::PeerConnectionInterface::IceGatheringState state);
-		_OnIceGatheringStateCallback^ onIceGatheringStateChange;
-		GCHandle^ on_ice_gathering_state_callback_handle_;
-
-		void FreeGCHandle(GCHandle^% g)
-		{
-			if(g != nullptr)
-			{
-				g->Free();
-			}
-		}
+		_OnIceGatheringStateCallback^ on_ice_gathering_state_change_;
+		GCHandle^ on_ice_gathering_state_change_handle_;
 
 		void _OnSuccess(String^ type, String^ sdp)
 		{
@@ -328,6 +312,18 @@ namespace Spitfire
 				OnSuccessAnswer(sdpModel);
 			}
 		}
+		void _OnFailure(String^ error)
+		{
+			OnFailure(error);
+		}
+		void _OnMessage(String^ label, uint8_t* data, uint32_t size, bool is_binary)
+		{
+			//auto buffer = gcnew array<Byte>(size);
+			//IntPtr src(data);
+			//Marshal::Copy(src, buffer, 0, size);
+			IntPtr managedPointer(data);
+			OnMessage(label, managedPointer, size, is_binary);
+		}
 
 		void _OnIceCandidate(String^ sdp_mid, int32_t sdp_mline_index, String^ sdp)
 		{
@@ -338,12 +334,6 @@ namespace Spitfire
 			OnIceCandidate(ice);
 		}
 
-		void _OnFailure(String^ error)
-		{
-			OnFailure(error);
-		}
-
-		
 		void _OnIceState(webrtc::PeerConnectionInterface::IceConnectionState state)
 		{
 
@@ -368,56 +358,39 @@ namespace Spitfire
 			OnDataChannelStateChange(label, managedState);
 		}
 
-		void _OnMessage(String^ label, uint8_t* data, const uint32_t size, const bool is_binary)
-		{
-			//auto buffer = gcnew array<Byte>(size);
-			//IntPtr src(data);
-			//Marshal::Copy(src, buffer, 0, size);
-			IntPtr managedPointer(data);
-			OnMessage(label, managedPointer, size, is_binary);
-		}
-
 		void Initialize(uint16_t min_port, uint16_t max_port)
 		{
-			disposed_ = false;
-			conductor_ = new std::unique_ptr<Spitfire::RtcConductor>(new Spitfire::RtcConductor());
+			#if defined(_DEBUG)
+				//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF);
+			#endif
+
+			assert(!conductor_);
+			conductor_ = new Spitfire::RtcConductor();
 			min_port_ = min_port;
 			max_port_ = max_port;
 
-			onSuccess = gcnew _OnSuccessCallback(this, &SpitfireRtc::_OnSuccess);
-			on_success_handle_ = GCHandle::Alloc(onSuccess);
-			conductor_->get()->onSuccess = static_cast<Spitfire::OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
+			// NOTE: How to: Define and Use Delegates (C++/CLI) https://docs.microsoft.com/en-us/cpp/dotnet/how-to-define-and-use-delegates-cpp-cli
 
-			onFailure = gcnew _OnFailureCallback(this, &SpitfireRtc::_OnFailure);
-			on_failure_handle_ = GCHandle::Alloc(onFailure);
-			conductor_->get()->onFailure = static_cast<Spitfire::OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
+			#define B(on_xxx_, delegate_name_a, delegate_name_b, delegate_name_c) \
+				on_xxx_ = gcnew _##delegate_name_a##Callback(this, &SpitfireRtc::_##delegate_name_b); \
+				on_xxx_##handle_ = GCHandle::Alloc(on_xxx_); \
+				conductor_->on_xxx_ = static_cast<delegate_name_c##CallbackNative>(Marshal::GetFunctionPointerForDelegate(on_xxx_).ToPointer());
 
-			onMessage = gcnew _OnMessageCallback(this, &SpitfireRtc::_OnMessage);
-			on_message_handle_ = GCHandle::Alloc(onMessage);
-			conductor_->get()->onMessage = static_cast<Spitfire::OnMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onMessage).ToPointer());
+			#define A(on_xxx_, delegate_name) B(on_xxx_, delegate_name, delegate_name, delegate_name)
 
-			
-			onIceCandidate = gcnew _OnIceCandidateCallback(this, &SpitfireRtc::_OnIceCandidate);
-			on_ice_candidate_handle_ = GCHandle::Alloc(onIceCandidate);
-			conductor_->get()->onIceCandidate = static_cast<Spitfire::OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
+			A(on_success_, OnSuccess);
+			A(on_failure_, OnFailure);
+			A(on_message_, OnMessage);
 
-			onDataChannelStateChange = gcnew _OnDataChannelStateCallback(this, &SpitfireRtc::_OnDataChannelState);
-			on_data_channel_state_handle_ = GCHandle::Alloc(onDataChannelStateChange);
-			conductor_->get()->onDataChannelState = static_cast<Spitfire::OnDataChannelStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataChannelStateChange).ToPointer());
+			A(on_ice_candidate_, OnIceCandidate);
+			A(on_data_channel_state_change_, OnDataChannelState);
+			B(on_ice_state_change_, OnIceState, OnIceState, OnIceStateChange);
+			A(on_ice_gathering_state_change_, OnIceGatheringState);
+			B(on_buffer_amount_change_, OnBufferChange, OnBufferAmountChange, OnBufferAmount);
 
-			onIceStateChange = gcnew _OnIceStateCallback(this, &SpitfireRtc::_OnIceState);
-			on_ice_state_callback_handle_ = GCHandle::Alloc(onIceStateChange);
-			conductor_->get()->onIceStateChange = static_cast<Spitfire::OnIceStateChangeCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceStateChange).ToPointer());
-
-			onIceGatheringStateChange = gcnew _OnIceGatheringStateCallback(this, &SpitfireRtc::_OnIceGatheringState);
-			on_ice_gathering_state_callback_handle_ = GCHandle::Alloc(onIceGatheringStateChange);
-			conductor_->get()->onIceGatheringStateChange = static_cast<Spitfire::OnIceGatheringStateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceGatheringStateChange).ToPointer());
-
-			onBufferAmountChange = gcnew _OnBufferChangeCallback(this, &SpitfireRtc::_OnBufferAmountChange);
-			on_buffer_amount_change_handle_ = GCHandle::Alloc(onBufferAmountChange);
-			conductor_->get()->onBufferAmountChange = static_cast<Spitfire::OnBufferAmountCallbackNative>(Marshal::GetFunctionPointerForDelegate(onBufferAmountChange).ToPointer());
+			#undef A
+			#undef B
 		}
-	
 		
 	public:
 		
@@ -484,35 +457,30 @@ namespace Spitfire
 
 		SpitfireRtc()
 		{
+			RTC_DLOG_F(LS_INFO);
 			Initialize(1025, 65535);
 		}
-		SpitfireRtc(const uint16_t min_port, const uint16_t max_port)
+		SpitfireRtc(uint16_t min_port, uint16_t max_port)
 		{
+			RTC_DLOG_F(LS_INFO) << min_port << ", " << max_port;
 			Initialize(min_port, max_port);
 		}
 		~SpitfireRtc()
 		{
+			RTC_DLOG_F(LS_INFO) << disposed_;
 			if(disposed_)
 				return;
-
-			// dispose managed data
+			#pragma region Delegate Handle
 			FreeGCHandle(on_success_handle_);
 			FreeGCHandle(on_failure_handle_);
 			FreeGCHandle(on_message_handle_);
 			FreeGCHandle(on_ice_candidate_handle_);
-			FreeGCHandle(on_data_channel_state_handle_);
+			FreeGCHandle(on_data_channel_state_change_handle_);
 			FreeGCHandle(on_buffer_amount_change_handle_);
-			FreeGCHandle(on_ice_state_callback_handle_);
-			FreeGCHandle(on_ice_gathering_state_callback_handle_);
-
-		
-			if(conductor_)
-			{
-				conductor_->get()->DeletePeerConnection();
-			}
-
-			this->!SpitfireRtc(); // call finalizer
-
+			FreeGCHandle(on_ice_state_change_handle_);
+			FreeGCHandle(on_ice_gathering_state_change_handle_);
+			#pragma endregion
+			this->!SpitfireRtc();
 			disposed_ = true;
 		}
 
@@ -523,7 +491,8 @@ namespace Spitfire
 		static void EnableLogging(RtcLogVerbosity verbosity, String^ log_directory, const uint64_t max_log_size, const uint16_t max_number_of_splits)
 		{
 			const auto directory = marshal_as<std::string>(log_directory);
-			if (!directory.empty()) {
+			if (!directory.empty()) 
+			{
 				static rtc::FileRotatingLogSink sink(directory, "spitfire", max_log_size, max_number_of_splits);
 				sink.Init();
 				rtc::LogMessage::LogTimestamps();
@@ -556,12 +525,14 @@ namespace Spitfire
 		/// </summary>
 		bool InitializePeerConnection()
 		{
-			return conductor_->get()->InitializePeerConnection(min_port_, max_port_);
+			RTC_DCHECK(conductor_);
+			return conductor_->InitializePeerConnection(min_port_, max_port_);
 		}
 
 		void CreateOffer()
 		{
-			conductor_->get()->CreateOffer();
+			RTC_DCHECK(conductor_);
+			conductor_->CreateOffer();
 		}
 
 		/// <summary>
@@ -569,12 +540,15 @@ namespace Spitfire
 		/// </summary>
 		bool ProcessMessages(Int32 delay)
 		{
-			return conductor_->get()->ProcessMessages(delay);
+			RTC_DCHECK(conductor_);
+			return conductor_->ProcessMessages(delay);
 		}
 
 		void SetOfferReply(String^ type, String^ sdp)
 		{
-			conductor_->get()->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
+			RTC_DCHECK(type && sdp);
+			RTC_DCHECK(conductor_);
+			conductor_->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
 		}
 
 		/// <summary>
@@ -583,56 +557,64 @@ namespace Spitfire
 		/// </summary>
 		void SetOfferRequest(String^ sdp)
 		{
-			conductor_->get()->OnOfferRequest(marshal_as<std::string>(sdp));
+			RTC_DCHECK(sdp);
+			RTC_DCHECK(conductor_);
+			conductor_->OnOfferRequest(marshal_as<std::string>(sdp));
 		}
 
 		bool AddIceCandidate(String^ sdp_mid, int32_t sdp_mlineindex, String^ sdp)
 		{
-			return conductor_->get()->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
+			RTC_DCHECK(sdp_mid && sdp);
+			RTC_DCHECK(conductor_);
+			return conductor_->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
 		}
 
 		void AddServerConfig(ServerConfig^ config)
 		{
-			String^ type = config->Type == ServerType::Stun ? "stun" : "turn";
-			auto hostUri = marshal_as<std::string>(type + ":" + config->Host + ":" + config->Port);
-			auto u = config->Username;
-			auto username = String::IsNullOrWhiteSpace(u) ? "" : marshal_as<std::string>(u);
-			auto p = config->Password;
-			auto password = String::IsNullOrWhiteSpace(p) ? "" : marshal_as<std::string>(p);
-			conductor_->get()->AddServerConfig(hostUri, username, password);
+			//RTC_DCHECK(config);
+			RTC_DCHECK(conductor_);
+			if(!config)
+				throw gcnew ArgumentException(gcnew String("Missing mandatory argument"), gcnew String("config"));
+			if(String::IsNullOrEmpty(config->Host))
+				throw gcnew ArgumentException(gcnew String("Missing mandatory host argument"));
+			char uri[256];
+			sprintf_s(uri, "%hs:%hs:%u", config->Type == ServerType::Stun ? "stun" : "turn", From(config->Host, "").c_str(), config->Port);
+			conductor_->AddServerConfig(uri, From(config->Username, ""), From(config->Password, ""));
 		}
+
 		/// <summary>
 		/// Creates a data channel from within the application.
 		/// Only call if your application is setting up the connection and preparing to offer.
 		/// </summary>
 		void CreateDataChannel(DataChannelOptions^ dataChannelOptions)
 		{
+			RTC_DCHECK(dataChannelOptions);
+			RTC_DCHECK(conductor_);
 			auto label = dataChannelOptions->Label;
 			auto protocol = dataChannelOptions->Protocol;
-
 			webrtc::DataChannelInit dc_options;
 			dc_options.id = dataChannelOptions->Id;
-			if(dataChannelOptions->MaxRetransmits.HasValue) {
+			if(dataChannelOptions->MaxRetransmits.HasValue)
 				dc_options.maxRetransmits.emplace(dataChannelOptions->MaxRetransmits.Value);
-			}
-			if(dataChannelOptions->MaxRetransmitTime.HasValue) {
+			if(dataChannelOptions->MaxRetransmitTime.HasValue)
 				dc_options.maxRetransmitTime.emplace(dataChannelOptions->MaxRetransmitTime.Value);
-			}
 			dc_options.negotiated = dataChannelOptions->Negotiated;
 			dc_options.ordered = dataChannelOptions->Ordered;
 			if(!String::IsNullOrWhiteSpace(protocol))
-			{
 				dc_options.protocol = marshal_as<std::string>(protocol);
-			}
 			dc_options.reliable = dataChannelOptions->Reliable;
-			conductor_->get()->CreateDataChannel(marshal_as<std::string>(label), dc_options);
+			conductor_->CreateDataChannel(marshal_as<std::string>(label), dc_options);
 		}
+
 		/// <summary>
 		/// Send your text through the data channel
 		/// </summary>
 		void DataChannelSendText(String^ label, String^ text)
 		{
-			conductor_->get()->DataChannelSendText(marshal_as<std::string>(label), marshal_as<std::string>(text));
+			RTC_DCHECK(label);
+			RTC_DCHECK(text);
+			RTC_DCHECK(conductor_);
+			conductor_->SendToDataChannel(marshal_as<std::string>(label), webrtc::DataBuffer(marshal_as<std::string>(text)));
 		}
 
 		/// <summary>
@@ -640,28 +622,31 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelInfo^ GetDataChannelInfo(String^ label)
 		{
-			auto rtc_info = conductor_->get()->GetDataChannelInfo(marshal_as<std::string>(label));
-			if(rtc_info.protocol != "unknown")
+			RTC_DCHECK(label);
+			RTC_DCHECK(conductor_);
+			const auto optional_info = conductor_->GetDataChannelInfo(marshal_as<std::string>(label));
+			if(optional_info.has_value())
 			{
+				const auto& info = optional_info.value();
 				const auto managed_info = gcnew Spitfire::DataChannelInfo();
-				managed_info->CurrentBuffer = rtc_info.currentBuffer;
-				managed_info->BytesSent = rtc_info.bytesSent;
-				managed_info->BytesReceived = rtc_info.bytesReceived;
+				managed_info->CurrentBuffer = info.currentBuffer;
+				managed_info->BytesSent = info.bytesSent;
+				managed_info->BytesReceived = info.bytesReceived;
 
-				managed_info->Reliable = rtc_info.reliable;
-				managed_info->Ordered = rtc_info.ordered;
-				managed_info->Negotiated = rtc_info.negotiated;
+				managed_info->Reliable = info.reliable;
+				managed_info->Ordered = info.ordered;
+				managed_info->Negotiated = info.negotiated;
 
-				managed_info->MessagesSent = rtc_info.messagesSent;
-				managed_info->MessagesReceived = rtc_info.messagesReceived;
-				managed_info->MaxRetransmits = rtc_info.maxRetransmits;
-				managed_info->MaxRetransmitTime = rtc_info.maxRetransmitTime;
+				managed_info->MessagesSent = info.messagesSent;
+				managed_info->MessagesReceived = info.messagesReceived;
+				managed_info->MaxRetransmits = info.maxRetransmits;
+				managed_info->MaxRetransmitTime = info.maxRetransmitTime;
 
-				if(!rtc_info.protocol.empty())
+				if(!info.protocol.empty())
 				{
-					managed_info->Protocol = gcnew String(rtc_info.protocol.c_str());
+					managed_info->Protocol = gcnew String(info.protocol.c_str());
 				}
-				managed_info->State = static_cast<DataChannelState>(rtc_info.state);
+				managed_info->State = static_cast<DataChannelState>(info.state);
 				return managed_info;
 			}
 			return nullptr;
@@ -672,9 +657,10 @@ namespace Spitfire
 		/// </summary>
 		Spitfire::DataChannelState GetDataChannelState(String^ label)
 		{
-			auto state = conductor_->get()->GetDataChannelState(marshal_as<std::string>(label));
-			const auto managed_state = static_cast<DataChannelState>(state);
-			return managed_state;
+			RTC_DCHECK(label);
+			RTC_DCHECK(conductor_);
+			const auto state = conductor_->GetDataChannelState(marshal_as<std::string>(label));
+			return static_cast<DataChannelState>(state.value_or(webrtc::DataChannelInterface::DataState::kClosed));
 		}
 		
 		/// <summary>
@@ -682,8 +668,11 @@ namespace Spitfire
 		/// </summary>
 		void CloseDataChannel(String^ label)
 		{
-			conductor_->get()->CloseDataChannel(marshal_as<std::string>(label));
+			RTC_DCHECK(label);
+			RTC_DCHECK(conductor_);
+			conductor_->CloseDataChannel(marshal_as<std::string>(label));
 		}
+
 		/// <summary>
 		/// Send your binary data through the data channel
 		/// Be aware that channels have a 16KB limit and you should take advantage 
@@ -691,18 +680,42 @@ namespace Spitfire
 		/// </summary>
 		void DataChannelSendData(String^ label, Byte* array_data, uint32_t length)
 		{
-			conductor_->get()->DataChannelSendData(marshal_as<std::string>(label), array_data, length);
+			RTC_DCHECK(label && array_data);
+			RTC_DCHECK(conductor_);
+			conductor_->SendToDataChannel(marshal_as<std::string>(label), webrtc::DataBuffer(rtc::CopyOnWriteBuffer(array_data, length), true));
 		}
 
 	protected:
 		!SpitfireRtc()
 		{
-			// free unmanaged data
+			RTC_DLOG_F(LS_INFO) << static_cast<bool>(conductor_ != nullptr);
 			if(conductor_)
 			{
-				conductor_->release();
-				delete conductor_;
+				RtcConductor* conductor = conductor_;
+				conductor_ = nullptr;
+				delete conductor;
 			}
+		}
+		static void FreeGCHandle(GCHandle^% handle)
+		{
+			if(!handle)
+				return;
+			handle->Free();
+			handle = nullptr;
+		}
+
+	private:
+		static absl::optional<std::string> From(String^ value)
+		{
+			if(!value)
+				return absl::nullopt;
+			return msclr::interop::marshal_as<std::string>(value);
+		}
+		static std::string From(String^ value, const char* default_value)
+		{
+			if(!value)
+				return default_value;
+			return msclr::interop::marshal_as<std::string>(value);
 		}
 	};
 }
